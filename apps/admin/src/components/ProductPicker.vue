@@ -202,7 +202,28 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue'
+import type { TableInstance } from 'element-plus'
 import { productApi } from '@/api'
+
+interface ProductCategory {
+  id: string
+  name: string
+  children?: ProductCategory[]
+}
+
+interface ProductOption {
+  id: string
+  title?: string
+  images?: string[]
+  price?: number | string
+  status?: string
+}
+
+interface ProductListResponse {
+  products?: ProductOption[]
+  data?: ProductOption[]
+  total?: number
+}
 
 const props = withDefaults(defineProps<{
   modelValue: string | string[]
@@ -222,14 +243,14 @@ const vis = ref(false)
 const loading = ref(false)
 const keyword = ref('')
 const activeCatId = ref('')
-const catTree = ref<any[]>([])
-const products = ref<any[]>([])
+const catTree = ref<ProductCategory[]>([])
+const products = ref<ProductOption[]>([])
 const total = ref(0)
 const ppage = ref(1)
-const tableRef = ref<any>(null)
+const tableRef = ref<TableInstance>()
 
 // 外部已确认选中的商品对象
-const selectedProducts = ref<any[]>([])
+const selectedProducts = ref<ProductOption[]>([])
 // 弹窗内临时选中的 ID 集合
 const tempIds = reactive<Set<string>>(new Set())
 
@@ -246,14 +267,14 @@ function isSelected(id: string): boolean {
   return tempIds.has(id)
 }
 
-function rowClassName({ row }: { row: any }) {
+function rowClassName({ row }: { row: ProductOption }) {
   return isSelected(row.id) ? 'pp-row-selected' : ''
 }
 
 async function fetchCats() {
   try {
     const { data } = await productApi.getCategoryTree()
-    catTree.value = data || []
+    catTree.value = (data as ProductCategory[]) || []
   } catch { catTree.value = [] }
 }
 
@@ -266,8 +287,9 @@ async function fetchProducts() {
       categoryId: activeCatId.value || undefined,
       keyword: keyword.value || undefined,
     })
-    products.value = data.products || data.data || []
-    total.value = data.total || 0
+    const payload = data as ProductListResponse
+    products.value = payload.products || payload.data || []
+    total.value = payload.total || 0
     // 翻页后恢复勾选状态
     nextTick(() => {
       products.value.forEach(p => {
@@ -292,17 +314,17 @@ function open() {
 }
 
 // 多选：checkbox 变化
-function onSelectionChange(rows: any[]) {
+function onSelectionChange(rows: ProductOption[]) {
   if (!props.multiple) return
   // 当前页选中的行
-  const pageIds = new Set(products.value.map((p: any) => p.id))
+  const pageIds = new Set(products.value.map((p) => p.id))
   // 先清理当前页所有 ID
   pageIds.forEach(id => tempIds.delete(id))
   // 再添加选中的
-  rows.forEach((r: any) => tempIds.add(r.id))
+  rows.forEach((r) => tempIds.add(r.id))
 }
 
-function onSelectRow(selection: any[], row: any) {
+function onSelectRow(_selection: ProductOption[], row: ProductOption) {
   if (!props.multiple) return
   // Element Plus 多选时 selection 包含所有选中行（跨页累积）
   // row 是当前操作的行
@@ -313,9 +335,9 @@ function onSelectRow(selection: any[], row: any) {
   }
 }
 
-function onSelectAll(selection: any[]) {
+function onSelectAll(selection: ProductOption[]) {
   if (!props.multiple) return
-  const pageIds = new Set(products.value.map((p: any) => p.id))
+  const pageIds = new Set(products.value.map((p) => p.id))
   if (selection.length === 0) {
     // 取消全选当前页
     pageIds.forEach(id => tempIds.delete(id))
@@ -326,7 +348,7 @@ function onSelectAll(selection: any[]) {
 }
 
 // 单选：点击行
-function onRowClick(row: any) {
+function onRowClick(row: ProductOption) {
   if (props.multiple) {
     // 多选模式点击行 toggle 选中
     tableRef.value?.toggleRowSelection(row)

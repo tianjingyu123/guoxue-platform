@@ -11,7 +11,7 @@
 import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
 
 // ─── 视图模型类型 ───
-export type ManageRole = 'owner' | 'admin' | 'member'
+export type ManageRole = 'owner' | 'admin' | 'guest' | 'member'
 
 /** 概览数据（仅暴露后端真实可得字段；无真实来源的指标不提供，页面隐藏） */
 export interface CircleOverview {
@@ -24,6 +24,12 @@ export interface CircleOverview {
   postCount: number
   /** 加入是否需圈主审批（仅免费圈生效） */
   needApproval: boolean
+  /** 圈子类型（后端 CircleType：FREE/PAID/YEARLY·UpdateCircleDto 不收此字段 → 前端只读展示） */
+  type: string
+  /** 入圈价格（元·PAID/YEARLY 圈使用） */
+  price: number
+  /** 标签列表 */
+  tags: string[]
 }
 
 export interface ManageMember {
@@ -55,11 +61,12 @@ export interface CircleSettings {
 }
 
 // ─── 工具 ───
-/** 后端大写角色 → 前端三态 */
+/** 后端大写角色 → 前端四态（PARTNER/VOLUNTEER 归一为 member 展示） */
 function adaptRole(raw?: string): ManageRole {
   const r = (raw || '').toUpperCase()
   if (r === 'OWNER') return 'owner'
   if (r === 'ADMIN') return 'admin'
+  if (r === 'GUEST') return 'guest'
   return 'member'
 }
 
@@ -84,11 +91,14 @@ interface RawManageCircle {
   memberCount?: number | string
   postCount?: number | string
   needApproval?: boolean
+  type?: string
+  price?: number | string
+  tags?: string[]
 }
 /** GET /circles/:id 可能直接是圈子对象，也可能包一层 {circle} */
 interface RawManageOverview extends RawManageCircle { circle?: RawManageCircle }
 /** GET /circles/:id/announcement */
-interface RawAnnouncementResp { content?: string }
+interface RawAnnouncementResp { content?: string; createdAt?: string }
 /** 后端成员项 */
 interface RawManageMember {
   id?: string | number
@@ -98,7 +108,7 @@ interface RawManageMember {
   joinedAt?: string
 }
 /** /circles/:id/members 响应（可能裸数组，由 Array.isArray 运行时分流） */
-interface RawManageMembersResp { members?: RawManageMember[]; data?: RawManageMember[] }
+interface RawManageMembersResp { members?: RawManageMember[]; data?: RawManageMember[]; total?: number }
 /** 后端帖子项 */
 interface RawManagePost {
   id?: string | number
@@ -111,7 +121,9 @@ interface RawManagePost {
   isEssence?: boolean
 }
 /** /circles/:id/posts 响应（可能裸数组，由 Array.isArray 运行时分流） */
-interface RawManagePostsResp { posts?: RawManagePost[]; data?: RawManagePost[] }
+interface RawManagePostsResp { posts?: RawManagePost[]; data?: RawManagePost[]; total?: number }
+
+export interface ManagePage<T> { items: T[]; total: number }
 
 export const circleManageApi = {
   /** 概览/设置基本信息 — GET /circles/:id */
@@ -127,6 +139,9 @@ export const circleManageApi = {
       memberCount: Number(c.memberCount) || 0,
       postCount: Number(c.postCount) || 0,
       needApproval: !!c.needApproval,
+      type: (c.type || 'FREE').toUpperCase(),
+      price: Number(c.price) || 0,
+      tags: Array.isArray(c.tags) ? c.tags : [],
     }
   },
 
@@ -136,11 +151,18 @@ export const circleManageApi = {
     return res?.content ?? ''
   },
 
+  /** 最新公告（含发布时间，V0 设置页公告历史用） — GET /circles/:id/announcement */
+  getLatestAnnouncement: async (id: string): Promise<{ content: string; createdAt: string } | null> => {
+    const res = await apiGet<RawAnnouncementResp>(`/circles/${id}/announcement`)
+    if (!res?.content) return null
+    return { content: res.content, createdAt: res.createdAt ?? '' }
+  },
+
   /** 成员列表 — GET /circles/:id/members → {members:[...],total} */
-  getMembers: async (id: string): Promise<ManageMember[]> => {
-    const res = await apiGet<RawManageMembersResp>(`/circles/${id}/members?pageSize=50`)
+  getMembers: async (id: string, page = 1): Promise<ManagePage<ManageMember>> => {
+    const res = await apiGet<RawManageMembersResp>(`/circles/${id}/members?page=${page}&pageSize=50`)
     const arr: RawManageMember[] = Array.isArray(res) ? res : (res?.members ?? res?.data ?? [])
-    return arr.map((m): ManageMember => ({
+    const items = arr.map((m): ManageMember => ({
       id: String(m.id ?? m.userId ?? ''),
       userId: String(m.userId ?? m.user?.id ?? ''),
       name: m.user?.nickname ?? '匿名',
@@ -149,14 +171,15 @@ export const circleManageApi = {
       rawRole: (m.role || 'MEMBER').toUpperCase(),
       joinedAt: fmtDate(m.joinedAt),
     }))
+    return { items, total: Array.isArray(res) ? items.length : Number(res?.total) || items.length }
   },
 
   /** 帖子列表 — GET /circles/:id/posts → {posts:[...],total}
    *  注：后端 Post 模型无点赞数/评论数字段，故视图模型不含 likes/comments */
-  getPosts: async (id: string): Promise<ManagePost[]> => {
-    const res = await apiGet<RawManagePostsResp>(`/circles/${id}/posts?pageSize=50`)
+  getPosts: async (id: string, page = 1): Promise<ManagePage<ManagePost>> => {
+    const res = await apiGet<RawManagePostsResp>(`/circles/${id}/posts?page=${page}&pageSize=50`)
     const arr: RawManagePost[] = Array.isArray(res) ? res : (res?.posts ?? res?.data ?? [])
-    return arr.map((p): ManagePost => ({
+    const items = arr.map((p): ManagePost => ({
       id: String(p.id ?? ''),
       content: (p.content ?? p.title ?? '').toString(),
       author: {
@@ -168,11 +191,12 @@ export const circleManageApi = {
       isPinned: !!p.isTop,
       isEssence: !!p.isEssence,
     }))
+    return { items, total: Array.isArray(res) ? items.length : Number(res?.total) || items.length }
   },
 
   // ─── 写操作 ───
-  /** 设角色 — PUT /circles/:id/members/:userId/role，body {role:'ADMIN'|'MEMBER'} */
-  setMemberRole: (id: string, userId: string, role: 'ADMIN' | 'MEMBER') =>
+  /** 设角色 — PUT /circles/:id/members/:userId/role，body {role}（后端枚举 PARTNER/ADMIN/GUEST/VOLUNTEER/MEMBER） */
+  setMemberRole: (id: string, userId: string, role: 'ADMIN' | 'GUEST' | 'MEMBER') =>
     apiPut<void>(`/circles/${id}/members/${userId}/role`, { role }),
 
   /** 移除成员 — DELETE /circles/:id/members/:userId */
@@ -195,8 +219,8 @@ export const circleManageApi = {
   saveAnnouncement: (id: string, content: string) =>
     apiPut<void>(`/circles/${id}/announcement`, { content }),
 
-  /** 存设置 — PUT /circles/:id，body 仅含 UpdateCircleDto 支持的字段（name/intro/needApproval）
-   *  注：圈子分类(categoryLevel1) 与 圈规(rules) 后端 UpdateCircleDto 无对应字段，故不提交 */
-  saveSettings: (id: string, data: { name: string; intro: string; needApproval?: boolean }) =>
+  /** 存设置 — PUT /circles/:id，body 仅含 UpdateCircleDto 支持的字段（name/intro/cover/tags/price/needApproval）
+   *  注：圈子分类(categoryLevel1)、圈规(rules)、类型 type(FREE/PAID/YEARLY) 后端 UpdateCircleDto 无对应字段，故不提交 */
+  saveSettings: (id: string, data: { name?: string; intro?: string; cover?: string; tags?: string[]; price?: number; needApproval?: boolean }) =>
     apiPut<void>(`/circles/${id}`, data),
 }

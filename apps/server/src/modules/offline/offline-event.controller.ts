@@ -8,6 +8,7 @@ import {
   CreateStationEventDto, UpdateStationEventDto, UpdateStationEventStatusDto,
   SignInEventDto, UpdateEventPhotosDto,
 } from "./offline.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 /**
  * 驿站活动系统（T8 驿站 OMO P1a）
@@ -128,6 +129,7 @@ export class OfflineEventController {
   }
 
   @Post("dashboard/events/sign-in")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "活动扫码核销（驿站主·扫 qrCode 签到）" })
   @ApiResponse({ status: 201, description: "核销成功" })
@@ -140,6 +142,7 @@ export class OfflineEventController {
   }
 
   @Put("dashboard/events/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "编辑活动（驿站主·已取消/已结束不可编辑）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -153,6 +156,7 @@ export class OfflineEventController {
   }
 
   @Put("dashboard/events/:id/status")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "活动状态流转（publish发布/cancel取消并群发通知报名者/finish结束）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -166,6 +170,7 @@ export class OfflineEventController {
   }
 
   @Put("dashboard/events/:id/photos")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "回顾照片墙（驿站主·URL 数组≤30 张·仅活动结束或开场后可传）" })
   @ApiResponse({ status: 200, description: "更新成功" })

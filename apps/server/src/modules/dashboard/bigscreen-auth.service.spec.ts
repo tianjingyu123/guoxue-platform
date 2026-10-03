@@ -3,7 +3,7 @@ import { BigScreenAuthService } from "./bigscreen-auth.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
 const mockPrisma = {
-  bigScreenToken: { create: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
+  bigScreenToken: { create: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
 };
 
 describe("BigScreenAuthService", () => {
@@ -32,10 +32,29 @@ describe("BigScreenAuthService", () => {
   });
 
   describe("approveToken", () => {
-    it("审批通过令牌", async () => {
-      mockPrisma.bigScreenToken.update.mockResolvedValue({ id: "t1", status: "APPROVED" });
+    it("审批通过令牌（审批人≠创建人）", async () => {
+      mockPrisma.bigScreenToken.findUnique.mockResolvedValue({ id: "t1", status: "PENDING", createdBy: "creator" });
+      mockPrisma.bigScreenToken.update.mockResolvedValue({ id: "t1", status: "ACTIVE" });
       const result = await svc.approveToken("t1", "admin");
-      expect(result.status).toBe("APPROVED");
+      expect(result.status).toBe("ACTIVE");
+    });
+
+    it("拒绝审批自己创建的令牌（四眼原则）", async () => {
+      mockPrisma.bigScreenToken.findUnique.mockResolvedValue({ id: "t1", status: "PENDING", createdBy: "admin" });
+      await expect(svc.approveToken("t1", "admin")).rejects.toThrow();
+      expect(mockPrisma.bigScreenToken.update).not.toHaveBeenCalled();
+    });
+
+    it("令牌不存在则报错", async () => {
+      mockPrisma.bigScreenToken.findUnique.mockResolvedValue(null);
+      await expect(svc.approveToken("nope", "admin")).rejects.toThrow();
+    });
+  });
+
+  describe("getAccessLogs", () => {
+    it("表未建时返回 available:false 契约", async () => {
+      const result = await svc.getAccessLogs({ pageSize: 50 });
+      expect(result).toEqual({ items: [], total: 0, available: false });
     });
   });
 

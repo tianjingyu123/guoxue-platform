@@ -653,7 +653,7 @@
 ## 七、技术基础设施
 
 ### 7.1 认证与安全
-- JWT双Token机制（15分钟accessToken + 7天refreshToken轮换防重放）
+- JWT 双 Token 机制（2 小时 accessToken + 30 天 refreshToken 原子一次性轮换防重放）
 - 6种系统角色 + 自定义角色 + 分站/圈主/商家/讲师身份
 - RolesGuard + JwtAuthGuard 双重守卫
 - StrictRedisThrottleGuard 接口限流（登录/注册/验证码/排盘/AI分析）

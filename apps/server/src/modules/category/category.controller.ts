@@ -5,6 +5,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { CategoryService } from "./category.service";
 import { CreateCategoryDto, UpdateCategoryDto } from "./dto/category.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("品类管理")
 @Controller("admin/categories")
@@ -22,6 +23,7 @@ export class CategoryController {
   }
 
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "新增品类" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -31,6 +33,7 @@ export class CategoryController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "编辑品类" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -41,6 +44,7 @@ export class CategoryController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除品类（检查无内容引用）" })
   @ApiResponse({ status: 200, description: "删除成功" })

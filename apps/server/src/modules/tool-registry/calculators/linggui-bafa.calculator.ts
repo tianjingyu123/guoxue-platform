@@ -3,7 +3,7 @@
 // 灵龟八法者，以八脉交会八穴配合九宫八卦，按日时干支推算开穴
 // 《针灸大成》云：「灵龟八法，乃飞腾八法之源，按时取穴之要法。」
 
-import { GAN, ZHI } from "@guoxue/bazi-engine";
+import { GAN, ZHI, calcRiZhu } from "@guoxue/bazi-engine";
 import type { LingGuiBaFaResult } from "@guoxue/shared";
 
 // ── 八脉交会八穴详解 ──
@@ -80,10 +80,26 @@ const RI_GAN_BASE: Record<string, number> = {
   "丙":7, "辛":7,
 };
 
-// 日支配数（子午10/丑未8/寅申8/卯酉6/辰戌6/巳亥4）
+/**
+ * 日支配数。
+ *
+ * 🔴 2026-09-19 修：原表为「子午10/丑未8/寅申8/卯酉6/辰戌6/巳亥4」，
+ * 十二支里**十一个错**（只有寅=8 碰巧对）。那串数字其实是把时支表挪了几位，
+ * 不是日支表。
+ *
+ * 正解出自《针灸大成·八法逐日干支歌》：
+ *   「甲己辰戌丑未十，乙庚申酉九为期，丁壬寅卯八成数，
+ *     戊癸巳午七相宜，丙辛亥子亦七数，逐日干支即得知。」
+ * 歌诀一句管两样：前半定日干、后半定日支。
+ *   辰戌丑未＝10、申酉＝9、寅卯＝8、巳午＝7、亥子＝7
+ * 同一首歌诀里的日干配数（甲己10/乙庚9/丁壬8/戊癸7/丙辛7）原表是对的，未动。
+ */
 const RI_ZHI_BASE: Record<string, number> = {
-  "子":10, "午":10, "丑":8, "未":8, "寅":8, "申":8,
-  "卯":6, "酉":6, "辰":6, "戌":6, "巳":4, "亥":4,
+  "辰":10, "戌":10, "丑":10, "未":10,
+  "申":9, "酉":9,
+  "寅":8, "卯":8,
+  "巳":7, "午":7,
+  "亥":7, "子":7,
 };
 
 // 八法临时干支基数（时辰干支→基数）
@@ -98,16 +114,20 @@ const SHI_ZHI_BASE: Record<string, number> = {
   "卯":6, "酉":6, "辰":5, "戌":5, "巳":4, "亥":4,
 };
 
-// ── 计算日干支（简化公式，以2000-01-01=甲午为基准） ──
+/**
+ * 计算日干支——改用已核验的 `calcRiZhu`，不再手搓。
+ *
+ * 🔴 2026-09-19 修：原来是一个自称「简化公式」的实现，注释写着
+ * 「以 2000-01-01 = 甲午为基准」——**基准日就是错的**，
+ * 2000-01-01 实为**戊午**（甲=0 与戊=4 差四位）。
+ * 拿引擎比对 2020 年起的 400 天，**400/400 全不一致**，天干恒偏 4 位、地支正确。
+ *
+ * 这个错误在灵龟八法里是致命的：开穴序号 = 日干基数 + 日支基数 + 时干基数 + 时支基数，
+ * 日干错四位，开穴就全错，而这是个**按时取穴**的针灸工具。
+ */
 function calcRiGanZhi(year: number, month: number, day: number): { gan: string; zhi: string } {
-  // 以 2000-01-01 = 甲午（ganIdx=0, zhiIdx=6）为基准
-  const daysSince2000 = Math.floor(
-    (Date.UTC(year, month - 1, day) - Date.UTC(2000, 0, 1)) / 86400000
-  );
-  // 甲午 = gan[0], zhi[6], 所以 baseGan=0, baseZhi=6
-  const ganIdx = ((daysSince2000 % 10) + 10) % 10;
-  const zhiIdx = ((daysSince2000 % 12) + 12 + 6) % 12;
-  return { gan: GAN[ganIdx], zhi: ZHI[zhiIdx] };
+  const r = calcRiZhu(year, month, day) as { gan?: string; zhi?: string };
+  return { gan: r?.gan ?? GAN[0], zhi: r?.zhi ?? ZHI[0] };
 }
 
 // ── 计算时辰干支（日干+时辰） ──
@@ -152,8 +172,22 @@ export function calculateLingGuiBaFa(input: Record<string, unknown>): LingGuiBaF
   // 4. 八法逐日推算：日干支基数 + 临时干支基数 → 开穴序号
   const riBase = (RI_GAN_BASE[riGan] || 0) + (RI_ZHI_BASE[riZhi] || 0);
   const shiBase = (SHI_GAN_BASE[shiGan] || 0) + (SHI_ZHI_BASE[shiZhi] || 0);
-  const total = (riBase + shiBase) % 9 || 9; // 1-9 对应九宫
-  // 实际使用时按阳日/阴日分顺逆，此处取模简化
+  /**
+   * 🔴 2026-09-19 修：原为 `(riBase + shiBase) % 9 || 9`，恒除九，
+   * 旁边还留着一句「实际使用时按阳日/阴日分顺逆，此处取模简化」——自己承认是简化的。
+   *
+   * 《针灸大成·八法临时干支歌》末两句写得很死：
+   *   「戊癸辰戌各有五，巳亥单加四共齐，**阳日除九阴除六**，不及零余穴下推。」
+   * 阳日（甲丙戊庚壬）以九除、阴日（乙丁己辛癸）以六除，余数即宫，余零则取除数。
+   *
+   * ⚠️ 随之而来的一个后果要如实记下：阴日以六除，余数只落在 1–6，
+   * 也就是兑7（后溪）、艮8（内关）、离9（列缺）在阴日不会开。
+   * 这是该法本身的性质（历代注家亦有议论），不是本实现的取舍，
+   * 但它值得针灸方向的专业人士复核一次，故本工具仍不列入 VERIFIED_TOOLS。
+   */
+  const isYangRi = "甲丙戊庚壬".includes(riGan);
+  const divisor = isYangRi ? 9 : 6;
+  const total = (riBase + shiBase) % divisor || divisor;
 
   // 5. 按九宫数找开穴
   // 九宫配穴：1=申脉(坎), 2=照海(坤), 3=外关(震), 4=足临泣(巽), 5=中宫(男寄坤=照海,女寄艮=内关), 6=公孙(乾), 7=后溪(兑), 8=内关(艮), 9=列缺(离)

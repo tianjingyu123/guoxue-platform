@@ -19,7 +19,10 @@ import {
   SendImageDto,
   SendCustomDto,
   UpdatePolicyConfigDto,
+  UpdateFallbackConversationDto,
 } from "./im.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
+import { ImFallbackService } from "./im-fallback.service";
 
 @ApiTags("IM 即时通讯")
 @Controller("im")
@@ -27,7 +30,72 @@ export class ImController {
   constructor(
     private im: ImService,
     private policy: ImPolicyService,
+    private fallback: ImFallbackService,
   ) {}
+
+  /** 客户端启动时先读能力；腾讯 IM 后期开通后会自动切回，不需要改客户端。 */
+  @Get("capabilities")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  capabilities() {
+    const configured = this.im.isConfigured();
+    const trtcAppId = Number(process.env.TRTC_SDK_APP_ID || 0);
+    const trtcReady = Number.isSafeInteger(trtcAppId) && trtcAppId > 0 && Boolean(process.env.TRTC_SECRET_KEY?.trim());
+    return {
+      mode: configured ? "TENCENT" : "FALLBACK",
+      c2c: true,
+      notifications: true,
+      groups: configured,
+      friends: configured,
+      calls: configured && trtcReady,
+    };
+  }
+
+  @Get("fallback/conversations")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  fallbackConversations(@Req() req: Request) {
+    return this.fallback.conversations(req.user.id);
+  }
+
+  @Get("fallback/c2c/history")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  fallbackHistory(@Req() req: Request, @Query("toUserId") toUserId: string, @Query("count") count?: string) {
+    return this.fallback.history(req.user.id, toUserId, Number(count) || 50);
+  }
+
+  @Post("fallback/c2c/send")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  fallbackSend(@Req() req: Request, @Body() dto: SendC2CMsgDto) {
+    return this.fallback.sendText(req.user.id, dto.toUserId, dto.text);
+  }
+
+  @Put("fallback/c2c/read/:peerUserId")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  fallbackRead(@Req() req: Request, @Param("peerUserId") peerUserId: string) {
+    return this.fallback.markRead(req.user.id, peerUserId);
+  }
+
+  @Put("fallback/conversations/:peerUserId")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  fallbackPreference(
+    @Req() req: Request,
+    @Param("peerUserId") peerUserId: string,
+    @Body() input: UpdateFallbackConversationDto,
+  ) {
+    return this.fallback.updatePreference(req.user.id, peerUserId, input);
+  }
+
+  @Delete("fallback/conversations/:peerUserId")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  fallbackClear(@Req() req: Request, @Param("peerUserId") peerUserId: string) {
+    return this.fallback.clearConversation(req.user.id, peerUserId);
+  }
 
   // ───────── 私信社交策略 ─────────
 
@@ -54,6 +122,7 @@ export class ImController {
   }
 
   @Put("policy/config")
+  @RedLineGate(RedLine.USER_DATA, RedLine.COMPLIANCE)
   @ApiOperation({ summary: "更新私信社交策略配置（管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -127,6 +196,7 @@ export class ImController {
   // ───────── 群组管理 ─────────
 
   @Post("groups")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "创建群组", description: "为圈子/直播间等创建 IM 群组" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -140,6 +210,7 @@ export class ImController {
   }
 
   @Delete("groups/:groupId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "解散群组" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -153,6 +224,7 @@ export class ImController {
   }
 
   @Post("groups/:groupId/members")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "添加群成员" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -169,6 +241,7 @@ export class ImController {
   }
 
   @Delete("groups/:groupId/members")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除群成员" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -317,40 +390,6 @@ export class ImController {
   @UseGuards(JwtAuthGuard)
   getBlacklist(@Req() req: Request) {
     return this.im.getBlacklist(req.user.id);
-  }
-
-  // ───────── 好友申请处理 ─────────
-
-  @Post("friends/approve")
-  @ApiOperation({ summary: "通过好友申请" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  approveFriendRequest(@Req() req: Request, @Body() dto: FriendDto) {
-    return this.im.approveFriendRequest(req.user.id, dto.toUserId);
-  }
-
-  @Post("friends/reject")
-  @ApiOperation({ summary: "拒绝好友申请" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  rejectFriendRequest(@Req() req: Request, @Body() dto: FriendDto) {
-    return this.im.rejectFriendRequest(req.user.id, dto.toUserId);
-  }
-
-  @Get("friends/pending")
-  @ApiOperation({ summary: "获取待处理好友申请" })
-  @ApiResponse({ status: 200, description: "成功" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  listPendingFriendRequests(@Req() req: Request) {
-    return this.im.listPendingFriendRequests(req.user.id);
   }
 
   // ───────── 群组详情 ─────────

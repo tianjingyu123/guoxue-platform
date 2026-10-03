@@ -18,7 +18,7 @@
         <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
       </view>
       <view v-else-if="isEmpty" class="state-empty">
-        <text class="state-empty-text">暂无数据</text>
+        <text class="state-empty-text">数据每日凌晨聚合更新，开展经营后这里会亮起来</text>
       </view>
       <view v-else-if="notOpened" class="state-empty smp-not-opened">
         <view class="smp-not-opened-icon"><app-icon name="store" :size="64" color="#C41E3A" /></view>
@@ -177,7 +177,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AdvisorCard from '@/components/workbench/advisor-card.vue'
 import MarketingTopicsCard from '@/components/workbench/marketing-topics-card.vue'
 import CrmReminderCard from '@/components/workbench/crm-reminder-card.vue'
-import TeamTaskCard from '@/components/workbench/team-task-card.vue'
+import TeamTaskCard from '@/pkg-operator/components/team-task-card.vue'
 import FunnelCard from '@/components/workbench/funnel-card.vue'
 import AlmanacBar from '@/components/workbench/almanac-bar.vue'
 import { navigateTo } from '@/utils/router'
@@ -187,7 +187,7 @@ import {
   type StationTrendData,
   type StationNotice,
   type StationPanelQuickAction,
-} from '@/lib/operator-data'
+} from '@/pkg-operator/lib/operator-data'
 
 const loading = ref(true)
 const error = ref('')
@@ -283,7 +283,7 @@ function noticeColor(type: string) {
 
 function goAction(qa: StationPanelQuickAction) { navigateTo(qa.path) }
 function goNotices() { navigateTo('/station/notices') }
-function goRenew() { navigateTo('/pkg-operator/join-station/index') }
+function goRenew() { navigateTo('/pkg-operator/join-station/index?renew=1') }
 function goEarnings() { navigateTo('/station/earnings') }
 // 站长佣金结算后进入平台钱包，提现在钱包内完成
 function goWithdraw() { navigateTo('/pkg-mine/wallet/index') }

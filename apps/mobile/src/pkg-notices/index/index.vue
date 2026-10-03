@@ -1,6 +1,5 @@
 <template>
   <view class="notices-page">
-    <!-- 顶部导航 -->
     <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-row">
         <view class="nav-back" @tap="goBack">
@@ -9,7 +8,6 @@
         <text class="nav-title">平台公告</text>
         <view class="nav-placeholder" />
       </view>
-      <!-- 筛选栏 -->
       <scroll-view scroll-x class="filter-scroll" :show-scrollbar="false">
         <view class="filter-row">
           <view
@@ -25,9 +23,7 @@
       </scroll-view>
     </view>
 
-    <!-- 列表 -->
     <view class="list-main">
-      <!-- 骨架屏 -->
       <template v-if="loading">
         <view v-for="i in 4" :key="i" class="notice-card skeleton-card">
           <view class="sk-cover" />
@@ -39,66 +35,47 @@
         </view>
       </template>
 
-      <!-- 空态 -->
+      <view v-else-if="error" class="empty-state">
+        <app-icon name="alert-circle" :size="88" color="#C41E3A" />
+        <text class="empty-title">公告加载失败</text>
+        <text class="empty-desc">{{ error }}</text>
+        <view class="retry-btn" @tap="loadData(true)"><text class="retry-text">重新加载</text></view>
+      </view>
+
       <view v-else-if="notices.length === 0" class="empty-state">
         <app-icon name="megaphone" :size="96" color="#D1D5DB" />
         <text class="empty-title">暂无公告</text>
-        <text class="empty-desc">当前没有任何公告信息</text>
+        <text class="empty-desc">平台当前没有正在展示的公告</text>
       </view>
 
-      <!-- 公告卡片 -->
       <template v-else>
-        <view
-          v-for="notice in notices"
-          :key="notice.id"
-          class="notice-card"
-          :class="{ unread: !notice.isRead }"
-          @tap="goDetail(notice.id)"
-        >
+        <view v-for="notice in notices" :key="notice.id" class="notice-card" @tap="goDetail(notice.id)">
           <view class="card-inner">
-            <image lazy-load
-              v-if="notice.cover"
-              :src="notice.cover"
-              class="card-cover"
-              mode="aspectFill"
-            />
+            <smart-cover class="card-cover" :src="''" :title="notice.title" type="default" deco :deco-size="40" />
             <view class="card-content">
-              <!-- 标题行 -->
               <view class="card-title-row">
-                <app-icon v-if="notice.isPinned" name="pin" :size="28" color="#C41E3A" />
-                <view v-if="!notice.isRead" class="unread-dot" />
-                <text class="card-title" :class="{ read: notice.isRead }">{{ notice.title }}</text>
+                <text class="card-title">{{ notice.title }}</text>
               </view>
-              <!-- 摘要 -->
               <text class="card-summary">{{ notice.summary }}</text>
-              <!-- 底部信息 -->
               <view class="card-footer">
                 <view class="footer-left">
-                  <view
-                    class="type-badge"
-                    :style="{ backgroundColor: typeColor(notice.type) + '20', color: typeColor(notice.type) }"
-                  >
+                  <view class="type-badge" :style="{ backgroundColor: typeColor(notice.type) + '20' }">
                     <text class="type-badge-text" :style="{ color: typeColor(notice.type) }">{{ typeLabel(notice.type) }}</text>
                   </view>
-                  <text class="footer-time">{{ formatTime(notice.publishedAt) }}</text>
+                  <text class="footer-time">{{ formatTime(notice.createdAt) }}</text>
                 </view>
-                <view class="footer-right">
-                  <app-icon name="eye" :size="24" color="#9CA3AF" />
-                  <text class="footer-views">{{ formatViews(notice.viewCount) }}</text>
-                  <app-icon name="chevron-right" :size="24" color="#9CA3AF" />
-                </view>
+                <view class="footer-right"><app-icon name="chevron-right" :size="24" color="#9CA3AF" /></view>
               </view>
             </view>
           </view>
         </view>
 
-        <!-- 加载更多 -->
         <view v-if="hasMore" class="load-more" @tap="handleLoadMore">
           <view v-if="loadingMore" class="load-more-inner">
             <view class="spinner" />
             <text class="load-more-text">加载中...</text>
           </view>
-          <text v-else class="load-more-text">点击加载更多</text>
+          <text v-else class="load-more-text">加载更多</text>
         </view>
         <text v-else class="load-end">已加载全部公告</text>
       </template>
@@ -106,176 +83,98 @@
   </view>
 </template>
 
+
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
+import { noticesApi, type PublicNotice } from '@/lib/notices-data'
 
-type NoticeType = 'system' | 'update' | 'activity' | 'maintenance' | 'policy'
-
-interface NoticeItem {
-  id: number
-  type: NoticeType
-  title: string
-  summary: string
-  cover?: string
-  isPinned: boolean
-  isRead: boolean
-  publishedAt: string
-  viewCount: number
-}
+type NoticeFilter = 'all' | 'INFO' | 'WARNING' | 'FORCE'
+type NoticeVM = PublicNotice & { summary: string }
 
 const statusBarHeight = ref(20)
-
-const filterOptions: { value: NoticeType | 'all'; label: string }[] = [
+const filterOptions: { value: NoticeFilter; label: string }[] = [
   { value: 'all', label: '全部' },
-  { value: 'system', label: '系统' },
-  { value: 'update', label: '更新' },
-  { value: 'activity', label: '活动' },
-  { value: 'maintenance', label: '维护' },
-  { value: 'policy', label: '政策' },
+  { value: 'INFO', label: '通知' },
+  { value: 'WARNING', label: '提醒' },
+  { value: 'FORCE', label: '重要' },
 ]
+const TYPE_LABELS: Record<string, string> = { INFO: '通知', WARNING: '提醒', FORCE: '重要' }
+const TYPE_COLORS: Record<string, string> = { INFO: '#2563EB', WARNING: '#CA8A04', FORCE: '#C41E3A' }
 
-const TYPE_LABELS: Record<NoticeType, string> = {
-  system: '系统',
-  update: '更新',
-  activity: '活动',
-  maintenance: '维护',
-  policy: '政策',
-}
-const TYPE_COLORS: Record<NoticeType, string> = {
-  system: '#2563EB',
-  update: '#16A34A',
-  activity: '#EA580C',
-  maintenance: '#CA8A04',
-  policy: '#C41E3A',
-}
-function typeLabel(t: NoticeType) {
-  return TYPE_LABELS[t] || '公告'
-}
-function typeColor(t: NoticeType) {
-  return TYPE_COLORS[t] || '#C41E3A'
-}
-
-const ALL_NOTICES: NoticeItem[] = [
-  {
-    id: 1,
-    type: 'system',
-    title: '关于平台账号实名认证升级的通知',
-    summary: '为保障用户账号安全，平台将于近期升级实名认证体系，请各位用户及时完成认证以免影响正常使用。',
-    cover: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&q=80',
-    isPinned: true,
-    isRead: false,
-    publishedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
-    viewCount: 23568,
-  },
-  {
-    id: 2,
-    type: 'update',
-    title: 'v3.2.0 版本更新：全新国学排盘工具上线',
-    summary: '本次更新新增六爻、梅花易数等多款排盘工具，优化了排盘结果展示，修复了若干已知问题。',
-    isPinned: true,
-    isRead: false,
-    publishedAt: new Date(Date.now() - 8 * 3600000).toISOString(),
-    viewCount: 15200,
-  },
-  {
-    id: 3,
-    type: 'activity',
-    title: '双十一国学节火热进行中，海量优惠等你来',
-    summary: '11月1日至11日，全场课程低至5折，名师一对一咨询限时特惠，更有国学币充值返利活动。',
-    cover: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=400&q=80',
-    isPinned: false,
-    isRead: true,
-    publishedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
-    viewCount: 8900,
-  },
-  {
-    id: 4,
-    type: 'maintenance',
-    title: '系统维护公告：11月15日凌晨维护通知',
-    summary: '为提升服务质量，平台将于11月15日凌晨2:00-4:00进行系统维护，期间部分功能可能无法使用。',
-    isPinned: false,
-    isRead: true,
-    publishedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
-    viewCount: 5600,
-  },
-  {
-    id: 5,
-    type: 'policy',
-    title: '《用户服务协议》与《隐私政策》更新说明',
-    summary: '我们更新了用户服务协议与隐私政策的部分条款，请您仔细阅读，继续使用即代表您同意更新后的条款。',
-    isPinned: false,
-    isRead: true,
-    publishedAt: new Date(Date.now() - 5 * 86400000).toISOString(),
-    viewCount: 3400,
-  },
-  {
-    id: 6,
-    type: 'system',
-    title: '关于打击违规内容与虚假宣传的专项治理公告',
-    summary: '平台近期开展专项治理行动，对违规内容、虚假宣传等行为进行严厉打击，欢迎广大用户监督举报。',
-    isPinned: false,
-    isRead: true,
-    publishedAt: new Date(Date.now() - 8 * 86400000).toISOString(),
-    viewCount: 2100,
-  },
-]
-
-const notices = ref<NoticeItem[]>([])
+const allNotices = ref<NoticeVM[]>([])
 const loading = ref(true)
-const filter = ref<NoticeType | 'all'>('all')
 const loadingMore = ref(false)
-const hasMore = ref(false)
+const error = ref('')
+const filter = ref<NoticeFilter>('all')
+const page = ref(1)
+const totalPages = ref(1)
+const notices = computed(() => filter.value === 'all'
+  ? allNotices.value
+  : allNotices.value.filter((notice) => notice.type.toUpperCase() === filter.value))
+const hasMore = computed(() => page.value < totalPages.value)
 
-function loadData() {
-  loading.value = true
-  setTimeout(() => {
-    const list = filter.value === 'all'
-      ? ALL_NOTICES
-      : ALL_NOTICES.filter((n) => n.type === filter.value)
-    notices.value = list
-    hasMore.value = false
+function summaryOf(content: string) {
+  return (content || '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/\[|\]|[#>*_`()]/g, ' ')
+    .replace(/^\s*[-+]\s+/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function mapNotice(notice: PublicNotice): NoticeVM {
+  return { ...notice, type: (notice.type || 'INFO').toUpperCase(), summary: summaryOf(notice.content) }
+}
+
+function typeLabel(type: string) { return TYPE_LABELS[type.toUpperCase()] || '公告' }
+function typeColor(type: string) { return TYPE_COLORS[type.toUpperCase()] || '#6B7280' }
+
+async function loadData(reset = true) {
+  if (reset) {
+    loading.value = true
+    error.value = ''
+    page.value = 1
+  }
+  try {
+    const result = await noticesApi.list(reset ? 1 : page.value + 1, 50)
+    const mapped = (result.items || []).map(mapNotice)
+    allNotices.value = reset ? mapped : [...allNotices.value, ...mapped]
+    page.value = result.page || 1
+    totalPages.value = result.totalPages || 1
+  } catch (e) {
+    error.value = (e as Error)?.message || '请检查网络后重试'
+  } finally {
     loading.value = false
-  }, 300)
+    loadingMore.value = false
+  }
 }
 
-function setFilter(v: NoticeType | 'all') {
-  filter.value = v
-  loadData()
-}
-
-function handleLoadMore() {
+function setFilter(value: NoticeFilter) { filter.value = value }
+async function handleLoadMore() {
   if (loadingMore.value || !hasMore.value) return
+  loadingMore.value = true
+  await loadData(false)
 }
 
-function formatTime(timeStr: string) {
-  const date = new Date(timeStr)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`
-  return `${date.getMonth() + 1}月${date.getDate()}日`
+function formatTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const diff = Date.now() - date.getTime()
+  if (diff >= 0 && diff < 3600000) return `${Math.max(1, Math.floor(diff / 60000))}分钟前`
+  if (diff >= 0 && diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+  if (diff >= 0 && diff < 604800000) return `${Math.floor(diff / 86400000)}天前`
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-function formatViews(v: number) {
-  return v > 10000 ? `${(v / 10000).toFixed(1)}万` : String(v)
-}
-
-function goBack() {
-  navigateBack()
-}
-function goDetail(id: number) {
-  navigateTo(`/notices/${id}`)
-}
+function goBack() { navigateBack() }
+function goDetail(id: string) { navigateTo(`/notices/${id}`) }
 
 onLoad(() => {
-  try {
-    const info = uni.getSystemInfoSync()
-    statusBarHeight.value = info.statusBarHeight || 20
-  } catch (e) {}
-  loadData()
+  try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 20 } catch {}
+  loadData(true)
 })
 </script>
 
@@ -365,6 +264,7 @@ onLoad(() => {
   width: 160rpx;
   height: 112rpx;
   border-radius: 12rpx;
+  overflow: hidden;
   flex-shrink: 0;
   background-color: #F3F4F6;
 }
@@ -453,7 +353,15 @@ onLoad(() => {
   font-size: 24rpx;
   color: #9CA3AF;
   margin-top: 8rpx;
+  text-align: center;
 }
+.retry-btn {
+  margin-top: 28rpx;
+  padding: 16rpx 36rpx;
+  border-radius: 999rpx;
+  background: var(--brand);
+}
+.retry-text { font-size: 26rpx; color: #FFFFFF; }
 
 .skeleton-card {
   display: flex;

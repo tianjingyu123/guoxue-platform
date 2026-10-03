@@ -20,7 +20,7 @@ function goBack() {
     <view class="tm-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="tm-header-inner">
         <view class="tm-header-left">
-          <view class="tm-back" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#1f1f1f" /></view>
+          <view class="tm-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1f1f1f" /></view>
           <text class="tm-title">老师邀约管理</text>
         </view>
       </view>

@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { safePagination } from "../../common/pagination";
 import { Content, ClassicBook } from "../models";
 import { ContentFilter, ClassicFilter } from "../dto/query.dto";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../../modules/classic/classic-publication-policy";
 
 @Resolver(() => Content)
 export class ContentResolver {
@@ -34,7 +35,7 @@ export class ContentResolver {
   async classicBooks(@Args("filter", { nullable: true }) filter?: ClassicFilter) {
     const { category } = filter ?? {};
     const { pageSize, skip } = safePagination(filter?.page ?? 1, filter?.pageSize ?? 10);
-    const where: Record<string, unknown> = { status: "PUBLISHED" };
+    const where: Record<string, unknown> = { ...PUBLIC_CLASSIC_BOOK_WHERE };
     if (category) where.category = category;
 
     return this.prisma.classicBook.findMany({
@@ -47,7 +48,7 @@ export class ContentResolver {
 
   @Query(() => ClassicBook, { nullable: true, description: "古籍详情" })
   async classicBook(@Args("id") id: string) {
-    return this.prisma.classicBook.findUnique({ where: { id } });
+    return this.prisma.classicBook.findFirst({ where: { id, ...PUBLIC_CLASSIC_BOOK_WHERE } });
   }
 
   @Query(() => Int, { description: "内容总数" })

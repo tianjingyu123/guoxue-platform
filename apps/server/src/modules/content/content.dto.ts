@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsEnum, IsInt, Min, MinLength, MaxLength } from "class-validator";
+import { IsString, IsOptional, IsArray, IsEnum, IsIn, IsInt, Min, MinLength, MaxLength } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -45,6 +45,11 @@ export class CreateContentDto {
   @IsString()
   @IsOptional()
   stationId?: string;
+
+  @ApiPropertyOptional({ description: "创建状态，默认草稿", enum: ["DRAFT", "PUBLISHED"], default: "DRAFT" })
+  @IsOptional()
+  @IsIn(["DRAFT", "PUBLISHED"])
+  status?: "DRAFT" | "PUBLISHED";
 }
 
 export class UpdateContentDto {
@@ -116,11 +121,19 @@ export class ContentListQueryDto {
   @IsOptional() @IsString()
   keyword?: string;
 
-  @ApiPropertyOptional({ description: "状态筛选" })
+  @ApiPropertyOptional({ description: "状态筛选（支持逗号分隔多值，如 APPROVED,PUBLISHED → in 查询）" })
   @IsOptional() @IsString()
   status?: string;
 
   @ApiPropertyOptional({ description: "分站ID" })
   @IsOptional() @IsString()
   stationId?: string;
+
+  @ApiPropertyOptional({ description: "一级品类筛选" })
+  @IsOptional() @IsString()
+  categoryLevel1?: string;
+
+  @ApiPropertyOptional({ description: "二级品类筛选" })
+  @IsOptional() @IsString()
+  categoryLevel2?: string;
 }

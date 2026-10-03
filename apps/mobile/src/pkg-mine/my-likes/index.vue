@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack } from '@/utils/router'
 import {
   mineApi,
@@ -49,7 +51,7 @@ async function unlike(item: LikeItem) {
   if (unliking.value !== null) return
   unliking.value = item.id
   try {
-    await mineApi.getMyLikes() // 这里可能需要一个取消点赞的API，目前用现有接口
+    await mineApi.removeMyLike(item.id)
     list.value = list.value.filter((i) => i.id !== item.id)
     uni.showToast({ title: '已取消点赞', icon: 'none' })
   } catch (e) {
@@ -58,8 +60,18 @@ async function unlike(item: LikeItem) {
     unliking.value = null
   }
 }
-function openTarget() {
-  uni.showToast({ title: '内容详情开发中', icon: 'none' })
+/** 跳原内容页（原为"开发中"toast）。circle_post 详情页需 circleId 本数据没有；question/answer/comment 无独立详情页 → 保持提示 */
+function openTarget(item: LikeItem) {
+  const { id, type } = item.target
+  const url =
+    type === 'article' ? `/pkg-circle/articles/detail?id=${id}`
+    : type === 'course' ? `/pkg-course/detail/index?id=${id}`
+    : type === 'video' ? `/pkg-video/detail/index?id=${id}`
+    : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
+    : type === 'circle_post' ? `/pkg-circle/circles/post?id=${id}`
+    : ''
+  if (!url) { uni.showToast({ title: '该内容暂不支持跳转', icon: 'none' }); return }
+  uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })
 }
 </script>
 
@@ -81,7 +93,7 @@ function openTarget() {
     </scroll-view>
 
     <!-- 加载/错误 -->
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
     <template v-else>
     <view v-if="!isEmpty" class="count-bar">共 {{ filtered.length }} 条点赞记录</view>
@@ -96,7 +108,7 @@ function openTarget() {
 
     <scroll-view v-else scroll-y class="scroll">
       <view class="like-list">
-        <view v-for="item in filtered" :key="item.id" class="like-item" @tap="openTarget">
+        <view v-for="item in filtered" :key="item.id" class="like-item" @tap="openTarget(item)">
           <view
             class="type-icon"
             :style="{ background: likeTypeStyles[item.target.type].bg }"
@@ -111,7 +123,7 @@ function openTarget() {
             <text class="like-title">{{ item.target.title }}</text>
             <view class="like-meta">
               <view class="like-author" v-if="item.target.author">
-                <image lazy-load class="author-avatar" :src="item.target.author.avatar" mode="aspectFill" />
+                <smart-avatar :src="item.target.author.avatar" :name="item.target.author.nickname" class="author-avatar" />
                 <text class="author-name">{{ item.target.author.nickname }}</text>
               </view>
               <text class="like-type">{{ likeTypeNames[item.target.type] }}</text>

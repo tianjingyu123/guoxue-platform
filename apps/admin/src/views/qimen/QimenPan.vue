@@ -22,6 +22,8 @@ const loading = ref(false)
 const result = ref<QimenResult | null>(null)
 const errorMsg = ref('')
 const inputCollapsed = ref(false)
+// 当前展示的是否为示例(mock)盘：打开页面预载的示例盘必须明示，真排盘后移除标记
+const isMock = ref(false)
 
 // ═══════════ 计算 ═══════════
 async function doCalc() {
@@ -38,6 +40,7 @@ async function doCalc() {
       },
     })
     result.value = res.data
+    isMock.value = false
   } catch (e) {
     const err = e as { response?: { data?: { message?: string } } }
     errorMsg.value = err?.response?.data?.message || '排盘失败'
@@ -46,11 +49,15 @@ async function doCalc() {
   }
 }
 
-// 初始加载mock数据
+// 初始加载示例盘（仅供预览布局，页面上有明确"示例盘"水印，真排盘后替换）
 async function loadMock() {
   try {
     const res = await api.get('/tools/qimen/mock')
-    result.value = res.data
+    // 真排盘结果已出（用户手速快于 mock 请求返回）时不覆盖
+    if (!result.value) {
+      result.value = res.data
+      isMock.value = true
+    }
   } catch {
     // mock not available
   }
@@ -107,7 +114,7 @@ const qiJuOptions = [
         </div>
 
         <div class="form-section">
-          <label class="form-label">起居方式</label>
+          <label class="form-label">起局方式</label>
           <el-select
             v-model="form.qiJuMethod"
             style="width: 100%"
@@ -158,21 +165,48 @@ const qiJuOptions = [
         v-if="result"
         class="result-area"
       >
+        <!-- 示例盘水印：mock 预览必须明示，防止被当成真盘 -->
+        <el-alert
+          v-if="isMock"
+          title="示例盘 · 仅供预览"
+          description="当前展示的是示例盘面，非真实排盘结果。请在左侧设置参数后点击「开始排盘」。"
+          type="warning"
+          :closable="false"
+          show-icon
+          class="mock-alert"
+        />
         <!-- 盘面信息 -->
-        <div class="pan-info-bar">
-          <span class="info-item">节气：<strong>{{ result.jieQi }}</strong></span>
-          <span class="info-item">用事：<strong>{{ result.yongShi }}</strong></span>
+        <div
+          class="pan-info-bar"
+          :class="{ 'mock-watermark': isMock }"
+        >
+          <span class="info-item">节气：<strong>{{ result.jieQi || '—' }}</strong></span>
+          <span class="info-item">用事：<strong>{{ result.yongShi || '—' }}</strong></span>
           <span class="info-item">局数：<strong>{{ result.dunType === 'yang' ? '阳' : '阴' }}遁{{ result.juNumber }}局</strong></span>
+          <span
+            v-if="result.zhiFu"
+            class="info-item"
+          >值符：<strong>{{ result.zhiFu }}</strong></span>
+          <span
+            v-if="result.zhiShiMen"
+            class="info-item"
+          >值使：<strong>{{ result.zhiShiMen }}</strong></span>
         </div>
 
-        <!-- 九宫格 -->
-        <QimenGongGrid
-          :gongs="result.gongs"
-          :ju-number="result.juNumber"
-          :dun-type="result.dunType"
-          :show-detail="true"
-          @gong-click="(gong) => {}"
-        />
+        <!-- 九宫格（示例盘时叠加角标水印） -->
+        <div class="grid-wrap">
+          <span
+            v-if="isMock"
+            class="mock-badge"
+          >示例盘 · 仅供预览</span>
+          <QimenGongGrid
+            :gongs="result.gongs"
+            :ju-number="result.juNumber"
+            :dun-type="result.dunType"
+            :show-detail="true"
+            @gong-click="(gong) => {}"
+          />
+        </div>
 
         <!-- 上一局 / 下一局 -->
         <div class="prev-next-row">
@@ -238,6 +272,25 @@ const qiJuOptions = [
 }
 .result-area {
   padding: 0;
+}
+.mock-alert {
+  margin-bottom: 16px;
+}
+.grid-wrap {
+  position: relative;
+}
+.mock-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  padding: 4px 12px;
+  background: rgba(230, 162, 60, 0.92);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
 }
 .pan-info-bar {
   display: flex;

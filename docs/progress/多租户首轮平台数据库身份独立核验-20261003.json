@@ -1,0 +1,50 @@
+{
+  "checkedAt": "2026-10-03T14:17:33.400Z",
+  "nodes": [
+    {
+      "node": "A",
+      "instanceId": "ins-0sen8yvf",
+      "taskId": "invt-c9f1mb0ivv",
+      "invocationId": "inv-c9f1mb0ivu",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordSha256": "3a7973b212fac40fcc525434ffc245cc30516f35b89c4645dfc94632792cccf2",
+      "executedScriptSha256": "5826b4c9a71eb9cd994c409ff91fb5ca6bf39c026bb80335f2755b2f0c20582e",
+      "rawRecordActuallyRead": true,
+      "configurationEndpointSha256": "732ab460e1bc29ba9b2b067352ed25bfb524ce5765a392429875b848ff2887ac",
+      "databaseNameMatchesPlatform": true,
+      "serverEndpointIdentitySha256": "bb74b9b58a995438452037c0fc1de98e1952c570c550201821426352a2fcc74c",
+      "postmasterStartSha256": "526173742a1649a6ce8589fc528b0bf64aef60ef9ee7af0aef19dd41e15ed0c7",
+      "systemIdentifierSha256": "2b99800f01d2079f87413301f15f8497c4bc294294a1cbece343a3671bd54f43",
+      "systemIdentifierAvailable": true,
+      "serverVersion": "18.4",
+      "inRecovery": false
+    },
+    {
+      "node": "B",
+      "instanceId": "ins-n0sqc627",
+      "taskId": "invt-e9f1mrge0f",
+      "invocationId": "inv-e9f1mrge0e",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordSha256": "f1652340ca40623c43eb515c290d042430ba5081168001e43fdb60a78d268ca0",
+      "executedScriptSha256": "5826b4c9a71eb9cd994c409ff91fb5ca6bf39c026bb80335f2755b2f0c20582e",
+      "rawRecordActuallyRead": true,
+      "configurationEndpointSha256": "732ab460e1bc29ba9b2b067352ed25bfb524ce5765a392429875b848ff2887ac",
+      "databaseNameMatchesPlatform": true,
+      "serverEndpointIdentitySha256": "bb74b9b58a995438452037c0fc1de98e1952c570c550201821426352a2fcc74c",
+      "postmasterStartSha256": "526173742a1649a6ce8589fc528b0bf64aef60ef9ee7af0aef19dd41e15ed0c7",
+      "systemIdentifierSha256": "2b99800f01d2079f87413301f15f8497c4bc294294a1cbece343a3671bd54f43",
+      "systemIdentifierAvailable": true,
+      "serverVersion": "18.4",
+      "inRecovery": false
+    }
+  ],
+  "applicationPrismaConnectionUsed": true,
+  "sameCurrentPlatformPostgresClusterIdentity": true,
+  "scope": "当前A/B应用共同连接的平台数据库；既有A备份及103至144副本演练适用该平台库。发布执行仍需新鲜备份及最终迁移清单。",
+  "credentialsCopiedOrPrinted": false,
+  "databaseModified": false
+}

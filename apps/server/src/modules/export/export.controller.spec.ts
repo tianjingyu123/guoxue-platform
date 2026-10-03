@@ -20,6 +20,9 @@ const makeRes = (): any => ({
   send: jest.fn(),
 });
 
+// 导出审计留痕后，控制器多了 @Req() 参数以取操作人 id
+const mockReq = (): any => ({ user: { id: "op1" } });
+
 describe("ExportController", () => {
   let ctrl: ExportController;
 
@@ -41,24 +44,25 @@ describe("ExportController", () => {
   it("导出用户列表CSV", async () => {
     const res = makeRes();
     mockService.exportUsers.mockResolvedValue("id,nickname\n1,张三");
-    await ctrl.exportUsers(undefined, undefined, undefined, undefined, res);
+    await ctrl.exportUsers(undefined, undefined, undefined, undefined, mockReq(), res);
     expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "text/csv; charset=utf-8");
     expect(res.send).toHaveBeenCalledWith("id,nickname\n1,张三");
   });
 
-  it("导出用户列表——带筛选条件", async () => {
+  it("导出用户列表——带筛选条件+透传操作人", async () => {
     const res = makeRes();
     mockService.exportUsers.mockResolvedValue("");
-    await ctrl.exportUsers("ACTIVE", "张三", "2025-01-01", "2025-12-31", res);
-    expect(mockService.exportUsers).toHaveBeenCalledWith({
-      status: "ACTIVE", keyword: "张三", startDate: "2025-01-01", endDate: "2025-12-31",
-    });
+    await ctrl.exportUsers("ACTIVE", "张三", "2025-01-01", "2025-12-31", mockReq(), res);
+    expect(mockService.exportUsers).toHaveBeenCalledWith(
+      { status: "ACTIVE", keyword: "张三", startDate: "2025-01-01", endDate: "2025-12-31" },
+      "op1",
+    );
   });
 
   it("导出订单列表CSV", async () => {
     const res = makeRes();
     mockService.exportOrders.mockResolvedValue("id,amount\n1,99");
-    await ctrl.exportOrders(undefined, undefined, undefined, undefined, res);
+    await ctrl.exportOrders(undefined, undefined, undefined, undefined, mockReq(), res);
     expect(res.setHeader).toHaveBeenCalledWith("Content-Disposition", expect.stringContaining("orders_"));
     expect(res.send).toHaveBeenCalledWith("id,amount\n1,99");
   });
@@ -66,7 +70,7 @@ describe("ExportController", () => {
   it("导出课程列表CSV", async () => {
     const res = makeRes();
     mockService.exportCourses.mockResolvedValue("id,title\n1,国学入门");
-    await ctrl.exportCourses(undefined, undefined, undefined, res);
+    await ctrl.exportCourses(undefined, undefined, undefined, mockReq(), res);
     expect(res.setHeader).toHaveBeenCalledWith("Content-Disposition", expect.stringContaining("courses_"));
     expect(res.send).toHaveBeenCalledWith("id,title\n1,国学入门");
   });
@@ -74,16 +78,17 @@ describe("ExportController", () => {
   it("导出课程列表——按审核状态过滤", async () => {
     const res = makeRes();
     mockService.exportCourses.mockResolvedValue("");
-    await ctrl.exportCourses("APPROVED", "2025-01-01", "2025-06-01", res);
-    expect(mockService.exportCourses).toHaveBeenCalledWith({
-      auditStatus: "APPROVED", startDate: "2025-01-01", endDate: "2025-06-01",
-    });
+    await ctrl.exportCourses("APPROVED", "2025-01-01", "2025-06-01", mockReq(), res);
+    expect(mockService.exportCourses).toHaveBeenCalledWith(
+      { auditStatus: "APPROVED", startDate: "2025-01-01", endDate: "2025-06-01" },
+      "op1",
+    );
   });
 
   it("导出文章列表CSV", async () => {
     const res = makeRes();
     mockService.exportArticles.mockResolvedValue("id,title\n1,文章标题");
-    await ctrl.exportArticles(undefined, undefined, undefined, undefined, res);
+    await ctrl.exportArticles(undefined, undefined, undefined, undefined, mockReq(), res);
     expect(res.setHeader).toHaveBeenCalledWith("Content-Disposition", expect.stringContaining("articles_"));
     expect(res.send).toHaveBeenCalledWith("id,title\n1,文章标题");
   });
@@ -91,17 +96,18 @@ describe("ExportController", () => {
   it("导出提现记录CSV", async () => {
     const res = makeRes();
     mockService.exportWithdrawals.mockResolvedValue("id,amount\n1,100");
-    await ctrl.exportWithdrawals(undefined, undefined, undefined, res);
+    await ctrl.exportWithdrawals(undefined, undefined, undefined, mockReq(), res);
     expect(res.setHeader).toHaveBeenCalledWith("Content-Disposition", expect.stringContaining("withdrawals_"));
     expect(res.send).toHaveBeenCalledWith("id,amount\n1,100");
   });
 
-  it("导出提现记录——按状态过滤", async () => {
+  it("导出提现记录——按状态过滤+透传操作人", async () => {
     const res = makeRes();
     mockService.exportWithdrawals.mockResolvedValue("");
-    await ctrl.exportWithdrawals("PENDING", "2025-01-01", "2025-12-31", res);
-    expect(mockService.exportWithdrawals).toHaveBeenCalledWith({
-      status: "PENDING", startDate: "2025-01-01", endDate: "2025-12-31",
-    });
+    await ctrl.exportWithdrawals("PENDING", "2025-01-01", "2025-12-31", mockReq(), res);
+    expect(mockService.exportWithdrawals).toHaveBeenCalledWith(
+      { status: "PENDING", startDate: "2025-01-01", endDate: "2025-12-31" },
+      "op1",
+    );
   });
 });

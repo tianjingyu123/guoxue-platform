@@ -1,0 +1,893 @@
+{
+  "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+  "previousCandidate": "090f499286990505ff0998c11beb335fffc07176",
+  "actualFormalMain": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+  "sourcePrReadback": {
+    "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+    "defaultBranch": "master",
+    "headSha": "e200e352eddae9337db0715f83d4b77545803393",
+    "actualMainHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "state": "open",
+    "draft": true,
+    "mergeable": true,
+    "baseSha": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "prNumber": 1,
+    "checkedAt": "2026-10-01T12:07:25.1543807Z",
+    "baseRef": "master",
+    "mergeableState": "unstable",
+    "headRef": "codex/launch-review-20260930"
+  },
+  "receivedCommits": [
+    "e200e352eddae9337db0715f83d4b77545803393"
+  ],
+  "reception": {
+    "checkedAt": "2026-10-01T12:07:26.684Z",
+    "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "previousHead": "a99cc377415b05617351fac86e5b88359969f3c5",
+    "finalBusinessHead": "e200e352eddae9337db0715f83d4b77545803393",
+    "branch": "release/launch-staging-20260927",
+    "method": "ff-only",
+    "conflicts": [],
+    "clean": true,
+    "formalMasterMerged": false,
+    "deployed": false
+  },
+  "conflicts": [],
+  "status": [
+    "代码候选完成",
+    "隔离验证完成",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "scope": "收货地区数据完整性、原有返回取消重开交互、本版四端构建与隔离回归",
+  "dataset": {
+    "name": "@vant/area-data",
+    "version": "2.1.0",
+    "license": "MIT",
+    "repository": "https://github.com/vant-ui/vant/tree/main/packages/vant-area-data",
+    "registry": "https://registry.npmjs.org/@vant/area-data/2.1.0",
+    "sourceFileSha256": "e80143211b0f67180c3693ae3d7211ce36b303b4ff49b0f5c18495bb025fb90f",
+    "licenseSha256": "d18ad730cd8c4f33a032d9859dd29e5e07b244a41f76af58adb04be7219be383",
+    "normalizedDataSha256": "2fb0a4ad9f5da2e576ae05eeb9d43424c5cfe19a7ddf4071f2d75c4913b72204",
+    "provinces": 34,
+    "cities": 369,
+    "districts": 3479,
+    "duplicateLabelsRemoved": 0,
+    "purpose": "收货地址选择；不代表全部物流范围、官方最新行政区划或排盘地理数据库"
+  },
+  "localVerification": {
+    "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "checkedAt": "2026-10-01T12:15:58.338Z",
+    "relatedTests": {
+      "passed": 9,
+      "failed": 0
+    },
+    "clientGate": {
+      "passed": 304,
+      "failed": 0,
+      "newRegionTests": 5,
+      "reopenTestsAddedToGate": 2
+    },
+    "fullMobileLint": {
+      "errors": 0,
+      "exitCode": 0,
+      "warningsCounted": false
+    },
+    "types": {
+      "exitCode": 0
+    },
+    "codeGate": {
+      "exitCode": 0
+    },
+    "builds": [
+      {
+        "target": "mp-weixin",
+        "exitCode": 0,
+        "log": "shipping-regions-mp-weixin-build.log",
+        "sha256": "5e4b368521d6df731aa59a216b4eb180e293f9ee4535c66d7b797cc0bd2c6e14"
+      },
+      {
+        "target": "h5",
+        "exitCode": 0,
+        "log": "shipping-regions-h5-build.log",
+        "sha256": "ac7e9e297b0b8bd591ab5650828c3757f8fe5d44b0f0f6e724becc9162c1cac5"
+      },
+      {
+        "target": "app",
+        "exitCode": 0,
+        "log": "shipping-regions-app-build.log",
+        "sha256": "ce2fe4f5f5687bda9fe8833e3cf72edffb2d441e156507eea48e33c74064e166"
+      },
+      {
+        "target": "app-harmony",
+        "exitCode": 0,
+        "log": "shipping-regions-app-harmony-build.log",
+        "sha256": "3ca2dcc7231057f19a475266ed32e5a27c52b55939b8d9819f481f613faf68a7"
+      }
+    ],
+    "adminInputEquivalent": true,
+    "regionPackage": "pkg-account/lib/shipping-regions.js",
+    "datasetInMainPackage": false,
+    "simulation": {
+      "passed": 4,
+      "failed": 0
+    },
+    "h5TouchEvents": {
+      "passed": 3,
+      "failed": 0,
+      "widths": [
+        320,
+        390,
+        768
+      ]
+    },
+    "businessWrites": 0,
+    "realDevice": false,
+    "paidOperations": 0
+  },
+  "mini": {
+    "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "startedAt": "2026-10-01T12:00:29.383Z",
+    "realDevice": false,
+    "simulation": true,
+    "authenticationChanged": false,
+    "savedAddress": false,
+    "personalInformationEntered": false,
+    "scope": "实际新增地址页长列表及取消返回重开，SDK scrollTo不是手机触摸手势",
+    "checks": [
+      {
+        "name": "34省份实际溢出列表可以滚动",
+        "passed": true,
+        "before": 0,
+        "after": 400,
+        "height": 1747,
+        "box": {
+          "width": 390,
+          "height": 528.796875
+        },
+        "items": 34
+      },
+      {
+        "name": "错误选择返回后重置并恢复滚动",
+        "passed": true,
+        "before": 0,
+        "after": 400,
+        "height": 1747,
+        "box": {
+          "width": 390,
+          "height": 528.796875
+        },
+        "items": 34
+      },
+      {
+        "name": "取消重开三次仍重置并可滚动",
+        "passed": true,
+        "rounds": [
+          {
+            "before": 0,
+            "after": 400,
+            "height": 1747,
+            "box": {
+              "width": 390,
+              "height": 528.796875
+            },
+            "items": 34
+          },
+          {
+            "before": 0,
+            "after": 400,
+            "height": 1747,
+            "box": {
+              "width": 390,
+              "height": 528.796875
+            },
+            "items": 34
+          },
+          {
+            "before": 0,
+            "after": 400,
+            "height": 1747,
+            "box": {
+              "width": 390,
+              "height": 528.796875
+            },
+            "items": 34
+          }
+        ]
+      },
+      {
+        "name": "河北保定竞秀仅回填本地未保存",
+        "passed": true,
+        "display": "河北省 保定市 竞秀区"
+      }
+    ],
+    "finishedAt": "2026-10-01T12:00:44.369Z",
+    "passed": 4,
+    "failed": 0
+  },
+  "h5": {
+    "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "startedAt": "2026-10-01T12:04:02.410Z",
+    "realDevice": false,
+    "outboundAllowed": 0,
+    "savedAddress": false,
+    "authenticationChanged": false,
+    "scope": "本地H5实际页面，Chrome移动触摸滚动仿真；不代表微信或手机WebView",
+    "checks": [
+      {
+        "width": 320,
+        "passed": true,
+        "steps": [
+          {
+            "before": 0,
+            "height": 1496,
+            "client": 540,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          },
+          {
+            "before": 0,
+            "height": 1496,
+            "client": 540,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          },
+          {
+            "before": 0,
+            "height": 1496,
+            "client": 540,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          },
+          {
+            "before": 0,
+            "height": 1496,
+            "client": 540,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          },
+          {
+            "before": 0,
+            "height": 1496,
+            "client": 540,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          }
+        ],
+        "display": "河北省 保定市 竞秀区",
+        "businessWrites": 0,
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/api/v1/system/public/brand-config"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/config/client"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/legacy-paipan/runtime"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/system/public/brand-config"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/config/client"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/legacy-paipan/runtime"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/system/public/brand-config"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/config/client"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/legacy-paipan/runtime"
+          },
+          {
+            "method": "GET",
+            "path": "/img/shadow-grey.png"
+          }
+        ],
+        "uncaughtErrors": 0
+      },
+      {
+        "width": 390,
+        "passed": true,
+        "steps": [
+          {
+            "before": 0,
+            "height": 1815,
+            "client": 528,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          },
+          {
+            "before": 0,
+            "height": 1815,
+            "client": 528,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          },
+          {
+            "before": 0,
+            "height": 1815,
+            "client": 528,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          },
+          {
+            "before": 0,
+            "height": 1815,
+            "client": 528,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          },
+          {
+            "before": 0,
+            "height": 1815,
+            "client": 528,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          }
+        ],
+        "display": "河北省 保定市 竞秀区",
+        "businessWrites": 0,
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/api/v1/system/public/brand-config"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/config/client"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/legacy-paipan/runtime"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/system/public/brand-config"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/config/client"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/system/public/brand-config"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/config/client"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/legacy-paipan/runtime"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/system/public/brand-config"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/config/client"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/legacy-paipan/runtime"
+          },
+          {
+            "method": "GET",
+            "path": "/img/shadow-grey.png"
+          }
+        ],
+        "uncaughtErrors": 0
+      },
+      {
+        "width": 768,
+        "passed": true,
+        "steps": [
+          {
+            "before": 0,
+            "height": 1747,
+            "client": 531,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          },
+          {
+            "before": 0,
+            "height": 1747,
+            "client": 531,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          },
+          {
+            "before": 0,
+            "height": 1747,
+            "client": 531,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          },
+          {
+            "before": 0,
+            "height": 1747,
+            "client": 531,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          },
+          {
+            "before": 0,
+            "height": 1747,
+            "client": 531,
+            "after": 235,
+            "gesture": "CDP touchStart/Move/End"
+          }
+        ],
+        "display": "河北省 保定市 竞秀区",
+        "businessWrites": 0,
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/api/v1/system/public/brand-config"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/config/client"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/legacy-paipan/runtime"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/system/public/brand-config"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/config/client"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/legacy-paipan/runtime"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/system/public/brand-config"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/config/client"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/legacy-paipan/runtime"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/system/public/brand-config"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/config/client"
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/legacy-paipan/runtime"
+          },
+          {
+            "method": "GET",
+            "path": "/img/shadow-grey.png"
+          }
+        ],
+        "uncaughtErrors": 0
+      }
+    ],
+    "finishedAt": "2026-10-01T12:04:27.007Z",
+    "passed": 3,
+    "failed": 0
+  },
+  "ci": {
+    "testsPassed": 8908,
+    "runId": 36858105332,
+    "suitesSkipped": 26,
+    "jobsPassed": 8,
+    "testsSkipped": 133,
+    "logs": [
+      {
+        "name": "单元测试 (3/3)",
+        "sha256": "2d101c8428b7c8784cf9b3fabf94d795a4ede6ff2383084df07010af9e15379e",
+        "suites": "Test Suites: 10 skipped, 219 passed, 219 of 229 total",
+        "jobId": 110356086404,
+        "tests": "Tests:       39 skipped, 3046 passed, 3085 total"
+      },
+      {
+        "name": "单元测试 (1/3)",
+        "sha256": "b7c59b70345f8f2c9ed33786c2db5daececc682d8671daf52377e885adfb8628",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "jobId": 110356086439,
+        "tests": "Tests:       44 skipped, 2839 passed, 2883 total"
+      },
+      {
+        "name": "单元测试 (2/3)",
+        "sha256": "1511e3559928b6b743f94d1611fb8b9a8a295ffe39b7d482141a4488519d3c66",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "jobId": 110356086626,
+        "tests": "Tests:       50 skipped, 3023 passed, 3073 total"
+      }
+    ],
+    "checkedAt": "2026-10-01T12:09:44.2170796Z",
+    "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "status": "success",
+    "suitesPassed": 663
+  },
+  "image": {
+    "realChannels": false,
+    "image": "sha256:160afdda2da469d8ea29d9c2753e1014f250ddea12357e5ae97ade9c7fb82e52",
+    "businessSource": "e200e352eddae9337db0715f83d4b77545803393",
+    "artifact": {
+      "bytes": 55380,
+      "id": 11161236943,
+      "officialDigestMatches": true,
+      "sha256": "1dc0f06bdac5b10f39b127f3f5132bc48fea0632334b24334223ece70c2d179e"
+    },
+    "runId": 36859429297,
+    "checksPassed": 23,
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry"
+    ],
+    "verificationSource": "d6c16abdb5bcd73cf605f42fc764b6cc0f1e6a68",
+    "checkedAt": "2026-10-01T12:15:58.0182296Z",
+    "sourceArchiveSha256": "25e9bb0c67d6a9400c485a260bd9ea817595e6f0539a9dc70b0669cf8bfbea7a",
+    "cleanupAllConfirmed": true,
+    "runtimeReportSha256": "9f9a2225fcb8a333066f525cf9154b8f29a8ce7ba757c32e1530ae0103ce8c33",
+    "production": false,
+    "passed": true
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T11:59:48.180Z",
+    "archive": "gx-deploy-91-launch-20261001-e200e352e.tar.gz",
+    "sha256": "25e9bb0c67d6a9400c485a260bd9ea817595e6f0539a9dc70b0669cf8bfbea7a",
+    "releaseId": "launch-20261001-e200e352e",
+    "commit": "e200e352eddae9337db0715f83d4b77545803393",
+    "expectedCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "fileCount": 4438,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "clients": {
+    "targets": 5,
+    "files": 5424,
+    "bytes": 54168559,
+    "errors": 0
+  },
+  "publicConfig": {
+    "schemaVersion": 1,
+    "kind": "guoxue-client-public-config-binding",
+    "generatedAt": "2026-10-01T11:59:27.628Z",
+    "releaseId": "launch-20261001-e200e352e",
+    "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "keys": [
+      "VITE_API_URL",
+      "VITE_PUBLIC_H5_URL",
+      "VITE_PUBLIC_ASSET_ORIGIN"
+    ],
+    "fingerprintAlgorithm": "sha256",
+    "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b"
+  },
+  "preview": {
+    "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "officialCli": "preview",
+    "published": false,
+    "reviewSubmitted": false,
+    "productionUpload": false,
+    "totalBytes": 12795810,
+    "mainBytes": 1965279,
+    "mainRemainingBytes": 131873,
+    "subpackageCount": 33,
+    "largestSubpackage": {
+      "name": "/pkg-paipan/",
+      "size": 1959687
+    },
+    "largestRemainingBytes": 137465,
+    "infoSha256": "083fa6a3b8cc90b7683e290a922381b1275c8c41adccddb85b176c23f727dd5a",
+    "postPreviewClientFingerprintsUnchanged": true,
+    "qrIncluded": false,
+    "realDevice": false
+  },
+  "resource": {
+    "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "checkedAt": "2026-10-01T12:06:18.989Z",
+    "webAudit": {
+      "success": true,
+      "errors": [],
+      "files": 489,
+      "changedFiles": [
+        "app-service.js",
+        "manifest.json"
+      ],
+      "appId": "__UNI__277B108",
+      "versionCode": "254",
+      "genericBundleSha256": "d464e4013a1702e3f474e9397991a8d7590abc5b095c516fee2f66fa91bb8d91",
+      "officialBundleSha256": "aad0d5fcdde1ee6b9608923baf1da61fa3c8771ef649306868cd73f32d4b60e1",
+      "spaceBound": true
+    },
+    "nativeChecks": [
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/config.json",
+        "bytes": 70,
+        "sha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+        "genericSha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+        "exact": true,
+        "allowedDifference": null
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/libs/rebu-resource-updater.aar",
+        "bytes": 33238,
+        "sha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+        "genericSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+        "exact": true,
+        "allowedDifference": null
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/src/index.kt",
+        "bytes": 1149,
+        "sha256": "3738ba28858b91aa73b429c8d0b706bcfb78afe968fd986615b68e73a40685d9",
+        "genericSha256": "1eb3b1bdf674ed3eb982615f065c5b06bdada4504d287aae27f91c1d9b164606",
+        "exact": false,
+        "allowedDifference": "仅空间绑定新增 import io.dcloud.unicloud.*"
+      }
+    ],
+    "files": 492,
+    "bytes": 12884741,
+    "contentSha256": "26da6b2e08cb64ce8581c7e3fd5ef6c2945acea42f779714a49593b321690664",
+    "archive": "artifacts/releases/android254-hbuilder-e200e352e-resources.tar.gz",
+    "archiveBytes": 2876406,
+    "archiveSha256": "3746df5db4c398ae206867d264215b9330891ede5b844e5cc5306c1a10934f3c",
+    "archiveExtractedAllFilesExact": true,
+    "signedApk": false,
+    "paidPackaging": false,
+    "oneClickEnabled": false
+  },
+  "resourceArchive": {
+    "bytes": 2876406,
+    "sha256": "3746df5db4c398ae206867d264215b9330891ede5b844e5cc5306c1a10934f3c",
+    "draft": true,
+    "checkedAt": "2026-10-01T12:09:22.3769772Z",
+    "officialDigestMatches": true,
+    "published": false,
+    "name": "android254-hbuilder-e200e352e-resources.tar.gz",
+    "releaseId": 400927027,
+    "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "assetId": 603186655,
+    "archiveExtractedAllFilesExact": true,
+    "files": 492
+  },
+  "draftArchive": {
+    "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "tag": "launch-20261001-e200e352e",
+    "assets": [
+      {
+        "name": "gx-deploy-91-launch-20261001-e200e352e.tar.gz",
+        "assetId": 603176141,
+        "bytes": 15739566,
+        "sha256": "25e9bb0c67d6a9400c485a260bd9ea817595e6f0539a9dc70b0669cf8bfbea7a",
+        "officialDigestMatches": true
+      },
+      {
+        "name": "gx-deploy-91-launch-20261001-e200e352e.tar.gz.sha256",
+        "assetId": 603176636,
+        "bytes": 112,
+        "sha256": "af00cd09455777906ba1a996362417a43fe8e891ba1e8c67d7111401b32748df",
+        "officialDigestMatches": true
+      }
+    ],
+    "draft": true,
+    "published": false,
+    "checkedAt": "2026-10-01T12:03:29.8033328Z",
+    "releaseId": 400927027
+  },
+  "evidenceArchive": {
+    "reextractAllHashesExact": true,
+    "officialDigestMatches": true,
+    "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "assetId": 603197082,
+    "checkedAt": "2026-10-01T12:16:05.4096060Z",
+    "releaseId": 400927027,
+    "draft": true,
+    "sha256": "6d98b2bd3402a26715f4df5e40eae66775870ed01e04dc873d319783be5fc28e",
+    "published": false,
+    "bytes": 104225,
+    "files": 33,
+    "name": "shipping-regions-evidence-e200e352e.tar.gz"
+  },
+  "rollback": [
+    "e200e352eddae9337db0715f83d4b77545803393",
+    "090f49928、6a927f3c4、2548d7d3c、古籍/搜索/礼物及其他历史接收批仍保留各自回退点"
+  ],
+  "notCovered": [
+    "同版Android签名APK、最终原生基座/UTS/R8、新图标与App Links自然唤醒；最新手机只读记录仍是253，不是本版254",
+    "iOS/Harmony最终签名、插件/IAP及设备；本版构建或资源导出不算已完成设备验收",
+    "真机地址触摸与登录后新增、修改、默认地址及服务端持久化；本轮只填地区不保存、不输入真实个人资料",
+    "同版真实支付退款权益、排盘分享接收、智能体语音额度、真IM/视频叠层与直播全旅程",
+    "一键登录云函数及两节点密钥未接通，资源包健康不代表可取号；没有调用计费取号",
+    "通知完整触发入口、持久化崩溃重试、业务异常处理；真实渠道、手机点击、线上候选状态未知",
+    "内容授权/原图解码、隐私审核、跳过测试覆盖、运营监控告警及预发布QA商品/驿站清理",
+    "master正式接收、最终备份与25条生产迁移、两节点同包身份绑定和正式小程序审核发布"
+  ],
+  "mutations": {
+    "formalMainMerge": false,
+    "deploy": false,
+    "productionMigration": false,
+    "realPayment": false,
+    "realNotification": false,
+    "addressSaved": false,
+    "paidPackaging": false,
+    "cloudFunctionUpload": false,
+    "miniUploadOrReview": false
+  },
+  "evidence": [
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-local-verification.json",
+      "sha256": "f13a9a9fe8e71ffe1824193243b2aefea5c82f5abbc0add453533e0885ca7929"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-related-tests.log",
+      "sha256": "22b9f1369446aeea9efcd7953c6d229d5a9c3550f81eb37c8e4d772069bfb9ef"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-client-gate.log",
+      "sha256": "1a1f404cd7a5b11fc643552192768268f73d2fa771d215002b6fdf23603af685"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-full-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-code-gate.log",
+      "sha256": "1702bad0063d264acaba3de0a89fc851401ae107081009f8ac3cab8c3474408d"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/address-picker-mini-090f49928/runtime-report.json",
+      "sha256": "18a9ae66ef9ec84b1379c1a0c717b171e1128aaa4612dd1198af229242d71a09"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/address-picker-scroll-diagnostic.json",
+      "sha256": "412639b19838ed14c2f1477468fcfed481c036308938bb98ee56688bd505fab5"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-mini-e200e352e/runtime-report.json",
+      "sha256": "63ff14ac767b05b3ebcb673da96444520b10e55bfc240282c688d8df3b832b63"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-h5-e200e352e/runtime-report.json",
+      "sha256": "2b1a85e69fdda01f53ecb8280dd6dfe31716d1e9505c920fb8f0e3d9da1435e0"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-h5-e200e352e-v2/runtime-report.json",
+      "sha256": "9c07717858eaa433c06f20cb86898336671f745f3b5fa1fa599f099a083ba6af"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-runtime.cjs",
+      "sha256": "920d52a84c31efce64130d1581c9375a6c14823961147dd6e981bf87aa22d46e"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-browser.cjs",
+      "sha256": "8136ee92e7f76fc83996e1cc6374645eb653d7c91e1d9e2363b7053cdc862a53"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-browser-v2.cjs",
+      "sha256": "34e4ba99970b94fed7a76ceb63cdf2351e421294bdf106479a38568cde6e5846"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-ci-verified.json",
+      "sha256": "33503f4584f669b5681ace910e4167b85a8c92dff3ba8c8fbef89c067007ef66"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-image-verified.json",
+      "sha256": "2ffccd5a76a8b0aa28ff0825333cdce0b132e6bc64dad480e0269101dddf23f6"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-preview-verified.json",
+      "sha256": "d1a0b5458a2c0238b25feb350bccaf84c70cbfd58cd13633a72140c7c390bc21"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-preview-info.json",
+      "sha256": "083fa6a3b8cc90b7683e290a922381b1275c8c41adccddb85b176c23f727dd5a"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-post-preview-artifacts.json",
+      "sha256": "ba108dce01798ca86cfd9c4ac4bdbb274da277fa555126d7cd5f68707d84ce84"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-post-hbuilder-artifacts.json",
+      "sha256": "27d10dcca2090d97e6a8191aaa9c44c3825df8ad73e8f63fa4483d38442a3107"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-draft-archive.json",
+      "sha256": "dfe752fb043bffaf306ae610a2ca4ea330ece1b46b9b38c12020ae5a4e7dd6e6"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-resource-archive.json",
+      "sha256": "866bab91f0de2d659e52c5a20ac4aeea1b84c802b4e41024c970acf289c0fb3f"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/hbuilder-e200e352e-verified.json",
+      "sha256": "f2c3c5f2d6a928b0f765da4eb34a451fc5344929fa6f84a75c7b4860233baeb4"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-pr-source-e200e352e.json",
+      "sha256": "da9a58873220747ba77f664b74130e94aca89bd2e64c3520d824d52494bce840"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-staging-reception.json",
+      "sha256": "f869536c0a4cc925db12b8dc700f5882456cd5c62bb8b23d437654e150ad7595"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-e200e352e/client-config.json",
+      "sha256": "1f431f7439b0ebd165eb44287ee239176b8bc6077762dc211284f1202a084988"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-e200e352e/client-artifacts-verified.json",
+      "sha256": "366b3c69d6db6a571febf88e9e5cf564fa1a0f8b8497f01ccbbc649daf34c63c"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-e200e352e/source-freeze.json",
+      "sha256": "a438ce9c94f80b9dd5f38693ada8446b88b401bf41373cd8900b8b93cc147525"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-e200e352e/fixed-package-verified.json",
+      "sha256": "008539bdccda2652c223c6a52b1b54ad12883163f7c25ae62d749ef5935b5aaf"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-evidence-package.json",
+      "sha256": "4e51b6a252e96c9a72a5c2cff7857e03cf85f2de8f87603a05a917d01375d5c1"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/shipping-regions-evidence-archive.json",
+      "sha256": "fefeb9c392a409318869a68f996b2b25127f9cda29dd4f598952bae82cc40621"
+    }
+  ]
+}

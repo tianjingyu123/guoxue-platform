@@ -1,0 +1,31 @@
+{
+  "checkedAtDate": "2026-10-02",
+  "method": "官方Python SDK DescribeInvocations；绝对脚本 status",
+  "script": "D:/gx-deploy-91/scripts/ops/tencent-tat.py",
+  "scriptSha256": "1738d4150446a0756c3d46d4a771689500764fb59f6b665f4a9f92facaedce94",
+  "sdk": {
+    "tat": "3.1.106",
+    "common": "3.1.174"
+  },
+  "observations": [
+    {
+      "invocation": "inv-c8kemdg38u",
+      "task": "invt-c8kemdg38v",
+      "instance": "ins-0sen8yvf",
+      "status": "SUCCESS",
+      "requestId": "89f4d98d-4f78-4d28-b8a4-207650beb569"
+    },
+    {
+      "invocation": "inv-d8kemn0ecm",
+      "task": "invt-d8kemn0ecn",
+      "instance": "ins-n0sqc627",
+      "status": "SUCCESS",
+      "requestId": "91b5b965-89ad-4e7b-83af-0326f2f402da"
+    }
+  ],
+  "remoteMutation": false,
+  "limits": [
+    "本次成功读取2026-09-13的历史执行记录，不证明当前服务器在线、源码、部署版本或实例创建日期",
+    "未调用RunCommand，未操作COS、DNS、旧服务器或另一个任务资源"
+  ]
+}

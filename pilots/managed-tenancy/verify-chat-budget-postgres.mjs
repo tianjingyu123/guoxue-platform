@@ -1,0 +1,52 @@
+import assert from 'node:assert/strict';
+import {createServer} from 'node:http';
+import {resolve} from 'node:path';
+import {ManagedPostgresHarness,runtime} from './postgres-harness.mjs';
+const h=new ManagedPostgresHarness('chat-budget'),requests=[],held=new Map();let failure;
+const server=createServer(async(req,res)=>{
+  if(req.method!=='POST'||req.url!=='/synthetic-complete'){res.writeHead(404).end();return;}
+  let raw='';for await(const chunk of req)raw+=chunk;
+  const body=JSON.parse(raw),text=body.messages.at(-1).content;requests.push(body);
+  const reply=()=>{res.setHeader('Content-Type','application/json');if(text==='预算未知请求')res.writeHead(503).end('{}');else res.end(JSON.stringify({content:'合成预算答复：'+text}));};
+  if(text.startsWith('预算竞争'))held.set(body.requestId,reply);else reply();
+});
+await new Promise(done=>server.listen(0,'127.0.0.1',done));const syntheticProviderUrl='http://127.0.0.1:'+server.address().port+'/synthetic-complete';
+const waitHeld=async()=>{const deadline=Date.now()+15000;while(!held.size){if(Date.now()>deadline)throw new Error('预算竞争没有抵达合成供应商');await new Promise(done=>setTimeout(done,25));}};
+const stop=async child=>{if(child.exitCode===null&&child.signalCode===null){const exited=new Promise(done=>child.once('exit',done));child.send('stop');await exited;}};
+try{
+  const a=await h.application('a','a'),other=await h.application('a','other'),b=await h.application('b','b');const empty={product:[],course:[],circle:[],agent:[]};await h.grantModules(a,empty);await h.grantModules(b,empty);
+  const count=(db,customerId,state)=>db.managedLeaseChatMessage.count({where:{session:{customerId},...(state?{state:{in:['DISPATCHING','UNKNOWN']}}:{})}});
+  const baseline=await count(h.a,a.customerId),pending=await count(h.a,a.customerId,true),bBaseline=await count(h.b,b.customerId),bPending=await count(h.b,b.customerId,true);assert.ok(pending<99&&bPending<99);
+  const budget={maxRequests:baseline+2,maxUnresolved:pending+1};
+  let p1=await h.start(a,'a1',{syntheticProviderUrl,syntheticCallBudget:budget}),p2=await h.start(other,'a2',{syntheticProviderUrl,syntheticCallBudget:budget});
+  const bp=await h.start(b,'b',{syntheticProviderUrl,syntheticCallBudget:{maxRequests:bBaseline+1,maxUnresolved:bPending+1}});
+  let one=await h.account(p1,a,'one',true),two=await h.account(p2,other,'two',true);const bUser=await h.account(bp,b,'b-user',true);
+  const agent=async(port,app,user)=>{const created=await h.call(port,app,'/manage/agent',user.accessToken,'POST',{name:'预算合成助手',persona:'仅做本机测试'});assert.equal(created.status,201);assert.equal((await h.call(port,app,'/manage/agent/'+created.body.id+'/review',user.accessToken,'POST',{revision:1,status:'APPROVED',reason:'合成角色人工核验'})).status,201);return created.body.id;};
+  const aAgent=await agent(p1,a,one),otherAgent=await agent(p2,other,two),bAgent=await agent(bp,b,bUser);
+  const session=async(port,app,user,agentId)=>{const result=await h.call(port,app,'/chats',user.accessToken,'POST',{agentId});assert.equal(result.status,201);return result.body.id;};
+  const sa=await session(p1,a,one,aAgent),so=await session(p2,other,two,otherAgent),sb=await session(bp,b,bUser,bAgent);
+  const send=(port,app,user,id,text,key)=>h.call(port,app,'/chats/'+id+'/messages',user.accessToken,'POST',{text,requestKey:key});
+  const specs=[{port:p1,app:a,user:one,id:sa,text:'预算竞争一',key:'race-one'},{port:p2,app:other,user:two,id:so,text:'预算竞争二',key:'race-two'}];
+  const tasks=specs.map(s=>send(s.port,s.app,s.user,s.id,s.text,s.key));await waitHeld();
+  const rejected=await Promise.race(tasks);assert.equal(rejected.status,409);assert.equal(requests.length,1);assert.equal(await count(h.a,a.customerId),baseline+1);assert.equal(await count(h.a,a.customerId,true),pending+1);
+  h.record('两个Nest进程、不同账号与应用竞争客户最后未确认名额，仅一个预留并派发，另一个409且不落消息');
+  for(const reply of held.values())reply();held.clear();const results=await Promise.all(tasks),winner=results.findIndex(row=>row.status===201),win=specs[winner];assert.equal(results[winner].body.state,'COMPLETED');assert.equal(await count(h.a,a.customerId,true),pending);
+  const finalRace=await Promise.all([send(p1,a,one,sa,'预算最后总次数一','last-total-one'),send(p2,other,two,so,'预算最后总次数二','last-total-two')]);assert.deepEqual(finalRace.map(row=>row.status).sort(),[201,403]);assert.equal(finalRace.find(row=>row.status===201).body.state,'COMPLETED');assert.equal(await count(h.a,a.customerId),baseline+2);
+  assert.equal((await send(p2,other,two,so,'总次数不能跨应用绕过','over-total')).status,403);assert.equal(requests.length,2);
+  h.record('完整响应释放未确认占位但不退累计次数，两个进程跨应用竞争最后累计次数只有一个成功，到达上限拒绝且无额外供应商调用');
+  const replay=await send(p2,win.app,win.user,win.id,win.text,win.key);assert.equal(replay.status,201);assert.equal(replay.body.id,results[winner].body.id);assert.equal(requests.length,2);assert.equal((await send(p1,win.app,win.user,win.id,'修改原请求',win.key)).status,409);
+  h.record('预算耗尽后同键仍读取已有完成记录，跨进程重放不耗额度；修改原内容继续409');
+  const bResult=await send(bp,b,bUser,sb,'另一个客户独立预算','b-independent');assert.equal(bResult.body.state,'COMPLETED');assert.equal(await count(h.b,b.customerId),bBaseline+1);
+  assert.equal((await send(bp,a,one,sa,'跨客户不能借额度','cross-customer')).status,401);
+  h.record('A耗尽预算不阻断B的独立名额，A令牌进入B实例仍拒绝，不借用其他客户预算');
+  await stop(h.children[0]);await stop(h.children[1]);
+  const expanded={maxRequests:baseline+4,maxUnresolved:pending+1};p1=await h.start(a,'a3',{syntheticProviderUrl,syntheticCallBudget:expanded});p2=await h.start(other,'a4',{syntheticProviderUrl,syntheticCallBudget:expanded});one=await h.login(p1,a,one);two=await h.login(p2,other,two);
+  assert.equal(await count(h.a,a.customerId),baseline+2);const unknownId=await session(p1,a,one,aAgent),unknown=await send(p1,a,one,unknownId,'预算未知请求','unknown-budget');assert.equal(unknown.body.state,'UNKNOWN');assert.equal(requests.length,4);
+  const blockedId=await session(p2,other,two,otherAgent);assert.equal((await send(p2,other,two,blockedId,'其他会话也不能逃过未知占位','blocked-unknown')).status,409);assert.equal(requests.length,4);
+  h.record('仅显式提高合成累计上限后继续，重启不清空历史；未知结果占用全客户名额，换账号、应用或会话不能绕过');
+  await h.a.managedLeaseChatMessage.update({where:{id:unknown.body.id},data:{createdAt:new Date(Date.now()-86400000*2)}});
+  await stop(h.children[3]);await stop(h.children[4]);p1=await h.start(a,'a5',{syntheticProviderUrl,syntheticCallBudget:expanded});p2=await h.start(other,'a6',{syntheticProviderUrl,syntheticCallBudget:expanded});one=await h.login(p1,a,one);two=await h.login(p2,other,two);
+  const unknownReplay=await send(p2,a,one,unknownId,'预算未知请求','unknown-budget');assert.equal(unknownReplay.body.id,unknown.body.id);assert.equal(unknownReplay.body.state,'UNKNOWN');assert.equal((await send(p2,other,two,blockedId,'超时不能自动释放','after-expiry')).status,409);assert.equal(requests.length,4);assert.equal(await count(h.a,a.customerId),baseline+3);
+  h.record('未知请求跨两天及进程重启仍占位，同键保持原未知结果，不自动补发或退额度');
+}catch(error){failure=error;}finally{for(const reply of held.values())reply();held.clear();await h.close();server.closeAllConnections();await new Promise(done=>server.close(done));}
+h.report(resolve(process.argv[2]??resolve(runtime,'chat-budget-postgres.json')),['apps/server/src/modules/managed-tenancy/managed-lease-chat.ts','apps/server/src/modules/managed-tenancy/managed-chat-provider.ts','apps/server/src/modules/managed-tenancy/managed-provider-probe.ts','pilots/managed-tenancy/lease-process.mjs','pilots/managed-tenancy/verify-chat-budget-postgres.mjs'],failure,['本机合成HTTP、真实Nest和PostgreSQL，不调用真实模型、不代表真实余额、费用或供应商并发配额','累计预留次数含所有历史状态，ABORTED也不自动退款；没有每日重置或换签名清零','UNKNOWN持续占位，未实现供应商对账后的解占位；提高预算必须另有真实授权','仅验证候选入口，部署时须单写登记并协调所有客户进程使用同一授权配置；不证明Linux或生产资源隔离']);

@@ -15,8 +15,10 @@ import {
   SetCommissionRateDto, PaySettlementDto, GenerateSettlementDto, SettlementListQueryDto,
   CreateAgreementDto, UpdateAgreementDto, PaginationDto,
   CreatePunishmentDto, PunishmentListQueryDto, RevokePunishmentDto,
+  AddMerchantMemberDto,
 } from "./merchant.dto";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 type AuthRequest = Omit<Request, "user"> & { user: { id: string; [key: string]: unknown } };
 
@@ -44,6 +46,7 @@ export class MerchantAdminController {
   }
 
   @Post("punishments")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @Auditable({ action: "商家处罚执行", targetType: "MERCHANT_PUNISHMENT" })
   @ApiOperation({ summary: "执行处罚（WARNING/PRODUCT_DOWN/SHOP_SUSPEND/CLEAR_OUT）" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -54,6 +57,7 @@ export class MerchantAdminController {
   }
 
   @Put("punishments/:punishmentId/revoke")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "商家处罚撤销", targetType: "MERCHANT_PUNISHMENT" })
   @ApiOperation({ summary: "撤销处罚（按执行快照恢复原状态·已被其他原因改变的诚实跳过）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -73,6 +77,7 @@ export class MerchantAdminController {
   }
 
   @Post("agreements")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "创建新协议版本" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -81,6 +86,7 @@ export class MerchantAdminController {
   }
 
   @Put("agreements/:agreementId")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "更新协议版本" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -89,6 +95,7 @@ export class MerchantAdminController {
   }
 
   @Delete("agreements/:agreementId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除协议版本" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -121,9 +128,38 @@ export class MerchantAdminController {
     return this.merchantService.getMerchantStats(id);
   }
 
+  // ── 操作员管理（多操作员·官方旗舰店：:id/members 二段路径不与 :id 冲突） ──
+
+  @Get(":id/members")
+  @ApiOperation({ summary: "商家操作员列表（店主+操作员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  listMembers(@Param("id") id: string) {
+    return this.merchantService.listMembers(id);
+  }
+
+  @Post(":id/members")
+  @RedLineGate(RedLine.USER_DATA)
+  @Auditable({ action: "商家操作员添加", targetType: "MERCHANT" })
+  @ApiOperation({ summary: "添加操作员（按手机号）" })
+  @ApiResponse({ status: 201, description: "添加成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败/手机号未注册" })
+  addMember(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: AddMerchantMemberDto) {
+    return this.merchantService.addMemberByPhone(id, dto.phone, req.user.id);
+  }
+
+  @Delete(":id/members/:userId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
+  @Auditable({ action: "商家操作员移除", targetType: "MERCHANT" })
+  @ApiOperation({ summary: "移除操作员" })
+  @ApiResponse({ status: 200, description: "移除成功" })
+  removeMember(@Param("id") id: string, @Param("userId") userId: string) {
+    return this.merchantService.removeMember(id, userId);
+  }
+
   // ── 入驻审核 ──
 
   @Post(":id/approve")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "商家审核通过", targetType: "MERCHANT" })
   @ApiOperation({ summary: "审核通过" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -133,6 +169,7 @@ export class MerchantAdminController {
   }
 
   @Post(":id/reject")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "商家审核驳回", targetType: "MERCHANT" })
   @ApiOperation({ summary: "审核驳回" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -144,6 +181,7 @@ export class MerchantAdminController {
   // ── 状态管理 ──
 
   @Put(":id/status")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "商家状态变更", targetType: "MERCHANT" })
   @ApiOperation({ summary: "变更商家状态" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -164,19 +202,20 @@ export class MerchantAdminController {
   }
 
   @Post(":id/deposits/refund")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "退还保证金", targetType: "MERCHANT" })
-  @ApiOperation({ summary: "退还保证金" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiOperation({ summary: "退还保证金（真实原路退款未开放，当前拒绝）" })
+  @ApiResponse({ status: 400, description: "真实原路退款未开放" })
   refundDeposit(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: RefundDepositDto) {
     return this.depositService.refundDeposit(id, req.user.id, dto);
   }
 
   @Post(":id/deposits/adjust")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "调整保证金", targetType: "MERCHANT" })
-  @ApiOperation({ summary: "调整保证金金额" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiOperation({ summary: "保证金调额（当前仅允许零金额遗留状态自愈）" })
+  @ApiResponse({ status: 201, description: "零金额遗留状态已修复" })
+  @ApiResponse({ status: 400, description: "正金额、已缴或存在账面余额时拒绝" })
   adjustDeposit(@Param("id") id: string, @Body() dto: AdjustDepositDto) {
     return this.depositService.adjustDeposit(id, dto);
   }
@@ -192,6 +231,7 @@ export class MerchantAdminController {
   }
 
   @Post(":id/violations")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "商家违规记录", targetType: "MERCHANT" })
   @ApiOperation({ summary: "创建违规记录" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -201,6 +241,7 @@ export class MerchantAdminController {
   }
 
   @Put(":id/violations/:violationId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "处理商家违规", targetType: "MERCHANT" })
   @ApiOperation({ summary: "处理违规" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -213,6 +254,7 @@ export class MerchantAdminController {
   // ── 分佣设置 ──
 
   @Put(":id/commission")
+  @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "设置商家分佣比例" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -224,6 +266,7 @@ export class MerchantAdminController {
   // ── 结算 ──
 
   @Post(":id/settlements/generate")
+  @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "生成结算单" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -248,6 +291,7 @@ export class MerchantAdminController {
   }
 
   @Post(":id/settlements/:settlementId/pay")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "商家结算打款", targetType: "MERCHANT" })
   @ApiOperation({ summary: "标记结算已支付" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -257,6 +301,7 @@ export class MerchantAdminController {
   }
 
   @Post(":id/settlements/:settlementId/cancel")
+  @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "取消结算单" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

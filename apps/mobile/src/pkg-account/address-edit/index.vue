@@ -12,10 +12,14 @@
     </view>
 
     <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
-      <view v-if="loading" class="loading-state">加载中...</view>
-      <view v-else-if="error" class="error-state">
-        <text>{{ error }}</text>
-        <view @tap="goBack">返回</view>
+      <view v-if="loading" class="page-state">
+        <app-icon name="loader-2" :size="40" color="#C41E3A" class="state-spin" />
+        <text class="page-state-text">加载中...</text>
+      </view>
+      <view v-else-if="error" class="page-state">
+        <view class="page-state-icon"><app-icon name="alert-circle" :size="48" color="#C41E3A" /></view>
+        <text class="page-state-text">{{ error }}</text>
+        <view class="page-state-btn" @tap="goBack"><text class="page-state-btn-text">返回</text></view>
       </view>
       <template v-else>
       <!-- 表单卡片 -->
@@ -103,8 +107,8 @@
       </template>
     </scroll-view>
 
-    <!-- 保存按钮 -->
-    <view class="footer" :style="{ paddingBottom: safeBottom + 'px' }">
+    <!-- 保存按钮（加载/错误态隐藏，无表单可保存时不浮出操作栏） -->
+    <view v-if="!loading && !error" class="footer" :style="{ paddingBottom: safeBottom + 'px' }">
       <view class="save-btn" :class="{ disabled: saving }" @tap="handleSave">
         <text class="save-btn-text">{{ saving ? '保存中...' : '保存地址' }}</text>
       </view>
@@ -125,7 +129,15 @@
           <view class="picker-ph" />
         </view>
 
-        <scroll-view scroll-y class="picker-list">
+        <scroll-view
+          :key="`${pickerSession}-${pickerStep}`"
+          scroll-y
+          class="picker-list"
+          :scroll-top="0"
+          :show-scrollbar="true"
+          :enhanced="true"
+          :bounces="true"
+        >
           <template v-if="pickerStep === 'province'">
             <view
               v-for="p in provinces"
@@ -170,7 +182,9 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
-import { accountApi, REGIONS, PROVINCES } from '@/lib/account-data'
+import { accountApi } from '@/pkg-account/lib/account-data'
+// 地区数据仅由地址编辑页引用，避免账户API公共层携带完整地区表。
+import { SHIPPING_REGIONS as REGIONS, SHIPPING_PROVINCES as PROVINCES } from '@/pkg-account/lib/shipping-regions'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
@@ -204,6 +218,8 @@ const showPicker = ref(false)
 const pickerStep = ref<'province' | 'city' | 'district'>('province')
 const tempProvince = ref('')
 const tempCity = ref('')
+// 微信真机关闭 scroll-view 后可能保留失效的触摸状态；每次打开强制创建新实例。
+const pickerSession = ref(0)
 
 const pickerCities = computed(() => (tempProvince.value ? Object.keys(REGIONS[tempProvince.value] || {}) : []))
 const pickerDistricts = computed(() =>
@@ -279,6 +295,7 @@ async function handleSave() {
 }
 
 function openPicker() {
+  pickerSession.value += 1
   tempProvince.value = province.value || ''
   tempCity.value = city.value || ''
   pickerStep.value = 'province'
@@ -351,6 +368,46 @@ function selectDistrict(d: string) {
 .scroll-area {
   height: 100vh;
   box-sizing: border-box;
+}
+
+/* 统一居中卡片式加载/错误态 */
+.page-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  padding: 200rpx 48rpx;
+}
+.page-state-icon {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 999rpx;
+  background: rgba(196, 30, 58, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.page-state-text {
+  font-size: 28rpx;
+  color: #999999;
+  text-align: center;
+}
+.page-state-btn {
+  margin-top: 8rpx;
+  padding: 16rpx 56rpx;
+  background: var(--brand);
+  border-radius: 999rpx;
+}
+.page-state-btn-text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+.state-spin {
+  animation: state-spin 1s linear infinite;
+}
+@keyframes state-spin {
+  to { transform: rotate(360deg); }
 }
 
 .form-card {
@@ -526,7 +583,10 @@ function selectDistrict(d: string) {
   width: 80rpx;
 }
 .picker-list {
+  /* 微信小程序 scroll-view 必须有明确高度，仅 max-height 在二次打开时可能无法滚动。 */
+  height: calc(70vh - 120rpx);
   max-height: calc(70vh - 120rpx);
+  overscroll-behavior: contain;
 }
 .picker-item {
   display: flex;

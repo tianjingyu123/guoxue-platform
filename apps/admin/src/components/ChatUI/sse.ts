@@ -1,4 +1,35 @@
-import type { ChatMessage, SseChunk } from './types'
+import type { ChatMessage, ChatSource, ChatUsage, SseChunk } from './types'
+
+type UnknownRecord = Record<string, unknown>
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function readErrorMessage(value: unknown): string | undefined {
+  if (!isRecord(value)) return undefined
+  if (typeof value.message === 'string') return value.message
+  return typeof value.error === 'string' ? value.error : undefined
+}
+
+function readSources(value: unknown): ChatSource[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  return value.filter((item): item is ChatSource => (
+    isRecord(item) &&
+    typeof item.index === 'number' &&
+    typeof item.title === 'string' &&
+    typeof item.excerpt === 'string'
+  ))
+}
+
+function readUsage(value: unknown): ChatUsage | undefined {
+  if (!isRecord(value)) return undefined
+  const promptTokens = typeof value.promptTokens === 'number' ? value.promptTokens : undefined
+  const completionTokens = typeof value.completionTokens === 'number' ? value.completionTokens : undefined
+  return promptTokens === undefined && completionTokens === undefined
+    ? undefined
+    : { promptTokens, completionTokens }
+}
 
 /** 解析 SSE 文本行，返回 JSON 对象或 null */
 function parseSseLine(line: string): SseChunk | null {
@@ -45,8 +76,8 @@ export async function chatStream(
     const text = await response.text().catch(() => '')
     let msg = `HTTP ${response.status}`
     try {
-      const j = JSON.parse(text)
-      msg = j.message || j.error || msg
+      const parsed: unknown = JSON.parse(text)
+      msg = readErrorMessage(parsed) || msg
     } catch { /* ignore */ }
     throw new Error(msg)
   }
@@ -103,7 +134,7 @@ export async function chatStream(
 export async function chatNonStream(
   endpoint: string,
   body: Record<string, unknown>,
-): Promise<{ content: string; sources?: any[]; usage?: any }> {
+): Promise<{ content: string; sources?: ChatSource[]; usage?: ChatUsage }> {
   const token = localStorage.getItem('token') || ''
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -118,19 +149,22 @@ export async function chatNonStream(
     const text = await response.text().catch(() => '')
     let msg = `HTTP ${response.status}`
     try {
-      const j = JSON.parse(text)
-      msg = j.message || j.error || msg
+      const parsed: unknown = JSON.parse(text)
+      msg = readErrorMessage(parsed) || msg
     } catch { /* ignore */ }
     throw new Error(msg)
   }
 
-  const data = await response.json()
+  const data: unknown = await response.json()
   // 兼容多种后端响应格式
-  const unwrapped = data?.data ?? data
+  const unwrapped = isRecord(data) && data.data !== undefined ? data.data : data
+  const responseBody = isRecord(unwrapped) ? unwrapped : {}
+  const content = [responseBody.content, responseBody.reply, responseBody.answer]
+    .find((item): item is string => typeof item === 'string')
   return {
-    content: unwrapped?.content ?? unwrapped?.reply ?? unwrapped?.answer ?? JSON.stringify(unwrapped),
-    sources: unwrapped?.sources,
-    usage: unwrapped?.usage,
+    content: content ?? JSON.stringify(unwrapped) ?? '',
+    sources: readSources(responseBody.sources),
+    usage: readUsage(responseBody.usage),
   }
 }
 

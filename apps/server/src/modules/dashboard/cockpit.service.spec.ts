@@ -40,7 +40,8 @@ describe("CockpitService", () => {
     it("返回运营总览数据", async () => {
       mockPrisma.order.aggregate
         .mockResolvedValueOnce({ _sum: { amount: 5000 } })  // todayGmv
-        .mockResolvedValueOnce({ _sum: { amount: 50000 } }); // monthGmv
+        .mockResolvedValueOnce({ _sum: { amount: 50000 } }) // monthGmv
+        .mockResolvedValueOnce({ _sum: { amount: 0 } });    // monthRefund
       mockPrisma.order.groupBy
         .mockResolvedValueOnce([{ userId: "u1" }, { userId: "u2" }]) // paidUsers
         .mockResolvedValueOnce([{ userId: "u1" }]); // monthPaidUsers
@@ -57,7 +58,8 @@ describe("CockpitService", () => {
       expect(result.monthPaidUsers).toBe(1);
       expect(result.totalUsers).toBe(200);
       expect(result.onlineUsers).toBe(5);
-      expect(result.estimatedNetProfit).toBe(40000); // 50000 - 10000
+      expect(result.estimatedNetProfit).toBe(40000); // 50000 - 10000 - 0(退款)
+      expect(result.netProfitIsEstimate).toBe(true);
     });
 
     it("缓存命中直接返回", async () => {

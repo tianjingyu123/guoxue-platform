@@ -1,0 +1,10 @@
+{
+  "强": {"source": "周易 · 乾卦", "quote": "天行健，君子以自强不息。", "raw_quote": "天行健，君子以自強不息。", "origin": "zhouyi/乾.txt"},
+  "厚": {"source": "周易 · 坤卦", "quote": "地势坤，君子以厚德载物。", "raw_quote": "地勢坤，君子以厚德載物。", "origin": "zhouyi/坤.txt"},
+  "泉": {"source": "唐 · 王维《山居秋暝》", "quote": "明月松间照，清泉石上流。", "raw_quote": "明月松間照，清泉石上流。", "origin": "唐诗三百首.json"},
+  "朗": {"source": "王羲之《兰亭集序》", "quote": "天朗气清，惠风和畅", "raw_quote": "天朗氣清，惠風和暢", "origin": "guwenguanzhi.json"},
+  "远": {"source": "论语 · 泰伯", "quote": "任重而道远。", "raw_quote": "任重而道远。", "origin": "lunyu.json"},
+  "海": {"source": "唐 · 张九龄《望月怀远》", "quote": "海上生明月，天涯共此时。", "raw_quote": "海上生明月，天涯共此時。", "origin": "唐诗三百首.json"},
+  "风": {"source": "苏轼《前赤壁赋》", "quote": "清风徐来，水波不兴。", "raw_quote": "清風徐來，水波不興。", "origin": "guwenguanzhi.json"},
+  "宁": {"source": "周易 · 乾卦", "quote": "万国咸宁。", "raw_quote": "萬國咸寧。", "origin": "zhouyi/乾.txt"}
+}

@@ -4,8 +4,15 @@
     <view class="top-decor" />
 
     <!-- 返回按钮 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="back-btn" @tap="goBack">
+    <view class="navbar" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
+      <view
+        class="back-btn"
+        role="button"
+        aria-label="返回上一页"
+        tabindex="0"
+        @tap="goBack"
+        @keydown="activateOnKeyboard($event, goBack)"
+      >
         <AppIcon name="chevron-left" :size="24" color="#2c2c2c" />
       </view>
     </view>
@@ -20,12 +27,34 @@
         <text class="app-subtitle">{{ BRAND.slogan }}</text>
       </view>
 
-      <!-- 登录方式切换 -->
-      <view class="tabs">
-        <view class="tab" :class="{ active: loginType === 'phone' }" @tap="switchType('phone')">
+      <!-- 排盘受阻后优先展示微信登录，保留账号方式，不自动代勾协议。 -->
+      <view v-if="paipanWechatAvailable" class="guest-entry" role="button" tabindex="0"
+        @tap="useAccountLogin = !useAccountLogin"
+        @keydown="activateOnKeyboard($event, () => useAccountLogin = !useAccountLogin)">
+        <text>{{ preferWechatLogin ? '使用验证码或密码登录' : '使用微信快捷登录' }}</text>
+      </view>
+      <!-- 登录方式：手机验证码 + 密码 -->
+      <view v-if="showAccountLogin" class="tabs" role="tablist" aria-label="选择登录方式">
+        <view
+          class="tab"
+          :class="{ active: loginType === 'phone' }"
+          role="tab"
+          :aria-selected="loginType === 'phone' ? 'true' : 'false'"
+          :tabindex="loginType === 'phone' ? 0 : -1"
+          @tap="switchType('phone')"
+          @keydown="onLoginTypeKeydown($event, 'phone')"
+        >
           <text class="tab-text" :class="{ 'tab-text-active': loginType === 'phone' }">验证码登录</text>
         </view>
-        <view class="tab" :class="{ active: loginType === 'password' }" @tap="switchType('password')">
+        <view
+          class="tab"
+          :class="{ active: loginType === 'password' }"
+          role="tab"
+          :aria-selected="loginType === 'password' ? 'true' : 'false'"
+          :tabindex="loginType === 'password' ? 0 : -1"
+          @tap="switchType('password')"
+          @keydown="onLoginTypeKeydown($event, 'password')"
+        >
           <text class="tab-text" :class="{ 'tab-text-active': loginType === 'password' }">密码登录</text>
         </view>
       </view>
@@ -33,15 +62,17 @@
       <!-- 登录表单 -->
       <view class="form">
         <!-- 手机号 -->
-        <view class="input-wrap">
+        <view v-if="showAccountLogin" class="input-wrap">
           <view class="input-icon">
             <AppIcon name="phone" :size="20" color="#999999" />
           </view>
           <input
             class="input"
-            type="text"
+            type="number"
+            inputmode="numeric"
             :value="phone"
             maxlength="11"
+            aria-label="手机号"
             placeholder="请输入手机号"
             placeholder-class="input-ph"
             @input="onPhoneInput"
@@ -49,15 +80,17 @@
         </view>
 
         <!-- 验证码 -->
-        <view v-if="loginType === 'phone'" class="input-wrap">
+        <view v-if="showAccountLogin && loginType === 'phone'" class="input-wrap">
           <view class="input-icon">
             <AppIcon name="message-circle" :size="20" color="#999999" />
           </view>
           <input
             class="input input-code"
-            type="text"
+            type="number"
+            inputmode="numeric"
             :value="code"
             maxlength="6"
+            aria-label="短信验证码"
             placeholder="请输入验证码"
             placeholder-class="input-ph"
             @input="onCodeInput"
@@ -65,7 +98,12 @@
           <view
             class="code-btn"
             :class="{ 'code-btn-disabled': countdown > 0 || !isPhoneValid || isSendingCode }"
+            role="button"
+            :aria-label="countdown > 0 ? `${countdown}秒后可重新获取验证码` : '获取验证码'"
+            :aria-disabled="countdown > 0 || !isPhoneValid || isSendingCode ? 'true' : 'false'"
+            tabindex="0"
             @tap="handleSendCode"
+            @keydown="activateOnKeyboard($event, handleSendCode)"
           >
             <AppIcon v-if="isSendingCode" name="loader-2" :size="16" color="#999999" class="spin" />
             <text v-else class="code-btn-text" :class="{ 'code-btn-text-disabled': countdown > 0 || !isPhoneValid }">
@@ -75,7 +113,7 @@
         </view>
 
         <!-- 密码 -->
-        <view v-else class="input-wrap">
+        <view v-else-if="showAccountLogin" class="input-wrap">
           <view class="input-icon">
             <AppIcon name="lock" :size="20" color="#999999" />
           </view>
@@ -83,90 +121,236 @@
             class="input input-pwd"
             :password="!showPassword"
             :value="password"
+            aria-label="登录密码"
             placeholder="请输入密码"
             placeholder-class="input-ph"
             @input="onPasswordInput"
           />
-          <view class="eye-btn" @tap="showPassword = !showPassword">
+          <view
+            class="eye-btn"
+            role="button"
+            :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+            tabindex="0"
+            @tap="showPassword = !showPassword"
+            @keydown="activateOnKeyboard($event, () => showPassword = !showPassword)"
+          >
             <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
           </view>
         </view>
 
         <!-- 错误提示 -->
-        <text v-if="error" class="error-text">{{ error }}</text>
+        <text v-if="error" class="error-text" role="alert" aria-live="polite">{{ error }}</text>
 
         <!-- 忘记密码 -->
-        <view v-if="loginType === 'password'" class="forgot-row">
-          <text class="forgot-link" @tap="goForgot">忘记密码？</text>
+        <view v-if="showAccountLogin && loginType === 'password'" class="forgot-row">
+          <text
+            class="forgot-link"
+            role="link"
+            tabindex="0"
+            @tap="goForgot"
+            @keydown="activateOnKeyboard($event, goForgot)"
+          >忘记密码？</text>
         </view>
 
-        <!-- 协议勾选 -->
-        <view class="terms-row">
-          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }" @tap="agreedTerms = !agreedTerms">
-            <AppIcon v-if="agreedTerms" name="check" :size="12" color="#ffffff" />
+        <view
+          class="terms-row"
+          role="checkbox"
+          :aria-checked="agreedTerms ? 'true' : 'false'"
+          tabindex="0"
+          @tap="agreedTerms = !agreedTerms"
+          @keydown="activateOnKeyboard($event, () => agreedTerms = !agreedTerms)"
+        >
+          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }">
+            <AppIcon v-if="agreedTerms" name="check" :size="15" color="#ffffff" />
           </view>
           <view class="terms-text">
             <text class="terms-normal">我已阅读并同意</text>
-            <text class="terms-link">《用户服务协议》</text>
+            <text class="terms-link" role="link" tabindex="0" @tap.stop="navigateTo('/legal/user-agreement')">《用户服务协议》</text>
             <text class="terms-normal">和</text>
-            <text class="terms-link">《隐私政策》</text>
+            <text class="terms-link" role="link" tabindex="0" @tap.stop="navigateTo('/legal/privacy-policy')">《隐私政策》</text>
           </view>
         </view>
 
+        <!-- #ifdef APP-PLUS -->
+        <view v-if="showAppPhoneQuickLogin && !useAppAccountLogin" class="app-phone-quick">
+          <view class="app-phone-quick-title">用本机号码，快速继续</view>
+          <view class="app-phone-quick-desc">确认运营商授权后，直接回到刚才的页面</view>
+          <view class="app-phone-quick-button" role="button" tabindex="0"
+            @tap="handleAppPhoneQuickLogin" @keydown="activateOnKeyboard($event, handleAppPhoneQuickLogin)">
+            {{ isLoading ? '登录中...' : '本机号码一键登录' }}
+          </view>
+          <view class="app-phone-quick-note" role="button" tabindex="0"
+            @tap="useAppAccountLogin = true" @keydown="activateOnKeyboard($event, () => useAppAccountLogin = true)">
+            使用验证码或密码登录
+          </view>
+        </view>
+        <!-- #endif -->
+
         <!-- 登录按钮 -->
-        <view class="submit-btn" :class="{ 'submit-btn-disabled': !canSubmit || isLoading }" @tap="handleLogin">
+        <view
+          v-if="!showAppPhoneQuickLogin || useAppAccountLogin || preferWechatLogin"
+          class="submit-btn"
+          :class="{ 'submit-btn-disabled': (!preferWechatLogin && !canSubmit) || isLoading }"
+          role="button"
+          :aria-busy="isLoading ? 'true' : 'false'"
+          :aria-disabled="isLoading ? 'true' : 'false'"
+          tabindex="0"
+          @tap="preferWechatLogin ? handleThirdParty('wechat') : handleLogin()"
+          @keydown="activateOnKeyboard($event, () => preferWechatLogin ? handleThirdParty('wechat') : handleLogin())"
+        >
           <AppIcon v-if="isLoading" name="loader-2" :size="16" color="#ffffff" class="spin" />
-          <text class="submit-text">{{ isLoading ? '登录中...' : '登录' }}</text>
+          <text class="submit-text">{{ isLoading ? '登录中...' : preferWechatLogin ? '微信快捷登录' : '登录' }}</text>
         </view>
 
         <!-- 注册入口 -->
-        <view class="register-row">
+        <view v-if="showAccountLogin" class="register-row">
           <text class="register-normal">还没有账号？</text>
-          <text class="register-link" @tap="goRegister">立即注册</text>
+          <text
+            class="register-link"
+            role="link"
+            tabindex="0"
+            @tap="goRegister"
+            @keydown="activateOnKeyboard($event, goRegister)"
+          >立即注册</text>
+        </view>
+
+        <view
+          class="guest-entry"
+          role="button"
+          tabindex="0"
+          aria-label="暂不登录，浏览公开内容"
+          @tap="browseAsGuest"
+          @keydown="activateOnKeyboard($event, browseAsGuest)"
+        >
+          <text>暂不登录，先逛逛</text>
         </view>
       </view>
 
-      <!-- 第三方登录 -->
-      <view class="third-party">
+      <!-- 第三方登录：iOS 同级提供 Apple 登录，满足 App Store 4.8。 -->
+      <view v-if="showWechatLogin || showAppleLogin" class="third-party">
         <view class="divider">
           <view class="divider-line" />
           <text class="divider-text">其他登录方式</text>
           <view class="divider-line" />
         </view>
-        <view class="third-icons">
-          <view class="third-item" @tap="handleThirdParty('wechat')">
+        <!-- #ifdef APP-PLUS -->
+        <view
+          v-if="showAppleLogin"
+          class="apple-login-btn"
+          role="button"
+          aria-label="通过 Apple 登录"
+          tabindex="0"
+          @tap="handleAppleLogin"
+          @keydown="activateOnKeyboard($event, handleAppleLogin)"
+        >
+          <text class="apple-mark"></text>
+          <text class="apple-label">通过 Apple 登录</text>
+        </view>
+        <!-- #endif -->
+        <view v-if="showWechatLogin" class="third-icons" :class="{ 'third-icons-after-apple': showAppleLogin }">
+          <view
+            class="third-item"
+            role="button"
+            aria-label="使用微信登录"
+            tabindex="0"
+            @tap="handleThirdParty('wechat')"
+            @keydown="activateOnKeyboard($event, () => handleThirdParty('wechat'))"
+          >
             <view class="third-circle wechat-circle">
-              <AppIcon name="wechat" :size="28" color="#07C160" />
+              <view class="wechat-mark" aria-hidden="true">
+                <view class="wechat-bubble wechat-bubble-primary">
+                  <view class="wechat-dot" />
+                  <view class="wechat-dot" />
+                </view>
+                <view class="wechat-bubble wechat-bubble-secondary">
+                  <view class="wechat-dot wechat-dot-small" />
+                  <view class="wechat-dot wechat-dot-small" />
+                </view>
+              </view>
             </view>
-            <text class="third-label">微信</text>
+            <text class="third-label">微信登录</text>
           </view>
-          <view class="third-item" @tap="handleThirdParty('apple')">
-            <view class="third-circle apple-circle">
-              <AppIcon name="apple" :size="28" color="#2c2c2c" />
-            </view>
-            <text class="third-label">Apple</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 小程序进入鉴权页即展示快捷授权；微信规定手机号系统弹窗必须由按钮点击触发。 -->
+    <!-- #ifdef MP-WEIXIN -->
+    <view v-if="showMiniQuickSheet" class="mini-auth-mask" role="dialog" aria-label="手机号快捷登录">
+      <view class="mini-auth-card">
+        <view class="mini-auth-logo"><image class="mini-auth-logo-image" :src="logoSrc" mode="aspectFill" /></view>
+        <text class="mini-auth-title">快速登录热卜国学</text>
+        <text class="mini-auth-desc">确认微信绑定手机号后即可继续</text>
+        <view class="mini-auth-terms" role="checkbox" :aria-checked="agreedTerms ? 'true' : 'false'" @tap="agreedTerms = !agreedTerms">
+          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }">
+            <AppIcon v-if="agreedTerms" name="check" :size="15" color="#ffffff" />
           </view>
+          <view class="terms-text">
+            <text class="terms-normal">我已阅读并同意</text>
+            <text class="terms-link" @tap.stop="navigateTo('/legal/user-agreement')">《用户服务协议》</text>
+            <text class="terms-normal">和</text>
+            <text class="terms-link" @tap.stop="navigateTo('/legal/privacy-policy')">《隐私政策》</text>
+          </view>
+        </view>
+
+        <button
+          class="mini-phone-button"
+          :class="{ 'mini-phone-button-disabled': !agreedTerms || isLoading }"
+          open-type="getPhoneNumber"
+          :disabled="!agreedTerms || isLoading"
+          @getphonenumber="handleMiniPhoneLogin"
+        >{{ isLoading ? '登录中...' : '手机号一键登录' }}</button>
+        <view class="mini-auth-other" role="button" tabindex="0" @tap="showMiniQuickSheet = false">
+          <text>使用其他登录方式</text>
+        </view>
+      </view>
+    </view>
+    <!-- #endif -->
+
+    <!-- H5 微信 OAuth 必须由可见用户操作触发，避免微信拦截异步脚本外跳后白屏。 -->
+    <view v-if="h5WechatAuthorizationUrl" class="wechat-auth-mask">
+      <view class="wechat-auth-card" @tap.stop>
+        <view class="wechat-auth-icon">
+          <view class="wechat-mark" aria-hidden="true">
+            <view class="wechat-bubble wechat-bubble-primary"><view class="wechat-dot" /><view class="wechat-dot" /></view>
+            <view class="wechat-bubble wechat-bubble-secondary"><view class="wechat-dot wechat-dot-small" /><view class="wechat-dot wechat-dot-small" /></view>
+          </view>
+        </view>
+        <text class="wechat-auth-title">继续微信授权</text>
+        <text class="wechat-auth-desc">为安全登录热卜国学，请完成一次微信授权</text>
+        <view class="wechat-auth-confirm" role="button" tabindex="0" @tap="continueH5WechatAuthorization">
+          <text>继续微信授权</text>
+        </view>
+        <view class="wechat-auth-cancel" role="button" tabindex="0" @tap="cancelH5WechatAuthorization">
+          <text>暂不登录</text>
         </view>
       </view>
     </view>
 
     <!-- 底部安全提示 -->
     <view class="footer">
-      <text class="footer-text">登录即代表您同意遵守平台规则，共建和谐社区</text>
+      <text class="footer-text">我们重视您的隐私与账号安全</text>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { navigateWechatAuthorization } from '@/utils/wechat-top-level'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
-import { setToken, setUserInfo } from '@/utils/storage'
+import { getToken, setToken, setRefreshToken, setUserInfo, clearAuthSession } from '@/utils/storage'
+// #ifdef APP-PLUS
+import { hydrateRemoteConfig, isClientFeatureEnabled } from '@/lib/remote-config'
+// #endif
 import { BRAND } from '@/lib/brand'
+import { continueAfterLogin } from '@/utils/auth-journey'
 
 const statusBarHeight = ref(0)
-const logoSrc = ref('/images/logo.jpg')
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
+const logoSrc = ref('/static/logo.webp')
 
 // UI 临时状态
 const loginType = ref<'phone' | 'password'>('phone')
@@ -179,8 +363,67 @@ const isLoading = ref(false)
 const isSendingCode = ref(false)
 const agreedTerms = ref(false)
 const error = ref('')
+const paipanEntry = ref(false)
+const useAccountLogin = ref(false)
+const paipanWechatAvailable = computed(() => {
+  // #ifdef H5
+  return paipanEntry.value && showWechatLogin.value && isWechatBrowser()
+  // #endif
+  return false
+})
+const preferWechatLogin = computed(() => paipanWechatAvailable.value && !useAccountLogin.value)
+const bindWechatAfterPhone = ref(false)
+const h5WechatAuthorizationUrl = ref('')
+// App 端必须由服务端运行时开关显式放行；拉取失败时保持隐藏，避免密钥切换前误开放。
+const showWechatLogin = ref(false)
+const showAppleLogin = ref(false)
+const isMiniProgram = ref(false)
+const showMiniQuickSheet = ref(false)
+const showAppPhoneQuickLogin = ref(false)
+const useAppAccountLogin = ref(false)
+const showAccountLogin = computed(() => !preferWechatLogin.value && (!showAppPhoneQuickLogin.value || useAppAccountLogin.value))
+
+onLoad((query) => {
+  paipanEntry.value = String(query?.paipan || '') === '1'
+})
+
+// H5 的模板条件表达式在部分 UniApp 编译器中不会定义 defined(H5)，改由可靠的脚本条件控制展示。
+// #ifdef H5
+showWechatLogin.value = true
+// #endif
+// #ifdef MP-WEIXIN
+showWechatLogin.value = true
+isMiniProgram.value = true
+showMiniQuickSheet.value = true
+// #endif
+
+// #ifdef APP-PLUS
+onLoad(() => {
+  showAppPhoneQuickLogin.value = String((import.meta as any).env?.VITE_UNIVERIFY_ENABLED || '') === 'true'
+  try {
+    const system = uni.getSystemInfoSync()
+    showAppleLogin.value = String(system.platform || '').toLowerCase() === 'ios'
+  } catch {
+    showAppleLogin.value = false
+  }
+  void hydrateRemoteConfig(true).then(() => {
+    showWechatLogin.value = isClientFeatureEnabled('client_wechat_app_login', false)
+  })
+})
+// #endif
 
 let timer: ReturnType<typeof setInterval> | null = null
+
+// #ifdef H5
+const WECHAT_OAUTH_ATTEMPT_KEY = 'wechat:h5:oauth-attempt'
+const WECHAT_OAUTH_MAX_AGE_MS = 10 * 60 * 1000
+let h5OauthHandled = false
+
+interface WechatOAuthAttempt {
+  state: string
+  createdAt: number
+}
+// #endif
 
 const isPhoneValid = computed(() => phone.value.length === 11)
 const isCodeValid = computed(() => code.value.length === 6)
@@ -191,10 +434,169 @@ const canSubmit = computed(() =>
     : isPhoneValid.value && isPasswordValid.value && agreedTerms.value,
 )
 
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+
+function onLoginTypeKeydown(event: KeyboardEvent, type: 'phone' | 'password') {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    switchType(type)
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  switchType(type === 'phone' ? 'password' : 'phone')
+  void nextTick(() => {
+    document.querySelector<HTMLElement>('.tab[aria-selected="true"]')?.focus()
+  })
+}
+
 function switchType(t: 'phone' | 'password') {
   loginType.value = t
   error.value = ''
 }
+
+// #ifdef H5
+function isWechatBrowser(): boolean {
+  return /MicroMessenger/i.test(window.navigator.userAgent)
+}
+
+function createWechatOAuthState(): string {
+  if (!window.crypto?.getRandomValues) throw new Error('当前浏览器不支持安全的微信登录')
+  const bytes = new Uint8Array(24)
+  window.crypto.getRandomValues(bytes)
+  // 统一静态回跳页依据前缀识别登录场景；随机部分仍是一次性 CSRF state。
+  return `wxlogin.${Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')}`
+}
+
+function clearWechatCallbackParams(): void {
+  const cleanUrl = new URL(window.location.href)
+  cleanUrl.searchParams.delete('code')
+  cleanUrl.searchParams.delete('state')
+  cleanUrl.searchParams.delete('wx_login')
+  window.history.replaceState({}, document.title, cleanUrl.toString())
+}
+
+function consumeWechatOAuthAttempt(receivedState: string): boolean {
+  let attempt: WechatOAuthAttempt | null = null
+  try {
+    const raw = window.sessionStorage.getItem(WECHAT_OAUTH_ATTEMPT_KEY)
+    if (raw) attempt = JSON.parse(raw) as WechatOAuthAttempt
+  } catch {
+    attempt = null
+  } finally {
+    window.sessionStorage.removeItem(WECHAT_OAUTH_ATTEMPT_KEY)
+  }
+  return Boolean(
+    attempt?.state &&
+    receivedState &&
+    attempt.state === receivedState &&
+    Number.isFinite(attempt.createdAt) &&
+    Date.now() - attempt.createdAt >= 0 &&
+    Date.now() - attempt.createdAt <= WECHAT_OAUTH_MAX_AGE_MS,
+  )
+}
+
+async function startH5WechatLogin(): Promise<void> {
+  if (!isWechatBrowser()) {
+    uni.showToast({ title: '请在微信内打开本页后使用微信登录', icon: 'none' })
+    return
+  }
+  isLoading.value = true
+  error.value = ''
+  try {
+    const state = createWechatOAuthState()
+    window.sessionStorage.setItem(
+      WECHAT_OAUTH_ATTEMPT_KEY,
+      JSON.stringify({ state, createdAt: Date.now() } satisfies WechatOAuthAttempt),
+    )
+    // 微信先回到无框架依赖的静态中转页，再由中转页进入登录路由。
+    // 直接回跳 uni-app history 路由在部分 XWeb 版本会在框架初始化前白屏。
+    const callbackUrl = new URL('/h5/wechat-oauth-callback.html', window.location.origin)
+    const oauthUrl = await authApi.getWechatOAuthUrl(callbackUrl.toString(), state)
+    // 不能在异步请求完成后立即脚本跳转：微信会视为脱离用户手势并留下白屏。
+    // 显示确认卡片，由用户再次点击同步触发授权跳转。
+    h5WechatAuthorizationUrl.value = oauthUrl
+    isLoading.value = false
+  } catch (e) {
+    window.sessionStorage.removeItem(WECHAT_OAUTH_ATTEMPT_KEY)
+    error.value = (e as Error)?.message || '微信登录暂时不可用'
+    isLoading.value = false
+  }
+}
+
+/** 仅由用户点击触发 OAuth 外跳，兼容微信拦截异步脚本跳转的行为。 */
+function continueH5WechatAuthorization() {
+  const target = h5WechatAuthorizationUrl.value.trim()
+  try {
+    const parsed = new URL(target)
+    if (parsed.origin !== 'https://open.weixin.qq.com') throw new Error('invalid oauth origin')
+    navigateWechatAuthorization(window, parsed.toString())
+  } catch {
+    window.sessionStorage.removeItem(WECHAT_OAUTH_ATTEMPT_KEY)
+    h5WechatAuthorizationUrl.value = ''
+    error.value = '微信授权链接已失效，请重新发起微信登录'
+    isLoading.value = false
+  }
+}
+
+function cancelH5WechatAuthorization() {
+  window.sessionStorage.removeItem(WECHAT_OAUTH_ATTEMPT_KEY)
+  h5WechatAuthorizationUrl.value = ''
+  isLoading.value = false
+}
+
+async function completeH5WechatLogin(query: Record<string, string | undefined>): Promise<void> {
+  if (h5OauthHandled || query.wx_login !== '1') return
+  h5OauthHandled = true
+  const oauthCode = String(query.code || '')
+  const oauthState = String(query.state || '')
+  const stateValid = consumeWechatOAuthAttempt(oauthState)
+  clearWechatCallbackParams()
+
+  if (!oauthCode) {
+    error.value = '微信授权未完成，请重试'
+    return
+  }
+  if (!stateValid) {
+    error.value = '微信登录请求已失效，请重新发起'
+    return
+  }
+
+  agreedTerms.value = true
+  isLoading.value = true
+  error.value = ''
+  try {
+    const res = await authApi.wechatLogin(oauthCode, 'h5', { createIfMissing: !paipanEntry.value })
+    const loginData = res.data
+    if (res.success && loginData && loginData.token) {
+      clearAuthSession({ preserveLoginRedirect: true })
+      setToken(loginData.token)
+      setRefreshToken(loginData.refreshToken || '')
+      setUserInfo(loginData.user)
+      await goAfterLogin()
+      return
+    }
+    if (paipanEntry.value && /尚未关联|手机号验证/u.test(res.message || '')) {
+      loginType.value = 'phone'
+      error.value = '首次使用请验证手机号；已关联账号后可使用微信快捷进入。'
+    } else {
+      error.value = res.message || '微信登录失败'
+    }
+  } catch (e) {
+    error.value = (e as Error)?.message || '微信登录失败'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onLoad((query) => {
+  void completeH5WechatLogin((query || {}) as Record<string, string | undefined>)
+})
+// #endif
 function onPhoneInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   phone.value = String(e.detail.value).replace(/\D/g, '').slice(0, 11)
   error.value = ''
@@ -231,9 +633,33 @@ async function handleSendCode() {
   }
 }
 
+/** 所有登录方式共享服务端兴趣状态和安全回跳，不在欢迎页丢弃目标。 */
+async function goAfterLogin() {
+  await continueAfterLogin()
+}
+
+/** 置灰按钮点击不再静默：按填写顺序提示第一个缺项（校验口径与 canSubmit 完全一致） */
+function showSubmitHint() {
+  const toast = (title: string) => uni.showToast({ title, icon: 'none' })
+  if (!phone.value) return toast('请输入手机号')
+  if (!isPhoneValid.value) return toast('请输入正确的11位手机号')
+  if (loginType.value === 'phone') {
+    if (!code.value) return toast('请输入验证码')
+    if (!isCodeValid.value) return toast('请输入6位验证码')
+  } else {
+    if (!password.value) return toast('请输入密码')
+    if (!isPasswordValid.value) return toast('密码长度不能少于6位')
+  }
+  if (!agreedTerms.value) return toast('请先阅读并同意用户协议和隐私政策')
+}
+
 // @data-needs: 登录, 参数 {phone, code} 或 {phone, password}, 返回 {success, data:{token, user}, message}
 async function handleLogin() {
-  if (!canSubmit.value || isLoading.value) return
+  if (isLoading.value) return
+  if (!canSubmit.value) {
+    showSubmitHint()
+    return
+  }
   isLoading.value = true
   error.value = ''
   try {
@@ -242,10 +668,18 @@ async function handleLogin() {
         ? { phone: phone.value, password: password.value }
         : { phone: phone.value, code: code.value },
     )
-    if (res.success && res.data?.token) {
-      setToken(res.data.token)
-      setUserInfo(res.data.user)
-      uni.reLaunch({ url: '/pages/index/index' })
+    const loginData = res.data
+    if (res.success && loginData && loginData.token) {
+      clearAuthSession({ preserveLoginRedirect: true })
+      setToken(loginData.token)
+      setRefreshToken(loginData.refreshToken || '')
+      setUserInfo(loginData.user)
+      if (bindWechatAfterPhone.value) {
+        const bound = await bindCurrentWechatIdentity()
+        if (!bound) uni.showToast({ title: '已登录，微信快捷进入可稍后再试', icon: 'none' })
+      }
+      // 新用户先走欢迎峰值页；老用户优先回被 401 打断的原页面，无则回首页（goAfterLogin 统一处理）
+      await goAfterLogin()
     } else {
       error.value = res.message || '登录失败'
     }
@@ -256,9 +690,204 @@ async function handleLogin() {
   }
 }
 
-function handleThirdParty(_type: 'wechat' | 'apple') {
-  // 第三方登录 SDK 交给 @/lib 层
+async function requestWechatLoginCode(): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    uni.login({
+      provider: 'weixin',
+      // #ifdef APP-PLUS
+      // APP只取得临时票据，交服务端换取微信身份；不在客户端配置appsecret。
+      onlyAuthorize: true,
+      // #endif
+      success: (res) => {
+        const authorizationCode = typeof res.code === 'string' ? res.code.trim() : ''
+        if (authorizationCode) {
+          resolve(authorizationCode)
+        } else {
+          reject(new Error('未获取到微信授权 code'))
+        }
+      },
+      fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg || '微信授权失败')),
+    })
+  })
 }
+
+async function bindCurrentWechatIdentity(): Promise<boolean> {
+  try {
+    const wxCode = await requestWechatLoginCode()
+    let channel: 'miniprogram' | 'app' = 'miniprogram'
+    // #ifdef APP-PLUS
+    channel = 'app'
+    // #endif
+    const result = await authApi.bindWechat(wxCode, channel)
+    return result.success
+  } catch { return false }
+}
+
+// @data-needs: 微信登录, uni.login 拿 code → POST /auth/login/wechat, 返回 {token, user}
+async function handleThirdParty(_type: 'wechat') {
+  if (isLoading.value) return
+  if (!agreedTerms.value) {
+    uni.showToast({ title: '请先阅读并同意用户协议和隐私政策', icon: 'none' })
+    return
+  }
+  // #ifdef H5
+  if (typeof window !== 'undefined') {
+    await startH5WechatLogin()
+    return
+  }
+  // #endif
+  isLoading.value = true
+  error.value = ''
+  try {
+    const code = await requestWechatLoginCode()
+    let channel: 'miniprogram' | 'app' = 'miniprogram'
+    // #ifdef APP-PLUS
+    channel = 'app'
+    // #endif
+    const res = await authApi.wechatLogin(code, channel, { createIfMissing: true })
+    const loginData = res.data
+    if (res.success && loginData && loginData.token) {
+      clearAuthSession({ preserveLoginRedirect: true })
+      setToken(loginData.token)
+      setRefreshToken(loginData.refreshToken || '')
+      setUserInfo(loginData.user)
+      // 新用户先走欢迎峰值页；老用户优先回被 401 打断的原页面，无则回首页（goAfterLogin 统一处理）
+      await goAfterLogin()
+    } else if (paipanEntry.value && /尚未关联|手机号验证/u.test(res.message || '')) {
+      bindWechatAfterPhone.value = true
+      loginType.value = 'phone'
+      error.value = '首次使用请验证手机号；验证完成后会自动关联微信，下次可快捷进入。'
+    } else {
+      uni.showToast({ title: res.message || '微信登录失败', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '微信登录失败', icon: 'none' })
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// #ifdef MP-WEIXIN
+async function handleMiniPhoneLogin(event: { detail?: { code?: string; errMsg?: string } }) {
+  if (isLoading.value) return
+  if (!agreedTerms.value) {
+    uni.showToast({ title: '请先阅读并同意用户协议和隐私政策', icon: 'none' })
+    return
+  }
+  const phoneCode = String(event?.detail?.code || '')
+  if (!phoneCode) {
+    const cancelled = /deny|cancel/u.test(String(event?.detail?.errMsg || ''))
+    uni.showToast({ title: cancelled ? '已取消手机号授权' : '未获取到手机号授权，请重试', icon: 'none' })
+    return
+  }
+  isLoading.value = true
+  error.value = ''
+  try {
+    const wxCode = await requestWechatLoginCode()
+    const res = await authApi.miniPhoneLogin(wxCode, phoneCode)
+    const loginData = res.data
+    if (!res.success || !loginData?.token) throw new Error(res.message || '手机号快捷登录失败')
+    clearAuthSession({ preserveLoginRedirect: true })
+    setToken(loginData.token)
+    setRefreshToken(loginData.refreshToken || '')
+    setUserInfo(loginData.user)
+    await goAfterLogin()
+  } catch (e) {
+    error.value = (e as Error)?.message || '手机号快捷登录失败'
+  } finally {
+    isLoading.value = false
+  }
+}
+// #endif
+
+// #ifdef APP-PLUS
+async function handleAppPhoneQuickLogin() {
+  if (isLoading.value) return
+  if (!agreedTerms.value) {
+    uni.showToast({ title: '请先阅读并同意用户协议和隐私政策', icon: 'none' })
+    return
+  }
+  isLoading.value = true
+  error.value = ''
+  try {
+    const grant = await new Promise<{ openid: string; access_token: string }>((resolve, reject) => {
+      uni.login({
+        provider: 'univerify',
+        success: (result: any) => {
+          const auth = result?.authResult
+          if (auth?.openid && auth?.access_token) resolve(auth)
+          else reject(new Error('未取得手机号授权'))
+        },
+        fail: (result: { errMsg?: string }) => reject(new Error(result?.errMsg || '已取消手机号授权')),
+      })
+    })
+    const res = await authApi.appPhoneLogin(grant.openid, grant.access_token)
+    const loginData = res.data
+    if (!res.success || !loginData?.token) throw new Error(res.message || '手机号快捷登录失败')
+    clearAuthSession({ preserveLoginRedirect: true })
+    setToken(loginData.token)
+    setRefreshToken(loginData.refreshToken || '')
+    setUserInfo(loginData.user)
+    await goAfterLogin()
+  } catch (e) {
+    error.value = (e as Error)?.message || '手机号快捷登录失败，请使用验证码登录'
+  } finally {
+    try { uni.closeAuthView() } catch { /* 授权页可能已自行关闭 */ }
+    isLoading.value = false
+  }
+}
+
+interface AppleFullName {
+  familyName?: string
+  givenName?: string
+}
+
+async function handleAppleLogin() {
+  if (isLoading.value) return
+  if (!agreedTerms.value) {
+    uni.showToast({ title: '请先阅读并同意用户协议和隐私政策', icon: 'none' })
+    return
+  }
+
+  isLoading.value = true
+  error.value = ''
+  try {
+    const appleInfo = await new Promise<UniApp.AppleLoginAppleInfo>((resolve, reject) => {
+      uni.login({
+        provider: 'apple',
+        success: (result) => {
+          if (result.appleInfo?.identityToken) resolve(result.appleInfo)
+          else reject(new Error('未获取到 Apple 身份凭证'))
+        },
+        fail: (result: { code?: number; errMsg?: string }) => {
+          const message = result?.code === 1001 ? '已取消 Apple 登录' : (result?.errMsg || 'Apple 授权失败')
+          reject(new Error(message))
+        },
+      })
+    })
+    const fullName = (appleInfo.fullName || {}) as AppleFullName
+    const res = await authApi.appleLogin({
+      identityToken: appleInfo.identityToken!,
+      familyName: fullName.familyName,
+      givenName: fullName.givenName,
+    })
+    const loginData = res.data
+    if (res.success && loginData?.token) {
+      clearAuthSession({ preserveLoginRedirect: true })
+      setToken(loginData.token)
+      setRefreshToken(loginData.refreshToken || '')
+      setUserInfo(loginData.user)
+      await goAfterLogin()
+      return
+    }
+    error.value = res.message || 'Apple 登录失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || 'Apple 登录失败'
+  } finally {
+    isLoading.value = false
+  }
+}
+// #endif
 
 function goForgot() {
   navigateTo('/forgot-password')
@@ -266,9 +895,31 @@ function goForgot() {
 function goRegister() {
   navigateTo('/register')
 }
+// #ifdef H5
+// 历史缓存会保留旧授权弹层；仅恢复旧页时处理，不干扰首次 OAuth 回调。
+function restoreLoginPage(event: PageTransitionEvent) {
+  if (!event.persisted) return
+  h5WechatAuthorizationUrl.value = ''
+  isLoading.value = false
+  if (getToken()) {
+    // 返回动作不重新执行排盘目标，避免再次外跳形成循环。
+    uni.reLaunch({ url: '/pages/index/index' })
+  }
+}
+onMounted(() => window.addEventListener('pageshow', restoreLoginPage))
+// #endif
+function browseAsGuest() {
+  try { uni.removeStorageSync('login:redirect') } catch { /* 清理失败不阻断返回公开页面 */ }
+  // 登录页可能由 401 使用 reLaunch 打开；redirectTo 在部分 iOS WebView 栈上首次点击无响应。
+  // 游客退出鉴权流只做一次 reLaunch，直接建立稳定的公开首页根栈。
+  uni.reLaunch({ url: '/pages/index/index' })
+}
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
+  // #ifdef H5
+  window.removeEventListener('pageshow', restoreLoginPage)
+  // #endif
 })
 </script>
 
@@ -302,8 +953,8 @@ onUnmounted(() => {
   height: 112rpx;
 }
 .back-btn {
-  width: 64rpx;
-  height: 64rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -349,6 +1000,35 @@ onUnmounted(() => {
 }
 
 /* 切换 tab */
+.app-phone-quick {
+  margin: 12rpx 0 24rpx;
+  padding: 28rpx;
+  border-radius: 28rpx;
+  background: #fff;
+  border: 1rpx solid #e9ded9;
+  box-shadow: 0 12rpx 36rpx rgba(52, 28, 25, 0.06);
+}
+.app-phone-quick-title { font-size: 34rpx; font-weight: 700; color: #292523; }
+.app-phone-quick-desc { margin: 8rpx 0 24rpx; font-size: 25rpx; color: #66605c; }
+.app-phone-quick-button {
+  min-height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 22rpx;
+  background: #b91c36;
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 650;
+}
+.app-phone-quick-note {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #695f5b;
+  font-size: 26rpx;
+}
 .tabs {
   display: flex;
   align-items: center;
@@ -357,7 +1037,11 @@ onUnmounted(() => {
   margin-bottom: 48rpx;
 }
 .tab {
-  padding-bottom: 16rpx;
+  min-height: 88rpx;
+  padding: 0 8rpx;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
   border-bottom: 4rpx solid transparent;
 }
 .tab.active {
@@ -413,14 +1097,14 @@ onUnmounted(() => {
 }
 .code-btn {
   position: absolute;
-  right: 16rpx;
+  right: 8rpx;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 128rpx;
-  height: 60rpx;
+  height: 88rpx;
   padding: 0 24rpx;
   border-radius: 16rpx;
   background: rgba(196, 30, 58, 0.1);
@@ -436,11 +1120,17 @@ onUnmounted(() => {
 .code-btn-text-disabled {
   color: #999999;
 }
+/* 热区扩到 88×88rpx（图标 40rpx 视觉位置不变：right = 32 - (88-40)/2 = 8rpx） */
 .eye-btn {
   position: absolute;
-  right: 32rpx;
+  right: 8rpx;
   top: 50%;
   transform: translateY(-50%);
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 错误提示 */
@@ -456,22 +1146,27 @@ onUnmounted(() => {
   justify-content: flex-end;
 }
 .forgot-link {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
   font-size: 26rpx;
   color: var(--brand);
 }
 
-/* 协议 */
+/* 协议：整行是勾选热区，min-height 撑到 ≥88rpx（checkbox 视觉尺寸不变） */
 .terms-row {
   display: flex;
   align-items: flex-start;
   gap: 16rpx;
   padding: 16rpx 0;
+  min-height: 88rpx;
 }
 .checkbox {
   width: 40rpx;
   height: 40rpx;
   border-radius: 8rpx;
-  border: 4rpx solid #999999;
+  border: 4rpx solid #5f554d;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -479,8 +1174,8 @@ onUnmounted(() => {
   margin-top: 4rpx;
 }
 .checkbox-checked {
-  background: var(--brand);
-  border-color: var(--brand);
+  background: #c41e3a;
+  border-color: #c41e3a;
 }
 .terms-text {
   flex: 1;
@@ -504,10 +1199,12 @@ onUnmounted(() => {
   width: 100%;
   height: 96rpx;
   border-radius: 24rpx;
-  background: var(--brand);
+  background: #c41e3a;
+  box-shadow: 0 12rpx 28rpx rgba(196, 30, 58, 0.22);
 }
 .submit-btn-disabled {
-  opacity: 0.5;
+  background: #ead3d8;
+  box-shadow: none;
 }
 .submit-text {
   font-size: 32rpx;
@@ -520,6 +1217,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 88rpx;
 }
 .register-normal {
   font-size: 28rpx;
@@ -530,10 +1228,74 @@ onUnmounted(() => {
   color: var(--brand);
   margin-left: 8rpx;
 }
+.guest-entry {
+  min-height: max(44px, 96rpx);
+  padding: 8rpx 24rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #76695f;
+  font-size: max(16px, 32rpx);
+  text-decoration: underline;
+  text-underline-offset: 6rpx;
+}
 
 /* 第三方 */
 .third-party {
-  margin-top: 80rpx;
+  margin-top: 32rpx;
+}
+
+.mini-auth-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  /* 使用不透明底色，避免原登录页协议行透出造成“重复两行”的错觉。 */
+  background: #faf8f5;
+}
+.mini-auth-card {
+  width: 100%;
+  padding: 48rpx 40rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  border-radius: 36rpx 36rpx 0 0;
+  background: #fffdf9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.mini-auth-logo { width: 104rpx; height: 104rpx; border-radius: 22rpx; overflow: hidden; }
+.mini-auth-logo-image { width: 100%; height: 100%; }
+.mini-auth-title { margin-top: 24rpx; color: #2c211a; font-size: 36rpx; font-weight: 700; }
+.mini-auth-desc { margin-top: 10rpx; color: #80756d; font-size: 26rpx; }
+.mini-auth-terms { width: 100%; margin-top: 32rpx; padding: 12rpx 0; display: flex; gap: 16rpx; }
+.mini-phone-button {
+  width: 100%;
+  height: 96rpx;
+  margin: 24rpx 0 0;
+  border: 0;
+  border-radius: 24rpx;
+  color: #ffffff;
+  background: #07c160;
+  font-size: 31rpx;
+  font-weight: 600;
+  line-height: 96rpx;
+}
+.mini-phone-button::after { border: 0; }
+.mini-phone-button-disabled {
+  color: #25633f;
+  background: #d8eee2;
+  border: 2rpx solid #9bcbb0;
+}
+.mini-auth-other {
+  min-height: 80rpx;
+  padding-top: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6d5f55;
+  font-size: 27rpx;
 }
 .divider {
   display: flex;
@@ -557,6 +1319,29 @@ onUnmounted(() => {
   justify-content: center;
   gap: 64rpx;
 }
+.third-icons-after-apple {
+  margin-top: 32rpx;
+}
+.apple-login-btn {
+  width: 100%;
+  min-height: 88rpx;
+  border-radius: 12rpx;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+}
+.apple-mark {
+  color: #ffffff;
+  font-size: 42rpx;
+  line-height: 1;
+}
+.apple-label {
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 500;
+}
 .third-item {
   display: flex;
   flex-direction: column;
@@ -574,12 +1359,105 @@ onUnmounted(() => {
 .wechat-circle {
   background: rgba(7, 193, 96, 0.1);
 }
-.apple-circle {
-  background: rgba(44, 44, 44, 0.1);
+.wechat-mark {
+  position: relative;
+  width: 58rpx;
+  height: 48rpx;
+}
+.wechat-bubble {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  background: #07c160;
+}
+.wechat-bubble-primary {
+  left: 0;
+  top: 0;
+  width: 42rpx;
+  height: 34rpx;
+  border-radius: 50%;
+}
+.wechat-bubble-secondary {
+  right: 0;
+  bottom: 0;
+  width: 34rpx;
+  height: 28rpx;
+  border: 3rpx solid #e8f8ef;
+  border-radius: 50%;
+}
+.wechat-dot {
+  width: 5rpx;
+  height: 5rpx;
+  border-radius: 50%;
+  background: #ffffff;
+}
+.wechat-dot-small {
+  width: 4rpx;
+  height: 4rpx;
 }
 .third-label {
   font-size: 24rpx;
   color: #999999;
+}
+
+/* 微信授权确认层：让 OAuth 外跳保留在真实用户点击上下文中。 */
+.wechat-auth-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  box-sizing: border-box;
+  background: rgba(34, 28, 24, 0.46);
+}
+.wechat-auth-card {
+  width: 100%;
+  max-width: 600rpx;
+  padding: 64rpx 48rpx 48rpx;
+  box-sizing: border-box;
+  border-radius: 32rpx;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.wechat-auth-icon {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f8ef;
+  margin-bottom: 32rpx;
+}
+.wechat-auth-title { font-size: 38rpx; font-weight: 600; color: #2c2c2c; }
+.wechat-auth-desc { margin-top: 20rpx; text-align: center; font-size: 26rpx; line-height: 1.6; color: #76695f; }
+.wechat-auth-confirm {
+  width: 100%;
+  height: 92rpx;
+  margin-top: 48rpx;
+  border-radius: 46rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #07c160;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 500;
+}
+.wechat-auth-cancel {
+  min-height: 80rpx;
+  margin-top: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #76695f;
+  font-size: 26rpx;
 }
 
 /* 底部 */

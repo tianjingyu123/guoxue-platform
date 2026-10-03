@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, MinLength, MaxLength, Matches } from "class-validator";
+import { IsString, IsOptional, IsInt, IsIn, IsBoolean, IsUUID, MinLength, MaxLength, Matches } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class PhoneRegisterDto {
@@ -13,6 +13,11 @@ export class PhoneRegisterDto {
   @MinLength(1)
   phone: string;
 
+  @ApiProperty({ description: "注册短信验证码", example: "123456" })
+  @IsString()
+  @Matches(/^\d{6}$/, { message: "验证码必须为 6 位数字" })
+  code: string;
+
   @ApiProperty({ description: "密码，至少8位，需包含大小写字母和数字", example: "Abc12345" })
   @IsString()
   @MinLength(8)
@@ -24,6 +29,7 @@ export class PhoneRegisterDto {
   @IsString()
   @IsOptional()
   referrerCode?: string;
+
 }
 
 export class PhoneLoginDto {
@@ -62,16 +68,37 @@ export class SendCodeDto {
   scene?: string;
 }
 
+export class OaOpenidDto {
+  @ApiProperty({ description: "公众号网页授权 code", example: "081xxx" })
+  @IsString()
+  @MinLength(1)
+  code: string;
+
+  @ApiPropertyOptional({ description: "微信登录客户端标识；多公众号/网站应用时必填" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(64)
+  clientKey?: string;
+}
+
 export class WechatLoginDto {
   @ApiProperty({ description: "微信授权 code", example: "081xxx" })
   @IsString()
   @MinLength(1)
   code: string;
 
-  @ApiPropertyOptional({ description: "登录类型：h5 或 miniprogram", example: "h5", default: "h5" })
+  @ApiPropertyOptional({ description: "登录类型：h5、miniprogram 或 app", example: "h5", default: "h5" })
   @IsString()
   @IsOptional()
+  @IsIn(["h5", "miniprogram", "app"])
   loginType?: string;
+
+  @ApiPropertyOptional({ description: "微信登录客户端标识；配置多个同类型应用时必填，也可传公开 appId" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(64)
+  @Matches(/^[A-Za-z0-9_.:-]+$/)
+  clientKey?: string;
 
   @ApiPropertyOptional({ description: "用户昵称（新用户注册时使用）", example: "张三" })
   @IsString()
@@ -86,6 +113,37 @@ export class WechatLoginDto {
   @ApiPropertyOptional({ description: "推荐码（可选）", example: "ABC123" })
   @IsString()
   @IsOptional()
+  referrerCode?: string;
+
+  @ApiPropertyOptional({ description: "微信身份未关联时是否允许自动创建账号；排盘快捷进入传 false，避免产生无手机号重复账号", default: true })
+  @IsBoolean()
+  @IsOptional()
+  createIfMissing?: boolean;
+}
+
+export class AppleLoginDto {
+  @ApiProperty({ description: "Sign in with Apple 返回的身份令牌" })
+  @IsString()
+  @MinLength(100)
+  @MaxLength(8192)
+  identityToken: string;
+
+  @ApiPropertyOptional({ description: "用户首次授权时选择共享的姓" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  familyName?: string;
+
+  @ApiPropertyOptional({ description: "用户首次授权时选择共享的名" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  givenName?: string;
+
+  @ApiPropertyOptional({ description: "推荐码（可选）" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(128)
   referrerCode?: string;
 }
 
@@ -109,6 +167,62 @@ export class MiniPhoneLoginDto {
   @IsString()
   @IsOptional()
   referrerCode?: string;
+
+  @ApiPropertyOptional({ description: "小程序客户端标识；多小程序时必填，也可传公开 appId" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(64)
+  @Matches(/^[A-Za-z0-9_.:-]+$/)
+  clientKey?: string;
+}
+
+/** 仅 uniCloud 云函数向服务端交换已核验手机号；签名密钥只存在两端服务环境。 */
+export class UniverifyCallbackDto {
+  @IsString()
+  @Matches(/^1[3-9]\d{9}$/)
+  phone: string;
+
+  @IsInt()
+  timestamp: number;
+
+  @IsString()
+  @Matches(/^[a-f0-9]{32}$/)
+  nonce: string;
+
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/)
+  signature: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  @Matches(/^[A-Za-z0-9_-]*$/)
+  referrerCode?: string;
+}
+
+export class BindWechatDto {
+  @ApiPropertyOptional({ description: "发起绑定的账号，仅用于校验；实际主体始终取 JWT" })
+  @IsOptional()
+  @IsUUID()
+  expectedUserId?: string;
+
+  @ApiProperty({ description: "微信授权 code" })
+  @IsString()
+  @MinLength(1)
+  code: string;
+
+  @ApiPropertyOptional({ description: "登录类型：h5、miniprogram 或 app", default: "h5" })
+  @IsString()
+  @IsOptional()
+  @IsIn(["h5", "miniprogram", "app"])
+  loginType?: string;
+
+  @ApiPropertyOptional({ description: "微信登录客户端标识，也可传公开 appId" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(64)
+  @Matches(/^[A-Za-z0-9_.:-]+$/)
+  clientKey?: string;
 }
 
 export class UpdateProfileDto {
@@ -131,9 +245,10 @@ export class UpdateProfileDto {
 }
 
 export class ChangePasswordDto {
+  // 首次设置密码（验证码/微信登录用户无旧密码）时可不传；已有密码时后端强制校验
   @IsString()
-  @MinLength(1)
-  oldPassword: string;
+  @IsOptional()
+  oldPassword?: string;
 
   @IsString()
   @MinLength(8)

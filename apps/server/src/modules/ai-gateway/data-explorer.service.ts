@@ -66,8 +66,8 @@ export class DataExplorerService {
   private readonly SCHEMA_CONTEXT = `
 你是一个 SQL 专家。数据库是 PostgreSQL。以下是可查询的表和关键字段：
 
-用户相关：
-- "User": id, nickname, phone, email, role, status, createdAt
+用户相关（严禁查询手机号、邮箱、实名等个人信息）：
+- "User": id, nickname, role, status, createdAt
 - "Auth": id, userId, provider( WECHAT / PASSWORD), createdAt
 
 内容相关：
@@ -148,14 +148,20 @@ AI相关：
 
     let data: Record<string, unknown>[] = [];
     try {
-      // 超时保护：Prima 层面设置 statement_timeout
-      await this.prisma.$executeRawUnsafe("SET LOCAL statement_timeout = '10s'");
-      data = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(
-        safeSql,
+      // SET LOCAL 仅在同一事务内生效；必须与查询共用连接，避免超时保护形同虚设。
+      data = await this.prisma.$transaction(
+        async (tx) => {
+          await tx.$executeRawUnsafe("SET LOCAL statement_timeout = '10s'");
+          return tx.$queryRawUnsafe<Record<string, unknown>[]>(safeSql);
+        },
+        { maxWait: 2_000, timeout: 12_000 },
       );
     } catch (err: any) {
       this.logger.warn(`SQL执行失败: ${err.message}`);
-      throw new BusinessException(ErrorCode.INTERNAL_ERROR, `查询执行失败: ${err.message}`);
+      throw new BusinessException(
+        ErrorCode.INTERNAL_ERROR,
+        "查询执行失败，请调整问题后重试",
+      );
     }
 
     // 列级脱敏兜底：防止 SELECT * / 别名绕过 isSafeSql 的敏感列拦截

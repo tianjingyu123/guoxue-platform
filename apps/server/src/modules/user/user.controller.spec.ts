@@ -3,9 +3,16 @@ import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 import { SystemService } from "../system/system.service";
 import { RolesGuard } from "../../common/roles.guard";
+import { PersonalDataExportService } from "./personal-data-export.service";
+import { PreferredNameService } from "../dialogue/preferred-name.service";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 const mockUserSvc: Record<string, jest.Mock> = {
+  unbindAccount: jest.fn().mockResolvedValue({ success: true }),
   updateProfile: jest.fn().mockResolvedValue({ id: "u1", nickname: "新昵称" } as any),
+  getNotifySettings: jest.fn().mockResolvedValue([{ key: "operatorTeam", value: true }] as any),
+  updateNotifySettings: jest.fn().mockResolvedValue({ success: true } as any),
+  getMySummary: jest.fn().mockResolvedValue({ stats: { following: 2, followers: 3, likes: 4 } } as any),
   getUserById: jest.fn().mockResolvedValue({ id: "u1", nickname: "张三" } as any),
   getUserStats: jest.fn().mockResolvedValue({ articleCount: 10, followerCount: 100 } as any),
   listUsers: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 } as any),
@@ -34,6 +41,17 @@ const mockSystemSvc = {
   logAudit: jest.fn().mockResolvedValue(undefined),
 };
 
+const mockPersonalDataExport = {
+  create: jest.fn().mockResolvedValue({ accountId: "u1", selectedTypes: ["profile"] }),
+};
+
+/** 小卜怎么称呼我：设置页的读 / 改 / 删 */
+const mockPreferredName = {
+  detail: jest.fn(async () => ({ name: "老陈", source: "asked", nickname: "用户8f3a", nicknameUsable: false, askedAt: null })),
+  set: jest.fn(async (_u: string, n: string) => ({ ok: true as const, name: n })),
+  clear: jest.fn(async () => undefined),
+};
+
 describe("UserController", () => {
   let ctrl: UserController;
 
@@ -43,9 +61,12 @@ describe("UserController", () => {
       providers: [
         { provide: UserService, useValue: mockUserSvc },
         { provide: SystemService, useValue: mockSystemSvc },
+        { provide: PersonalDataExportService, useValue: mockPersonalDataExport },
+        { provide: PreferredNameService, useValue: mockPreferredName },
       ],
     })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(UserController);
   });
@@ -54,9 +75,39 @@ describe("UserController", () => {
 
   const mockReq = () => ({ user: { id: "u1" }, ip: "127.0.0.1" } as any);
 
+  it("解绑接口使用 JWT 主体并传递发起主体校验", async () => {
+    await ctrl.unbindAccount(mockReq(), "wechat", "previous-user");
+    expect(mockUserSvc.unbindAccount).toHaveBeenCalledWith("u1", "wechat", "previous-user");
+  });
+
   it("PUT /users/profile — 更新个人资料", async () => {
     const result: any = await ctrl.updateProfile(mockReq(), { nickname: "新昵称" });
     expect(result.nickname).toBe("新昵称");
+  });
+
+  it("GET /users/notify-settings?scope=operator — 获取运营商通知偏好", async () => {
+    const result: any = await ctrl.getNotifySettings(mockReq(), "operator");
+    expect(result[0].key).toBe("operatorTeam");
+    expect(mockUserSvc.getNotifySettings).toHaveBeenCalledWith("u1", "operator");
+  });
+
+  it("PUT /users/notify-settings — 更新运营商通知偏好", async () => {
+    const dto = { key: "operatorTeam", value: false } as any;
+    const result: any = await ctrl.updateNotifySettings(mockReq(), dto);
+    expect(result.success).toBe(true);
+    expect(mockUserSvc.updateNotifySettings).toHaveBeenCalledWith("u1", dto);
+  });
+
+  it("GET /users/me/summary — 当前用户个人中心统计", async () => {
+    const result: any = await ctrl.getMySummary(mockReq());
+    expect(result.stats.likes).toBe(4);
+    expect(mockUserSvc.getMySummary).toHaveBeenCalledWith("u1");
+  });
+
+  it("POST /users/me/data-export — 只导出当前登录用户所选数据", async () => {
+    const result: any = await ctrl.createPersonalDataExport(mockReq(), { types: ["profile"] });
+    expect(result.accountId).toBe("u1");
+    expect(mockPersonalDataExport.create).toHaveBeenCalledWith("u1", ["profile"]);
   });
 
   it("GET /users/:id — 获取用户详情", async () => {
@@ -84,9 +135,10 @@ describe("UserController", () => {
     expect(result.roles).toHaveLength(0);
   });
 
-  it("PUT /users/:id/status — 更新用户状态", async () => {
-    const result: any = await ctrl.updateUserStatus("u1", { status: "BANNED" } as any);
+  it("PUT /users/:id/status — 更新用户状态（带理由）", async () => {
+    const result: any = await ctrl.updateUserStatus("u1", { status: "BANNED", reason: "违规发布" } as any, mockReq());
     expect(result.status).toBe("BANNED");
+    expect(mockUserSvc.updateUserStatus).toHaveBeenCalledWith("u1", "BANNED", "违规发布", "u1", "127.0.0.1");
   });
 
   it("GET /users/:id/purchases — 购买记录", async () => {
@@ -129,9 +181,10 @@ describe("UserController", () => {
     expect(result.items).toHaveLength(0);
   });
 
-  it("POST /users/whitelist — 添加白名单", async () => {
-    const result: any = await ctrl.addWhitelist({ userId: "u1" });
+  it("POST /users/whitelist — 添加白名单并透传原因", async () => {
+    const result: any = await ctrl.addWhitelist({ userId: "u1", reason: "上线联调" });
     expect(result.userId).toBe("u1");
+    expect(mockUserSvc.addWhitelist).toHaveBeenCalledWith("u1", "上线联调");
   });
 
   it("DELETE /users/whitelist/:userId — 移除白名单", async () => {
@@ -144,9 +197,10 @@ describe("UserController", () => {
     expect(result.id).toBe("u1");
   });
 
-  it("PUT /users/batch/status — 批量更新用户状态", async () => {
-    const result: any = await ctrl.batchUpdateStatus({ ids: ["u1", "u2"], status: "DISABLED" });
+  it("PUT /users/batch/status — 批量更新用户状态（带理由）", async () => {
+    const result: any = await ctrl.batchUpdateStatus({ ids: ["u1", "u2"], status: "DISABLED", reason: "批量封禁" }, mockReq());
     expect(result.updated).toBe(3);
+    expect(mockUserSvc.batchUpdateStatus).toHaveBeenCalledWith(["u1", "u2"], "DISABLED", "批量封禁", "u1", "127.0.0.1");
   });
 
   it("GET /users/:id/purchases — 非本人非管理员无权查看", () => {
@@ -178,5 +232,34 @@ describe("UserController", () => {
   it("POST /users/:id/delete-execute — 管理员执行注销", async () => {
     const result: any = await ctrl.executeAccountDeletion("u1");
     expect(result.message).toBe("已注销");
+  });
+
+  // ───────── 小卜怎么称呼我 ─────────
+
+  const meReq = { user: { id: "u1", roles: ["USER"] }, ip: "127.0.0.1" } as any;
+
+  it("GET /users/preferred-name — 告诉用户现在叫什么、这个称呼哪来的", async () => {
+    const r = await ctrl.getPreferredName(meReq);
+    expect(r).toMatchObject({ name: "老陈", source: "asked" });
+    expect(mockPreferredName.detail).toHaveBeenCalledWith("u1");
+  });
+
+  it("PUT /users/preferred-name — 设置称呼", async () => {
+    const r = await ctrl.setPreferredName(meReq, { name: "老陈" } as any);
+    expect(r).toEqual({ name: "老陈" });
+  });
+
+  it("设了叫不出口的称呼要给人话，而不是丢一个错误码", async () => {
+    mockPreferredName.set.mockResolvedValueOnce({ ok: false, reason: "self_deprecating" } as any);
+    await expect(ctrl.setPreferredName(meReq, { name: "废物一个" } as any)).rejects.toThrow("我叫不出口");
+
+    mockPreferredName.set.mockResolvedValueOnce({ ok: false, reason: "identifier" } as any);
+    await expect(ctrl.setPreferredName(meReq, { name: "abc123" } as any)).rejects.toThrow("像是账号名");
+  });
+
+  it("DELETE /users/preferred-name — 不再使用称呼（隐私上的必要项：记住了就得能删）", async () => {
+    const r = await ctrl.clearPreferredName(meReq);
+    expect(r).toEqual({ cleared: true });
+    expect(mockPreferredName.clear).toHaveBeenCalledWith("u1");
   });
 });

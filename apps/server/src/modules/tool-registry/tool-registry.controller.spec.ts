@@ -4,7 +4,9 @@ import { ToolRegistryController } from "./tool-registry.controller";
 import { ToolRegistryService } from "./tool-registry.service";
 import { ToolAiService } from "./tool-ai.service";
 import { ToolCalculationService } from "./tool-calculation.service";
+import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 const mockRegistry = {
   getDirectory: jest.fn(),
   getAllTools: jest.fn(),
@@ -15,12 +17,17 @@ const mockRegistry = {
 
 const mockToolAi = {
   analyze: jest.fn(),
+  analyzeStream: jest.fn(),
   getAnalysisRecord: jest.fn(),
   getUserHistory: jest.fn(),
 };
 
 const mockCalculator = {
   calculate: jest.fn(),
+};
+
+const mockSse = {
+  writeSseStream: jest.fn(),
 };
 
 describe("ToolRegistryController", () => {
@@ -33,8 +40,11 @@ describe("ToolRegistryController", () => {
         { provide: ToolRegistryService, useValue: mockRegistry },
         { provide: ToolAiService, useValue: mockToolAi },
         { provide: ToolCalculationService, useValue: mockCalculator },
+        { provide: StreamUnifierService, useValue: mockSse },
       ],
-    }).compile();
+    })
+      .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
+      .compile();
     ctrl = mod.get(ToolRegistryController);
   });
 
@@ -107,6 +117,24 @@ describe("ToolRegistryController", () => {
       mockToolAi.analyze.mockResolvedValue({ id: "a2" });
       await ctrl.analyze("bazi", {} as any, { input: {}, result: {} });
       expect(mockToolAi.analyze).toHaveBeenCalledWith("anonymous", undefined, expect.any(Object));
+    });
+  });
+
+  describe("POST /tools/:id/analyze/stream", () => {
+    it("使用统一SSE写入器输出流式分析和免责声明", async () => {
+      async function* source() { yield "分析"; }
+      mockToolAi.analyzeStream.mockReturnValue(source());
+      const res = {} as any;
+      await ctrl.analyzeStream(
+        "qimen-yang",
+        { user: { id: "u1", roles: [] as RoleType[] } } as any,
+        res,
+        { input: { matter: "事业" }, result: { gongs: [] } },
+      );
+      expect(mockToolAi.analyzeStream).toHaveBeenCalledWith("u1", undefined, expect.objectContaining({ toolId: "qimen-yang" }));
+      expect(mockSse.writeSseStream).toHaveBeenCalledWith(
+        res, expect.anything(), undefined, expect.objectContaining({ disclaimer: expect.any(String) }),
+      );
     });
   });
 

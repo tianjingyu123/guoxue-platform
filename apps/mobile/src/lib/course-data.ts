@@ -1,7 +1,9 @@
 // 课程模块数据(从原型 app/courses/page.tsx 迁移)
 import type { CourseCardData } from '@/lib/card-utils'
 import type { BannerItem } from '@/lib/home-data'
-import { apiGet, apiPost, apiPut, apiGetPaged, useMock } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost, apiPut, apiPutOptionalAuth, apiGetPaged } from '@/utils/request'
+import { getToken } from '@/utils/storage'
+import { normalizeCourseContent } from '@/utils/rich-content'
 
 // 课程首页 Banner
 export const courseBanners: BannerItem[] = [
@@ -44,9 +46,11 @@ export interface CourseDetail {
   chapters: number; category: string; tag?: string; isFree: boolean
   memberFree: boolean // 会员专属精品课（有效会员免费学习·2026-07-03 会员权益）
   description: string; objectives: string[]; suitable: string[]
+  detailImages: string[] // 课程介绍详情图（后台编辑器上传·简介区按顺序无缝拼接展示）
   isEnrolled: boolean; progress: number
 }
-// @data-needs: 课程章节, 参数 courseId, 返回 [{id,title,duration,isFree,lessons:[{id,title,duration,isFree,isCompleted}]}]
+// @data-needs: 课程章节, 参数 courseId, 返回 [{id,title,duration(秒),isFree,lessons:[{id,title,duration(秒),isFree,isCompleted}]}]
+// 🔴 duration 单位统一为秒（DB CourseChapter.duration 真源即秒·播放页 formatTime/详情页 fmtLessonDur 同口径）
 export interface CourseLesson { id: string; title: string; duration: number; isFree: boolean; isCompleted?: boolean }
 export interface CourseChapter { id: string; title: string; duration: number; isFree: boolean; lessons: CourseLesson[] }
 // @data-needs: 课程评价, 参数 courseId, 返回 [{id,user:{id,name,avatar},rating,content,createdAt}]
@@ -65,12 +69,26 @@ export interface LearnProgress { courseId: string; completedLessons: string[]; t
 export interface LearnLesson { id: string; title: string; duration: number; isFree: boolean; isCompleted: boolean }
 export interface LearnChapter { id: string; title: string; duration: number; isFree: boolean; lessons: LearnLesson[] }
 export interface LearnNote { id: string; content: string; chapterId: string; chapterTitle: string; lessonTitle: string; timestamp?: number; createdAt: string }
-export interface LearnQuestion { id: string; content: string; author: { id: string; name: string; avatar: string }; chapterTitle: string; createdAt: string; answers: number; isAnswered: boolean }
+export interface LearnQuestion { id: string; content: string; answer: string; author: { id: string; name: string; avatar: string }; chapterTitle: string; createdAt: string; isAnswered: boolean; status: string }
 
 // ============ 视频播放页(player) mock(从原型 courses/[id]/player 迁移) ============
 // @data-needs: 课时播放内容, 参数 lessonId, 返回 ChapterContent
 export interface PlayerLesson { id: string; title: string; chapterId: string }
-export interface ChapterContent { id: string; title: string; courseId: string; courseTitle: string; videoUrl: string; duration: number; currentProgress: number; nextLesson?: PlayerLesson; prevLesson?: PlayerLesson }
+export interface ChapterContent {
+  id: string
+  title: string
+  courseId: string
+  courseTitle: string
+  courseType: string
+  cover: string
+  videoUrl: string
+  content: string
+  duration: number
+  currentProgress: number
+  progressPercent: number
+  nextLesson?: PlayerLesson
+  prevLesson?: PlayerLesson
+}
 // @data-needs: 播放页章节目录, 参数 courseId, 返回 PlayerChapter[]
 export interface PlayerChapterLesson { id: string; title: string; duration: number; isFree: boolean; isCompleted: boolean }
 export interface PlayerChapter { id: string; title: string; duration: number; isFree: boolean; lessons: PlayerChapterLesson[] }
@@ -107,8 +125,7 @@ export interface WorkResult {
   chapterTitle: string; courseTitle: string
   content: string; images: string[]; submittedAt: string
   score?: number; maxScore: number
-  gradedBy?: { name: string; avatar: string }
-  teacherComment?: string; gradedAt?: string
+  feedback?: string; gradedAt?: string
   suggestions?: string[]
   canResubmit?: boolean
 }
@@ -159,7 +176,7 @@ interface RawProgress { chapterId?: string; completed?: boolean; progress?: numb
 /** 后端课程评价 */
 interface RawReview { id?: string; user?: RawUserLite | null; rating?: number | string; content?: string; reply?: string; createdAt?: string | null }
 /** 后端课程提问 */
-interface RawQuestion { id?: string; content?: string; user?: RawUserLite | null; chapter?: { title?: string } | null; createdAt?: string | null; answerCount?: number; status?: string; _count?: RawCount | null }
+interface RawQuestion { id?: string; question?: string; answer?: string | null; content?: string; user?: RawUserLite | null; chapter?: { title?: string } | null; createdAt?: string | null; status?: string }
 /** 后端作业（含 user/chapter/course join） */
 interface RawWork { id?: string; userId?: string; user?: RawUserLite | null; chapterId?: string; chapter?: { title?: string } | null; course?: { title?: string } | null; content?: string; createdAt?: string | null; score?: number | null; feedback?: string }
 /** 后端结业证书 */
@@ -183,6 +200,8 @@ function adaptCourseCard(c: RawCourse): Course {
     title: c.title || '',
     cover: c.cover || '',
     coverRatio: '1:1',
+    intro: c.intro || '',
+    category: c.categoryLevel1 || c.circle?.name || '',
     price,
     originalPrice: orig || price,
     free: price === 0,
@@ -191,7 +210,6 @@ function adaptCourseCard(c: RawCourse): Course {
     rating: 0, // 列表无评分，详情页另取
     teacher: c.user?.nickname || '',
     teacherAvatar: c.user?.avatar || '',
-    category: c.categoryLevel1 || c.circle?.name || '',
     isNew: false,
     flashSale: orig > price && price > 0,
   }
@@ -218,6 +236,9 @@ function adaptCourseDetail(c: RawCourse, rating?: RawRating | null): CourseDetai
     description: c.intro || '',
     objectives: [],
     suitable: [],
+    detailImages: Array.isArray((c as { detailImages?: string[] }).detailImages)
+      ? ((c as { detailImages?: string[] }).detailImages as string[])
+      : [],
     isEnrolled: false,
     progress: 0,
   }
@@ -282,6 +303,7 @@ export interface CreatedCourse {
   type: string
   price: number
   auditStatus: string
+  visibility: string // SELF_ONLY=机审降级仅自己可见（列表灰色小标·点击看说明与申诉指引）
   studentCount: number
   circleId: string | null
   chapterCount: number
@@ -289,9 +311,20 @@ export interface CreatedCourse {
   createdAt: string
 }
 
+function adaptLearnQuestion(q: RawQuestion): LearnQuestion {
+  return {
+    id: q.id || '', content: q.question || q.content || '', answer: q.answer || '',
+    author: { id: q.user?.id || '', name: q.user?.nickname || '匿名', avatar: q.user?.avatar || '' },
+    chapterTitle: q.chapter?.title || '',
+    createdAt: q.createdAt ? String(q.createdAt).slice(0, 10) : '',
+    isAnswered: !!q.answer,
+    status: q.status || 'PENDING',
+  }
+}
+
 export const courseApi = {
-  /** 创建课程 — POST /courses（需讲师认证 APPROVED，后端 CourseCreatorGuard 拦截 + course_publish 开关） */
-  create: (body: { circleId?: string; title: string; cover?: string; intro?: string; type?: string; price?: number; tags?: string[]; categoryLevel1?: string; categoryLevel2?: string }) =>
+  /** 创建课程 — POST /courses（需讲师认证 APPROVED，后端 CourseCreatorGuard 拦截 + course_publish 开关；detailImages 介绍详情图最多6张；visibility 开放范围 CIRCLE_ONLY 默认/PLATFORM 全平台·发布即可见，机审后台异步） */
+  create: (body: { circleId?: string; title: string; cover?: string; intro?: string; type?: string; price?: number; tags?: string[]; categoryLevel1?: string; categoryLevel2?: string; validityDays?: number; detailImages?: string[]; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }) =>
     apiPost<{ id: string }>('/courses', body),
 
   /** 我创建的课程（讲师管理台）— GET /courses/created（含审核状态/章节·评价计数；空→空态，错→错误态） */
@@ -305,6 +338,7 @@ export const courseApi = {
         type: c.type || '',
         price: Number(c.price ?? 0),
         auditStatus: c.auditStatus || 'PENDING',
+        visibility: (c as { visibility?: string }).visibility || 'CIRCLE_ONLY',
         studentCount: c.studentCount ?? 0,
         circleId: c.circleId ?? null,
         chapterCount: c._count?.chapters ?? 0,
@@ -318,6 +352,15 @@ export const courseApi = {
   /** 讲师回复课程评价 — PUT /courses/reviews/:reviewId/reply（仅本人课程，后端归属校验） */
   replyReview: (reviewId: string, reply: string) =>
     apiPut(`/courses/reviews/${reviewId}/reply`, { reply }),
+
+  /**
+   * 学员提交课程评价 — POST /courses/:id/reviews
+   * 🔴 此端点后端一直都在，但前端注释写的是「需后端补 POST /courses/:id/reviews」，
+   *    提交时只弹「评价功能即将开放」→ 用户写的评价被直接丢弃。
+   * 后端会校验：未购买 403、已评价 400。
+   */
+  createReview: (courseId: string, rating: number, content: string) =>
+    apiPost(`/courses/${courseId}/reviews`, { rating, content }),
 
   /** 课程首页 — GET /courses 列表 + 前端派生（banner/分类=运营配置；错误传播给页面三态，不回退假数据）*/
   async getHome(): Promise<{
@@ -365,11 +408,77 @@ export const courseApi = {
     return adaptReviews(await apiGet<unknown>(`/courses/${id}/reviews`))
   },
 
+  /** 评价列表分页与服务端公开总数，供评价页使用。 */
+  async getReviewPage(id: string, page = 1): Promise<{ reviews: CourseReview[]; total: number }> {
+    const result = await apiGet<{ reviews?: RawReview[]; total?: number }>(`/courses/${encodeURIComponent(id)}/reviews?page=${page}&pageSize=20`)
+    return { reviews: adaptReviews(result), total: toNum(result.total) }
+  },
+
+  /** 全部已公开评价的服务端均分；失败时页面保留列表但不展示推算均分。 */
+  async getReviewRating(id: string): Promise<{ avgRating: number; reviewCount: number }> {
+    const result = await apiGet<{ avgRating?: number; reviewCount?: number }>(`/courses/${encodeURIComponent(id)}/rating`)
+    return { avgRating: toNum(result.avgRating), reviewCount: toNum(result.reviewCount) }
+  },
+
+  /** 登录用户自己的评价记录状态，由服务端按会话身份查询。 */
+  getMyReviewStatus: (id: string): Promise<{ hasReviewed: boolean; status: string | null }> =>
+    apiGet(`/courses/${encodeURIComponent(id)}/reviews/my`),
+
+  /** 课程访问权限 — GET /courses/:id/access（已购/会员→true；未登录/未购→false，静默降级不抛错） */
+  async checkAccess(id: string): Promise<boolean> {
+    try {
+      const res = await apiGetOptionalAuth<{ hasAccess?: boolean }>(`/courses/${id}/access`)
+      return !!res?.hasAccess
+    } catch {
+      return false
+    }
+  },
+
+  /** 详情页决策用三态：网络/服务异常不等同于未购，避免误导用户重复下单。 */
+  async getAccessState(id: string): Promise<'granted' | 'denied' | 'unknown'> {
+    if (!getToken()) return 'denied'
+    try {
+      const res = await apiGetOptionalAuth<{ hasAccess?: boolean }>(`/courses/${id}/access`)
+      return res?.hasAccess ? 'granted' : 'denied'
+    } catch {
+      return getToken() ? 'unknown' : 'denied'
+    }
+  },
+
+  /** 免费课是否已生成订阅订单；可学习权限与“我的课程”收录分开核对。 */
+  async getEnrollmentState(id: string): Promise<'enrolled' | 'not-enrolled' | 'unknown'> {
+    if (!getToken()) return 'not-enrolled'
+    try {
+      const res = await apiGetOptionalAuth<unknown>(`/courses/my?page=1&pageSize=1&targetId=${encodeURIComponent(id)}`)
+      const items = Array.isArray(res) ? res : (res as { courses?: unknown[] } | null)?.courses
+      return items?.length ? 'enrolled' : 'not-enrolled'
+    } catch {
+      return getToken() ? 'unknown' : 'not-enrolled'
+    }
+  },
+
+  /** 是否已收藏 — GET /interaction/collect（在我的收藏中匹配 COURSE·未登录静默 false） */
+  async isFavorited(id: string): Promise<boolean> {
+    try {
+      const res = await apiGetOptionalAuth<{ items?: { targetType?: string; targetId?: string }[] }>('/interaction/collect?pageSize=200')
+      return (res?.items ?? []).some((it) => it.targetType === 'COURSE' && it.targetId === id)
+    } catch {
+      return false
+    }
+  },
+
+  /** 收藏/取消收藏课程 — POST /interaction/collect（后端 toggle，返回最新收藏态 collected） */
+  async toggleFavorite(id: string): Promise<boolean> {
+    const res = await apiPost<{ collected?: boolean }>('/interaction/collect', { targetType: 'COURSE', targetId: id })
+    return !!res?.collected
+  },
+
   /** 学习进度概览 — 合并 GET /courses/:id/chapters + /progress + 课程标题 */
-  async getProgress(id: string): Promise<CourseProgress> {
+  async getProgress(id: string, optionalAuth = false): Promise<CourseProgress> {
+    const progressPath = `/courses/${id}/progress`
     const [chapters, progress, course] = await Promise.all([
       apiGet<unknown>(`/courses/${id}/chapters`),
-      apiGet<unknown>(`/courses/${id}/progress`),
+      optionalAuth ? apiGetOptionalAuth<unknown>(progressPath) : apiGet<unknown>(progressPath),
       apiGet<RawCourse>(`/courses/${id}`).catch(() => null),
     ])
     const chList = toList<RawChapter>(chapters)
@@ -442,15 +551,14 @@ export const courseApi = {
       lessons: [{ id: ch.id || '', title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial, isCompleted: !!progMap.get(ch.id || '')?.completed }],
     }))
     const qList = questionsRaw?.questions ?? toList<RawQuestion>(questionsRaw)
-    const learnQuestionsData: LearnQuestion[] = qList.map((q) => ({
-      id: q.id || '', content: q.content || '',
-      author: { id: q.user?.id || '', name: q.user?.nickname || '匿名', avatar: q.user?.avatar || '' },
-      chapterTitle: q.chapter?.title || '',
-      createdAt: q.createdAt ? String(q.createdAt).slice(0, 10) : '',
-      answers: toNum(q.answerCount ?? q._count?.answers),
-      isAnswered: q.status === 'ANSWERED' || !!q.answerCount,
-    }))
+    const learnQuestionsData: LearnQuestion[] = qList.map(adaptLearnQuestion)
     return { course: learnCourseData, progress: learnProgressData, chapters: learnChaptersData, notes: [], questions: learnQuestionsData }
+  },
+
+  /** 课程问答单独读取；错误向页面传递，避免把接口失败展示为“还没有提问”。 */
+  async getQuestions(id: string, page = 1): Promise<{ questions: LearnQuestion[]; total: number }> {
+    const result = await apiGet<{ questions?: RawQuestion[]; total?: number }>(`/courses/${encodeURIComponent(id)}/questions?page=${page}&pageSize=20`)
+    return { questions: (result.questions || []).map(adaptLearnQuestion), total: toNum(result.total) }
   },
 
   /** 学生提问 — POST /courses/:id/questions（需登录·后端 AskQuestionDto={question,chapterId?}） */
@@ -473,24 +581,47 @@ export const courseApi = {
     const next = idx >= 0 && idx < list.length - 1 ? list[idx + 1] : undefined
     const myProg = toList<RawProgress>(progress).find((p) => p.chapterId === lessonId)
     const duration = toNum(ch.duration)
+    const courseType = String(course?.type || 'VIDEO').toUpperCase()
+    const isTextCourse = courseType === 'TEXT' || courseType === 'EBOOK'
+    const rawContent = String(ch.content || '')
+    // TEXT/EBOOK 的 content 是正文，绝不能再回退成 video src；其余存量课程继续兼容
+    // “mediaUrl 为空、content 存媒体地址”的历史数据。
+    const videoUrl = isTextCourse ? '' : String(ch.mediaUrl || rawContent)
+    const articleContent = isTextCourse ? normalizeCourseContent(rawContent) : ''
+    const progressPercent = Math.max(0, Math.min(100, toNum(myProg?.progress)))
     return {
       id: ch.id || '',
       title: ch.title || '',
       courseId,
       courseTitle: course?.title || '',
-      videoUrl: ch.mediaUrl || ch.content || '',
+      courseType,
+      cover: course?.cover || '',
+      videoUrl,
+      content: articleContent,
       duration,
-      currentProgress: myProg ? Math.round((toNum(myProg.progress) / 100) * duration) : 0,
+      currentProgress: duration ? Math.round((progressPercent / 100) * duration) : 0,
+      progressPercent,
       nextLesson: next ? { id: next.id || '', title: next.title || '', chapterId: next.id || '' } : undefined,
       prevLesson: prev ? { id: prev.id || '', title: prev.title || '', chapterId: prev.id || '' } : undefined,
     }
+  },
+
+  /**
+   * 回写课时学习进度 — PUT /courses/chapters/:chapterId/progress
+   * progress 为 0-100 百分比（后端 UpdateProgressDto 校验 0-100，upsert 落 ReadingProgress）。
+   * 播放器 onTimeUpdate 节流调用；失败由调用方静默降级，不打断播放。
+   */
+  async saveProgress(chapterId: string, progress: number, optionalAuth = false): Promise<void> {
+    const p = Math.max(0, Math.min(100, Math.round(progress)))
+    if (optionalAuth) await apiPutOptionalAuth(`/courses/chapters/${chapterId}/progress`, { progress: p })
+    else await apiPut(`/courses/chapters/${chapterId}/progress`, { progress: p })
   },
 
   /** 播放页章节目录 — GET /courses/:id/chapters + /progress（单级章节包成「章含一课时」） */
   async getPlayerChapters(id: string): Promise<PlayerChapter[]> {
     const [chapters, progress] = await Promise.all([
       apiGet<unknown>(`/courses/${id}/chapters`),
-      apiGet<unknown>(`/courses/${id}/progress`).catch(() => []),
+      apiGetOptionalAuth<unknown>(`/courses/${id}/progress`).catch(() => []),
     ])
     const chList = toList<RawChapter>(chapters).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
     const progMap = new Map<string, RawProgress>(toList<RawProgress>(progress).map((p): [string, RawProgress] => [p.chapterId || '', p]))
@@ -592,6 +723,14 @@ export const courseApi = {
     }
   },
 
+  /** 提交课时作业 — POST /courses/chapters/:chapterId/works */
+  async submitWork(chapterId: string, payload: { content: string; images?: string[] }): Promise<{ id: string; createdAt: string }> {
+    const work = await apiPost<RawWork>(`/courses/chapters/${chapterId}/works`, payload)
+    const id = work?.id || ''
+    if (!id) throw new Error('提交结果缺少作业编号，请稍后重试')
+    return { id, createdAt: work.createdAt ? String(work.createdAt) : '' }
+  },
+
   /** 作业提交列表 — GET /courses/:id/works（后端已 join user/chapter） */
   async getWorkSubmissions(id: string): Promise<WorkSubmission[]> {
     const data = await apiGet<unknown>(`/courses/${id}/works`)
@@ -617,8 +756,7 @@ export const courseApi = {
       submittedAt: w.createdAt ? String(w.createdAt).replace('T', ' ').slice(0, 16) : '',
       score: graded ? toNum(w.score) : undefined,
       maxScore: 100,
-      gradedBy: graded ? { name: '讲师', avatar: '' } : undefined,
-      teacherComment: w.feedback || undefined,
+      feedback: w.feedback || undefined,
       suggestions: [],
       canResubmit: false,
     }

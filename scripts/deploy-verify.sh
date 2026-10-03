@@ -52,7 +52,7 @@ check "内容列表"      "$BASE_URL/api/v1/contents?page=1&pageSize=10"
 check "发现页"        "$BASE_URL/api/v1/discover"
 check "热门搜索"      "$BASE_URL/api/v1/search/hot"
 check "搜索建议"      "$BASE_URL/api/v1/search/suggest?keyword=%E8%AE%BA%E8%AF%AD"
-check "排盘工具"      "$BASE_URL/api/v1/fortune/tools"
+check "排盘工具目录"  "$BASE_URL/api/v1/tools/directory"
 check "课程列表"      "$BASE_URL/api/v1/courses?page=1&pageSize=10"
 check "商品列表"      "$BASE_URL/api/v1/shop/products"
 

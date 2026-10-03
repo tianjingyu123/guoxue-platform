@@ -55,10 +55,10 @@
       </el-table-column>
       <el-table-column
         label="秒杀价"
-        width="100"
+        width="140"
       >
         <template #default="{ row }">
-          ¥{{ Number(row.items?.[0]?.flashPrice || 0).toFixed(2) }}
+          {{ priceRange(row) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -150,10 +150,49 @@
           label="名称"
           required
         >
-          <el-input v-model="form.name" />
+          <el-input
+            v-model="form.name"
+            :disabled="!!editingId"
+          />
+          <div
+            v-if="editingId"
+            class="field-hint"
+          >
+            活动名称创建后暂不支持修改
+          </div>
         </el-form-item>
-        <el-form-item label="选择商品">
+        <el-form-item
+          v-if="!editingId"
+          label="选择商品"
+        >
           <ProductPicker v-model="form.productId" />
+        </el-form-item>
+        <el-form-item
+          v-else
+          label="秒杀商品"
+        >
+          <el-select
+            v-model="editItemId"
+            style="width:100%"
+            placeholder="选择要修改价格的商品"
+            @change="onEditItemChange"
+          >
+            <el-option
+              v-for="it in editItems"
+              :key="it.id || ''"
+              :label="(it.product?.title || it.productId || '未知商品') + ' · ¥' + Number(it.flashPrice || 0).toFixed(2)"
+              :value="it.id || ''"
+            />
+          </el-select>
+          <div
+            v-if="editItems.length > 1"
+            class="field-hint"
+          >
+            该活动含 {{ editItems.length }} 个商品，价格/限购修改仅作用于上方所选商品，其余商品不受影响
+          </div>
+          <div class="field-hint">
+            如需更换/增删商品，请删除活动后重新创建
+          </div>
         </el-form-item>
         <el-form-item label="秒杀价">
           <el-input-number
@@ -245,7 +284,7 @@ interface PageOption { id: string; name?: string }
 // axios 错误体
 interface ApiError { response?: { data?: { message?: string } } }
 // 秒杀商品明细
-interface FlashSaleItem { productId?: string; flashPrice?: number | string; product?: { title?: string } }
+interface FlashSaleItem { id?: string; productId?: string; flashPrice?: number | string; limitCount?: number; product?: { title?: string } }
 // 秒杀活动行：依据表格列与编辑表单访问字段声明
 interface FlashSaleRow {
   id: string
@@ -262,27 +301,61 @@ interface FlashSaleRow {
 const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<FlashSaleRow[]>([]); const total = ref(0); const page = ref(1); const pages = ref<PageOption[]>([])
 const vis = ref(false); const editingId = ref('')
 const form = reactive<{ name: string; productId: string; flashPrice: number; limitPerUser: number; startTime: string; endTime: string; scope: string; scopePageId: string }>({ name: '', productId: '', flashPrice: 0, limitPerUser: 1, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
+// 编辑态：多商品活动需先选中要改价的商品（价格/限购走 item 端点，活动本身只支持改时间/展示范围）
+const editItems = ref<FlashSaleItem[]>([])
+const editItemId = ref('')
 
 onMounted(() => { fetchList(); loadPages() })
-async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.items || data.pages || data.data || [] } catch { /* 忽略 */ } }
+async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = Array.isArray(data) ? data : (data.items || data.pages || data.data || []) } catch { /* 忽略 */ } }
 
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+/** 秒杀价区间：单商品显示单价，多商品显示 最低~最高 */
+function priceRange(row: FlashSaleRow) {
+  const prices = (row.items || []).map(i => Number(i.flashPrice || 0)).filter(n => n > 0)
+  if (!prices.length) return '-'
+  const min = Math.min(...prices); const max = Math.max(...prices)
+  return min === max ? `¥${min.toFixed(2)}` : `¥${min.toFixed(2)} ~ ¥${max.toFixed(2)}`
+}
 
 async function fetchList() {
   loading.value = true; error.value = false
   try { const { data } = await marketingApi.listFlashSales({ page: page.value, pageSize: 20 }); list.value = data.items || data.flashSales || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
-function openCreate() { editingId.value = ''; Object.assign(form, { name: '', productId: '', flashPrice: 0, limitPerUser: 1, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
-function openEdit(row: FlashSaleRow) { editingId.value = row.id; Object.assign(form, { name: row.name, productId: row.items?.[0]?.productId || '', flashPrice: Number(row.items?.[0]?.flashPrice) || 0, limitPerUser: row.limitPerUser || 1, startTime: row.startTime || '', endTime: row.endTime || '', scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '' }); vis.value = true }
+function openCreate() { editingId.value = ''; editItems.value = []; editItemId.value = ''; Object.assign(form, { name: '', productId: '', flashPrice: 0, limitPerUser: 1, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
+function openEdit(row: FlashSaleRow) {
+  editingId.value = row.id
+  editItems.value = row.items || []
+  const first = editItems.value[0]
+  editItemId.value = first?.id || ''
+  Object.assign(form, { name: row.name, productId: first?.productId || '', flashPrice: Number(first?.flashPrice) || 0, limitPerUser: first?.limitCount ?? 1, startTime: row.startTime || '', endTime: row.endTime || '', scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '' })
+  vis.value = true
+}
+/** 切换所选商品时，回填该商品当前的秒杀价/限购数 */
+function onEditItemChange(itemId: string) {
+  const it = editItems.value.find(i => i.id === itemId)
+  if (it) { form.flashPrice = Number(it.flashPrice) || 0; form.limitPerUser = it.limitCount ?? 1 }
+}
 async function save() {
   if (!form.name) { ElMessage.warning('请输入活动名称'); return }
   saving.value = true
   try {
-    const payload: Record<string, unknown> = { name: form.name, productId: form.productId || undefined, flashPrice: form.flashPrice || undefined, limitPerUser: form.limitPerUser || undefined, scope: form.scope, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined }
-    if (form.startTime) payload.startTime = form.startTime
-    if (form.endTime) payload.endTime = form.endTime
-    if (editingId.value) { await marketingApi.updateFlashSale(editingId.value, payload); ElMessage.success('已更新') }
-    else { await marketingApi.createFlashSale(payload); ElMessage.success('秒杀活动创建成功，请点击"开始"按钮启用以生效') }
+    if (editingId.value) {
+      // 后端 UpdateFlashSaleDto 只接受时间/预热/状态/展示范围；价格与限购走秒杀商品 item 端点
+      const payload: Record<string, unknown> = { scope: form.scope, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined }
+      if (form.startTime) payload.startTime = form.startTime
+      if (form.endTime) payload.endTime = form.endTime
+      await marketingApi.updateFlashSale(editingId.value, payload)
+      if (editItemId.value) {
+        await marketingApi.updateFlashSaleItem(editingId.value, editItemId.value, { flashPrice: form.flashPrice, limitCount: form.limitPerUser })
+      }
+      ElMessage.success('已更新')
+    } else {
+      const payload: Record<string, unknown> = { name: form.name, productId: form.productId || undefined, flashPrice: form.flashPrice || undefined, limitPerUser: form.limitPerUser || undefined, scope: form.scope, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined }
+      if (form.startTime) payload.startTime = form.startTime
+      if (form.endTime) payload.endTime = form.endTime
+      await marketingApi.createFlashSale(payload)
+      ElMessage.success('秒杀活动创建成功，请点击"开始"按钮启用以生效')
+    }
     vis.value = false; fetchList()
   } catch (e) { ElMessage.error((e as ApiError)?.response?.data?.message || '操作失败') } finally { saving.value = false }
 }
@@ -291,4 +364,4 @@ async function endActivity(row: FlashSaleRow) { try { await marketingApi.endFlas
 async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteFlashSale(id); ElMessage.success('已删除'); fetchList() } catch { /* 用户取消 */ } }
 </script>
 
-<style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>
+<style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); } .field-hint { font-size: 12px; color: var(--el-text-color-secondary); line-height: 1.5; margin-top: 2px; }</style>

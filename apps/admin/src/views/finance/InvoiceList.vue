@@ -33,8 +33,11 @@ const rejecting = ref(false)
 
 onMounted(() => fetchList())
 
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
-function formatMoney(v: number | string | null | undefined) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
+function formatDate(d: string) { return d ? new Date(d).toLocaleString('zh-CN', { hour12: false }) : '—' }
+function formatMoney(v: number | string | null | undefined) {
+  if (v == null) return '—'
+  return '¥' + Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 // 后端字段：status = PENDING / ISSUED / MAILED / REJECTED
 function statusTagType(status: string) {
@@ -69,8 +72,26 @@ function viewDetail(row: InvoiceRow) { detailData.value = row; detailVisible.val
 
 async function doIssue(row: InvoiceRow) {
   try {
-    await ElMessageBox.confirm(`确定开具发票（订单 ${row.orderId}）？`, '开票确认', { type: 'warning' })
-    await financeApi.issueInvoice(row.id, row.invoiceUrl || '')
+    // 🔴 开票必须留下发票文件链接：没有文件链接的"已开票"等于口头开票，用户拿不到票、财务对不上账。
+    //    后端 IssueInvoiceDto invoiceUrl 必填（MinLength 1），空串会被 400 打回。
+    const { value } = await ElMessageBox.prompt(
+      `为订单 ${row.orderId} 开票。请粘贴发票文件链接（PDF/OFD 的可访问 URL，必填）：`,
+      '开具发票',
+      {
+        type: 'warning',
+        confirmButtonText: '确认开票',
+        cancelButtonText: '取消',
+        inputValue: row.invoiceUrl || '',
+        inputPlaceholder: 'https://…（发票文件链接，必填）',
+        inputValidator: (v: string) => {
+          const s = (v || '').trim()
+          if (!s) return '发票文件链接必填，未上传发票不能标记已开票'
+          if (!/^https?:\/\//i.test(s)) return '请填写 http(s):// 开头的有效链接'
+          return true
+        },
+      },
+    )
+    await financeApi.issueInvoice(row.id, String(value).trim())
     ElMessage.success('发票已开具')
     fetchList()
   } catch { /* 取消 */ }
@@ -79,16 +100,18 @@ async function doIssue(row: InvoiceRow) {
 async function doReject(row: InvoiceRow) {
   if (rejecting.value) return
   try {
-    const { value } = await ElMessageBox.prompt('请输入驳回原因（可选）', '驳回开票申请', {
+    // L2 危险操作：驳回理由必填
+    const { value } = await ElMessageBox.prompt('请输入驳回原因（必填，将反馈给申请人）', '驳回开票申请', {
       type: 'warning',
       confirmButtonText: '确认驳回',
       inputPlaceholder: '如：抬头信息有误、订单未实际支付等',
       inputType: 'textarea',
+      inputValidator: (v: string) => ((v || '').trim() ? true : '驳回原因必填'),
     })
     await ElMessageBox.confirm(`确定驳回订单 ${row.orderId} 的开票申请？此操作不可撤销。`, '二次确认', { type: 'warning' })
     rejecting.value = true
     // 铁律：直调 api，不在 api/index.ts 增方法
-    await api.put(`/finance/invoices/${row.id}/reject`, { reason: value || undefined })
+    await api.put(`/finance/invoices/${row.id}/reject`, { reason: String(value).trim() })
     ElMessage.success('已驳回开票申请')
     fetchList()
   } catch { /* 取消 */ } finally { rejecting.value = false }
@@ -200,6 +223,7 @@ function handleExport() {
         <el-table-column
           label="金额"
           width="110"
+          align="right"
         >
           <template #default="{ row }">
             <span style="font-weight:600">{{ formatMoney(row.amount) }}</span>
@@ -350,6 +374,19 @@ function handleExport() {
           :span="2"
         >
           {{ detailData.taxNo || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          v-if="detailData.invoiceUrl"
+          label="发票文件"
+          :span="2"
+        >
+          <el-link
+            type="primary"
+            :href="detailData.invoiceUrl"
+            target="_blank"
+          >
+            查看发票文件
+          </el-link>
         </el-descriptions-item>
         <el-descriptions-item
           v-if="detailData.expressNo"

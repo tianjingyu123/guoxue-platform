@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing"
 import { INestApplication, ValidationPipe } from "@nestjs/common"
+import { Reflector } from "@nestjs/core"
 import { AppModule } from "../src/app.module"
 import { PrismaService } from "../src/prisma/prisma.service"
 import { RedisService } from "../src/redis/redis.service"
@@ -9,6 +10,10 @@ import { AlipayService } from "../src/modules/shop/alipay.service"
 import { UnionpayService } from "../src/modules/shop/unionpay.service"
 import { VodService } from "../src/modules/video/vod.service"
 import { FeatureFlagService } from "../src/modules/feature-flag/feature-flag.service"
+import { ModerationService } from "../src/modules/audit/moderation.service"
+import { LiveStreamService } from "../src/modules/live/live-stream.service"
+import { RedLineGuard } from "../src/common/red-lines"
+import { createRedisPubSubMock } from "./redis-pubsub-mock"
 
 const modelMethods = [
   "findUnique", "findUniqueOrThrow", "findFirst", "findMany", "create",
@@ -56,6 +61,8 @@ function createPrismaMock() {
     $queryRaw: jest.fn().mockResolvedValue([{ 1: 1 }]),
     // needApproval 等绕过 generate 锁的列由 service 用原生 SQL 读写（默认非审批制）
     $queryRawUnsafe: jest.fn().mockResolvedValue([{ needApproval: false }]),
+    // 参数化写入仅为此HTTP测试容器的替身；事务真实性另由隔离PG验证。
+    $executeRaw: jest.fn().mockResolvedValue(1),
     $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
     $connect: jest.fn().mockResolvedValue(undefined),
     $disconnect: jest.fn().mockResolvedValue(undefined),
@@ -107,6 +114,8 @@ function createWechatPayMock() {
     queryOrder: jest.fn().mockResolvedValue({ trade_state: "SUCCESS" }),
     closeOrder: jest.fn().mockResolvedValue({}),
     verifyNotify: jest.fn().mockResolvedValue({ event_type: "TRANSACTION.SUCCESS", resource: {} }),
+    // 默认拒绝无验签测试报文；需要模拟真实回调的 E2E 必须显式提供已验签解密 data。
+    verifyAndDecryptNotify: jest.fn().mockResolvedValue({ valid: false, error: "微信支付通知验签失败" }),
   }
 }
 
@@ -128,6 +137,7 @@ function createUnionpayMock() {
 
 function createRedisMock() {
   return {
+    ...createRedisPubSubMock(),
     get: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue("OK"),
     del: jest.fn().mockResolvedValue(1),
@@ -139,6 +149,13 @@ function createRedisMock() {
     scard: jest.fn().mockResolvedValue(5),
     smembers: jest.fn().mockResolvedValue([]),
     expire: jest.fn().mockResolvedValue(undefined),
+    zadd: jest.fn().mockResolvedValue(1),
+    zrem: jest.fn().mockResolvedValue(1),
+    zremrangebyscore: jest.fn().mockResolvedValue(0),
+    zcard: jest.fn().mockResolvedValue(0),
+    publish: jest.fn().mockResolvedValue(1),
+    subscribe: jest.fn().mockResolvedValue(async () => undefined),
+    runExclusive: jest.fn(async (_key: string, _ttl: number, task: () => Promise<unknown>) => task()),
     incrWithTtl: jest.fn().mockResolvedValue({ count: 1, ttl: 60 }),
     setNX: jest.fn().mockResolvedValue(true),
   }
@@ -167,10 +184,51 @@ function createVodMock() {
 function createFeatureFlagMock() {
   return {
     isEnabled: jest.fn().mockResolvedValue(true),
+    // 业务流程使用开放状态；运营裁决的拒绝路径由 operation-http 单独验证。
+    requestScope: jest.fn().mockResolvedValue(null),
+    getOperationState: jest.fn().mockResolvedValue("OPEN"),
+    getConfiguredOperationState: jest.fn().mockResolvedValue("OPEN"),
     list: jest.fn().mockResolvedValue([]),
     getByKey: jest.fn().mockResolvedValue({ key: "test", enabled: true, percentage: 100, targetUserIds: [] }),
     upsert: jest.fn().mockResolvedValue({ key: "test", enabled: true }),
     delete: jest.fn().mockResolvedValue(undefined),
+  }
+}
+
+/** E2E 禁止访问真实腾讯云审核，统一返回安全结果，避免凭证/网络造成超时与不确定性 */
+function createModerationMock() {
+  const pass = { Suggestion: "Pass", LabelResults: [] }
+  return {
+    imageModeration: jest.fn().mockResolvedValue(pass),
+    batchImageModeration: jest.fn().mockResolvedValue(pass),
+    textModeration: jest.fn().mockResolvedValue(pass),
+    createVideoModerationTask: jest.fn().mockResolvedValue({ Results: [{ TaskId: "mock-video-task" }] }),
+    createAudioModerationTask: jest.fn().mockResolvedValue({ Results: [{ TaskId: "mock-audio-task" }] }),
+    describeVmTask: jest.fn().mockResolvedValue({ Status: "FINISH", Suggestion: "Pass" }),
+    describeAmsTask: jest.fn().mockResolvedValue({ Status: "FINISH", Suggestion: "Pass" }),
+    getFirstTaskId: jest.fn().mockReturnValue("mock-task"),
+    getTaskStatus: jest.fn().mockReturnValue("FINISH"),
+    getTaskSuggestion: jest.fn().mockReturnValue("Pass"),
+    isImagePass: jest.fn().mockReturnValue(true),
+    isTextPass: jest.fn().mockReturnValue(true),
+    getTextSuggestion: jest.fn().mockReturnValue("Pass"),
+    getImageSuggestion: jest.fn().mockReturnValue("Pass"),
+    getBlockedLabels: jest.fn().mockReturnValue([]),
+  }
+}
+
+/** E2E 不访问真实腾讯云直播，固定返回可验证的推拉流地址 */
+function createLiveStreamMock() {
+  const playUrls = {
+    flv: "https://play.example.com/live/room_r1.flv",
+    hls: "https://play.example.com/live/room_r1.m3u8",
+    rtmp: "rtmp://play.example.com/live/room_r1",
+  }
+  return {
+    isReady: jest.fn().mockReturnValue(true),
+    genPushUrl: jest.fn().mockReturnValue("rtmp://push.example.com/live/room_r1?txSecret=mock"),
+    genPlayUrls: jest.fn().mockReturnValue(playUrls),
+    genPlayUrlWithAuth: jest.fn().mockReturnValue(playUrls),
   }
 }
 
@@ -188,6 +246,8 @@ export async function createE2eApp(): Promise<{
   const alipay = createAlipayMock()
   const unionpay = createUnionpayMock()
   const featureFlag = createFeatureFlagMock()
+  const moderation = createModerationMock()
+  const liveStream = createLiveStreamMock()
 
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
@@ -208,6 +268,10 @@ export async function createE2eApp(): Promise<{
     .useValue(vod)
     .overrideProvider(FeatureFlagService)
     .useValue(featureFlag)
+    .overrideProvider(ModerationService)
+    .useValue(moderation)
+    .overrideProvider(LiveStreamService)
+    .useValue(liveStream)
     .compile()
 
   const app = moduleFixture.createNestApplication()
@@ -216,6 +280,8 @@ export async function createE2eApp(): Promise<{
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   )
+  // 与生产 main.ts 保持一致：E2E 必须真实覆盖自动化红线守卫，避免只测到控制器元数据。
+  app.useGlobalGuards(new RedLineGuard(app.get(Reflector)))
 
   await app.init()
   return { app, prisma, redis }

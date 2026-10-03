@@ -1,0 +1,53 @@
+{
+  "head": "a1d37c4a2cfd0167a4474798a47a4cb6706e6c69",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-lease-commerce.ts": "c5afd2db8f76214b1360b8f7ddce3b86b4024c7789a8689f946db0b328bc307d",
+    "apps/server/src/modules/managed-tenancy/managed-order-policy.ts": "a57e29e398a85e0294c6b433d7be2af8a8ed608e5eea998759ccf8cb9e564ba8",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "c089154278f7be496c25694cde7f4eb44494cdb286b1749383adb911597cce93",
+    "apps/server/src/modules/managed-tenancy/managed-lease.module.ts": "5e31e2fd74a135cb9e2fc0d15258e93bfe6b3fc4bae4d2e2c2c71bbd5a05d9f4",
+    "apps/server/src/modules/managed-tenancy/managed-lease-permissions.ts": "ba677560f44eda7291ea5a786deb0c104c3ca981dd2a42dc66f4d228add736e6",
+    "apps/server/src/modules/shop/shop-order.service.ts": "2130f75974009458838322c0363770d451f3394cbbdf2187159d457e75a98930",
+    "apps/server/src/modules/course/course-purchase.service.ts": "ba6d2b2eced6ea9487f76f0ddcc7deac2ab10f3f6bde214e08eb2a37a7c4102e",
+    "pilots/managed-tenancy/verify-commerce-postgres.mjs": "4a9be794de23051dd49786ce27b12bd05755456d1f9490ad60a3e676cf020345",
+    "pilots/managed-tenancy/postgres-harness.mjs": "096b032599e3fc523ca45a1768665665bfad6e6c6e4e40c2f94504b643abcbba"
+  },
+  "checks": [
+    {
+      "name": "收货地址固定本人，拒绝指定用户和修改他人地址，列表不暴露其他用户地址",
+      "status": "PASS"
+    },
+    {
+      "name": "四次跨进程建单复用原ShopOrder服务，只预占一次库存、一次来源与审计；金额由原报价计算，独立模式无平台推荐关系，跨用户/应用/客户拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "库存不足事务整体回滚；预占使旧经营修订失效，原待支付取消内核跨进程只恢复一次库存和审计",
+      "status": "PASS"
+    },
+    {
+      "name": "原CoursePurchase免费订阅、通知事实与来源同事务提交；收费课程只生成待支付单，无学习权益，同标的重试不重复生成可付订单",
+      "status": "PASS"
+    },
+    {
+      "name": "实际最低权限账号与订单RLS拒绝收费课程伪造免费已付、取消已付、改金额、改用户身份和读取平台配置",
+      "status": "PASS"
+    },
+    {
+      "name": "真实数据库宽松插入策略和关闭RLS故障均导致新独立进程拒绝启动，恢复仅本任务策略",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 7,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本任务PostgreSQL/Nest多进程和原报价、建单、取消代码；没有真实收费、支付回调、退款或供应商履约",
+    "独立模式显式无Redis缓存，互斥依靠数据库锁；免费订阅是实际零价课程，不是伪造已付交易",
+    "平台模式默认归因及佣金口径保持原服务行为，仍须原商城和课程回归检查"
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "dependencyLockSha256": "994f2584f94434c5b5594b54c92186dd87df13e5d47563c196b2af85f37687db",
+  "version": 1,
+  "head": "6bb0b15608114996db5eac1a64945a98290494c4",
+  "workingTreeDirty": false,
+  "applicationId": "client-preview-1791003646053-app-web",
+  "platform": "h5",
+  "channel": "local-candidate",
+  "presentation": {
+    "profileId": "managed-presentation-v1",
+    "nativeBuild": "1",
+    "resourceVersion": "1",
+    "components": [
+      "notice",
+      "richtext",
+      "entry-grid"
+    ],
+    "capabilityRegistrationRequired": true
+  },
+  "sources": {
+    "apps/mobile/managed/App.vue": "4b288a7bafea440f296c4b7cd1a6364c92c23054f0ce72d94ed697431c67af86",
+    "apps/mobile/managed/client.ts": "e39b620705a7426028a660cf4f79d9caa879e00f7f72f992a222d93cd96a8a60",
+    "apps/mobile/managed/files.ts": "6f7dccaa5fe783664ae3bc38223f39bba1ca95f19a722eb5b03219bcfd1f2dd0",
+    "apps/mobile/managed/main.ts": "506cb8900ef1ef03c89e182f5143f8b388449f326a8bbd695eb6fac3fb5a7085",
+    "apps/mobile/managed/manifest.json": "493c6a2c27d46effb63a04344b0a176fcb3df58219fe10685363d6969c4ead52",
+    "apps/mobile/managed/pages/index.vue": "c0fa89ef6fda2ceae857503f99fda3b766d366d776150a5c8e0581b58e95a60e",
+    "apps/mobile/managed/pages.json": "c0cfc0638b691af7869dd563147b814deec2f551d1850b27ee61a6f346434a37",
+    "apps/mobile/managed/presentation.ts": "0dd894e02b6c7b07a4b24c6b6bab6132c60b62830e1837c9f64f9691284fda64",
+    "apps/mobile/vite.managed.config.ts": "6018ad9ae02d22e927b39cd1d4e51d826f8d729fd3d71c7f91b63e723040db95",
+    "packages/shared/src/client-presentation.ts": "7c0e17ad8e106633fe9f4b9471c85f232a0c275ecd037d1a17d53042187f5493",
+    "scripts/ops/managed-client-build.mjs": "a4e76290ef82088f43797d2c5be4bb67b1574b7728a188c6e7806b529fd90943"
+  },
+  "files": {
+    "assets/index-B0l3cESc.css": "bfc8aacb6fa7289a35c4ec83190dc903ce16883a5ca18cc0d310984123497c6a",
+    "assets/index-DOtiPCfY.css": "af314ac5b4df682cfac8e982e1f554993c8c3d6101610452c46f217a679cbfea",
+    "assets/index-DWYwCApU.js": "4e9f1c24fcbd1799a1fc82aa50c2c4debbf4464f07264a8ab86e55f3cee447c5",
+    "assets/pages-index.Cg52rAag.js": "5d3d30eec949b7a4431826f4612bdaada71921b713204cf0ac50b2e167cd28fe",
+    "assets/uni.a0b39d2e.css": "a0b39d2ebf38709d6447b0f5d1bb9877eef6dea54ead3646e0ac61198af8bbb6",
+    "index.html": "e42ee33362da4271edd0b816f69b5c5ff2ea486dd2d544413bbd7c9db3c1e4b1"
+  },
+  "production": false,
+  "limits": [
+    "共享客户源码的渠道资源编译，不代表真实登记、证书签名、真机安装或商店上架",
+    "本构建不包含平台登录、支付、埋点、热更新或供应商SDK",
+    "本地候选使用合成AppID；正式配置仍须已有登记证据和发布授权"
+  ]
+}

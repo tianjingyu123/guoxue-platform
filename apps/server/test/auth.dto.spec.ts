@@ -7,6 +7,7 @@ describe("Auth DTO 校验", () => {
       const dto = Object.assign(new PhoneRegisterDto(), {
         nickname: "张三",
         phone: "13800138000",
+        code: "123456",
         password: "Abc12345",
       });
       const errors = await validate(dto);
@@ -17,6 +18,7 @@ describe("Auth DTO 校验", () => {
       const dto = Object.assign(new PhoneRegisterDto(), {
         nickname: "张",
         phone: "13800138000",
+        code: "123456",
         password: "Abc12345",
       });
       const errors = await validate(dto);
@@ -28,6 +30,7 @@ describe("Auth DTO 校验", () => {
       const dto = Object.assign(new PhoneRegisterDto(), {
         nickname: "张三",
         phone: "13800138000",
+        code: "123456",
         password: "abc1234",
       });
       const errors = await validate(dto);
@@ -38,6 +41,7 @@ describe("Auth DTO 校验", () => {
     it("缺昵称报错", async () => {
       const dto = Object.assign(new PhoneRegisterDto(), {
         phone: "13800138000",
+        code: "123456",
         password: "Abc12345",
       });
       const errors = await validate(dto);

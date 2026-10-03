@@ -111,16 +111,25 @@
       />
     </div>
 
-    <!-- 知识库管理 -->
+    <!-- 知识库管理（圈子改下拉选择：原手输裸 ID 反人性·复用 KnowledgeManage 写法） -->
     <div v-if="activeTab === 'knowledge'">
       <div style="margin-bottom:12px;display:flex;gap:12px">
-        <el-input
+        <el-select
           v-model="knowledgeCircleId"
-          placeholder="输入圈子ID"
+          placeholder="选择圈子"
           size="small"
-          style="width:200px"
+          style="width:280px"
+          filterable
           clearable
-        />
+          @change="fetchKnowledge"
+        >
+          <el-option
+            v-for="c in circles"
+            :key="c.id"
+            :label="c.name"
+            :value="c.id"
+          />
+        </el-select>
         <el-button
           type="primary"
           size="small"
@@ -196,20 +205,29 @@
       </el-table>
       <el-empty
         v-else-if="!kLoading"
-        description="请先输入圈子ID查询"
+        description="请先选择圈子查询"
       />
     </div>
 
-    <!-- 使用数据 -->
+    <!-- 使用数据（圈子改下拉选择） -->
     <div v-if="activeTab === 'usage'">
       <div style="margin-bottom:12px;display:flex;gap:12px">
-        <el-input
+        <el-select
           v-model="usageCircleId"
-          placeholder="输入圈子ID"
+          placeholder="选择圈子"
           size="small"
-          style="width:200px"
+          style="width:280px"
+          filterable
           clearable
-        />
+          @change="fetchUsage"
+        >
+          <el-option
+            v-for="c in circles"
+            :key="c.id"
+            :label="c.name"
+            :value="c.id"
+          />
+        </el-select>
         <el-button
           type="primary"
           size="small"
@@ -255,23 +273,31 @@
       </el-descriptions>
       <el-empty
         v-else-if="!uLoading"
-        description="请输入圈子ID查询"
+        description="请先选择圈子查询"
       />
     </div>
 
-    <!-- 测试对话 -->
+    <!-- 测试对话（圈子改下拉选择） -->
     <div
       v-if="activeTab === 'test'"
       style="height:500px;display:flex;flex-direction:column"
     >
       <div style="margin-bottom:12px;display:flex;gap:12px;align-items:center">
-        <el-input
+        <el-select
           v-model="testCircleId"
-          placeholder="输入圈子ID"
+          placeholder="选择圈子"
           size="small"
-          style="width:200px"
+          style="width:280px"
+          filterable
           clearable
-        />
+        >
+          <el-option
+            v-for="c in circles"
+            :key="c.id"
+            :label="c.name"
+            :value="c.id"
+          />
+        </el-select>
         <el-tag
           v-if="testCircleId"
           type="success"
@@ -282,7 +308,7 @@
         <span
           v-else
           style="font-size:12px;color:var(--color-text-secondary)"
-        >输入圈子ID后开始测试</span>
+        >选择圈子后开始测试</span>
       </div>
       <div style="flex:1;border:1px solid var(--color-border);border-radius:8px;overflow:hidden">
         <ChatUI
@@ -339,7 +365,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ChatUI } from '@/components/ChatUI'
 import type { ChatUIConfig } from '@/components/ChatUI/types'
-import { aiAdminApi } from '@/api'
+import { aiAdminApi, circleApi } from '@/api'
 
 /** 开通审批行（字段宽松 optional） */
 interface ApprovalRow {
@@ -369,6 +395,17 @@ interface UsageData {
 const activeTab = ref('approvals')
 const loading = ref(false); const loadErr = ref(false); const acting = ref(false); const list = ref<ApprovalRow[]>([])
 
+// 圈子下拉选项（复用 KnowledgeManage 的写法·替代三处手输裸 ID）
+interface CircleItem { id: string; name: string }
+const circles = ref<CircleItem[]>([])
+async function loadCircles() {
+  try {
+    const { data } = await circleApi.list({ pageSize: 200 })
+    const d = data as { circles?: CircleItem[]; data?: CircleItem[] }
+    circles.value = d?.circles || d?.data || []
+  } catch { /* 下拉加载失败不阻塞页面·可重进重试 */ }
+}
+
 const kLoading = ref(false); const kErr = ref(false); const kSaving = ref(false); const kList = ref<KnowledgeRow[]>([])
 const kVis = ref(false); const kEditingId = ref('')
 const knowledgeCircleId = ref('')
@@ -390,7 +427,7 @@ const testChatConfig = computed<ChatUIConfig>(() => ({
   systemContext: '你是圈子知识助手，请基于圈子知识库回答问题。回答时引用来源。',
 }))
 
-onMounted(() => fetchApprovals())
+onMounted(() => { fetchApprovals(); loadCircles() })
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 function onTabChange(tab: string) {

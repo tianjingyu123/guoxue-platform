@@ -10,6 +10,8 @@ import { GrowthModule } from "./modules/growth/growth.module";
 import { ConsultCallModule } from "./modules/consult-call/consult-call.module";
 import { ArticleModule } from "./modules/article/article.module";
 import { PaipanModule } from "./modules/paipan/paipan.module";
+import { VoiceModule } from "./modules/voice/voice.module";
+import { ZidianModule } from "./modules/zidian/zidian.module";
 import { CourseModule } from "./modules/course/course.module";
 import { InteractionModule } from "./modules/interaction/interaction.module";
 import { ShopModule } from "./modules/shop/shop.module";
@@ -33,7 +35,6 @@ import { CommissionModule } from "./modules/commission/commission.module";
 import { SystemModule } from "./modules/system/system.module";
 import { HealthModule } from "./modules/health/health.module";
 import { HomeModule } from "./modules/home/home.module";
-import { PoetryModule } from "./modules/poetry/poetry.module";
 import { CoinModule } from "./modules/coin/coin.module";
 import { QuestionModule } from "./modules/question/question.module";
 import { ImModule } from "./modules/im/im.module";
@@ -52,15 +53,12 @@ import { WebsocketModule } from "./modules/websocket/websocket.module";
 import { AiModule } from "./modules/ai/ai.module";
 import { AiGatewayModule } from "./modules/ai-gateway/ai-gateway.module";
 import { ContentGenerationModule } from "./modules/content-generation/content-generation.module";
-import { OperationRobotModule } from "./modules/operation-robot/operation-robot.module";
-import { OperationEngineModule } from "./modules/operation-engine/operation-engine.module";
 import { MiniModule } from "./modules/mini/mini.module";
 import { WebhookModule } from "./modules/webhook/webhook.module";
 import { CallModule } from "./modules/call/call.module";
 import { InstituteModule } from "./modules/institute/institute.module";
 import { MetricsModule } from "./modules/metrics/metrics.module";
 import { FeatureFlagModule } from "./modules/feature-flag/feature-flag.module";
-import { EbookModule } from "./modules/ebook/ebook.module";
 import { RiskControlModule } from "./modules/risk-control/risk-control.module";
 import { MarketingModule } from "./modules/marketing/marketing.module";
 import { FinanceModule } from "./modules/finance/finance.module";
@@ -72,10 +70,13 @@ import { QueueModule } from "./modules/queue/queue.module";
 import { RenewalModule } from "./modules/renewal/renewal.module";
 import { TaskModule } from "./modules/task/task.module";
 import { HuifuModule } from "./modules/huifu/huifu.module";
+import { PayeeAccountModule } from "./modules/payee-account/payee-account.module";
+import { PayoutModule } from "./modules/payout/payout.module";
 import { FundApprovalModule } from "./modules/fund-approval/fund-approval.module";
 import { TenantModule } from "./modules/tenant/tenant.module";
+import { ManagedTenancyModule } from "./modules/managed-tenancy/managed-tenancy.module";
+import { ManagedBrandModule } from "./modules/managed-tenancy/managed-brand.module";
 import { ChurnModule } from "./modules/churn/churn.module";
-import { FortuneModule } from "./modules/fortune/fortune.module";
 import { PricingModule } from "./modules/pricing/pricing.module";
 import { BountyModule } from "./modules/bounty/bounty.module";
 import { ShareModule } from "./modules/share/share.module";
@@ -93,20 +94,20 @@ import { SharedReadingModule } from "./modules/shared-reading/shared-reading.mod
 import { SolarTermModule } from "./modules/solar-term/solar-term.module";
 import { OpsModule } from "./modules/ops/ops.module";
 import { CrmModule } from "./modules/crm/crm.module";
+import { PractitionerModule } from "./modules/practitioner/practitioner.module";
+import { BaziCaseModule } from "./modules/bazi-case/bazi-case.module";
 import { SentinelModule } from "./modules/sentinel/sentinel.module";
+import { AdminAssistantModule } from "./modules/admin-assistant/admin-assistant.module";
 import { UserTagModule } from "./modules/user-tag/user-tag.module";
 import { ObservabilityModule } from "./modules/observability/observability.module";
+import { EntitlementModule } from "./modules/entitlement/entitlement.module";
+import { AppleIapModule } from "./modules/apple-iap/apple-iap.module";
 
-const conditionalModules: any[] = [];
+const conditionalModules: any[] = [ManagedTenancyModule, ManagedBrandModule];
 if (process.env.BULLMQ_DISABLED !== "true") {
   conditionalModules.push(QueueModule);
 }
-// 赛事模块：通过环境变量 COMPETITION_ENABLED=true 启用，或后台功能开关动态控制
-if (process.env.COMPETITION_ENABLED === "true") {
-  conditionalModules.push(CompetitionModule);
-}
-
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, ...conditionalModules, AuthModule, UserModule, BrowseHistoryModule, BundleModule, RenewalModule, CheckinModule, CircleModule, CircleRefundModule, GrowthModule, ConsultCallModule, ArticleModule, PaipanModule, ToolRegistryModule, WannianliModule, CourseModule, TeacherModule, InteractionModule, ShopModule, HuifuModule, TenantModule, ChurnModule, FortuneModule, PricingModule, BountyModule, ShareModule, CategoryModule, DiscoverModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, StationPickModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, HomeModule, PoetryModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SettlementModule, AdvisorModule, UserGrowthModule, MentorshipModule, ContentQualityModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, ContentGenerationModule, OperationRobotModule, OperationEngineModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule, OrderCenterModule, MemberModule, ExportModule, TrackModule, FundApprovalModule, SharedReadingModule, SolarTermModule, OpsModule, CrmModule, SentinelModule, UserTagModule, ObservabilityModule],
+  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, CompetitionModule, ...conditionalModules, AuthModule, EntitlementModule, AppleIapModule, UserModule, BrowseHistoryModule, BundleModule, RenewalModule, CheckinModule, CircleModule, CircleRefundModule, GrowthModule, ConsultCallModule, ArticleModule, PaipanModule, VoiceModule, ZidianModule, ToolRegistryModule, WannianliModule, CourseModule, TeacherModule, InteractionModule, ShopModule, HuifuModule, TenantModule, ChurnModule, PricingModule, BountyModule, ShareModule, CategoryModule, DiscoverModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, StationPickModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, HomeModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SettlementModule, PayeeAccountModule, PayoutModule, AdvisorModule, UserGrowthModule, MentorshipModule, ContentQualityModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, ContentGenerationModule, MiniModule, WebhookModule, CallModule, InstituteModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule, OrderCenterModule, MemberModule, ExportModule, TrackModule, FundApprovalModule, SharedReadingModule, SolarTermModule, OpsModule, CrmModule, PractitionerModule, BaziCaseModule, SentinelModule, UserTagModule, ObservabilityModule, AdminAssistantModule],
 })
 export class AppModule {}

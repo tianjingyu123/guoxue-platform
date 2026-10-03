@@ -3,9 +3,11 @@ import { InteractionController } from "./interaction.controller";
 import { InteractionService } from "./interaction.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { PrismaService } from "../../prisma/prisma.service";
 
 const mockInteractionSvc = {
   toggleLike: jest.fn().mockResolvedValue({ liked: true }),
+  removeLike: jest.fn().mockResolvedValue({ success: true }),
   isLiked: jest.fn().mockResolvedValue({ a1: true, a2: false }),
   getLikeCount: jest.fn().mockResolvedValue(42),
   createComment: jest.fn().mockResolvedValue({ id: "c1", content: "好文" }),
@@ -18,9 +20,15 @@ const mockInteractionSvc = {
   getFollowers: jest.fn().mockResolvedValue([{ id: "u2", name: "粉丝A" }]),
   getFollowing: jest.fn().mockResolvedValue([{ id: "u3", name: "关注的人" }]),
   report: jest.fn().mockResolvedValue({ id: "rpt1", status: "PENDING" }),
+  getMyReports: jest.fn().mockResolvedValue({ items: [{ id: "rpt1" }], total: 1 }),
+  getMyReport: jest.fn().mockResolvedValue({ id: "rpt1", status: "PENDING" }),
   listReports: jest.fn().mockResolvedValue([{ id: "rpt1", reason: "违规内容" }]),
   processReport: jest.fn().mockResolvedValue({ id: "rpt1", status: "PROCESSED" }),
   dismissReport: jest.fn().mockResolvedValue({ id: "rpt1", status: "DISMISSED" }),
+};
+
+const mockPrisma = {
+  report: { update: jest.fn().mockResolvedValue({ id: "rpt1", status: "DISMISSED" }) },
 };
 
 describe("InteractionController", () => {
@@ -29,7 +37,10 @@ describe("InteractionController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [InteractionController],
-      providers: [{ provide: InteractionService, useValue: mockInteractionSvc }],
+      providers: [
+        { provide: InteractionService, useValue: mockInteractionSvc },
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
@@ -45,6 +56,13 @@ describe("InteractionController", () => {
     const result: any = await ctrl.toggleLike(req, dto);
     expect(result.liked).toBe(true);
     expect(mockInteractionSvc.toggleLike).toHaveBeenCalledWith("u1", dto);
+  });
+
+  it("DELETE /interaction/like/:id — 确定性取消自己的点赞", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.removeLike(req, "l1");
+    expect(result.success).toBe(true);
+    expect(mockInteractionSvc.removeLike).toHaveBeenCalledWith("u1", "l1");
   });
 
   it("GET /interaction/like/check — 检查点赞", async () => {
@@ -131,6 +149,20 @@ describe("InteractionController", () => {
     expect(mockInteractionSvc.report).toHaveBeenCalledWith("u1", dto);
   });
 
+  it("GET /interaction/report/mine — 我的举报列表", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.getMyReports(req, 1 as any, 20 as any);
+    expect(result.total).toBe(1);
+    expect(mockInteractionSvc.getMyReports).toHaveBeenCalledWith("u1", 1, 20);
+  });
+
+  it("GET /interaction/report/mine/:id — 我的举报详情", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.getMyReport(req, "rpt1");
+    expect(result.id).toBe("rpt1");
+    expect(mockInteractionSvc.getMyReport).toHaveBeenCalledWith("u1", "rpt1");
+  });
+
   it("GET /interaction/report — 举报列表（管理员）", async () => {
     const q: any = { status: "PENDING", page: 1, pageSize: 20 };
     const result: any = await ctrl.listReports(q);
@@ -147,6 +179,6 @@ describe("InteractionController", () => {
   it("PUT /interaction/report/:id/dismiss — 驳回举报", async () => {
     const result: any = await ctrl.dismissReport("rpt1");
     expect(result.status).toBe("DISMISSED");
-    expect(mockInteractionSvc.dismissReport).toHaveBeenCalledWith("rpt1");
+    expect(mockInteractionSvc.dismissReport).toHaveBeenCalledWith("rpt1", undefined);
   });
 });

@@ -5,13 +5,16 @@
  * 音视频课程为高级功能，未开通弹申请提示（原型 FeatureApplyModal 子系统后续单独迁移）。
  */
 import { ref, reactive } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import VisibilitySettings, { type Visibility, type PaymentType } from '@/components/circle/visibility-settings.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
+import { getToken } from '@/utils/storage'
 import { circleDetailApi } from '@/lib/circle-detail-data'
 import { articleApi } from '@/lib/article-data'
 import { courseApi } from '@/lib/course-data'
+import { uploadImage } from '@/utils/request'
 
 const circleId = ref('1')
 const circle = reactive({ id: '1', name: '', members: 0, role: 'owner' as 'owner' | 'admin' })
@@ -20,13 +23,19 @@ const selectedType = ref<string | null>(null)
 
 const contentTypes = [
   { id: 'article', name: '文章', icon: 'file-text', desc: '发布图文内容' },
+  { id: 'video', name: '短视频', icon: 'video', desc: '发布短视频作品' },
   { id: 'course', name: '课程', icon: 'book-open', desc: '上传视频课程' },
   { id: 'live', name: '直播', icon: 'radio', desc: '发起在线直播' },
 ]
 
 onLoad((q) => {
+  // 登录门：未登录直接进发布页会填完整表单、提交时才 401，入口即拦（与全局 401 处理一致，reLaunch 登录页不留返回栈）
+  if (!getToken()) { reLaunch('/login'); return }
   if (q?.circleId) { circleId.value = q.circleId; circle.id = q.circleId }
+  // 支持从发布 sheet 直达指定表单（type=article/course），免二次选类型
+  if (q?.type === 'article' || q?.type === 'course') selectedType.value = q.type
   loadCircle()
+  restoreLocalDraft()
 })
 
 /** 加载真实圈子信息（名称/成员数/当前用户角色） */
@@ -44,36 +53,70 @@ async function loadCircle() {
 
 function selectType(t: typeof contentTypes[0]) {
   if (t.id === 'live') { navigateTo(`/pkg-live/create/index?circleId=${circleId.value}`); return }
+  // 短视频复用独立发布页（已支持 circleId 入参，发布后归属当前圈子）
+  if (t.id === 'video') { navigateTo(`/pkg-video/publish/index?circleId=${circleId.value}`); return }
   selectedType.value = t.id
 }
 
-// ─── 文章表单（后端文章不支持付费/可见性，仅保留真实可用的"推荐到首页"） ───
+// ─── 文章表单 ───
 const a = reactive({
   title: '', content: '', cover: '',
   isPushHome: false,
+  // 开放范围（后端 CreateArticleDto.visibility 已收）：文章特例——默认仍仅本圈，但"全平台开放"作为推荐选项引导（文章是圈子对外窗口）
+  scope: 'CIRCLE_ONLY' as 'CIRCLE_ONLY' | 'PLATFORM',
 })
-const aErr = reactive<{ title?: string; content?: string }>({})
+const aErr = reactive<{ title?: string; content?: string; cover?: string }>({})
 const aSubmitting = ref(false)
 
+// 封面真上传（COS 图片端点·原实现把本地临时路径当 URL 提交，后端存不了）
+const coverUploading = ref(false)
 function uploadCover(target: 'a' | 'c') {
+  if (coverUploading.value) return
   uni.chooseImage({
     count: 1,
-    success: (res) => {
+    sizeType: ['compressed'],
+    success: async (res) => {
       const path = res.tempFilePaths[0]
-      if (target === 'a') a.cover = path
-      else c.cover = path
+      if (!path) return
+      coverUploading.value = true
+      uni.showLoading({ title: '上传中' })
+      try {
+        const url = await uploadImage(path)
+        if (target === 'a') { a.cover = url; aErr.cover = '' }
+        else c.cover = url
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '封面上传失败', icon: 'none' })
+      } finally {
+        coverUploading.value = false
+        uni.hideLoading()
+      }
     },
   })
+}
+
+/** 发布成功后的去向：全平台开放 → 提示平台审核并可跳发布审核台账；仅本圈 → 回圈子详情 */
+function afterPublishSuccess(scope: 'CIRCLE_ONLY' | 'PLATFORM', successText: string) {
+  clearLocalDraft() // 发布成功，清本地兜底缓存
+  // 成功后不加确认弹窗（最短路径标准）：全平台开放场景审核进度入口在「圈子·我的→发布审核」
+  // 本来就有，toast 传达即可，不值得强制用户多点一击
+  const tip = scope === 'PLATFORM' ? '已提交平台审核' : successText
+  uni.showToast({ title: tip, icon: 'success' })
+  setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
 }
 
 async function submitArticle() {
   aErr.title = a.title.trim() ? '' : '请输入文章标题'
   aErr.content = a.content.trim() ? '' : '请输入文章内容'
-  if (aErr.title || aErr.content) return
+  // 文章封面必选（体验标准 V1.0 五·附节·董事长 2026-07-17 拍板）
+  aErr.cover = a.cover ? '' : '请上传文章封面（建议 16:9 横图）'
+  if (aErr.cover && !aErr.title && !aErr.content) {
+    // 封面区在页面顶部，提交按钮在底部：toast 兜底提醒，避免错误提示在视口外用户无感
+    uni.showToast({ title: aErr.cover, icon: 'none' })
+  }
+  if (aErr.title || aErr.content || aErr.cover) return
   if (aSubmitting.value) return
   aSubmitting.value = true
   try {
-    // 后端文章不支持付费/可见性，仅"推荐到首页"(isPushHome)为真实可用选项
     await articleApi.create(circleId.value, {
       title: a.title.trim(),
       content: a.content,
@@ -81,9 +124,9 @@ async function submitArticle() {
       excerpt: a.content.trim().slice(0, 80),
       tags: [],
       isPushHome: a.isPushHome,
+      visibility: a.scope,
     })
-    uni.showToast({ title: '发布成功', icon: 'success' })
-    setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+    afterPublishSuccess(a.scope, '发布成功')
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '发布失败', icon: 'none' })
   } finally {
@@ -98,9 +141,42 @@ const c = reactive({
   visibility: 'platform_wide' as Visibility,
   paymentType: 'paid' as PaymentType,
   price: 99,
+  // 介绍详情图（后端 Course.detailImages·最多6张·展示在课程详情页介绍区）
+  detailImages: [] as string[],
+  // 开放范围（后端 CreateCourseDto.visibility 已收·默认仅圈子）
+  scope: 'CIRCLE_ONLY' as 'CIRCLE_ONLY' | 'PLATFORM',
 })
 const cErr = reactive<{ title?: string; description?: string; price?: string }>({})
 const cSubmitting = ref(false)
+
+// 介绍详情图：多选补齐上传（复用 /upload/image COS 端点）
+const detailUploading = ref(false)
+function addDetailImages() {
+  if (detailUploading.value) return
+  const remain = 6 - c.detailImages.length
+  if (remain <= 0) return
+  uni.chooseImage({
+    count: remain,
+    sizeType: ['compressed'],
+    success: async (res) => {
+      const paths = (Array.isArray(res.tempFilePaths) ? res.tempFilePaths : [res.tempFilePaths]).slice(0, remain)
+      if (!paths.length) return
+      detailUploading.value = true
+      uni.showLoading({ title: '上传中' })
+      try {
+        for (const p of paths) c.detailImages.push(await uploadImage(p))
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '图片上传失败', icon: 'none' })
+      } finally {
+        detailUploading.value = false
+        uni.hideLoading()
+      }
+    },
+  })
+}
+function removeDetailImage(i: number) {
+  c.detailImages.splice(i, 1)
+}
 const avUnlocked = ref(false) // 音视频课程高级功能未开通
 
 function selectAV() {
@@ -128,22 +204,78 @@ async function submitCourse() {
       intro: c.description,
       type: c.format === 'av' ? 'VIDEO' : 'TEXT',
       price: c.paymentType === 'free' ? 0 : c.price,
+      detailImages: c.detailImages.length ? c.detailImages : undefined,
+      visibility: c.scope,
     })
-    uni.showToast({ title: '创建成功', icon: 'success' })
-    setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+    afterPublishSuccess(c.scope, '创建成功')
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '创建失败', icon: 'none' })
   } finally {
     cSubmitting.value = false
   }
 }
+
+// ─── 本地草稿兜底（纯前端 storage·防误触返回丢失长内容·成功发布后清） ───
+const LOCAL_DRAFT_KEY = 'draft:circle-publish'
+let submittedClean = false
+
+function restoreLocalDraft() {
+  try {
+    const raw = uni.getStorageSync(LOCAL_DRAFT_KEY)
+    if (!raw) return
+    // 缓存结构由本页写入
+    const cache = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+      selectedType?: string | null
+      a?: Partial<typeof a>
+      c?: Partial<typeof c>
+    }
+    const hasContent = !!(cache?.a?.title?.trim() || cache?.a?.content?.trim() || cache?.c?.title?.trim() || cache?.c?.description?.trim())
+    if (!hasContent) { uni.removeStorageSync(LOCAL_DRAFT_KEY); return }
+    // 当前已在填写则不覆盖
+    if (a.title.trim() || a.content.trim() || c.title.trim() || c.description.trim()) return
+    uni.showModal({
+      title: '恢复未完成的内容',
+      content: '检测到上次未发布的内容，是否恢复继续编辑？',
+      confirmText: '恢复',
+      cancelText: '不用了',
+      success: (r) => {
+        if (r.confirm) {
+          if (cache.a) Object.assign(a, cache.a)
+          if (cache.c) Object.assign(c, cache.c)
+          if (cache.selectedType === 'article' || cache.selectedType === 'course') selectedType.value = cache.selectedType
+        } else {
+          uni.removeStorageSync(LOCAL_DRAFT_KEY)
+        }
+      },
+    })
+  } catch {
+    try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+  }
+}
+
+function clearLocalDraft() {
+  submittedClean = true
+  try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+}
+
+onUnload(() => {
+  if (submittedClean) return
+  const hasContent = a.title.trim() || a.content.trim() || c.title.trim() || c.description.trim()
+  if (!hasContent) {
+    try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+    return
+  }
+  try {
+    uni.setStorageSync(LOCAL_DRAFT_KEY, JSON.stringify({ selectedType: selectedType.value, a: { ...a }, c: { ...c } }))
+  } catch { /* 存储失败静默 */ }
+})
 </script>
 
 <template>
   <view class="cr">
     <!-- 顶栏 -->
     <view class="cr-hdr">
-      <view class="cr-hdr-btn" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#ffffff" /></view>
+      <view class="cr-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
       <text class="cr-hdr-title">发布内容</text>
       <view class="cr-hdr-btn" />
     </view>
@@ -151,7 +283,8 @@ async function submitCourse() {
     <scroll-view scroll-y class="cr-body">
       <!-- 圈子信息 -->
       <view class="cr-circle">
-        <image lazy-load :src="`https://api.dicebear.com/7.x/shapes/svg?seed=${circle.id}`" class="cr-circle-avatar" mode="aspectFill" />
+        <!-- 圈子头像本地兜底：原 dicebear 外部URL H5 挡掉即空白（2026-07-16 深度走查修）·circle 无 cover 字段直接走书法水印 -->
+        <smart-cover :src="''" :title="circle.name" type="circle" deco :deco-size="30" class="cr-circle-avatar" />
         <view class="cr-circle-info">
           <text class="cr-circle-name">{{ circle.name }}</text>
           <text class="cr-circle-members">{{ circle.members.toLocaleString() }} 成员</text>
@@ -183,12 +316,14 @@ async function submitCourse() {
         </view>
 
         <view class="cr-panel">
-          <text class="cr-field-label">文章封面</text>
-          <view class="cr-cover" @tap="uploadCover('a')">
+          <text class="cr-field-label">文章封面 <text class="cr-req">*</text></text>
+          <view class="cr-cover" :class="{ err: aErr.cover }" @tap="uploadCover('a')">
             <image lazy-load v-if="a.cover" :src="a.cover" class="cr-cover-img" mode="aspectFill" />
             <view v-else class="cr-cover-empty"><app-icon name="camera" :size="48" color="rgba(255,255,255,0.4)" /><text class="cr-cover-tip">点击上传封面</text></view>
             <view v-if="a.cover" class="cr-cover-del" @tap.stop="a.cover = ''"><app-icon name="x" :size="28" color="#ffffff" /></view>
           </view>
+          <text class="cr-upload-hint">建议 16:9 横图 · 1280×720 以上</text>
+          <text v-if="aErr.cover" class="cr-err">{{ aErr.cover }}</text>
         </view>
 
         <view class="cr-panel">
@@ -211,6 +346,28 @@ async function submitCourse() {
             </view>
             <view class="cr-switch" :class="{ on: a.isPushHome }">
               <view class="cr-switch-dot" :class="{ on: a.isPushHome }" />
+            </view>
+          </view>
+        </view>
+
+        <!-- 开放范围（文章特例：默认仅本圈，但全平台开放作为推荐选项引导——文章是圈子对外窗口） -->
+        <view class="cr-panel">
+          <text class="cr-field-label">开放范围</text>
+          <view class="cr-scope" :class="{ on: a.scope === 'PLATFORM' }" @tap="a.scope = 'PLATFORM'">
+            <view class="cr-radio" :class="{ on: a.scope === 'PLATFORM' }" />
+            <view class="cr-scope-main">
+              <view class="cr-scope-name-row">
+                <text class="cr-scope-name">全平台开放</text>
+                <text class="cr-scope-badge">推荐</text>
+              </view>
+              <text class="cr-scope-desc">文章是圈子对外的窗口，开放后圈外读者也能看到。全平台开放需平台审核，通过后进入公共池</text>
+            </view>
+          </view>
+          <view class="cr-scope" :class="{ on: a.scope === 'CIRCLE_ONLY' }" @tap="a.scope = 'CIRCLE_ONLY'">
+            <view class="cr-radio" :class="{ on: a.scope === 'CIRCLE_ONLY' }" />
+            <view class="cr-scope-main">
+              <text class="cr-scope-name">仅本圈</text>
+              <text class="cr-scope-desc">只有圈内成员可阅读</text>
             </view>
           </view>
         </view>
@@ -256,6 +413,7 @@ async function submitCourse() {
             <view v-else class="cr-cover-empty"><app-icon name="video" :size="48" color="rgba(255,255,255,0.4)" /><text class="cr-cover-tip">点击上传封面</text></view>
             <view v-if="c.cover" class="cr-cover-del" @tap.stop="c.cover = ''"><app-icon name="x" :size="28" color="#ffffff" /></view>
           </view>
+          <text class="cr-upload-hint">建议 16:9 横图 · 1280×720 以上</text>
         </view>
 
         <view class="cr-panel">
@@ -270,6 +428,24 @@ async function submitCourse() {
           <text v-if="cErr.description" class="cr-err">{{ cErr.description }}</text>
         </view>
 
+        <!-- 介绍详情图（V0 circle-publish-course：最多6张·4:3 预览+删除+追加·展示在课程详情页介绍区） -->
+        <view class="cr-panel">
+          <text class="cr-field-label">介绍详情图 <text class="cr-label-note">选填 · 最多 6 张 · 展示在课程详情页</text></text>
+          <scroll-view scroll-x class="cr-dimgs" :show-scrollbar="false">
+            <view class="cr-dimgs-row">
+              <view v-for="(img, i) in c.detailImages" :key="img + i" class="cr-dimg">
+                <image lazy-load :src="img" class="cr-dimg-img" mode="aspectFill" />
+                <view class="cr-dimg-rm" @tap.stop="removeDetailImage(i)"><app-icon name="x" :size="22" color="#ffffff" /></view>
+              </view>
+              <view v-if="c.detailImages.length < 6" class="cr-dimg-add" @tap="addDetailImages">
+                <app-icon name="plus" :size="32" color="#C9A96E" />
+                <text class="cr-dimg-add-t">{{ detailUploading ? '上传中…' : `添加 ${c.detailImages.length}/6` }}</text>
+              </view>
+            </view>
+          </scroll-view>
+          <text class="cr-dimgs-note">展示课程大纲、授课现场、学员作业点评等实景，帮助学员购买前了解课程内容与质量。</text>
+        </view>
+
         <view class="cr-panel">
           <visibility-settings
             v-model:visibility="c.visibility"
@@ -279,6 +455,25 @@ async function submitCourse() {
             content-type="course"
             :show-visibility="false"
           />
+        </view>
+
+        <!-- 开放范围（谁可以买） -->
+        <view class="cr-panel">
+          <text class="cr-field-label">开放范围</text>
+          <view class="cr-scope" :class="{ on: c.scope === 'CIRCLE_ONLY' }" @tap="c.scope = 'CIRCLE_ONLY'">
+            <view class="cr-radio" :class="{ on: c.scope === 'CIRCLE_ONLY' }" />
+            <view class="cr-scope-main">
+              <text class="cr-scope-name">仅圈子开放</text>
+              <text class="cr-scope-desc">只有圈内成员可购买学习，提交后即刻上架</text>
+            </view>
+          </view>
+          <view class="cr-scope" :class="{ on: c.scope === 'PLATFORM' }" @tap="c.scope = 'PLATFORM'">
+            <view class="cr-radio" :class="{ on: c.scope === 'PLATFORM' }" />
+            <view class="cr-scope-main">
+              <text class="cr-scope-name">向全平台开放</text>
+              <text class="cr-scope-desc">全平台开放需平台审核，通过后进入公共池，圈外用户也可购买</text>
+            </view>
+          </view>
         </view>
 
         <view class="cr-tip-gold">
@@ -326,11 +521,15 @@ async function submitCourse() {
 .cr-field-label { display: block; font-size: 28rpx; font-weight: 500; color: #fff; margin-bottom: 20rpx; }
 .cr-req { color: var(--brand); }
 .cr-cover { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 20rpx; overflow: hidden; border: 4rpx dashed rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); }
+.cr-cover.err { border-color: var(--brand); }
+/* 素材尺寸建议（体验标准 V1.0 五·附节） */
+.cr-upload-hint { display: block; font-size: 22rpx; color: #999; margin-top: 12rpx; }
 .cr-cover-img { width: 100%; height: 100%; }
 .cr-cover-empty { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx; }
 .cr-cover-tip { font-size: 26rpx; color: rgba(255,255,255,0.6); }
 .cr-cover-del { position: absolute; top: 16rpx; right: 16rpx; width: 56rpx; height: 56rpx; border-radius: 999rpx; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
-.cr-input { width: 100%; padding: 24rpx 28rpx; border-radius: 16rpx; border: 2rpx solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 28rpx; box-sizing: border-box; }
+/* 显式 height + line-height：uni-app <input> 无固定高度时在真机会塌陷/文字裁切致"无法输入"观感。加高（董事长 2026-07-11 真机反馈） */
+.cr-input { width: 100%; height: 104rpx; line-height: 56rpx; padding: 24rpx 28rpx; border-radius: 16rpx; border: 2rpx solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 28rpx; box-sizing: border-box; }
 .cr-input.err { border-color: var(--brand); }
 .cr-textarea { width: 100%; min-height: 320rpx; padding: 24rpx 28rpx; border-radius: 16rpx; border: 2rpx solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 28rpx; box-sizing: border-box; }
 .cr-textarea.sm { min-height: 200rpx; }
@@ -354,6 +553,32 @@ async function submitCourse() {
 .cr-submit { padding: 28rpx 0; border-radius: 999rpx; background: var(--brand); text-align: center; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.25); margin-bottom: 40rpx; }
 .cr-submit.disabled { opacity: 0.5; }
 .cr-submit-t { font-size: 30rpx; font-weight: 600; color: #fff; }
+/* 开放范围（深色主题 radio 选项） */
+.cr-scope { display: flex; align-items: flex-start; gap: 20rpx; padding: 20rpx 0; }
+.cr-scope + .cr-scope { border-top: 2rpx solid rgba(255,255,255,0.06); }
+.cr-radio { width: 36rpx; height: 36rpx; border-radius: 50%; flex-shrink: 0; margin-top: 4rpx; border: 3rpx solid rgba(255,255,255,0.25); box-sizing: border-box; position: relative; }
+.cr-radio.on { border-color: var(--brand); }
+.cr-radio.on::after { content: ""; position: absolute; top: 6rpx; left: 6rpx; right: 6rpx; bottom: 6rpx; border-radius: 50%; background: var(--brand); }
+.cr-scope-main { flex: 1; }
+.cr-scope-name-row { display: flex; align-items: center; gap: 12rpx; }
+.cr-scope-name { font-size: 28rpx; font-weight: 500; color: #fff; }
+.cr-scope-badge { font-size: 18rpx; color: #C9A96E; background: rgba(201,169,110,0.15); border: 2rpx solid rgba(201,169,110,0.35); padding: 2rpx 12rpx; border-radius: 8rpx; }
+.cr-scope-desc { display: block; font-size: 22rpx; color: rgba(255,255,255,0.5); margin-top: 6rpx; line-height: 1.5; }
+.cr-label-note { font-size: 22rpx; color: rgba(255,255,255,0.4); font-weight: 400; }
+/* 介绍详情图（4:3 横滑） */
+.cr-dimgs { width: 100%; white-space: nowrap; }
+.cr-dimgs-row { display: flex; gap: 20rpx; }
+.cr-dimg { position: relative; width: 208rpx; height: 156rpx; border-radius: 20rpx; overflow: hidden; flex-shrink: 0; }
+.cr-dimg-img { width: 100%; height: 100%; }
+.cr-dimg-rm { position: absolute; top: 8rpx; right: 8rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; }
+.cr-dimg-add {
+  width: 208rpx; height: 156rpx; border-radius: 20rpx; flex-shrink: 0;
+  background: rgba(255,255,255,0.05); border: 3rpx dashed rgba(201,169,110,0.5);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx;
+  box-sizing: border-box;
+}
+.cr-dimg-add-t { font-size: 20rpx; color: rgba(255,255,255,0.4); }
+.cr-dimgs-note { display: block; font-size: 22rpx; color: rgba(255,255,255,0.4); margin-top: 16rpx; line-height: 1.6; }
 /* 推荐到首页开关 */
 .cr-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; }
 .cr-switch-main { flex: 1; }

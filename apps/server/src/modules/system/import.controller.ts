@@ -10,6 +10,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { ImportService } from "./import.service";
 import { StationId } from "../../common/station-id.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("数据导入")
 @Controller("system")
@@ -17,6 +18,7 @@ export class ImportController {
   constructor(private readonly importService: ImportService) {}
 
   @Post("import/:type")
+  @RedLineGate(RedLine.MONEY, RedLine.USER_DATA, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量导入CSV数据", description: "支持 article/course/product/classic/user 类型" })

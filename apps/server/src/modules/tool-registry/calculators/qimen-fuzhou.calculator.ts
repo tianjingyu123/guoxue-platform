@@ -7,7 +7,7 @@ import type {
   ResolutionPlan,
   ResolutionMethod,
 } from "@guoxue/shared";
-import { calculateQimenYin } from "./qimen-yin.calculator";
+import { calculateQimenYin } from "./qimen.calculator";
 import { calcRiZhu } from "@guoxue/bazi-engine";
 
 // ── 天干物象替代表 ──

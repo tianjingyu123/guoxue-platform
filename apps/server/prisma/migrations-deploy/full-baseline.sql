@@ -1,11 +1,14 @@
-﻿-- CreateSchema
+-- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
 CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'DISABLED', 'BANNED');
 
 -- CreateEnum
-CREATE TYPE "MemberLevel" AS ENUM ('NONE', 'MONTHLY', 'YEARLY', 'LIFETIME');
+CREATE TYPE "MemberLevel" AS ENUM ('NONE', 'MONTHLY', 'QUARTERLY', 'YEARLY', 'LIFETIME');
+
+-- CreateEnum
+CREATE TYPE "IdentityLevel" AS ENUM ('NONE', 'L1', 'L2');
 
 -- CreateEnum
 CREATE TYPE "RoleType" AS ENUM ('SUPER_ADMIN', 'OPERATION_ADMIN', 'CONTENT_AUDITOR', 'FINANCE_ADMIN', 'CUSTOMER_SERVICE', 'GOODS_AUDITOR', 'CIRCLE_OWNER', 'LECTURER', 'STATION_MASTER', 'OPERATOR', 'STATION_OFFLINE_OWNER', 'INSTITUTE_MEMBER', 'INSTITUTE_ADMIN');
@@ -23,6 +26,12 @@ CREATE TYPE "CircleStatus" AS ENUM ('ACTIVE', 'DISABLED', 'PENDING');
 CREATE TYPE "CircleMemberRole" AS ENUM ('OWNER', 'PARTNER', 'ADMIN', 'GUEST', 'VOLUNTEER', 'MEMBER');
 
 -- CreateEnum
+CREATE TYPE "CirclePublishScope" AS ENUM ('SHORT_VIDEO', 'LIVE', 'COURSE');
+
+-- CreateEnum
+CREATE TYPE "CirclePublishGrantStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'FROZEN', 'REVOKED');
+
+-- CreateEnum
 CREATE TYPE "PostType" AS ENUM ('TEXT', 'IMAGE', 'VIDEO', 'FILE', 'LINK', 'AUDIO');
 
 -- CreateEnum
@@ -38,7 +47,16 @@ CREATE TYPE "BundleTarget" AS ENUM ('STATION', 'OPERATOR', 'MEMBER', 'PUBLIC');
 CREATE TYPE "SupplierType" AS ENUM ('PLATFORM', 'CIRCLE_OWNER', 'STATION_OFFLINE', 'CERTIFIED_MERCHANT');
 
 -- CreateEnum
-CREATE TYPE "OrderType" AS ENUM ('MEMBER', 'COURSE', 'PRODUCT', 'CIRCLE_JOIN', 'STATION_MASTER', 'OPERATOR', 'BOT_SERVICE', 'PAIPAN', 'LIVESTREAM', 'BUNDLE');
+CREATE TYPE "InventoryMovementType" AS ENUM ('PURCHASE_IN', 'SALE_OUT', 'ORDER_CANCEL_RETURN', 'REFUND_RETURN', 'ADJUST_IN', 'ADJUST_OUT', 'STOCKTAKE_GAIN', 'STOCKTAKE_LOSS');
+
+-- CreateEnum
+CREATE TYPE "InventoryReferenceType" AS ENUM ('PURCHASE_ORDER', 'PURCHASE_RECEIPT', 'ORDER', 'ADJUSTMENT', 'STOCKTAKE', 'RETURN');
+
+-- CreateEnum
+CREATE TYPE "PurchaseOrderStatus" AS ENUM ('DRAFT', 'ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "OrderType" AS ENUM ('MEMBER', 'COURSE', 'PRODUCT', 'CIRCLE_JOIN', 'CIRCLE_RENEW', 'STATION_MASTER', 'OPERATOR', 'BOT_SERVICE', 'PAIPAN', 'LIVESTREAM', 'BUNDLE', 'PRACTITIONER_PRO', 'VOICE_MINUTES', 'XIAOBU_REPORT', 'XIAOBU_MEMBER');
 
 -- CreateEnum
 CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'PAID', 'SHIPPED', 'COMPLETED', 'REFUNDED', 'CANCELLED');
@@ -56,22 +74,31 @@ CREATE TYPE "LiveStatus" AS ENUM ('WAITING', 'LIVING', 'ENDED', 'REPLAY');
 CREATE TYPE "OperatorLevel" AS ENUM ('SILVER', 'GOLD', 'DIAMOND', 'BLACK_GOLD');
 
 -- CreateEnum
+CREATE TYPE "TeamTaskType" AS ENUM ('PROMOTE', 'RECRUIT', 'SALES', 'CUSTOM');
+
+-- CreateEnum
+CREATE TYPE "TeamTaskStatus" AS ENUM ('OPEN', 'CLOSED');
+
+-- CreateEnum
 CREATE TYPE "InstituteRole" AS ENUM ('INITIATOR', 'TYPE_A', 'TYPE_B', 'PRESIDENT', 'VICE_PRESIDENT', 'SECRETARY_GENERAL');
 
 -- CreateEnum
-CREATE TYPE "CoinTransType" AS ENUM ('RECHARGE', 'SPEND', 'REFUND', 'GRANT');
+CREATE TYPE "CoinTransType" AS ENUM ('RECHARGE', 'SPEND', 'REFUND', 'GRANT', 'INCOME', 'CHARGEBACK');
 
 -- CreateEnum
-CREATE TYPE "CoinScene" AS ENUM ('RECHARGE', 'CIRCLE_JOIN', 'PAID_QUESTION', 'PEEK_ANSWER', 'AUDIO_CALL', 'LIVE_GIFT', 'BOT_CALL', 'REFUND', 'PLATFORM_GRANT', 'BOUNTY', 'BOUNTY_UNFREEZE');
+CREATE TYPE "CoinScene" AS ENUM ('RECHARGE', 'CIRCLE_JOIN', 'PAID_QUESTION', 'PEEK_ANSWER', 'AUDIO_CALL', 'LIVE_GIFT', 'LIVE_QUALITY_PACKAGE', 'BOT_CALL', 'REFUND', 'PLATFORM_GRANT', 'BOUNTY', 'BOUNTY_UNFREEZE', 'POST_REWARD', 'CONSULT_CALL_PREPAY', 'LIVE_GIFT_INCOME', 'EARNING_CONVERT', 'CASE_CONTRIBUTION', 'APPLE_IAP_CHARGEBACK');
 
 -- CreateEnum
-CREATE TYPE "EarningScene" AS ENUM ('QUESTION', 'PEEK', 'AUDIO_CALL', 'LIVE_GIFT');
+CREATE TYPE "AppleIapPurchaseStatus" AS ENUM ('VERIFIED', 'REFUNDED', 'REVOKED');
+
+-- CreateEnum
+CREATE TYPE "EarningScene" AS ENUM ('QUESTION', 'PEEK', 'PEEK_ASKER', 'AUDIO_CALL', 'LIVE_GIFT');
 
 -- CreateEnum
 CREATE TYPE "BehaviorType" AS ENUM ('VIEW', 'LIKE', 'COLLECT', 'COMMENT', 'PURCHASE', 'LEARN', 'SEARCH', 'SHARE', 'FOLLOW');
 
 -- CreateEnum
-CREATE TYPE "WebhookEvent" AS ENUM ('ORDER_PAID', 'ORDER_REFUNDED', 'USER_REGISTERED', 'CONTENT_PUBLISHED', 'WITHDRAWAL_REQUESTED', 'COURSE_ENROLLED', 'LIVE_STARTED', 'LIVE_ENDED');
+CREATE TYPE "WebhookEvent" AS ENUM ('ORDER_PAID', 'ORDER_REFUNDED', 'USER_REGISTERED', 'CONTENT_PUBLISHED', 'WITHDRAWAL_REQUESTED', 'WITHDRAWAL_PAID', 'COURSE_ENROLLED', 'LIVE_STARTED', 'LIVE_ENDED');
 
 -- CreateEnum
 CREATE TYPE "EbookStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'DISABLED');
@@ -127,6 +154,384 @@ CREATE TYPE "RegistrationStatus" AS ENUM ('REGISTERED', 'QUALIFIED', 'DISQUALIFI
 -- CreateEnum
 CREATE TYPE "PromotionStatus" AS ENUM ('ELIMINATED', 'PROMOTED', 'CHAMPION', 'RUNNER_UP', 'THIRD_PLACE');
 
+-- CreateEnum
+CREATE TYPE "MarketingContentKind" AS ENUM ('SHORT_VIDEO', 'MOMENTS', 'XIAOHONGSHU');
+
+-- CreateTable
+CREATE TABLE "ManagedCustomer" (
+    "id" TEXT NOT NULL,
+    "requestKey" TEXT NOT NULL,
+    "requestDigest" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "mode" TEXT NOT NULL,
+    "tradingSubject" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'CONFIGURED',
+    "maintenanceCycle" TEXT NOT NULL DEFAULT 'ANNUAL',
+    "maintenancePrice" TEXT,
+    "remindAt" TIMESTAMP(3) NOT NULL,
+    "endAt" TIMESTAMP(3) NOT NULL,
+    "exportUntil" TIMESTAMP(3) NOT NULL,
+    "downloadTtlSeconds" INTEGER NOT NULL,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+    "createdBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ManagedCustomer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedDeployment" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "spaceKey" TEXT NOT NULL,
+    "databaseName" TEXT NOT NULL,
+    "databaseRole" TEXT NOT NULL,
+    "credentialRef" TEXT NOT NULL,
+    "authKeyFingerprint" TEXT NOT NULL,
+    "state" TEXT NOT NULL DEFAULT 'PLANNED',
+    "verifiedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ManagedDeployment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedApplication" (
+    "id" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationSubject" TEXT NOT NULL,
+    "stationId" TEXT,
+    "allowedPlatforms" TEXT[],
+    "brand" JSONB NOT NULL,
+    "templateId" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "ManagedApplication_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedGrant" (
+    "customerId" TEXT NOT NULL,
+    "modules" TEXT[],
+    "resources" JSONB NOT NULL,
+    "circleLimit" INTEGER NOT NULL,
+    "creationLimits" JSONB NOT NULL DEFAULT '{}',
+    "revision" INTEGER NOT NULL DEFAULT 1,
+
+    CONSTRAINT "ManagedGrant_pkey" PRIMARY KEY ("customerId")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedMembership" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "identityProvider" TEXT NOT NULL DEFAULT 'PLATFORM',
+    "role" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+
+    CONSTRAINT "ManagedMembership_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseIdentity" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "username" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ManagedLeaseIdentity_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseRefresh" (
+    "id" TEXT NOT NULL,
+    "identityId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "clientKey" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "identityRevision" INTEGER NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "revokedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseRefresh_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseLoginThrottle" (
+    "key" TEXT NOT NULL,
+    "windowStart" TIMESTAMP(3) NOT NULL,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ManagedLeaseLoginThrottle_pkey" PRIMARY KEY ("key")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseAftercare" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "requestKey" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseAftercare_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseExport" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "manifest" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "downloadedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ManagedLeaseExport_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseWriteFence" (
+    "customerId" TEXT NOT NULL,
+    "spaceKey" TEXT NOT NULL,
+    "writerRole" TEXT NOT NULL,
+    "authKeyFingerprint" VARCHAR(64) NOT NULL,
+    "state" VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',
+    "epoch" INTEGER NOT NULL DEFAULT 1,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ManagedLeaseWriteFence_pkey" PRIMARY KEY ("customerId")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseResource" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "kind" VARCHAR(16) NOT NULL,
+    "resourceId" TEXT NOT NULL,
+    "creatorId" TEXT NOT NULL,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseResource_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseAsset" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "contentType" VARCHAR(64) NOT NULL,
+    "size" INTEGER NOT NULL,
+    "sha256" VARCHAR(64) NOT NULL,
+    "dataBase64" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseAsset_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseJoinRequest" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "status" VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+    "reviewedBy" TEXT,
+    "reason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "reviewedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ManagedLeaseJoinRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseOrder" (
+    "orderId" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "requestKey" VARCHAR(80) NOT NULL,
+    "requestDigest" VARCHAR(64) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseOrder_pkey" PRIMARY KEY ("orderId")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeasePostRequest" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "requestKey" VARCHAR(80) NOT NULL,
+    "requestDigest" VARCHAR(64) NOT NULL,
+    "postId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeasePostRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseCircleMute" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "until" TIMESTAMP(3) NOT NULL,
+    "reason" TEXT NOT NULL,
+    "moderatedBy" TEXT NOT NULL,
+
+    CONSTRAINT "ManagedLeaseCircleMute_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseChatSession" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "agentId" TEXT NOT NULL,
+    "circleId" TEXT,
+    "nextSequence" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseChatSession_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseChatMessage" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "sequence" INTEGER NOT NULL,
+    "requestKey" VARCHAR(80) NOT NULL,
+    "requestDigest" VARCHAR(64) NOT NULL,
+    "userText" TEXT NOT NULL,
+    "assistantText" TEXT,
+    "state" VARCHAR(24) NOT NULL DEFAULT 'DISPATCHING',
+    "failureCode" VARCHAR(64),
+    "providerRequestId" VARCHAR(128),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "finishedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ManagedLeaseChatMessage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseExportPage" (
+    "exportId" TEXT NOT NULL,
+    "collection" TEXT NOT NULL,
+    "page" INTEGER NOT NULL,
+    "payload" JSONB NOT NULL,
+    "sha256" TEXT NOT NULL,
+
+    CONSTRAINT "ManagedLeaseExportPage_pkey" PRIMARY KEY ("exportId","collection","page")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseAudit" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "reason" TEXT,
+    "entityId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseAudit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedBrandOrder" (
+    "orderId" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "stationId" TEXT NOT NULL,
+    "buyerId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedBrandOrder_pkey" PRIMARY KEY ("orderId")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedBrandRequest" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "stationId" TEXT NOT NULL,
+    "buyerId" TEXT NOT NULL,
+    "requestKey" TEXT NOT NULL,
+    "requestDigest" TEXT NOT NULL,
+    "clientRequestId" TEXT NOT NULL,
+    "orderKind" VARCHAR(16) NOT NULL DEFAULT 'PRODUCT',
+    "courseId" TEXT,
+    "productId" TEXT,
+    "quantity" INTEGER NOT NULL,
+    "addressId" TEXT,
+    "skuId" TEXT,
+    "couponId" TEXT,
+    "state" TEXT NOT NULL DEFAULT 'WAITING_ORDER',
+    "orderId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ManagedBrandRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedAudit" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "actorId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "revision" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedAudit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ImFallbackMessage" (
+    "id" TEXT NOT NULL,
+    "fromUserId" TEXT NOT NULL,
+    "toUserId" TEXT NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'TEXT',
+    "content" TEXT NOT NULL,
+    "payload" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "readAt" TIMESTAMP(3),
+
+    CONSTRAINT "ImFallbackMessage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ImFallbackConversationPreference" (
+    "userId" TEXT NOT NULL,
+    "peerUserId" TEXT NOT NULL,
+    "isPinned" BOOLEAN NOT NULL DEFAULT false,
+    "isMuted" BOOLEAN NOT NULL DEFAULT false,
+    "hiddenBefore" TIMESTAMP(3),
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ImFallbackConversationPreference_pkey" PRIMARY KEY ("userId","peerUserId")
+);
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -141,10 +546,13 @@ CREATE TABLE "User" (
     "birthday" TIMESTAMP(3),
     "memberLevel" "MemberLevel" NOT NULL DEFAULT 'NONE',
     "memberExpire" TIMESTAMP(3),
+    "memberAutoRenew" BOOLEAN NOT NULL DEFAULT false,
     "paymentPasswordHash" TEXT,
     "interestCategories" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "interestGuideCompleted" BOOLEAN NOT NULL DEFAULT false,
     "identityVerified" BOOLEAN NOT NULL DEFAULT false,
     "identityVerifiedAt" TIMESTAMP(3),
+    "identityLevel" "IdentityLevel" NOT NULL DEFAULT 'NONE',
     "attributionSource" TEXT NOT NULL DEFAULT 'PLATFORM',
     "attributionStationId" TEXT,
     "status" "UserStatus" NOT NULL DEFAULT 'ACTIVE',
@@ -169,12 +577,96 @@ CREATE TABLE "Auth" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "provider" TEXT NOT NULL,
+    "namespace" TEXT NOT NULL DEFAULT 'legacy',
+    "subject" TEXT,
+    "appId" TEXT,
     "openId" TEXT,
     "unionId" TEXT,
     "credential" TEXT,
+    "metadata" JSONB,
+    "lastUsedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Auth_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EntitlementLedger" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "entitlementKey" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "resourceType" TEXT NOT NULL DEFAULT '',
+    "resourceId" TEXT NOT NULL DEFAULT '',
+    "scope" TEXT NOT NULL DEFAULT 'GLOBAL',
+    "action" TEXT NOT NULL,
+    "quantity" INTEGER NOT NULL DEFAULT 0,
+    "unlimited" BOOLEAN NOT NULL DEFAULT false,
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validUntil" TIMESTAMP(3),
+    "sourceType" TEXT NOT NULL,
+    "sourceId" TEXT,
+    "reversesLedgerId" TEXT,
+    "idempotencyKey" TEXT NOT NULL,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "EntitlementLedger_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EntitlementBalance" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "entitlementKey" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "resourceType" TEXT NOT NULL DEFAULT '',
+    "resourceId" TEXT NOT NULL DEFAULT '',
+    "scope" TEXT NOT NULL DEFAULT 'GLOBAL',
+    "quantity" INTEGER NOT NULL DEFAULT 0,
+    "unlimited" BOOLEAN NOT NULL DEFAULT false,
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validUntil" TIMESTAMP(3),
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "version" INTEGER NOT NULL DEFAULT 0,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EntitlementBalance_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LegacyMigrationBatch" (
+    "id" TEXT NOT NULL,
+    "sourceSystem" TEXT NOT NULL,
+    "batchKey" TEXT NOT NULL,
+    "cutoffAt" TIMESTAMP(3),
+    "status" TEXT NOT NULL DEFAULT 'PREPARED',
+    "sourceManifest" JSONB NOT NULL,
+    "resultReport" JSONB,
+    "startedAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LegacyMigrationBatch_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LegacyMigrationMap" (
+    "id" TEXT NOT NULL,
+    "batchId" TEXT NOT NULL,
+    "sourceSystem" TEXT NOT NULL,
+    "entityType" TEXT NOT NULL,
+    "legacyId" TEXT NOT NULL,
+    "targetId" TEXT NOT NULL,
+    "sourceChecksum" TEXT,
+    "metadata" JSONB,
+    "migratedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "LegacyMigrationMap_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -212,12 +704,14 @@ CREATE TABLE "RolePermission" (
 CREATE TABLE "MemberPurchase" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
+    "orderId" TEXT,
     "memberType" "MemberLevel" NOT NULL,
     "amount" DECIMAL(10,2) NOT NULL,
     "sourcePage" TEXT,
     "referrerId" TEXT,
     "paidAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expireAt" TIMESTAMP(3),
+    "refundedAt" TIMESTAMP(3),
 
     CONSTRAINT "MemberPurchase_pkey" PRIMARY KEY ("id")
 );
@@ -299,6 +793,64 @@ CREATE TABLE "Circle" (
 );
 
 -- CreateTable
+CREATE TABLE "CircleMembershipExpiryNotice" (
+    "memberId" TEXT NOT NULL,
+    "recipientId" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "expiredAt" TIMESTAMP(3) NOT NULL,
+    "removedAt" TIMESTAMP(3) NOT NULL,
+    "cacheClearedAt" TIMESTAMP(3),
+
+    CONSTRAINT "CircleMembershipExpiryNotice_pkey" PRIMARY KEY ("memberId")
+);
+
+-- CreateTable
+CREATE TABLE "CircleMembershipCacheInvalidation" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL,
+    "clearedAt" TIMESTAMP(3),
+
+    CONSTRAINT "CircleMembershipCacheInvalidation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CourseCacheInvalidation" (
+    "id" TEXT NOT NULL,
+    "courseId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL,
+    "clearedAt" TIMESTAMP(3),
+
+    CONSTRAINT "CourseCacheInvalidation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CirclePublishGrant" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "applicantId" TEXT NOT NULL,
+    "reviewerId" TEXT,
+    "scopes" "CirclePublishScope"[],
+    "status" "CirclePublishGrantStatus" NOT NULL DEFAULT 'PENDING',
+    "channel" TEXT NOT NULL DEFAULT 'REGULAR',
+    "externalPlatform" TEXT,
+    "externalProfileUrl" TEXT,
+    "externalFollowerCount" INTEGER,
+    "evidenceUrls" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "eligibilitySnapshot" JSONB NOT NULL,
+    "rejectReason" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "approvedAt" TIMESTAMP(3),
+    "frozenAt" TIMESTAMP(3),
+    "revokedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CirclePublishGrant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "CircleMember" (
     "id" TEXT NOT NULL,
     "circleId" TEXT NOT NULL,
@@ -307,11 +859,56 @@ CREATE TABLE "CircleMember" (
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expireAt" TIMESTAMP(3),
     "questionPriceCoin" INTEGER NOT NULL DEFAULT 0,
+    "peekPriceCoin" INTEGER NOT NULL DEFAULT 0,
     "questionTimeoutHours" INTEGER NOT NULL DEFAULT 72,
     "callPricePerMinuteCoin" INTEGER NOT NULL DEFAULT 0,
     "callAvailableHours" JSONB,
 
     CONSTRAINT "CircleMember_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleKnowledgeShowcaseNode" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "sourceKnowledgeId" TEXT NOT NULL,
+    "sourceContentHash" TEXT NOT NULL,
+    "name" VARCHAR(80) NOT NULL,
+    "summary" VARCHAR(160) NOT NULL,
+    "status" VARCHAR(16) NOT NULL DEFAULT 'DRAFT',
+    "rightsNote" TEXT,
+    "rightsApprovedAt" TIMESTAMP(3),
+    "reviewedBy" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "revokedAt" TIMESTAMP(3),
+    "revokedBy" TEXT,
+    "displayOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CircleKnowledgeShowcaseNode_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleKnowledgeShowcaseEdge" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "fromId" TEXT NOT NULL,
+    "toId" TEXT NOT NULL,
+    "relation" VARCHAR(80) NOT NULL,
+    "evidenceNote" TEXT,
+    "status" VARCHAR(16) NOT NULL DEFAULT 'DRAFT',
+    "reviewedBy" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "revokedAt" TIMESTAMP(3),
+    "revokedBy" TEXT,
+    "displayOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CircleKnowledgeShowcaseEdge_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -335,6 +932,96 @@ CREATE TABLE "CircleAnnouncementRead" (
     "readAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "CircleAnnouncementRead_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleRule" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "text" TEXT NOT NULL,
+    "templateKey" TEXT,
+    "editedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CircleRule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleRuleAck" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "ruleIds" JSONB NOT NULL,
+    "rulesSnapshot" JSONB NOT NULL,
+    "ackAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CircleRuleAck_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleViolation" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "ruleId" TEXT,
+    "ruleText" TEXT,
+    "reason" TEXT,
+    "evidence" TEXT,
+    "contentType" TEXT,
+    "contentId" TEXT,
+    "operatorId" TEXT NOT NULL,
+    "auto" BOOLEAN NOT NULL DEFAULT false,
+    "strikeCount" INTEGER NOT NULL DEFAULT 0,
+    "expiresAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CircleViolation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleAppeal" (
+    "id" TEXT NOT NULL,
+    "violationId" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "resolution" TEXT,
+    "reviewerId" TEXT,
+    "deadlineAt" TIMESTAMP(3) NOT NULL,
+    "resolvedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CircleAppeal_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleGovernanceConfig" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "requireRuleAck" BOOLEAN NOT NULL DEFAULT true,
+    "warningThreshold" INTEGER NOT NULL DEFAULT 3,
+    "warningResetDays" INTEGER NOT NULL DEFAULT 90,
+    "muteDays" INTEGER NOT NULL DEFAULT 7,
+    "removeBanRejoin" BOOLEAN NOT NULL DEFAULT true,
+    "newMemberReviewEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "newMemberReviewDays" INTEGER NOT NULL DEFAULT 7,
+    "sensitiveWordsEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "sensitiveWords" JSONB,
+    "postIntervalSeconds" INTEGER NOT NULL DEFAULT 0,
+    "reportAutoHideEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "reportAutoHideThreshold" INTEGER NOT NULL DEFAULT 3,
+    "rolePermissions" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CircleGovernanceConfig_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -378,6 +1065,7 @@ CREATE TABLE "Post" (
     "linkUrl" TEXT,
     "audioUrl" TEXT,
     "audioDuration" INTEGER,
+    "attachments" JSONB NOT NULL DEFAULT '[]',
     "isEssence" BOOLEAN NOT NULL DEFAULT false,
     "isTop" BOOLEAN NOT NULL DEFAULT false,
     "isPushHome" BOOLEAN NOT NULL DEFAULT false,
@@ -421,6 +1109,26 @@ CREATE TABLE "Content" (
 );
 
 -- CreateTable
+CREATE TABLE "ContentCatalog" (
+    "sourceType" TEXT NOT NULL,
+    "sourceId" TEXT NOT NULL,
+    "stationId" TEXT,
+    "circleId" TEXT,
+    "title" TEXT NOT NULL,
+    "summary" TEXT NOT NULL,
+    "cover" TEXT,
+    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "target" TEXT NOT NULL,
+    "commercialType" TEXT NOT NULL,
+    "contentHash" TEXT NOT NULL,
+    "sourceUpdatedAt" TIMESTAMP(3) NOT NULL,
+    "indexedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "active" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "ContentCatalog_pkey" PRIMARY KEY ("sourceType","sourceId")
+);
+
+-- CreateTable
 CREATE TABLE "Article" (
     "id" TEXT NOT NULL,
     "circleId" TEXT NOT NULL,
@@ -432,9 +1140,11 @@ CREATE TABLE "Article" (
     "cover" TEXT,
     "excerpt" TEXT,
     "excerptEn" TEXT,
+    "layout" TEXT NOT NULL DEFAULT 'AUTO',
     "tags" TEXT[],
     "isPushHome" BOOLEAN NOT NULL DEFAULT false,
     "auditStatus" TEXT NOT NULL DEFAULT 'PENDING',
+    "visibility" TEXT NOT NULL DEFAULT 'CIRCLE_ONLY',
     "scheduledAt" TIMESTAMP(3),
     "viewCount" INTEGER NOT NULL DEFAULT 0,
     "likeCount" INTEGER NOT NULL DEFAULT 0,
@@ -514,8 +1224,14 @@ CREATE TABLE "Course" (
     "categoryLevel1" TEXT,
     "categoryLevel2" TEXT,
     "auditStatus" TEXT NOT NULL DEFAULT 'PENDING',
+    "visibility" TEXT NOT NULL DEFAULT 'CIRCLE_ONLY',
+    "detailImages" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "memberFree" BOOLEAN NOT NULL DEFAULT false,
+    "courseOrigin" TEXT,
     "validityDays" INTEGER NOT NULL DEFAULT 0,
     "scheduledAt" TIMESTAMP(3),
+    "scheduledOnAt" TIMESTAMP(3),
+    "scheduledOffAt" TIMESTAMP(3),
     "stationId" TEXT,
     "deletedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -634,6 +1350,7 @@ CREATE TABLE "Product" (
     "title" TEXT NOT NULL,
     "titleEn" TEXT,
     "categoryId" TEXT,
+    "freightTemplateId" TEXT,
     "intro" TEXT,
     "introEn" TEXT,
     "detail" TEXT NOT NULL,
@@ -641,8 +1358,10 @@ CREATE TABLE "Product" (
     "images" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "videoUrl" TEXT,
     "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "sceneTags" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "price" DECIMAL(10,2) NOT NULL,
     "originalPrice" DECIMAL(10,2),
+    "commissionRate" DECIMAL(5,4),
     "stock" INTEGER NOT NULL DEFAULT 0,
     "salesCount" INTEGER NOT NULL DEFAULT 0,
     "isPlatform" BOOLEAN NOT NULL DEFAULT true,
@@ -666,10 +1385,118 @@ CREATE TABLE "ProductSku" (
     "price" DECIMAL(10,2) NOT NULL,
     "stock" INTEGER NOT NULL DEFAULT 0,
     "skuCode" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "ProductSku_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "InventoryMovement" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "skuId" TEXT,
+    "type" "InventoryMovementType" NOT NULL,
+    "quantity" INTEGER NOT NULL,
+    "beforeStock" INTEGER NOT NULL,
+    "afterStock" INTEGER NOT NULL,
+    "referenceType" "InventoryReferenceType" NOT NULL,
+    "referenceId" TEXT,
+    "idempotencyKey" TEXT NOT NULL,
+    "operatorId" TEXT,
+    "reason" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "InventoryMovement_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "InventoryAlertSetting" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "skuId" TEXT,
+    "stockKey" TEXT NOT NULL,
+    "lowStockThreshold" INTEGER NOT NULL DEFAULT 5,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "InventoryAlertSetting_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PurchaseOrder" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "orderNo" TEXT NOT NULL,
+    "supplierId" TEXT,
+    "supplierName" TEXT NOT NULL,
+    "contactName" TEXT,
+    "contactPhone" TEXT,
+    "expectedAt" TIMESTAMP(3),
+    "status" "PurchaseOrderStatus" NOT NULL DEFAULT 'DRAFT',
+    "totalAmount" DECIMAL(12,2) NOT NULL DEFAULT 0,
+    "createdBy" TEXT NOT NULL,
+    "remark" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PurchaseOrder_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PurchaseOrderItem" (
+    "id" TEXT NOT NULL,
+    "purchaseOrderId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "skuId" TEXT,
+    "productTitle" TEXT NOT NULL,
+    "skuLabel" TEXT,
+    "quantity" INTEGER NOT NULL,
+    "receivedQuantity" INTEGER NOT NULL DEFAULT 0,
+    "rejectedQuantity" INTEGER NOT NULL DEFAULT 0,
+    "unitCost" DECIMAL(10,2) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PurchaseOrderItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PurchaseReceipt" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "purchaseOrderId" TEXT NOT NULL,
+    "receiptNo" TEXT NOT NULL,
+    "requestId" TEXT NOT NULL,
+    "warehouseName" TEXT,
+    "operatorId" TEXT NOT NULL,
+    "remark" TEXT,
+    "receivedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PurchaseReceipt_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PurchaseReceiptItem" (
+    "id" TEXT NOT NULL,
+    "receiptId" TEXT NOT NULL,
+    "purchaseOrderItemId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "skuId" TEXT,
+    "productTitle" TEXT NOT NULL,
+    "skuLabel" TEXT,
+    "acceptedQuantity" INTEGER NOT NULL DEFAULT 0,
+    "rejectedQuantity" INTEGER NOT NULL DEFAULT 0,
+    "rejectionReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PurchaseReceiptItem_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -689,12 +1516,22 @@ CREATE TABLE "Order" (
     "merchantId" TEXT,
     "addressId" TEXT,
     "shippingInfo" JSONB,
+    "shippingFee" DECIMAL(10,2) NOT NULL DEFAULT 0,
+    "freightTemplateId" TEXT,
+    "freightSnapshot" JSONB,
     "groupId" TEXT,
+    "selfDiscount" DECIMAL(10,2),
+    "giftCardMeta" JSONB,
     "status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
     "referrerId" TEXT,
     "tempReferrerId" TEXT,
+    "tempRefSubjectType" TEXT,
+    "sourceContentType" TEXT,
+    "sourceContentId" TEXT,
     "payMethod" TEXT,
     "payTransactionId" TEXT,
+    "clientRequestId" TEXT,
+    "requestFingerprint" TEXT,
     "paidAt" TIMESTAMP(3),
     "shippedAt" TIMESTAMP(3),
     "completedAt" TIMESTAMP(3),
@@ -790,6 +1627,29 @@ CREATE TABLE "TeacherCertification" (
 );
 
 -- CreateTable
+CREATE TABLE "OrderBusinessNotice" (
+    "eventKey" VARCHAR(200) NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "recipientId" TEXT NOT NULL,
+    "kind" VARCHAR(32) NOT NULL,
+    "sourceVersion" VARCHAR(32) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "readyAt" TIMESTAMP(3),
+
+    CONSTRAINT "OrderBusinessNotice_pkey" PRIMARY KEY ("eventKey")
+);
+
+-- CreateTable
+CREATE TABLE "FreeCourseEnrollmentNotice" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "courseId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "FreeCourseEnrollmentNotice_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "OrderLogistics" (
     "id" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
@@ -818,6 +1678,7 @@ CREATE TABLE "LiveRoom" (
     "userId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "titleEn" TEXT,
+    "description" TEXT,
     "cover" TEXT,
     "hostType" "LiveHostType" NOT NULL DEFAULT 'CIRCLE_OWNER',
     "hostUserId" TEXT NOT NULL,
@@ -827,18 +1688,102 @@ CREATE TABLE "LiveRoom" (
     "trtcRoomId" TEXT,
     "imGroupId" TEXT,
     "status" "LiveStatus" NOT NULL DEFAULT 'WAITING',
+    "quality" TEXT NOT NULL DEFAULT 'basic',
+    "orientation" TEXT NOT NULL DEFAULT 'portrait',
     "viewCount" INTEGER NOT NULL DEFAULT 0,
     "chargeType" TEXT NOT NULL DEFAULT 'FREE',
     "chargePrice" DECIMAL(10,2),
     "startTime" TIMESTAMP(3),
     "endTime" TIMESTAMP(3),
     "replayUrl" TEXT,
+    "replayStatus" TEXT NOT NULL DEFAULT 'NONE',
+    "replayPublishedAt" TIMESTAMP(3),
+    "replayPublishedBy" TEXT,
     "courseId" TEXT,
+    "auditStatus" TEXT NOT NULL DEFAULT 'APPROVED',
+    "auditReason" TEXT,
+    "visibility" TEXT NOT NULL DEFAULT 'CIRCLE_ONLY',
+    "replayVisibility" TEXT NOT NULL DEFAULT 'CIRCLE_ONLY',
+    "replayCharge" BOOLEAN NOT NULL DEFAULT false,
+    "replayChapters" JSONB,
     "stationId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "LiveRoom_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LiveBooking" (
+    "id" TEXT NOT NULL,
+    "roomId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'BOOKED',
+    "remindedAt" TIMESTAMP(3),
+    "notifiedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LiveBooking_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LiveWatchProgress" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "liveRoomId" TEXT NOT NULL,
+    "positionSeconds" INTEGER NOT NULL DEFAULT 0,
+    "durationSeconds" INTEGER NOT NULL DEFAULT 0,
+    "completed" BOOLEAN NOT NULL DEFAULT false,
+    "clientSessionId" TEXT NOT NULL,
+    "clientSequence" INTEGER NOT NULL DEFAULT 0,
+    "lastWatchedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LiveWatchProgress_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LiveQualityPackage" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "quality" TEXT NOT NULL,
+    "minutes" INTEGER NOT NULL,
+    "priceCoin" INTEGER NOT NULL,
+    "priceYuan" DECIMAL(10,2) NOT NULL,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "LiveQualityPackage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LiveQuotaAccount" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "hdMinutes" INTEGER NOT NULL DEFAULT 0,
+    "uhdMinutes" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LiveQuotaAccount_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LiveQuotaRecord" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "quality" TEXT NOT NULL,
+    "minutes" INTEGER NOT NULL,
+    "costCoin" INTEGER NOT NULL DEFAULT 0,
+    "packageId" TEXT,
+    "roomId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "LiveQuotaRecord_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -885,6 +1830,8 @@ CREATE TABLE "LiveMic" (
     "userId" TEXT NOT NULL,
     "position" INTEGER NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'OCCUPIED',
+    "mediaMode" TEXT NOT NULL DEFAULT 'AUDIO',
+    "source" TEXT NOT NULL DEFAULT 'REQUEST',
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "LiveMic_pkey" PRIMARY KEY ("id")
@@ -950,9 +1897,11 @@ CREATE TABLE "Video" (
     "circleId" TEXT,
     "userId" TEXT NOT NULL,
     "title" TEXT,
+    "description" TEXT,
     "videoUrl" TEXT NOT NULL,
     "coverUrl" TEXT,
     "duration" INTEGER,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "viewCount" INTEGER NOT NULL DEFAULT 0,
     "likeCount" INTEGER NOT NULL DEFAULT 0,
@@ -963,6 +1912,8 @@ CREATE TABLE "Video" (
     "categoryLevel2" TEXT,
     "status" TEXT NOT NULL DEFAULT 'PUBLISHED',
     "auditReason" TEXT,
+    "auditStatus" TEXT NOT NULL DEFAULT 'APPROVED',
+    "visibility" TEXT NOT NULL DEFAULT 'CIRCLE_ONLY',
     "stationId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -992,8 +1943,12 @@ CREATE TABLE "BotConfig" (
     "dailyLimit" INTEGER NOT NULL DEFAULT 5,
     "price" DECIMAL(10,2),
     "monthlyPrice" DECIMAL(10,2),
+    "freeUses" INTEGER NOT NULL DEFAULT 3,
+    "pricePer10Coin" INTEGER NOT NULL DEFAULT 0,
     "sortOrder" INTEGER NOT NULL DEFAULT 0,
     "voiceEnabled" BOOLEAN DEFAULT false,
+    "runtime" TEXT NOT NULL DEFAULT 'coze',
+    "systemPrompt" TEXT,
     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -1053,6 +2008,26 @@ CREATE TABLE "PaipanRecord" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "PaipanRecord_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CoupleChart" (
+    "id" TEXT NOT NULL,
+    "initiatorId" TEXT NOT NULL,
+    "partnerId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'PENDING_INVITE',
+    "scene" TEXT NOT NULL DEFAULT 'marriage',
+    "initiatorRecordId" TEXT NOT NULL,
+    "partnerRecordId" TEXT,
+    "inviteToken" TEXT NOT NULL,
+    "analysisId" TEXT,
+    "initiatorDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "partnerDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CoupleChart_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1124,6 +2099,7 @@ CREATE TABLE "AiAnalysisRecord" (
     "paipanRecordId" TEXT,
     "toolId" TEXT,
     "analyzeType" TEXT NOT NULL,
+    "school" TEXT,
     "analysisContent" TEXT NOT NULL,
     "modelName" TEXT NOT NULL DEFAULT 'deepseek-v4-pro',
     "tokenUsage" JSONB,
@@ -1171,6 +2147,8 @@ CREATE TABLE "AiEvent" (
     "status" TEXT NOT NULL DEFAULT 'published',
     "processedBy" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "processResult" JSONB,
+    "attemptCount" INTEGER NOT NULL DEFAULT 0,
+    "processingStartedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "processedAt" TIMESTAMP(3),
 
@@ -1223,6 +2201,7 @@ CREATE TABLE "AiDecision" (
     "outcomeExpected" DOUBLE PRECISION,
     "outcomeActual" DOUBLE PRECISION,
     "outcomeMeasuredAt" TIMESTAMP(3),
+    "outcomeMeasuredBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AiDecision_pkey" PRIMARY KEY ("id")
@@ -1368,6 +2347,7 @@ CREATE TABLE "Station" (
     "paipanLink" TEXT,
     "paipanUserId" TEXT,
     "expireAt" TIMESTAMP(3),
+    "pinnedUpdatedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "operatorId" TEXT,
@@ -1398,6 +2378,23 @@ CREATE TABLE "StationPick" (
 );
 
 -- CreateTable
+CREATE TABLE "StationPinnedContent" (
+    "id" TEXT NOT NULL,
+    "stationId" TEXT NOT NULL,
+    "board" TEXT NOT NULL,
+    "slotIndex" INTEGER NOT NULL,
+    "contentType" TEXT NOT NULL,
+    "contentId" TEXT NOT NULL,
+    "lockedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lockedBy" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "StationPinnedContent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Operator" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -1407,6 +2404,8 @@ CREATE TABLE "Operator" (
     "parentOperatorId" TEXT,
     "totalEarning" DECIMAL(12,2) NOT NULL DEFAULT 0,
     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "channelType" TEXT NOT NULL DEFAULT 'ONLINE',
+    "mgmtRate" DECIMAL(5,4),
     "miniAppId" TEXT,
     "mpAppId" TEXT,
     "miniPages" JSONB,
@@ -1451,6 +2450,32 @@ CREATE TABLE "OperatorEarning" (
 );
 
 -- CreateTable
+CREATE TABLE "TeamTask" (
+    "id" TEXT NOT NULL,
+    "operatorId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "desc" TEXT,
+    "type" "TeamTaskType" NOT NULL,
+    "targetValue" INTEGER,
+    "deadline" TIMESTAMP(3) NOT NULL,
+    "status" "TeamTaskStatus" NOT NULL DEFAULT 'OPEN',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TeamTask_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TeamTaskProgress" (
+    "id" TEXT NOT NULL,
+    "taskId" TEXT NOT NULL,
+    "stationMasterId" TEXT NOT NULL,
+    "currentValue" INTEGER NOT NULL DEFAULT 0,
+    "completedAt" TIMESTAMP(3),
+
+    CONSTRAINT "TeamTaskProgress_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "StationOffline" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -1467,6 +2492,10 @@ CREATE TABLE "StationOffline" (
     "ownerUserId" TEXT NOT NULL,
     "depositAmount" DECIMAL(10,2) NOT NULL DEFAULT 0,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "operatorId" TEXT,
+    "brandStory" TEXT,
+    "photos" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "featuredTeacherIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -1493,9 +2522,24 @@ CREATE TABLE "OfflineCourse" (
     "auditReason" TEXT,
     "isRecommended" BOOLEAN NOT NULL DEFAULT false,
     "recommendedAt" TIMESTAMP(3),
+    "circleId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "OfflineCourse_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OfflineCourseReview" (
+    "id" TEXT NOT NULL,
+    "courseId" TEXT NOT NULL,
+    "stationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "registrationId" TEXT NOT NULL,
+    "rating" INTEGER NOT NULL,
+    "content" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "OfflineCourseReview_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1505,10 +2549,45 @@ CREATE TABLE "OfflineCourseRegistration" (
     "userId" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'REGISTERED',
     "qrCode" TEXT,
+    "verifyCode" TEXT,
     "signedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "OfflineCourseRegistration_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StationEvent" (
+    "id" TEXT NOT NULL,
+    "stationId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "cover" TEXT,
+    "intro" TEXT,
+    "price" DECIMAL(10,2) NOT NULL DEFAULT 0,
+    "maxAttendees" INTEGER NOT NULL,
+    "startTime" TIMESTAMP(3) NOT NULL,
+    "endTime" TIMESTAMP(3) NOT NULL,
+    "location" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "photos" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "StationEvent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StationEventRegistration" (
+    "id" TEXT NOT NULL,
+    "eventId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'REGISTERED',
+    "qrCode" TEXT,
+    "signedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StationEventRegistration_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1643,6 +2722,7 @@ CREATE TABLE "InstituteMember" (
     "instituteId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "role" "InstituteRole" NOT NULL,
+    "seatType" TEXT NOT NULL DEFAULT 'LECTURE',
     "deposit" DECIMAL(10,2) NOT NULL DEFAULT 0,
     "depositRefunded" BOOLEAN NOT NULL DEFAULT false,
     "expireAt" TIMESTAMP(3),
@@ -1651,9 +2731,44 @@ CREATE TABLE "InstituteMember" (
     "tasksRequired" INTEGER NOT NULL DEFAULT 3,
     "lecturerLevel" TEXT NOT NULL DEFAULT 'NONE',
     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "feeExempt" BOOLEAN NOT NULL DEFAULT false,
+    "invitedBy" TEXT,
+    "inviteRemark" TEXT,
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "InstituteMember_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "InstituteBoardGroup" (
+    "id" TEXT NOT NULL,
+    "instituteId" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "topic" TEXT,
+    "leaderId" TEXT NOT NULL,
+    "memberLimit" INTEGER NOT NULL DEFAULT 12,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "InstituteBoardGroup_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "InstituteSharePoint" (
+    "id" TEXT NOT NULL,
+    "instituteId" TEXT NOT NULL,
+    "memberId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "pointType" TEXT NOT NULL,
+    "points" INTEGER NOT NULL,
+    "refId" TEXT,
+    "remark" TEXT,
+    "verifiedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "InstituteSharePoint_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1850,6 +2965,7 @@ CREATE TABLE "AuditLog" (
     "id" TEXT NOT NULL,
     "userId" TEXT,
     "executor" TEXT,
+    "autonomyLevel" TEXT,
     "action" TEXT NOT NULL,
     "targetType" TEXT,
     "targetId" TEXT,
@@ -1859,6 +2975,40 @@ CREATE TABLE "AuditLog" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SensitiveWord" (
+    "id" TEXT NOT NULL,
+    "word" TEXT NOT NULL,
+    "category" TEXT NOT NULL DEFAULT 'GENERAL',
+    "replacement" TEXT,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "remark" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SensitiveWord_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ComplianceScanRecord" (
+    "id" TEXT NOT NULL,
+    "scanAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "targetType" TEXT NOT NULL,
+    "targetId" TEXT NOT NULL,
+    "field" TEXT NOT NULL,
+    "word" TEXT NOT NULL,
+    "level" TEXT NOT NULL,
+    "suggestion" TEXT,
+    "snippet" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "resolvedBy" TEXT,
+    "resolvedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ComplianceScanRecord_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1875,14 +3025,49 @@ CREATE TABLE "ConfigSystem" (
 );
 
 -- CreateTable
+CREATE TABLE "BrandConfig" (
+    "id" TEXT NOT NULL DEFAULT 'default',
+    "siteName" TEXT NOT NULL DEFAULT '热卜国学',
+    "siteNameShort" TEXT NOT NULL DEFAULT '热卜',
+    "siteNameEn" TEXT NOT NULL DEFAULT 'REBU',
+    "slogan" TEXT NOT NULL DEFAULT '探寻东方智慧',
+    "sloganAlt" TEXT NOT NULL DEFAULT '观天地 · 明心性',
+    "tagline" TEXT NOT NULL DEFAULT '国学知识平台',
+    "copyright" TEXT NOT NULL DEFAULT '热卜国学 · 让国学回归生活',
+    "qrGuide" TEXT NOT NULL DEFAULT '长按识别 · 开启国学之旅',
+    "logoUrl" TEXT NOT NULL DEFAULT '',
+    "primaryColor" TEXT NOT NULL DEFAULT '#c41e3a',
+    "domain" TEXT NOT NULL DEFAULT 'api.rebugx.cn',
+    "h5Url" TEXT NOT NULL DEFAULT 'https://api.rebugx.cn/h5/',
+    "servicePhone" TEXT NOT NULL DEFAULT '',
+    "serviceEmail" TEXT NOT NULL DEFAULT '',
+    "serviceWechat" TEXT NOT NULL DEFAULT '',
+    "serviceWechatQrUrl" TEXT NOT NULL DEFAULT '',
+    "companyName" TEXT NOT NULL DEFAULT '',
+    "platformName" TEXT NOT NULL DEFAULT '热卜国学',
+    "websiteUrl" TEXT NOT NULL DEFAULT '',
+    "contactPerson" TEXT NOT NULL DEFAULT '',
+    "contactPhone" TEXT NOT NULL DEFAULT '',
+    "contactEmail" TEXT NOT NULL DEFAULT '',
+    "updatedBy" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "BrandConfig_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Notification" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
+    "idempotencyKey" VARCHAR(255),
     "type" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "content" TEXT NOT NULL,
     "targetType" TEXT,
     "targetId" TEXT,
+    "category" TEXT,
+    "circleId" TEXT,
     "isRead" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -1900,6 +3085,43 @@ CREATE TABLE "TrackEvent" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "TrackEvent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserTag" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tag" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserTag_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "FunnelDaily" (
+    "id" TEXT NOT NULL,
+    "date" TEXT NOT NULL,
+    "funnel" TEXT NOT NULL,
+    "step" INTEGER NOT NULL,
+    "stepKey" TEXT NOT NULL,
+    "count" INTEGER NOT NULL,
+
+    CONSTRAINT "FunnelDaily_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SentinelAlert" (
+    "id" TEXT NOT NULL,
+    "rule" TEXT NOT NULL,
+    "level" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "context" JSONB,
+    "firedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "resolvedAt" TIMESTAMP(3),
+    "notified" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "SentinelAlert_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1965,6 +3187,25 @@ CREATE TABLE "ClassicChapter" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ClassicChapter_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ClassicSegment" (
+    "id" TEXT NOT NULL,
+    "chapterId" TEXT NOT NULL,
+    "sortOrder" INTEGER NOT NULL,
+    "content" TEXT NOT NULL,
+    "contentHash" TEXT NOT NULL,
+    "originalContent" TEXT NOT NULL,
+    "startCharOffset" INTEGER NOT NULL,
+    "endCharOffset" INTEGER NOT NULL,
+    "versionTag" TEXT DEFAULT 'v1',
+    "processingStatus" TEXT NOT NULL DEFAULT 'raw',
+    "deletedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ClassicSegment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -2051,6 +3292,7 @@ CREATE TABLE "ClassicAnnotation" (
     "id" TEXT NOT NULL,
     "bookId" TEXT NOT NULL,
     "chapterId" TEXT,
+    "segmentId" TEXT,
     "type" TEXT NOT NULL DEFAULT '注疏',
     "startPos" INTEGER NOT NULL,
     "endPos" INTEGER NOT NULL,
@@ -2068,11 +3310,456 @@ CREATE TABLE "ClassicReadingNote" (
     "userId" TEXT NOT NULL,
     "bookId" TEXT NOT NULL,
     "chapterId" TEXT NOT NULL,
+    "segmentId" TEXT,
     "content" TEXT NOT NULL,
+    "position" INTEGER,
+    "originalText" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "ClassicReadingNote_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TextDerivedAsset" (
+    "id" TEXT NOT NULL,
+    "assetKey" TEXT NOT NULL,
+    "sourceType" TEXT NOT NULL,
+    "sourceId" TEXT NOT NULL,
+    "contentHash" TEXT NOT NULL,
+    "contextHash" TEXT,
+    "processingType" TEXT NOT NULL,
+    "strategy" TEXT,
+    "modelPolicy" TEXT,
+    "model" TEXT,
+    "promptVersion" TEXT,
+    "language" TEXT NOT NULL DEFAULT 'zh-CN',
+    "qualityVersion" TEXT,
+    "result" TEXT NOT NULL,
+    "resultHash" TEXT NOT NULL,
+    "processingStatus" TEXT NOT NULL DEFAULT 'processing',
+    "errorMessage" TEXT,
+    "processingStartedAt" TIMESTAMP(3),
+    "processingEndedAt" TIMESTAMP(3),
+    "reviewStatus" TEXT NOT NULL DEFAULT 'none',
+    "reviewedBy" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TextDerivedAsset_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AudioAsset" (
+    "id" TEXT NOT NULL,
+    "assetKey" TEXT NOT NULL,
+    "sourceType" TEXT NOT NULL,
+    "sourceId" TEXT NOT NULL,
+    "textVersion" TEXT NOT NULL,
+    "textType" TEXT NOT NULL,
+    "ttsProvider" TEXT NOT NULL,
+    "requestedProvider" TEXT,
+    "voiceId" TEXT NOT NULL,
+    "voiceVersion" TEXT,
+    "pronunciationDict" TEXT,
+    "pauseStrategy" TEXT,
+    "audioFormat" TEXT NOT NULL DEFAULT 'mp3',
+    "synthesisParams" JSONB,
+    "storageKey" TEXT NOT NULL,
+    "storageUrl" TEXT NOT NULL,
+    "durationMs" INTEGER,
+    "fileSize" INTEGER,
+    "contentHash" TEXT NOT NULL,
+    "synthesisStatus" TEXT NOT NULL DEFAULT 'synthesizing',
+    "isPlayable" BOOLEAN NOT NULL DEFAULT false,
+    "errorMessage" TEXT,
+    "synthesisStartedAt" TIMESTAMP(3),
+    "synthesisEndedAt" TIMESTAMP(3),
+    "uploadedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AudioAsset_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ReportDialogueTurn" (
+    "id" TEXT NOT NULL,
+    "reportId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "sectionId" TEXT,
+    "evidenceIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "mode" TEXT,
+    "model" TEXT,
+    "channel" TEXT NOT NULL DEFAULT 'text',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ReportDialogueTurn_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceAgentProfile" (
+    "id" TEXT NOT NULL,
+    "ownerType" TEXT NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "persona" TEXT NOT NULL,
+    "prompt" TEXT NOT NULL,
+    "voiceId" TEXT NOT NULL,
+    "tier" TEXT NOT NULL DEFAULT 'lite',
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "draftVersion" INTEGER NOT NULL DEFAULT 1,
+    "activeVersion" INTEGER,
+    "riskFlags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "ownerServices" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "reviewNote" TEXT,
+    "reviewedBy" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "submittedBy" TEXT,
+    "submittedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "VoiceAgentProfile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceAgentProfileVersion" (
+    "id" TEXT NOT NULL,
+    "profileId" TEXT NOT NULL,
+    "version" INTEGER NOT NULL,
+    "name" TEXT NOT NULL,
+    "persona" TEXT NOT NULL,
+    "prompt" TEXT NOT NULL,
+    "voiceId" TEXT NOT NULL,
+    "tier" TEXT NOT NULL,
+    "approvedBy" TEXT NOT NULL,
+    "approvedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "VoiceAgentProfileVersion_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserPreferredName" (
+    "userId" TEXT NOT NULL,
+    "name" TEXT,
+    "source" TEXT,
+    "askedAt" TIMESTAMP(3),
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "UserPreferredName_pkey" PRIMARY KEY ("userId")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceTrialUsage" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "agentId" TEXT NOT NULL,
+    "usedSeconds" INTEGER NOT NULL DEFAULT 0,
+    "sessions" INTEGER NOT NULL DEFAULT 0,
+    "firstAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "VoiceTrialUsage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceQuotaAccount" (
+    "id" TEXT NOT NULL,
+    "ownerType" TEXT NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "balanceSeconds" INTEGER NOT NULL DEFAULT 0,
+    "reservedSeconds" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "VoiceQuotaAccount_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceSession" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "accountId" TEXT,
+    "scene" TEXT NOT NULL,
+    "contextType" TEXT,
+    "contextId" TEXT,
+    "tier" TEXT NOT NULL DEFAULT 'lite',
+    "status" TEXT NOT NULL DEFAULT 'reserved',
+    "reservedSeconds" INTEGER NOT NULL DEFAULT 0,
+    "maxSeconds" INTEGER NOT NULL,
+    "usedSeconds" INTEGER,
+    "usageSource" TEXT,
+    "providerSessionId" TEXT,
+    "supplierCostMicro" BIGINT,
+    "priceRuleVersion" TEXT,
+    "endReason" TEXT,
+    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "endedAt" TIMESTAMP(3),
+    "provider" TEXT NOT NULL DEFAULT 'unavailable',
+    "providerIsMock" BOOLEAN NOT NULL DEFAULT false,
+    "agentId" TEXT,
+    "requestId" TEXT NOT NULL,
+    "startIdempotencyKey" TEXT,
+    "usageState" TEXT NOT NULL DEFAULT 'none',
+    "technicalOutcome" TEXT,
+    "answerCompleteness" TEXT,
+    "userSatisfaction" TEXT,
+    "contextVersion" TEXT,
+    "contextDigest" TEXT,
+    "deviceId" TEXT,
+    "deviceBindingVersion" INTEGER,
+    "clientEstimatedSeconds" INTEGER,
+    "issuedAt" TIMESTAMP(3),
+    "lastEventAt" TIMESTAMP(3),
+    "lastInputAt" TIMESTAMP(3),
+
+    CONSTRAINT "VoiceSession_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceQuotaLedger" (
+    "id" TEXT NOT NULL,
+    "accountId" TEXT NOT NULL,
+    "sessionId" TEXT,
+    "type" TEXT NOT NULL,
+    "seconds" INTEGER NOT NULL,
+    "balanceAfter" INTEGER NOT NULL,
+    "idempotencyKey" TEXT NOT NULL,
+    "note" TEXT,
+    "operatorId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "VoiceQuotaLedger_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceProviderAttempt" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT,
+    "provider" TEXT NOT NULL,
+    "isMock" BOOLEAN NOT NULL DEFAULT false,
+    "operation" TEXT NOT NULL,
+    "attemptNo" INTEGER NOT NULL DEFAULT 1,
+    "idempotencyKey" TEXT NOT NULL,
+    "outcome" TEXT NOT NULL,
+    "errorCode" TEXT,
+    "retryable" BOOLEAN NOT NULL DEFAULT false,
+    "latencyMs" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "VoiceProviderAttempt_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceUsageEvent" (
+    "id" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "eventId" TEXT NOT NULL,
+    "sessionId" TEXT,
+    "providerSessionId" TEXT,
+    "usedSeconds" INTEGER,
+    "isFinal" BOOLEAN NOT NULL DEFAULT false,
+    "isMock" BOOLEAN NOT NULL DEFAULT false,
+    "payloadDigest" TEXT NOT NULL,
+    "applied" BOOLEAN NOT NULL DEFAULT false,
+    "note" TEXT,
+    "receivedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "VoiceUsageEvent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceDevice" (
+    "id" TEXT NOT NULL,
+    "serialHash" TEXT NOT NULL,
+    "serialHint" TEXT NOT NULL,
+    "productSku" TEXT NOT NULL,
+    "circleId" TEXT,
+    "agentProfileId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'unbound',
+    "currentUserId" TEXT,
+    "bindingVersion" INTEGER NOT NULL DEFAULT 0,
+    "bindCodeHash" TEXT,
+    "bindCodeExpiresAt" TIMESTAMP(3),
+    "providerDeviceRef" TEXT,
+    "activationState" TEXT NOT NULL DEFAULT 'pending_vendor',
+    "disabledReason" TEXT,
+    "terminalIdHash" TEXT,
+    "terminalPinnedAt" TIMESTAMP(3),
+    "terminalPinSource" TEXT,
+    "createdBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "VoiceDevice_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceDeviceBinding" (
+    "id" TEXT NOT NULL,
+    "deviceId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "bindingVersion" INTEGER NOT NULL,
+    "boundAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "unboundAt" TIMESTAMP(3),
+    "endReason" TEXT,
+
+    CONSTRAINT "VoiceDeviceBinding_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceDeviceTransfer" (
+    "id" TEXT NOT NULL,
+    "deviceId" TEXT NOT NULL,
+    "fromUserId" TEXT NOT NULL,
+    "toUserId" TEXT,
+    "tokenHash" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "resolvedAt" TIMESTAMP(3),
+
+    CONSTRAINT "VoiceDeviceTransfer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceFirmwareRelease" (
+    "id" TEXT NOT NULL,
+    "boardName" TEXT NOT NULL,
+    "version" TEXT NOT NULL,
+    "projectName" TEXT NOT NULL,
+    "chipId" INTEGER NOT NULL,
+    "fileKey" TEXT NOT NULL,
+    "sha256" TEXT NOT NULL,
+    "size" INTEGER NOT NULL,
+    "notes" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'draft',
+    "rolloutPercent" INTEGER NOT NULL DEFAULT 0,
+    "createdBy" TEXT NOT NULL,
+    "activatedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "VoiceFirmwareRelease_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VoiceFirmwareDeviceState" (
+    "id" TEXT NOT NULL,
+    "releaseId" TEXT NOT NULL,
+    "deviceId" TEXT NOT NULL,
+    "fromVersion" TEXT NOT NULL,
+    "offers" INTEGER NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'offered',
+    "firstOfferAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastOfferAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "resolvedAt" TIMESTAMP(3),
+
+    CONSTRAINT "VoiceFirmwareDeviceState_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AudioListenProgress" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "bookId" TEXT NOT NULL,
+    "chapterId" TEXT NOT NULL,
+    "textType" TEXT NOT NULL DEFAULT 'original',
+    "segmentId" TEXT,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "positionMs" INTEGER NOT NULL DEFAULT 0,
+    "rate" DOUBLE PRECISION NOT NULL DEFAULT 1,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AudioListenProgress_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PaipanReportKnowledge" (
+    "id" TEXT NOT NULL,
+    "paipanType" TEXT NOT NULL DEFAULT 'bazi',
+    "school" TEXT,
+    "kind" TEXT NOT NULL,
+    "topic" TEXT NOT NULL,
+    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "bookTitle" TEXT,
+    "chapterTitle" TEXT,
+    "classicBookId" TEXT,
+    "classicChapterId" TEXT,
+    "debateKey" TEXT,
+    "stance" TEXT NOT NULL DEFAULT 'mainstream',
+    "sourceKind" TEXT NOT NULL DEFAULT 'classic_public',
+    "sourceRefs" JSONB,
+    "restated" BOOLEAN NOT NULL DEFAULT false,
+    "quotable" BOOLEAN NOT NULL DEFAULT false,
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "version" INTEGER NOT NULL DEFAULT 1,
+    "reviewedBy" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "reviewNote" TEXT,
+    "createdBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PaipanReportKnowledge_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PaipanCaseFeedback" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "paipanRecordId" TEXT NOT NULL,
+    "analysisId" TEXT,
+    "paipanType" TEXT NOT NULL,
+    "matter" TEXT NOT NULL DEFAULT '',
+    "reportedAt" TIMESTAMP(3) NOT NULL,
+    "outcomeAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "verdict" TEXT NOT NULL,
+    "outcome" TEXT NOT NULL,
+    "whichRight" TEXT,
+    "whichWrong" TEXT,
+    "channel" TEXT NOT NULL DEFAULT 'prompted',
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "lesson" TEXT,
+    "reviewNote" TEXT,
+    "reviewedBy" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "desensitized" BOOLEAN NOT NULL DEFAULT true,
+    "consent" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PaipanCaseFeedback_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AiUsageRecord" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT,
+    "scene" TEXT NOT NULL,
+    "relatedType" TEXT,
+    "relatedId" TEXT,
+    "provider" TEXT NOT NULL,
+    "model" TEXT,
+    "promptTokens" INTEGER NOT NULL DEFAULT 0,
+    "completionTokens" INTEGER NOT NULL DEFAULT 0,
+    "totalTokens" INTEGER NOT NULL DEFAULT 0,
+    "cachedTokens" INTEGER NOT NULL DEFAULT 0,
+    "cost" DECIMAL(10,6) NOT NULL DEFAULT 0,
+    "requestId" TEXT,
+    "idempotencyKey" TEXT,
+    "isStreaming" BOOLEAN NOT NULL DEFAULT false,
+    "durationMs" INTEGER,
+    "errorMessage" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AiUsageRecord_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -2095,6 +3782,23 @@ CREATE TABLE "ClassicBookList" (
 );
 
 -- CreateTable
+CREATE TABLE "ClassicCopyright" (
+    "id" TEXT NOT NULL,
+    "bookId" TEXT NOT NULL,
+    "sourceName" TEXT NOT NULL,
+    "sourceUrl" TEXT,
+    "license" TEXT NOT NULL,
+    "licenseUrl" TEXT,
+    "auditNote" TEXT,
+    "auditedAt" TIMESTAMP(3),
+    "auditedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ClassicCopyright_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "ClassicFavorite" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -2102,6 +3806,31 @@ CREATE TABLE "ClassicFavorite" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ClassicFavorite_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ClassicCompanionSession" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "bookId" TEXT NOT NULL,
+    "summary" TEXT,
+    "messageCount" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ClassicCompanionSession_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ClassicCompanionMessage" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "chapterId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ClassicCompanionMessage_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -2131,6 +3860,7 @@ CREATE TABLE "Withdrawal" (
     "alipayAccount" TEXT,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
     "remark" TEXT,
+    "payoutRef" TEXT,
     "processedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -2196,12 +3926,28 @@ CREATE TABLE "VirtualCoinTransaction" (
 );
 
 -- CreateTable
+CREATE TABLE "CirclePostRewardNotice" (
+    "sourceVersion" VARCHAR(32),
+    "sourcePostId" TEXT,
+    "sourceCircleId" TEXT,
+    "sourceRecipientId" TEXT,
+    "debitId" TEXT NOT NULL,
+    "recipientId" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "message" VARCHAR(200),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CirclePostRewardNotice_pkey" PRIMARY KEY ("debitId")
+);
+
+-- CreateTable
 CREATE TABLE "VideoCreatorWithdrawal" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "amountCoin" INTEGER NOT NULL,
     "method" VARCHAR(50) NOT NULL,
     "account" VARCHAR(255) NOT NULL,
+    "accountEnc" VARCHAR(512),
     "status" TEXT NOT NULL DEFAULT 'PENDING',
     "reviewNote" TEXT,
     "reviewedBy" TEXT,
@@ -2224,6 +3970,49 @@ CREATE TABLE "VirtualCoinRecharge" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "VirtualCoinRecharge_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AppleIapPurchase" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "transactionId" TEXT NOT NULL,
+    "originalTransactionId" TEXT,
+    "environment" TEXT NOT NULL,
+    "amountCoin" INTEGER NOT NULL,
+    "referenceRmb" DECIMAL(10,2) NOT NULL,
+    "currency" TEXT,
+    "priceMilliunits" INTEGER,
+    "storefront" TEXT,
+    "receiptHash" TEXT,
+    "appAccountToken" TEXT,
+    "status" "AppleIapPurchaseStatus" NOT NULL DEFAULT 'VERIFIED',
+    "purchasedAt" TIMESTAMP(3),
+    "verifiedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "refundedAt" TIMESTAMP(3),
+    "revocationReason" INTEGER,
+    "signedTransactionInfo" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AppleIapPurchase_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AppleIapNotification" (
+    "id" TEXT NOT NULL,
+    "notificationUuid" TEXT NOT NULL,
+    "notificationType" TEXT NOT NULL,
+    "subtype" TEXT,
+    "environment" TEXT,
+    "transactionId" TEXT,
+    "payloadHash" TEXT NOT NULL,
+    "result" TEXT NOT NULL,
+    "processedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AppleIapNotification_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -2300,6 +4089,7 @@ CREATE TABLE "Gift" (
 -- CreateTable
 CREATE TABLE "GiftRecord" (
     "id" TEXT NOT NULL,
+    "idempotencyKey" TEXT,
     "userId" TEXT NOT NULL,
     "liveRoomId" TEXT NOT NULL,
     "toUserId" TEXT NOT NULL,
@@ -2309,6 +4099,18 @@ CREATE TABLE "GiftRecord" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "GiftRecord_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LiveGiftSpendingPreference" (
+    "userId" TEXT NOT NULL,
+    "singleLimitCoin" INTEGER NOT NULL,
+    "dailyLimitCoin" INTEGER NOT NULL,
+    "reminderEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "configuredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LiveGiftSpendingPreference_pkey" PRIMARY KEY ("userId")
 );
 
 -- CreateTable
@@ -2409,6 +4211,26 @@ CREATE TABLE "WebhookSubscription" (
 );
 
 -- CreateTable
+CREATE TABLE "WebhookDelivery" (
+    "id" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "event" "WebhookEvent" NOT NULL,
+    "eventKey" TEXT NOT NULL,
+    "payload" JSONB NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "nextAttemptAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastAttemptAt" TIMESTAMP(3),
+    "lastStatus" INTEGER,
+    "lastError" TEXT,
+    "deliveredAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WebhookDelivery_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "FeatureFlag" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
@@ -2417,6 +4239,9 @@ CREATE TABLE "FeatureFlag" (
     "enabled" BOOLEAN NOT NULL DEFAULT false,
     "percentage" INTEGER NOT NULL DEFAULT 100,
     "targetUserIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "operationState" TEXT NOT NULL DEFAULT 'OPEN',
+    "emergencyDisabled" BOOLEAN NOT NULL DEFAULT false,
+    "scopeRules" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -2913,12 +4738,22 @@ CREATE TABLE "WithdrawalApplication" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "amount" DECIMAL(10,2) NOT NULL,
+    "fee" DECIMAL(10,2) NOT NULL DEFAULT 0,
+    "taxAmount" DECIMAL(10,2) NOT NULL DEFAULT 0,
+    "taxRate" DECIMAL(5,4) NOT NULL DEFAULT 0,
+    "actualAmount" DECIMAL(10,2) NOT NULL DEFAULT 0,
     "payMethod" TEXT NOT NULL,
     "accountInfo" JSONB NOT NULL,
+    "accountInfoEnc" TEXT,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
     "level" INTEGER NOT NULL DEFAULT 1,
     "reviewedBy" TEXT,
     "reviewNote" TEXT,
+    "payoutRef" TEXT,
+    "transferBillNo" TEXT,
+    "transferState" TEXT,
+    "packageInfo" TEXT,
+    "transferFailReason" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "WithdrawalApplication_pkey" PRIMARY KEY ("id")
@@ -3188,6 +5023,9 @@ CREATE TABLE "BountyQuestion" (
     "answerImages" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "answerAudioUrl" TEXT,
     "lockExpireAt" TIMESTAMP(3),
+    "closeReason" VARCHAR(500),
+    "closedBy" TEXT,
+    "closedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "answeredAt" TIMESTAMP(3),
     "settledAt" TIMESTAMP(3),
@@ -3253,6 +5091,9 @@ CREATE TABLE "MemberConfig" (
     "name" TEXT NOT NULL,
     "price" DECIMAL(10,2) NOT NULL,
     "coinBonus" INTEGER NOT NULL DEFAULT 0,
+    "monthlyPoints" INTEGER NOT NULL DEFAULT 0,
+    "monthlyCouponId" TEXT,
+    "sort" INTEGER NOT NULL DEFAULT 0,
     "benefits" JSONB,
     "maxBorrowDays" INTEGER NOT NULL DEFAULT 30,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -3311,6 +5152,23 @@ CREATE TABLE "Merchant" (
     "idCardBack" TEXT,
     "businessLicense" TEXT,
     "brandAuth" TEXT,
+    "merchantType" TEXT NOT NULL DEFAULT 'ENTERPRISE',
+    "unifiedSocialCreditCode" TEXT,
+    "registeredAddress" TEXT,
+    "legalRepresentative" TEXT,
+    "licenseValidFrom" TIMESTAMP(3),
+    "licenseValidUntil" TIMESTAMP(3),
+    "licenseLongTerm" BOOLEAN NOT NULL DEFAULT false,
+    "qualificationFiles" JSONB,
+    "qualificationStatus" TEXT NOT NULL DEFAULT 'DRAFT',
+    "qualificationSubmittedAt" TIMESTAMP(3),
+    "qualificationReviewedAt" TIMESTAMP(3),
+    "qualificationNextReviewAt" TIMESTAMP(3),
+    "qualificationRejectReason" TEXT,
+    "riskLevel" TEXT NOT NULL DEFAULT 'MEDIUM',
+    "riskFlags" JSONB,
+    "privacyConsentAt" TIMESTAMP(3),
+    "complianceDeclarationAt" TIMESTAMP(3),
     "categoryIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "status" "MerchantStatus" NOT NULL DEFAULT 'PENDING_REVIEW',
     "depositAmount" DECIMAL(10,2),
@@ -3329,10 +5187,62 @@ CREATE TABLE "Merchant" (
     "reviewedBy" TEXT,
     "reviewedAt" TIMESTAMP(3),
     "remark" TEXT,
+    "creditScore" INTEGER NOT NULL DEFAULT 60,
+    "creditGrade" TEXT NOT NULL DEFAULT 'B',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Merchant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MerchantSupplier" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "contactName" TEXT,
+    "contactPhone" TEXT,
+    "address" TEXT,
+    "settlementTerms" TEXT,
+    "leadTimeDays" INTEGER,
+    "remark" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "purchaseCount" INTEGER NOT NULL DEFAULT 0,
+    "totalPurchaseAmount" DECIMAL(12,2) NOT NULL DEFAULT 0,
+    "lastPurchasedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MerchantSupplier_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MerchantQualificationReview" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "riskLevel" TEXT NOT NULL DEFAULT 'MEDIUM',
+    "riskFlags" JSONB,
+    "reason" TEXT,
+    "reviewerId" TEXT,
+    "snapshot" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MerchantQualificationReview_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MerchantMember" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'OPERATOR',
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "invitedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MerchantMember_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -3401,6 +5311,54 @@ CREATE TABLE "MerchantAgreement" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "MerchantAgreement_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MerchantMetric" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "date" TEXT NOT NULL,
+    "ordersCount" INTEGER NOT NULL DEFAULT 0,
+    "shipOnTimeRate" DECIMAL(5,4),
+    "avgShipHours" DECIMAL(8,2),
+    "refundRate" DECIMAL(5,4),
+    "returnRate" DECIMAL(5,4),
+    "avgRating" DECIMAL(3,2),
+    "complaintCount" INTEGER NOT NULL DEFAULT 0,
+    "qcPassRate" DECIMAL(5,4),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MerchantMetric_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MerchantCreditLog" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "oldScore" INTEGER NOT NULL,
+    "newScore" INTEGER NOT NULL,
+    "factors" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MerchantCreditLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MerchantPunishment" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "evidence" JSONB,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "expiresAt" TIMESTAMP(3),
+    "operatorId" TEXT NOT NULL,
+    "revokedBy" TEXT,
+    "revokedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MerchantPunishment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -3555,6 +5513,31 @@ CREATE TABLE "TaskTransferLog" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "TaskTransferLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OpsTask" (
+    "id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "priority" TEXT NOT NULL DEFAULT 'MEDIUM',
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "title" TEXT NOT NULL,
+    "executor" TEXT,
+    "payload" JSONB NOT NULL DEFAULT '{}',
+    "result" JSONB,
+    "reviewReason" TEXT,
+    "needsApproval" BOOLEAN NOT NULL DEFAULT false,
+    "approvalStatus" TEXT NOT NULL DEFAULT 'not_required',
+    "approvedBy" TEXT,
+    "approvedAt" TIMESTAMP(3),
+    "approvalNote" TEXT,
+    "sourceEventId" TEXT,
+    "rollbackData" JSONB,
+    "completedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "OpsTask_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -3730,6 +5713,19 @@ CREATE TABLE "PointsRecord" (
 );
 
 -- CreateTable
+CREATE TABLE "MemberMonthlyBenefitNotice" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "points" INTEGER NOT NULL,
+    "couponRecordId" TEXT,
+    "couponId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MemberMonthlyBenefitNotice_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "PointsProduct" (
     "id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -3802,15 +5798,71 @@ CREATE TABLE "LegalDocument" (
 CREATE TABLE "AppVersion" (
     "id" TEXT NOT NULL,
     "platform" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL DEFAULT 'rebu',
+    "channelId" TEXT NOT NULL DEFAULT 'legacy',
+    "rolloutPercentage" INTEGER NOT NULL DEFAULT 100,
+    "targetUserIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "version" TEXT NOT NULL,
     "buildNumber" TEXT,
     "changelog" TEXT,
     "forceUpdate" BOOLEAN NOT NULL DEFAULT false,
     "downloadUrl" TEXT,
-    "publishedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "checksumSha256" TEXT,
+    "minSupportedVersion" TEXT,
+    "minSupportedBuildNumber" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "activePlatformKey" TEXT,
+    "publishedAt" TIMESTAMP(3),
+    "publishedBy" TEXT,
+    "retiredAt" TIMESTAMP(3),
+    "retiredBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "AppVersion_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AppDistribution" (
+    "id" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "platform" TEXT NOT NULL,
+    "channelId" TEXT NOT NULL,
+    "clientKey" TEXT NOT NULL,
+    "packageName" TEXT NOT NULL,
+    "signingCertificateSha256" TEXT,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "wgtPolicy" TEXT NOT NULL DEFAULT 'DENIED',
+    "policyEvidence" TEXT,
+    "recoveryEvidence" TEXT,
+    "nativeFingerprint" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AppDistribution_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ResourceRelease" (
+    "id" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "platform" TEXT NOT NULL,
+    "channelId" TEXT NOT NULL,
+    "resourceVersion" INTEGER NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "activeScopeKey" TEXT,
+    "manifest" JSONB NOT NULL,
+    "signature" TEXT NOT NULL,
+    "keyId" TEXT NOT NULL,
+    "rolloutPercentage" INTEGER NOT NULL DEFAULT 0,
+    "targetUserIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "publishedBy" TEXT,
+    "publishedAt" TIMESTAMP(3),
+    "retiredAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ResourceRelease_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -3935,6 +5987,7 @@ CREATE TABLE "CircleRevenueRecord" (
     "circleId" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "sourceId" TEXT NOT NULL,
+    "orderId" TEXT,
     "amount" DECIMAL(10,2) NOT NULL,
     "platformFee" DECIMAL(10,2) NOT NULL,
     "ownerShare" DECIMAL(10,2) NOT NULL,
@@ -4056,6 +6109,12 @@ CREATE TABLE "Competition" (
     "prizeType" "PrizeType" NOT NULL DEFAULT 'CASH',
     "prizeConfig" JSONB,
     "invitationShare" INTEGER NOT NULL DEFAULT 0,
+    "format" TEXT NOT NULL DEFAULT 'QUIZ',
+    "stagesConfig" JSONB,
+    "judgePanel" JSONB,
+    "voteWeight" DOUBLE PRECISION NOT NULL DEFAULT 0.2,
+    "prizes" JSONB,
+    "shareCommitmentRequired" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "publishedAt" TIMESTAMP(3),
@@ -4063,6 +6122,23 @@ CREATE TABLE "Competition" (
     "finishedAt" TIMESTAMP(3),
 
     CONSTRAINT "Competition_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CompetitionStage" (
+    "id" TEXT NOT NULL,
+    "competitionId" TEXT NOT NULL,
+    "seq" INTEGER NOT NULL,
+    "name" TEXT NOT NULL,
+    "format" TEXT NOT NULL DEFAULT 'QUIZ',
+    "startAt" TIMESTAMP(3) NOT NULL,
+    "endAt" TIMESTAMP(3) NOT NULL,
+    "advanceRule" JSONB,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CompetitionStage_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -4230,6 +6306,22 @@ CREATE TABLE "CompetitionArticle" (
     "publishedAt" TIMESTAMP(3),
 
     CONSTRAINT "CompetitionArticle_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CompetitionTalent" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "bestRank" INTEGER,
+    "totalCompetitions" INTEGER NOT NULL DEFAULT 0,
+    "totalWins" INTEGER NOT NULL DEFAULT 0,
+    "talentScore" INTEGER NOT NULL DEFAULT 0,
+    "level" TEXT NOT NULL DEFAULT 'TRAINEE',
+    "badges" JSONB NOT NULL DEFAULT '[]',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CompetitionTalent_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -4424,6 +6516,12 @@ CREATE TABLE "CommissionRecall" (
     "amount" DECIMAL(10,2) NOT NULL,
     "balanceAfter" DECIMAL(10,2) NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'pending',
+    "reason" TEXT,
+    "sourceId" TEXT,
+    "resolvedAt" TIMESTAMP(3),
+    "resolvedBy" TEXT,
+    "resolutionNote" TEXT,
+    "resolvedRevenueId" TEXT,
     "offsetCompletedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -4500,6 +6598,7 @@ CREATE TABLE "CircleJoinRequest" (
     "message" TEXT,
     "reviewedBy" TEXT,
     "reviewedAt" TIMESTAMP(3),
+    "rejectReason" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "CircleJoinRequest_pkey" PRIMARY KEY ("id")
@@ -4522,6 +6621,16 @@ CREATE TABLE "ConsultCall" (
     "settledCoin" INTEGER NOT NULL DEFAULT 0,
     "refundedCoin" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "rating" INTEGER,
+    "ratingTags" TEXT,
+    "ratingComment" TEXT,
+    "ratedAt" TIMESTAMP(3),
+    "disputeReason" TEXT,
+    "disputedAt" TIMESTAMP(3),
+    "disputeStatus" TEXT,
+    "disputeResolveNote" TEXT,
+    "disputeResolvedAt" TIMESTAMP(3),
+    "disputeReviewerId" TEXT,
 
     CONSTRAINT "ConsultCall_pkey" PRIMARY KEY ("id")
 );
@@ -4567,6 +6676,678 @@ CREATE TABLE "fund_approval" (
     CONSTRAINT "fund_approval_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "SettlementRule" (
+    "id" TEXT NOT NULL,
+    "scene" TEXT NOT NULL,
+    "splits" JSONB NOT NULL,
+    "bufferDays" INTEGER NOT NULL DEFAULT 7,
+    "requireApproval" BOOLEAN NOT NULL DEFAULT false,
+    "approvalThreshold" DECIMAL(10,2),
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "remark" TEXT,
+    "updatedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SettlementRule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LedgerEntry" (
+    "id" TEXT NOT NULL,
+    "scene" TEXT NOT NULL,
+    "refType" TEXT NOT NULL,
+    "refId" TEXT NOT NULL,
+    "beneficiaryType" TEXT NOT NULL,
+    "beneficiaryId" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "amount" DECIMAL(12,2) NOT NULL,
+    "rate" DECIMAL(5,4) NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "availableAt" TIMESTAMP(3) NOT NULL,
+    "batchId" TEXT,
+    "reason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "LedgerEntry_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ChannelClick" (
+    "id" TEXT NOT NULL,
+    "subjectType" TEXT NOT NULL,
+    "subjectId" TEXT NOT NULL,
+    "beneficiaryUserId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "targetType" TEXT NOT NULL,
+    "targetId" TEXT,
+    "clickedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ChannelClick_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AdvisorRule" (
+    "id" TEXT NOT NULL,
+    "roleType" TEXT NOT NULL,
+    "ruleKey" TEXT NOT NULL,
+    "metric" TEXT NOT NULL,
+    "condition" JSONB NOT NULL,
+    "severity" TEXT NOT NULL DEFAULT 'INFO',
+    "suggestion" TEXT NOT NULL,
+    "actions" JSONB NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "updatedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AdvisorRule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserGrowth" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "totalExp" INTEGER NOT NULL DEFAULT 0,
+    "level" INTEGER NOT NULL DEFAULT 1,
+    "currentStreak" INTEGER NOT NULL DEFAULT 0,
+    "maxStreak" INTEGER NOT NULL DEFAULT 0,
+    "lastCheckinDate" TIMESTAMP(3),
+    "mentorshipPoints" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserGrowth_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Mentorship" (
+    "id" TEXT NOT NULL,
+    "mentorId" TEXT NOT NULL,
+    "discipleId" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "mentorshipPoints" INTEGER NOT NULL DEFAULT 0,
+    "disciplePledge" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "graduatedAt" TIMESTAMP(3),
+
+    CONSTRAINT "Mentorship_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserBotQuota" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "botConfigId" TEXT NOT NULL,
+    "freeUsed" INTEGER NOT NULL DEFAULT 0,
+    "paidRemaining" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "UserBotQuota_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "BotQuotaReservation" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "botConfigId" TEXT NOT NULL,
+    "charge" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'RESERVED',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "settledAt" TIMESTAMP(3),
+
+    CONSTRAINT "BotQuotaReservation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "BotQuotaPurchase" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "botConfigId" TEXT NOT NULL,
+    "requestId" TEXT NOT NULL,
+    "amountCoin" INTEGER NOT NULL,
+    "purchased" INTEGER NOT NULL DEFAULT 10,
+    "paidRemainingAfter" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "BotQuotaPurchase_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ContentQualityScore" (
+    "id" TEXT NOT NULL,
+    "targetType" TEXT NOT NULL,
+    "targetId" TEXT NOT NULL,
+    "depth" INTEGER NOT NULL,
+    "originality" INTEGER NOT NULL,
+    "utility" INTEGER NOT NULL,
+    "appeal" INTEGER NOT NULL,
+    "total" INTEGER NOT NULL,
+    "grade" TEXT NOT NULL,
+    "reason" TEXT,
+    "model" TEXT,
+    "scoredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ContentQualityScore_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserAchievement" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "earnedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "UserAchievement_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserTitle" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "equipped" BOOLEAN NOT NULL DEFAULT false,
+    "earnedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "UserTitle_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AdvisorInsight" (
+    "id" TEXT NOT NULL,
+    "ruleKey" TEXT NOT NULL,
+    "roleType" TEXT NOT NULL,
+    "subjectId" TEXT NOT NULL,
+    "severity" TEXT NOT NULL,
+    "facts" JSONB NOT NULL,
+    "content" TEXT NOT NULL,
+    "actions" JSONB NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "actedAt" TIMESTAMP(3),
+    "feedback" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AdvisorInsight_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SharedReadingGroup" (
+    "id" TEXT NOT NULL,
+    "classicBookId" TEXT NOT NULL,
+    "bookTitle" TEXT NOT NULL,
+    "initiatorId" TEXT NOT NULL,
+    "targetChapters" INTEGER NOT NULL,
+    "minMembers" INTEGER NOT NULL DEFAULT 3,
+    "maxMembers" INTEGER NOT NULL DEFAULT 5,
+    "durationDays" INTEGER NOT NULL DEFAULT 7,
+    "startAt" TIMESTAMP(3),
+    "deadline" TIMESTAMP(3),
+    "status" TEXT NOT NULL DEFAULT 'RECRUITING',
+    "inviteToken" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SharedReadingGroup_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SharedReadingMember" (
+    "id" TEXT NOT NULL,
+    "groupId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "isLeader" BOOLEAN NOT NULL DEFAULT false,
+    "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedChapters" INTEGER NOT NULL DEFAULT 0,
+    "completed" BOOLEAN NOT NULL DEFAULT false,
+    "rewardedAt" TIMESTAMP(3),
+
+    CONSTRAINT "SharedReadingMember_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SolarTermParticipation" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "termName" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "participatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SolarTermParticipation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DashboardDaily" (
+    "id" TEXT NOT NULL,
+    "date" TEXT NOT NULL,
+    "metrics" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DashboardDaily_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MarketingContent" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "kind" "MarketingContentKind" NOT NULL,
+    "topic" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "passedAudit" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MarketingContent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ClientBook" (
+    "id" TEXT NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "phoneEnc" TEXT,
+    "birthEnc" TEXT,
+    "birthPlace" TEXT,
+    "gender" TEXT,
+    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "source" TEXT NOT NULL DEFAULT 'manual',
+    "sourceUserId" TEXT,
+    "lastServeAt" TIMESTAMP(3),
+    "serveCount" INTEGER NOT NULL DEFAULT 0,
+    "totalSpend" DECIMAL(12,2) NOT NULL DEFAULT 0,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ClientBook_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ClientServeLog" (
+    "id" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "amount" DECIMAL(10,2),
+    "summary" TEXT NOT NULL,
+    "servedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ClientServeLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ClientReminder" (
+    "id" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "dueAt" TIMESTAMP(3) NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "aiDraft" TEXT,
+    "doneAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ClientReminder_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AdminFeedback" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "userName" TEXT NOT NULL DEFAULT '',
+    "page" TEXT NOT NULL DEFAULT '',
+    "category" TEXT NOT NULL DEFAULT 'OTHER',
+    "title" TEXT NOT NULL,
+    "detail" TEXT NOT NULL,
+    "images" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "reply" TEXT NOT NULL DEFAULT '',
+    "source" TEXT NOT NULL DEFAULT 'MANUAL',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AdminFeedback_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PayeeAccount" (
+    "id" TEXT NOT NULL,
+    "subjectType" TEXT NOT NULL,
+    "subjectId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "settlementMode" TEXT NOT NULL DEFAULT 'PLATFORM_COLLECT',
+    "platformRate" DECIMAL(5,4) NOT NULL DEFAULT 0,
+    "subjectName" TEXT,
+    "licenseNo" TEXT,
+    "licenseImage" TEXT,
+    "legalName" TEXT,
+    "legalIdCard" TEXT,
+    "legalIdFront" TEXT,
+    "legalIdBack" TEXT,
+    "bankName" TEXT,
+    "bankBranch" TEXT,
+    "bankAccount" TEXT,
+    "bankHolder" TEXT,
+    "huifuId" TEXT,
+    "wxSubMchId" TEXT,
+    "alipayPid" TEXT,
+    "payeeOpenid" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "channel" TEXT NOT NULL DEFAULT 'HUIFU',
+    "channelApplyId" TEXT,
+    "submittedAt" TIMESTAMP(3),
+    "activatedAt" TIMESTAMP(3),
+    "rejectReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PayeeAccount_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ZidianEntry" (
+    "char" TEXT NOT NULL,
+    "traditional" TEXT NOT NULL DEFAULT '',
+    "pinyin" TEXT NOT NULL DEFAULT '',
+    "pinyinPlain" TEXT NOT NULL DEFAULT '',
+    "explanation" TEXT NOT NULL DEFAULT '',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ZidianEntry_pkey" PRIMARY KEY ("char")
+);
+
+-- CreateTable
+CREATE TABLE "HanziStroke" (
+    "char" TEXT NOT NULL,
+    "strokes" JSONB NOT NULL,
+    "medians" JSONB NOT NULL,
+    "radStrokes" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "HanziStroke_pkey" PRIMARY KEY ("char")
+);
+
+-- CreateTable
+CREATE TABLE "PractitionerProfile" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "proExpireAt" TIMESTAMP(3),
+    "proFirstAt" TIMESTAMP(3),
+    "brandName" TEXT,
+    "title" TEXT,
+    "avatarText" TEXT,
+    "logoUrl" TEXT,
+    "sealText" TEXT,
+    "slogan" TEXT,
+    "contact" TEXT,
+    "disclaimer" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PractitionerProfile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PractitionerReport" (
+    "id" TEXT NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "clientId" TEXT,
+    "toolKey" TEXT,
+    "type" TEXT NOT NULL,
+    "typeLabel" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "clientName" TEXT NOT NULL,
+    "clientBirth" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'draft',
+    "style" TEXT NOT NULL DEFAULT 'classic',
+    "paipan" JSONB,
+    "chapters" JSONB,
+    "shareToken" TEXT,
+    "sharedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PractitionerReport_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PractitionerCase" (
+    "id" TEXT NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "reportId" TEXT,
+    "title" TEXT NOT NULL,
+    "clientName" TEXT,
+    "category" TEXT NOT NULL DEFAULT 'bazi',
+    "summary" TEXT,
+    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "fee" DECIMAL(12,2) NOT NULL DEFAULT 0,
+    "occurredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PractitionerCase_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PractitionerAppointment" (
+    "id" TEXT NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "clientId" TEXT,
+    "clientName" TEXT NOT NULL,
+    "startAt" TIMESTAMP(3) NOT NULL,
+    "service" TEXT NOT NULL,
+    "channel" TEXT NOT NULL DEFAULT '到店',
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "note" TEXT,
+    "fee" DECIMAL(12,2),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PractitionerAppointment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PractitionerLedger" (
+    "id" TEXT NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "clientName" TEXT,
+    "service" TEXT NOT NULL,
+    "amount" DECIMAL(12,2) NOT NULL,
+    "payMethod" TEXT NOT NULL DEFAULT '现金',
+    "note" TEXT,
+    "occurredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PractitionerLedger_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "BaziCase" (
+    "id" TEXT NOT NULL,
+    "gender" TEXT NOT NULL,
+    "yearPillar" TEXT NOT NULL,
+    "monthPillar" TEXT NOT NULL,
+    "dayPillar" TEXT NOT NULL,
+    "hourPillar" TEXT NOT NULL,
+    "birthYear" INTEGER,
+    "birthMonth" INTEGER,
+    "birthDay" INTEGER,
+    "birthHour" INTEGER,
+    "source" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "realName" TEXT,
+    "era" TEXT,
+    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "life" JSONB NOT NULL DEFAULT '{}',
+    "events" JSONB NOT NULL DEFAULT '[]',
+    "commentary" TEXT,
+    "commentarySrc" TEXT,
+    "contributorId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "reviewNote" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "reviewedBy" TEXT,
+    "consent" BOOLEAN NOT NULL DEFAULT false,
+    "desensitized" BOOLEAN NOT NULL DEFAULT true,
+    "quality" INTEGER NOT NULL DEFAULT 0,
+    "isPremium" BOOLEAN NOT NULL DEFAULT false,
+    "viewCount" INTEGER NOT NULL DEFAULT 0,
+    "attemptCount" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "BaziCase_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "BaziCaseAttempt" (
+    "id" TEXT NOT NULL,
+    "caseId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "guess" JSONB NOT NULL DEFAULT '{}',
+    "revealedAt" TIMESTAMP(3),
+    "selfScore" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "BaziCaseAttempt_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleGovernanceNotice" (
+    "id" TEXT NOT NULL,
+    "recipientId" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "eventKey" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "targetType" TEXT NOT NULL,
+    "targetId" TEXT NOT NULL,
+    "occurredAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CircleGovernanceNotice_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedCustomer_requestKey_key" ON "ManagedCustomer"("requestKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedDeployment_customerId_key" ON "ManagedDeployment"("customerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedDeployment_spaceKey_key" ON "ManagedDeployment"("spaceKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedDeployment_databaseName_key" ON "ManagedDeployment"("databaseName");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedDeployment_databaseRole_key" ON "ManagedDeployment"("databaseRole");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedDeployment_authKeyFingerprint_key" ON "ManagedDeployment"("authKeyFingerprint");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedApplication_applicationId_key" ON "ManagedApplication"("applicationId");
+
+-- CreateIndex
+CREATE INDEX "ManagedApplication_customerId_idx" ON "ManagedApplication"("customerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedMembership_customerId_userId_key" ON "ManagedMembership"("customerId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseIdentity_userId_key" ON "ManagedLeaseIdentity"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseIdentity_username_key" ON "ManagedLeaseIdentity"("username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseRefresh_tokenHash_key" ON "ManagedLeaseRefresh"("tokenHash");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseRefresh_identityId_expiresAt_idx" ON "ManagedLeaseRefresh"("identityId", "expiresAt");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseAftercare_customerId_orderId_idx" ON "ManagedLeaseAftercare"("customerId", "orderId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseAftercare_userId_requestKey_key" ON "ManagedLeaseAftercare"("userId", "requestKey");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseExport_customerId_userId_expiresAt_idx" ON "ManagedLeaseExport"("customerId", "userId", "expiresAt");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseResource_customerId_applicationId_kind_id_idx" ON "ManagedLeaseResource"("customerId", "applicationId", "kind", "id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseResource_customerId_kind_resourceId_key" ON "ManagedLeaseResource"("customerId", "kind", "resourceId");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseAsset_customerId_applicationId_id_idx" ON "ManagedLeaseAsset"("customerId", "applicationId", "id");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseJoinRequest_customerId_circleId_status_id_idx" ON "ManagedLeaseJoinRequest"("customerId", "circleId", "status", "id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseJoinRequest_customerId_circleId_userId_key" ON "ManagedLeaseJoinRequest"("customerId", "circleId", "userId");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseOrder_customerId_applicationId_userId_orderId_idx" ON "ManagedLeaseOrder"("customerId", "applicationId", "userId", "orderId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseOrder_customerId_applicationId_userId_requestKe_key" ON "ManagedLeaseOrder"("customerId", "applicationId", "userId", "requestKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeasePostRequest_postId_key" ON "ManagedLeasePostRequest"("postId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeasePostRequest_customerId_applicationId_userId_req_key" ON "ManagedLeasePostRequest"("customerId", "applicationId", "userId", "requestKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseCircleMute_customerId_circleId_userId_key" ON "ManagedLeaseCircleMute"("customerId", "circleId", "userId");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseChatSession_customerId_applicationId_userId_id_idx" ON "ManagedLeaseChatSession"("customerId", "applicationId", "userId", "id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseChatMessage_sessionId_requestKey_key" ON "ManagedLeaseChatMessage"("sessionId", "requestKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseChatMessage_sessionId_sequence_key" ON "ManagedLeaseChatMessage"("sessionId", "sequence");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseAudit_customerId_createdAt_idx" ON "ManagedLeaseAudit"("customerId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ManagedBrandOrder_customerId_applicationId_buyerId_idx" ON "ManagedBrandOrder"("customerId", "applicationId", "buyerId");
+
+-- CreateIndex
+CREATE INDEX "ManagedBrandRequest_customerId_state_createdAt_idx" ON "ManagedBrandRequest"("customerId", "state", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedBrandRequest_applicationId_buyerId_requestKey_key" ON "ManagedBrandRequest"("applicationId", "buyerId", "requestKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedBrandRequest_buyerId_clientRequestId_key" ON "ManagedBrandRequest"("buyerId", "clientRequestId");
+
+-- CreateIndex
+CREATE INDEX "ManagedAudit_customerId_createdAt_idx" ON "ManagedAudit"("customerId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ImFallbackMessage_fromUserId_toUserId_createdAt_idx" ON "ImFallbackMessage"("fromUserId", "toUserId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ImFallbackMessage_toUserId_fromUserId_createdAt_idx" ON "ImFallbackMessage"("toUserId", "fromUserId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ImFallbackMessage_toUserId_readAt_createdAt_idx" ON "ImFallbackMessage"("toUserId", "readAt", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ImFallbackConversationPreference_userId_isPinned_updatedAt_idx" ON "ImFallbackConversationPreference"("userId", "isPinned", "updatedAt");
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_phone_key" ON "User"("phone");
 
@@ -4592,10 +7373,58 @@ CREATE INDEX "User_attributionSource_attributionStationId_idx" ON "User"("attrib
 CREATE INDEX "User_attributionStationId_idx" ON "User"("attributionStationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Auth_openId_key" ON "Auth"("openId");
+CREATE INDEX "Auth_userId_provider_idx" ON "Auth"("userId", "provider");
 
 -- CreateIndex
-CREATE INDEX "Auth_userId_provider_idx" ON "Auth"("userId", "provider");
+CREATE INDEX "Auth_provider_unionId_idx" ON "Auth"("provider", "unionId");
+
+-- CreateIndex
+CREATE INDEX "Auth_appId_openId_idx" ON "Auth"("appId", "openId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Auth_provider_namespace_subject_key" ON "Auth"("provider", "namespace", "subject");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EntitlementLedger_idempotencyKey_key" ON "EntitlementLedger"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "EntitlementLedger_userId_entitlementKey_createdAt_idx" ON "EntitlementLedger"("userId", "entitlementKey", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "EntitlementLedger_sourceType_sourceId_idx" ON "EntitlementLedger"("sourceType", "sourceId");
+
+-- CreateIndex
+CREATE INDEX "EntitlementLedger_reversesLedgerId_idx" ON "EntitlementLedger"("reversesLedgerId");
+
+-- CreateIndex
+CREATE INDEX "EntitlementLedger_validUntil_idx" ON "EntitlementLedger"("validUntil");
+
+-- CreateIndex
+CREATE INDEX "EntitlementBalance_userId_status_validUntil_idx" ON "EntitlementBalance"("userId", "status", "validUntil");
+
+-- CreateIndex
+CREATE INDEX "EntitlementBalance_entitlementKey_resourceId_idx" ON "EntitlementBalance"("entitlementKey", "resourceId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EntitlementBalance_userId_entitlementKey_resourceType_resou_key" ON "EntitlementBalance"("userId", "entitlementKey", "resourceType", "resourceId", "scope");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LegacyMigrationBatch_batchKey_key" ON "LegacyMigrationBatch"("batchKey");
+
+-- CreateIndex
+CREATE INDEX "LegacyMigrationBatch_sourceSystem_status_idx" ON "LegacyMigrationBatch"("sourceSystem", "status");
+
+-- CreateIndex
+CREATE INDEX "LegacyMigrationBatch_createdAt_idx" ON "LegacyMigrationBatch"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "LegacyMigrationMap_batchId_entityType_idx" ON "LegacyMigrationMap"("batchId", "entityType");
+
+-- CreateIndex
+CREATE INDEX "LegacyMigrationMap_sourceSystem_entityType_targetId_idx" ON "LegacyMigrationMap"("sourceSystem", "entityType", "targetId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LegacyMigrationMap_sourceSystem_entityType_legacyId_key" ON "LegacyMigrationMap"("sourceSystem", "entityType", "legacyId");
 
 -- CreateIndex
 CREATE INDEX "UserRole_roleType_idx" ON "UserRole"("roleType");
@@ -4611,6 +7440,9 @@ CREATE INDEX "RolePermission_roleType_idx" ON "RolePermission"("roleType");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RolePermission_roleType_permissionId_key" ON "RolePermission"("roleType", "permissionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MemberPurchase_orderId_key" ON "MemberPurchase"("orderId");
 
 -- CreateIndex
 CREATE INDEX "MemberPurchase_userId_idx" ON "MemberPurchase"("userId");
@@ -4664,6 +7496,27 @@ CREATE INDEX "Circle_status_memberCount_idx" ON "Circle"("status", "memberCount"
 CREATE INDEX "Circle_stationId_idx" ON "Circle"("stationId");
 
 -- CreateIndex
+CREATE INDEX "CircleMembershipExpiryNotice_removedAt_memberId_idx" ON "CircleMembershipExpiryNotice"("removedAt", "memberId");
+
+-- CreateIndex
+CREATE INDEX "CircleMembershipExpiryNotice_cache_pending_idx" ON "CircleMembershipExpiryNotice"("cacheClearedAt", "removedAt", "memberId");
+
+-- CreateIndex
+CREATE INDEX "CircleMembershipCacheInvalidation_pending_idx" ON "CircleMembershipCacheInvalidation"("clearedAt", "createdAt", "id");
+
+-- CreateIndex
+CREATE INDEX "CourseCacheInvalidation_pending_idx" ON "CourseCacheInvalidation"("clearedAt", "createdAt", "id");
+
+-- CreateIndex
+CREATE INDEX "CirclePublishGrant_circleId_status_createdAt_idx" ON "CirclePublishGrant"("circleId", "status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CirclePublishGrant_applicantId_createdAt_idx" ON "CirclePublishGrant"("applicantId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CirclePublishGrant_status_createdAt_idx" ON "CirclePublishGrant"("status", "createdAt");
+
+-- CreateIndex
 CREATE INDEX "CircleMember_userId_idx" ON "CircleMember"("userId");
 
 -- CreateIndex
@@ -4671,6 +7524,21 @@ CREATE INDEX "CircleMember_userId_joinedAt_idx" ON "CircleMember"("userId", "joi
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CircleMember_circleId_userId_key" ON "CircleMember"("circleId", "userId");
+
+-- CreateIndex
+CREATE INDEX "CircleKnowledgeShowcaseNode_circleId_status_displayOrder_idx" ON "CircleKnowledgeShowcaseNode"("circleId", "status", "displayOrder");
+
+-- CreateIndex
+CREATE INDEX "CircleKnowledgeShowcaseNode_sourceKnowledgeId_idx" ON "CircleKnowledgeShowcaseNode"("sourceKnowledgeId");
+
+-- CreateIndex
+CREATE INDEX "CircleKnowledgeShowcaseEdge_circleId_status_displayOrder_idx" ON "CircleKnowledgeShowcaseEdge"("circleId", "status", "displayOrder");
+
+-- CreateIndex
+CREATE INDEX "CircleKnowledgeShowcaseEdge_fromId_idx" ON "CircleKnowledgeShowcaseEdge"("fromId");
+
+-- CreateIndex
+CREATE INDEX "CircleKnowledgeShowcaseEdge_toId_idx" ON "CircleKnowledgeShowcaseEdge"("toId");
 
 -- CreateIndex
 CREATE INDEX "CircleAnnouncement_circleId_isTop_createdAt_idx" ON "CircleAnnouncement"("circleId", "isTop", "createdAt");
@@ -4686,6 +7554,42 @@ CREATE INDEX "CircleAnnouncementRead_userId_idx" ON "CircleAnnouncementRead"("us
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CircleAnnouncementRead_announcementId_userId_key" ON "CircleAnnouncementRead"("announcementId", "userId");
+
+-- CreateIndex
+CREATE INDEX "CircleRule_circleId_sortOrder_idx" ON "CircleRule"("circleId", "sortOrder");
+
+-- CreateIndex
+CREATE INDEX "CircleRuleAck_userId_idx" ON "CircleRuleAck"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleRuleAck_circleId_userId_key" ON "CircleRuleAck"("circleId", "userId");
+
+-- CreateIndex
+CREATE INDEX "CircleViolation_circleId_userId_type_status_idx" ON "CircleViolation"("circleId", "userId", "type", "status");
+
+-- CreateIndex
+CREATE INDEX "CircleViolation_circleId_createdAt_idx" ON "CircleViolation"("circleId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CircleViolation_userId_createdAt_idx" ON "CircleViolation"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CircleViolation_type_status_expiresAt_idx" ON "CircleViolation"("type", "status", "expiresAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleAppeal_violationId_key" ON "CircleAppeal"("violationId");
+
+-- CreateIndex
+CREATE INDEX "CircleAppeal_status_deadlineAt_idx" ON "CircleAppeal"("status", "deadlineAt");
+
+-- CreateIndex
+CREATE INDEX "CircleAppeal_circleId_createdAt_idx" ON "CircleAppeal"("circleId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CircleAppeal_userId_idx" ON "CircleAppeal"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleGovernanceConfig_circleId_key" ON "CircleGovernanceConfig"("circleId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CircleInviteCode_code_key" ON "CircleInviteCode"("code");
@@ -4745,6 +7649,15 @@ CREATE INDEX "Content_categoryLevel1_status_idx" ON "Content"("categoryLevel1", 
 CREATE INDEX "Content_categoryLevel2_status_idx" ON "Content"("categoryLevel2", "status");
 
 -- CreateIndex
+CREATE INDEX "ContentCatalog_stationId_sourceType_active_idx" ON "ContentCatalog"("stationId", "sourceType", "active");
+
+-- CreateIndex
+CREATE INDEX "ContentCatalog_circleId_sourceType_active_idx" ON "ContentCatalog"("circleId", "sourceType", "active");
+
+-- CreateIndex
+CREATE INDEX "ContentCatalog_sourceType_indexedAt_idx" ON "ContentCatalog"("sourceType", "indexedAt");
+
+-- CreateIndex
 CREATE INDEX "Article_circleId_createdAt_idx" ON "Article"("circleId", "createdAt");
 
 -- CreateIndex
@@ -4758,6 +7671,9 @@ CREATE INDEX "Article_stationId_idx" ON "Article"("stationId");
 
 -- CreateIndex
 CREATE INDEX "Article_auditStatus_createdAt_idx" ON "Article"("auditStatus", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Article_auditStatus_viewCount_idx" ON "Article"("auditStatus", "viewCount");
 
 -- CreateIndex
 CREATE INDEX "Article_circleId_auditStatus_createdAt_idx" ON "Article"("circleId", "auditStatus", "createdAt");
@@ -4806,6 +7722,9 @@ CREATE INDEX "Course_type_auditStatus_idx" ON "Course"("type", "auditStatus");
 
 -- CreateIndex
 CREATE INDEX "Course_circleId_auditStatus_createdAt_idx" ON "Course"("circleId", "auditStatus", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Course_courseOrigin_idx" ON "Course"("courseOrigin");
 
 -- CreateIndex
 CREATE INDEX "CourseChapter_courseId_sortOrder_idx" ON "CourseChapter"("courseId", "sortOrder");
@@ -4862,6 +7781,9 @@ CREATE UNIQUE INDEX "StationBundleAccess_bundleId_operatorId_key" ON "StationBun
 CREATE INDEX "Product_categoryId_idx" ON "Product"("categoryId");
 
 -- CreateIndex
+CREATE INDEX "Product_freightTemplateId_idx" ON "Product"("freightTemplateId");
+
+-- CreateIndex
 CREATE INDEX "Product_status_idx" ON "Product"("status");
 
 -- CreateIndex
@@ -4880,7 +7802,67 @@ CREATE INDEX "Product_circleId_idx" ON "Product"("circleId");
 CREATE INDEX "Product_supplierType_status_idx" ON "Product"("supplierType", "status");
 
 -- CreateIndex
-CREATE INDEX "ProductSku_productId_idx" ON "ProductSku"("productId");
+CREATE INDEX "ProductSku_productId_isActive_idx" ON "ProductSku"("productId", "isActive");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "InventoryMovement_idempotencyKey_key" ON "InventoryMovement"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "InventoryMovement_merchantId_createdAt_idx" ON "InventoryMovement"("merchantId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "InventoryMovement_merchantId_productId_skuId_createdAt_idx" ON "InventoryMovement"("merchantId", "productId", "skuId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "InventoryMovement_referenceType_referenceId_idx" ON "InventoryMovement"("referenceType", "referenceId");
+
+-- CreateIndex
+CREATE INDEX "InventoryAlertSetting_merchantId_enabled_idx" ON "InventoryAlertSetting"("merchantId", "enabled");
+
+-- CreateIndex
+CREATE INDEX "InventoryAlertSetting_productId_skuId_idx" ON "InventoryAlertSetting"("productId", "skuId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "InventoryAlertSetting_merchantId_stockKey_key" ON "InventoryAlertSetting"("merchantId", "stockKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PurchaseOrder_orderNo_key" ON "PurchaseOrder"("orderNo");
+
+-- CreateIndex
+CREATE INDEX "PurchaseOrder_merchantId_status_createdAt_idx" ON "PurchaseOrder"("merchantId", "status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PurchaseOrder_merchantId_supplierName_idx" ON "PurchaseOrder"("merchantId", "supplierName");
+
+-- CreateIndex
+CREATE INDEX "PurchaseOrder_supplierId_createdAt_idx" ON "PurchaseOrder"("supplierId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PurchaseOrderItem_purchaseOrderId_idx" ON "PurchaseOrderItem"("purchaseOrderId");
+
+-- CreateIndex
+CREATE INDEX "PurchaseOrderItem_productId_skuId_idx" ON "PurchaseOrderItem"("productId", "skuId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PurchaseReceipt_receiptNo_key" ON "PurchaseReceipt"("receiptNo");
+
+-- CreateIndex
+CREATE INDEX "PurchaseReceipt_merchantId_receivedAt_idx" ON "PurchaseReceipt"("merchantId", "receivedAt");
+
+-- CreateIndex
+CREATE INDEX "PurchaseReceipt_purchaseOrderId_receivedAt_idx" ON "PurchaseReceipt"("purchaseOrderId", "receivedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PurchaseReceipt_merchantId_requestId_key" ON "PurchaseReceipt"("merchantId", "requestId");
+
+-- CreateIndex
+CREATE INDEX "PurchaseReceiptItem_receiptId_idx" ON "PurchaseReceiptItem"("receiptId");
+
+-- CreateIndex
+CREATE INDEX "PurchaseReceiptItem_purchaseOrderItemId_idx" ON "PurchaseReceiptItem"("purchaseOrderItemId");
+
+-- CreateIndex
+CREATE INDEX "PurchaseReceiptItem_productId_skuId_idx" ON "PurchaseReceiptItem"("productId", "skuId");
 
 -- CreateIndex
 CREATE INDEX "Order_userId_createdAt_idx" ON "Order"("userId", "createdAt");
@@ -4916,6 +7898,9 @@ CREATE INDEX "Order_merchantId_status_idx" ON "Order"("merchantId", "status");
 CREATE UNIQUE INDEX "Order_payTransactionId_key" ON "Order"("payTransactionId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Order_userId_clientRequestId_key" ON "Order"("userId", "clientRequestId");
+
+-- CreateIndex
 CREATE INDEX "Coupon_status_idx" ON "Coupon"("status");
 
 -- CreateIndex
@@ -4944,6 +7929,12 @@ CREATE UNIQUE INDEX "TeacherCertification_userId_key" ON "TeacherCertification"(
 
 -- CreateIndex
 CREATE INDEX "TeacherCertification_status_idx" ON "TeacherCertification"("status");
+
+-- CreateIndex
+CREATE INDEX "OrderBusinessNotice_createdAt_eventKey_idx" ON "OrderBusinessNotice"("createdAt", "eventKey");
+
+-- CreateIndex
+CREATE INDEX "FreeCourseEnrollmentNotice_createdAt_id_idx" ON "FreeCourseEnrollmentNotice"("createdAt", "id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "OrderLogistics_orderId_key" ON "OrderLogistics"("orderId");
@@ -4977,6 +7968,39 @@ CREATE INDEX "LiveRoom_status_startTime_idx" ON "LiveRoom"("status", "startTime"
 
 -- CreateIndex
 CREATE INDEX "LiveRoom_hostUserId_status_idx" ON "LiveRoom"("hostUserId", "status");
+
+-- CreateIndex
+CREATE INDEX "LiveBooking_roomId_status_idx" ON "LiveBooking"("roomId", "status");
+
+-- CreateIndex
+CREATE INDEX "LiveBooking_userId_status_createdAt_idx" ON "LiveBooking"("userId", "status", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LiveBooking_roomId_userId_key" ON "LiveBooking"("roomId", "userId");
+
+-- CreateIndex
+CREATE INDEX "LiveWatchProgress_userId_lastWatchedAt_idx" ON "LiveWatchProgress"("userId", "lastWatchedAt");
+
+-- CreateIndex
+CREATE INDEX "LiveWatchProgress_liveRoomId_lastWatchedAt_idx" ON "LiveWatchProgress"("liveRoomId", "lastWatchedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LiveWatchProgress_userId_liveRoomId_key" ON "LiveWatchProgress"("userId", "liveRoomId");
+
+-- CreateIndex
+CREATE INDEX "LiveQualityPackage_status_quality_idx" ON "LiveQualityPackage"("status", "quality");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LiveQuotaAccount_userId_key" ON "LiveQuotaAccount"("userId");
+
+-- CreateIndex
+CREATE INDEX "LiveQuotaAccount_userId_idx" ON "LiveQuotaAccount"("userId");
+
+-- CreateIndex
+CREATE INDEX "LiveQuotaRecord_userId_createdAt_idx" ON "LiveQuotaRecord"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "LiveQuotaRecord_userId_type_idx" ON "LiveQuotaRecord"("userId", "type");
 
 -- CreateIndex
 CREATE INDEX "LiveReview_roomId_idx" ON "LiveReview"("roomId");
@@ -5081,6 +8105,18 @@ CREATE INDEX "PaipanRecord_createdAt_idx" ON "PaipanRecord"("createdAt");
 CREATE INDEX "PaipanRecord_paipanType_idx" ON "PaipanRecord"("paipanType");
 
 -- CreateIndex
+CREATE INDEX "CoupleChart_initiatorId_idx" ON "CoupleChart"("initiatorId");
+
+-- CreateIndex
+CREATE INDEX "CoupleChart_partnerId_idx" ON "CoupleChart"("partnerId");
+
+-- CreateIndex
+CREATE INDEX "CoupleChart_scene_idx" ON "CoupleChart"("scene");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CoupleChart_inviteToken_key" ON "CoupleChart"("inviteToken");
+
+-- CreateIndex
 CREATE INDEX "PaipanGroup_userId_paipanType_idx" ON "PaipanGroup"("userId", "paipanType");
 
 -- CreateIndex
@@ -5130,6 +8166,12 @@ CREATE INDEX "AiAnalysisRecord_modelUsed_createdAt_idx" ON "AiAnalysisRecord"("m
 
 -- CreateIndex
 CREATE INDEX "AiAnalysisRecord_paipanRecordId_idx" ON "AiAnalysisRecord"("paipanRecordId");
+
+-- CreateIndex
+CREATE INDEX "AiAnalysisRecord_paipanRecordId_school_idx" ON "AiAnalysisRecord"("paipanRecordId", "school");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AiAnalysisRecord_userId_paipanRecordId_analyzeType_school_key" ON "AiAnalysisRecord"("userId", "paipanRecordId", "analyzeType", "school");
 
 -- CreateIndex
 CREATE INDEX "AiCacheEntry_scene_queryHash_idx" ON "AiCacheEntry"("scene", "queryHash");
@@ -5270,6 +8312,15 @@ CREATE INDEX "StationPick_stationId_sortOrder_idx" ON "StationPick"("stationId",
 CREATE UNIQUE INDEX "StationPick_stationId_contentType_contentId_key" ON "StationPick"("stationId", "contentType", "contentId");
 
 -- CreateIndex
+CREATE INDEX "StationPinnedContent_stationId_board_idx" ON "StationPinnedContent"("stationId", "board");
+
+-- CreateIndex
+CREATE INDEX "StationPinnedContent_board_contentType_contentId_idx" ON "StationPinnedContent"("board", "contentType", "contentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StationPinnedContent_stationId_board_slotIndex_key" ON "StationPinnedContent"("stationId", "board", "slotIndex");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Operator_userId_key" ON "Operator"("userId");
 
 -- CreateIndex
@@ -5288,6 +8339,18 @@ CREATE INDEX "OperatorEarning_operatorId_createdAt_idx" ON "OperatorEarning"("op
 CREATE INDEX "OperatorEarning_orderId_idx" ON "OperatorEarning"("orderId");
 
 -- CreateIndex
+CREATE INDEX "TeamTask_operatorId_status_idx" ON "TeamTask"("operatorId", "status");
+
+-- CreateIndex
+CREATE INDEX "TeamTask_status_deadline_idx" ON "TeamTask"("status", "deadline");
+
+-- CreateIndex
+CREATE INDEX "TeamTaskProgress_stationMasterId_idx" ON "TeamTaskProgress"("stationMasterId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TeamTaskProgress_taskId_stationMasterId_key" ON "TeamTaskProgress"("taskId", "stationMasterId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "StationOffline_ownerUserId_key" ON "StationOffline"("ownerUserId");
 
 -- CreateIndex
@@ -5297,10 +8360,37 @@ CREATE INDEX "OfflineCourse_stationId_startTime_idx" ON "OfflineCourse"("station
 CREATE INDEX "OfflineCourse_auditStatus_idx" ON "OfflineCourse"("auditStatus");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "OfflineCourseReview_registrationId_key" ON "OfflineCourseReview"("registrationId");
+
+-- CreateIndex
+CREATE INDEX "OfflineCourseReview_courseId_createdAt_idx" ON "OfflineCourseReview"("courseId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "OfflineCourseReview_stationId_idx" ON "OfflineCourseReview"("stationId");
+
+-- CreateIndex
+CREATE INDEX "OfflineCourseReview_userId_idx" ON "OfflineCourseReview"("userId");
+
+-- CreateIndex
 CREATE INDEX "OfflineCourseRegistration_userId_idx" ON "OfflineCourseRegistration"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "OfflineCourseRegistration_courseId_userId_key" ON "OfflineCourseRegistration"("courseId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OfflineCourseRegistration_courseId_verifyCode_key" ON "OfflineCourseRegistration"("courseId", "verifyCode");
+
+-- CreateIndex
+CREATE INDEX "StationEvent_stationId_startTime_idx" ON "StationEvent"("stationId", "startTime");
+
+-- CreateIndex
+CREATE INDEX "StationEvent_status_startTime_idx" ON "StationEvent"("status", "startTime");
+
+-- CreateIndex
+CREATE INDEX "StationEventRegistration_userId_idx" ON "StationEventRegistration"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StationEventRegistration_eventId_userId_key" ON "StationEventRegistration"("eventId", "userId");
 
 -- CreateIndex
 CREATE INDEX "StationProduct_stationId_idx" ON "StationProduct"("stationId");
@@ -5345,13 +8435,31 @@ CREATE INDEX "InstituteCourseRegistration_userId_idx" ON "InstituteCourseRegistr
 CREATE UNIQUE INDEX "InstituteCourseRegistration_courseId_userId_key" ON "InstituteCourseRegistration"("courseId", "userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "InstituteMember_userId_key" ON "InstituteMember"("userId");
+CREATE INDEX "InstituteMember_userId_idx" ON "InstituteMember"("userId");
 
 -- CreateIndex
 CREATE INDEX "InstituteMember_role_status_idx" ON "InstituteMember"("role", "status");
 
 -- CreateIndex
 CREATE INDEX "InstituteMember_joinYear_idx" ON "InstituteMember"("joinYear");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "InstituteMember_instituteId_userId_key" ON "InstituteMember"("instituteId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "InstituteBoardGroup_circleId_key" ON "InstituteBoardGroup"("circleId");
+
+-- CreateIndex
+CREATE INDEX "InstituteBoardGroup_instituteId_status_idx" ON "InstituteBoardGroup"("instituteId", "status");
+
+-- CreateIndex
+CREATE INDEX "InstituteBoardGroup_leaderId_idx" ON "InstituteBoardGroup"("leaderId");
+
+-- CreateIndex
+CREATE INDEX "InstituteSharePoint_memberId_createdAt_idx" ON "InstituteSharePoint"("memberId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "InstituteSharePoint_userId_idx" ON "InstituteSharePoint"("userId");
 
 -- CreateIndex
 CREATE INDEX "InstituteTask_memberId_status_idx" ON "InstituteTask"("memberId", "status");
@@ -5483,7 +8591,25 @@ CREATE INDEX "AuditLog_action_createdAt_idx" ON "AuditLog"("action", "createdAt"
 CREATE INDEX "AuditLog_targetType_targetId_idx" ON "AuditLog"("targetType", "targetId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "SensitiveWord_word_key" ON "SensitiveWord"("word");
+
+-- CreateIndex
+CREATE INDEX "SensitiveWord_category_enabled_idx" ON "SensitiveWord"("category", "enabled");
+
+-- CreateIndex
+CREATE INDEX "ComplianceScanRecord_status_level_scanAt_idx" ON "ComplianceScanRecord"("status", "level", "scanAt");
+
+-- CreateIndex
+CREATE INDEX "ComplianceScanRecord_targetType_targetId_idx" ON "ComplianceScanRecord"("targetType", "targetId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ComplianceScanRecord_targetType_targetId_field_word_key" ON "ComplianceScanRecord"("targetType", "targetId", "field", "word");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "ConfigSystem_configKey_key" ON "ConfigSystem"("configKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Notification_idempotencyKey_key" ON "Notification"("idempotencyKey");
 
 -- CreateIndex
 CREATE INDEX "Notification_userId_isRead_createdAt_idx" ON "Notification"("userId", "isRead", "createdAt");
@@ -5492,10 +8618,31 @@ CREATE INDEX "Notification_userId_isRead_createdAt_idx" ON "Notification"("userI
 CREATE INDEX "Notification_userId_type_createdAt_idx" ON "Notification"("userId", "type", "createdAt");
 
 -- CreateIndex
+CREATE INDEX "Notification_userId_category_createdAt_idx" ON "Notification"("userId", "category", "createdAt");
+
+-- CreateIndex
 CREATE INDEX "TrackEvent_action_createdAt_idx" ON "TrackEvent"("action", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "TrackEvent_userId_createdAt_idx" ON "TrackEvent"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "UserTag_tag_idx" ON "UserTag"("tag");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserTag_userId_tag_key" ON "UserTag"("userId", "tag");
+
+-- CreateIndex
+CREATE INDEX "FunnelDaily_funnel_date_idx" ON "FunnelDaily"("funnel", "date");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "FunnelDaily_date_funnel_step_key" ON "FunnelDaily"("date", "funnel", "step");
+
+-- CreateIndex
+CREATE INDEX "SentinelAlert_rule_resolvedAt_idx" ON "SentinelAlert"("rule", "resolvedAt");
+
+-- CreateIndex
+CREATE INDEX "SentinelAlert_firedAt_idx" ON "SentinelAlert"("firedAt");
 
 -- CreateIndex
 CREATE INDEX "SearchHistory_userId_createdAt_idx" ON "SearchHistory"("userId", "createdAt");
@@ -5523,6 +8670,18 @@ CREATE INDEX "ClassicBook_title_idx" ON "ClassicBook"("title");
 
 -- CreateIndex
 CREATE INDEX "ClassicChapter_bookId_sortOrder_idx" ON "ClassicChapter"("bookId", "sortOrder");
+
+-- CreateIndex
+CREATE INDEX "ClassicSegment_chapterId_idx" ON "ClassicSegment"("chapterId");
+
+-- CreateIndex
+CREATE INDEX "ClassicSegment_contentHash_idx" ON "ClassicSegment"("contentHash");
+
+-- CreateIndex
+CREATE INDEX "ClassicSegment_chapterId_versionTag_idx" ON "ClassicSegment"("chapterId", "versionTag");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ClassicSegment_chapterId_sortOrder_key" ON "ClassicSegment"("chapterId", "sortOrder");
 
 -- CreateIndex
 CREATE INDEX "ClassicCommentary_bookId_idx" ON "ClassicCommentary"("bookId");
@@ -5573,6 +8732,9 @@ CREATE INDEX "ClassicAnnotation_bookId_idx" ON "ClassicAnnotation"("bookId");
 CREATE INDEX "ClassicAnnotation_chapterId_idx" ON "ClassicAnnotation"("chapterId");
 
 -- CreateIndex
+CREATE INDEX "ClassicAnnotation_segmentId_idx" ON "ClassicAnnotation"("segmentId");
+
+-- CreateIndex
 CREATE INDEX "ClassicAnnotation_bookId_startPos_idx" ON "ClassicAnnotation"("bookId", "startPos");
 
 -- CreateIndex
@@ -5585,7 +8747,226 @@ CREATE INDEX "ClassicReadingNote_userId_bookId_idx" ON "ClassicReadingNote"("use
 CREATE INDEX "ClassicReadingNote_chapterId_idx" ON "ClassicReadingNote"("chapterId");
 
 -- CreateIndex
+CREATE INDEX "ClassicReadingNote_segmentId_idx" ON "ClassicReadingNote"("segmentId");
+
+-- CreateIndex
+CREATE INDEX "ClassicReadingNote_userId_chapterId_position_idx" ON "ClassicReadingNote"("userId", "chapterId", "position");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TextDerivedAsset_assetKey_key" ON "TextDerivedAsset"("assetKey");
+
+-- CreateIndex
+CREATE INDEX "TextDerivedAsset_sourceType_sourceId_idx" ON "TextDerivedAsset"("sourceType", "sourceId");
+
+-- CreateIndex
+CREATE INDEX "TextDerivedAsset_contentHash_idx" ON "TextDerivedAsset"("contentHash");
+
+-- CreateIndex
+CREATE INDEX "TextDerivedAsset_resultHash_idx" ON "TextDerivedAsset"("resultHash");
+
+-- CreateIndex
+CREATE INDEX "TextDerivedAsset_processingStatus_idx" ON "TextDerivedAsset"("processingStatus");
+
+-- CreateIndex
+CREATE INDEX "TextDerivedAsset_qualityVersion_idx" ON "TextDerivedAsset"("qualityVersion");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AudioAsset_assetKey_key" ON "AudioAsset"("assetKey");
+
+-- CreateIndex
+CREATE INDEX "AudioAsset_sourceType_sourceId_idx" ON "AudioAsset"("sourceType", "sourceId");
+
+-- CreateIndex
+CREATE INDEX "AudioAsset_textVersion_idx" ON "AudioAsset"("textVersion");
+
+-- CreateIndex
+CREATE INDEX "AudioAsset_storageKey_idx" ON "AudioAsset"("storageKey");
+
+-- CreateIndex
+CREATE INDEX "AudioAsset_synthesisStatus_idx" ON "AudioAsset"("synthesisStatus");
+
+-- CreateIndex
+CREATE INDEX "AudioAsset_isPlayable_idx" ON "AudioAsset"("isPlayable");
+
+-- CreateIndex
+CREATE INDEX "AudioAsset_ttsProvider_voiceId_idx" ON "AudioAsset"("ttsProvider", "voiceId");
+
+-- CreateIndex
+CREATE INDEX "ReportDialogueTurn_reportId_userId_createdAt_idx" ON "ReportDialogueTurn"("reportId", "userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ReportDialogueTurn_userId_createdAt_idx" ON "ReportDialogueTurn"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "VoiceAgentProfile_status_idx" ON "VoiceAgentProfile"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceAgentProfile_ownerType_ownerId_key" ON "VoiceAgentProfile"("ownerType", "ownerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceAgentProfileVersion_profileId_version_key" ON "VoiceAgentProfileVersion"("profileId", "version");
+
+-- CreateIndex
+CREATE INDEX "VoiceTrialUsage_userId_idx" ON "VoiceTrialUsage"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceTrialUsage_userId_agentId_key" ON "VoiceTrialUsage"("userId", "agentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceQuotaAccount_ownerType_ownerId_key" ON "VoiceQuotaAccount"("ownerType", "ownerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceSession_requestId_key" ON "VoiceSession"("requestId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceSession_startIdempotencyKey_key" ON "VoiceSession"("startIdempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "VoiceSession_userId_startedAt_idx" ON "VoiceSession"("userId", "startedAt");
+
+-- CreateIndex
+CREATE INDEX "VoiceSession_accountId_idx" ON "VoiceSession"("accountId");
+
+-- CreateIndex
+CREATE INDEX "VoiceSession_status_idx" ON "VoiceSession"("status");
+
+-- CreateIndex
+CREATE INDEX "VoiceSession_provider_providerSessionId_idx" ON "VoiceSession"("provider", "providerSessionId");
+
+-- CreateIndex
+CREATE INDEX "VoiceSession_deviceId_deviceBindingVersion_idx" ON "VoiceSession"("deviceId", "deviceBindingVersion");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceQuotaLedger_idempotencyKey_key" ON "VoiceQuotaLedger"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "VoiceQuotaLedger_accountId_createdAt_idx" ON "VoiceQuotaLedger"("accountId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "VoiceQuotaLedger_sessionId_idx" ON "VoiceQuotaLedger"("sessionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceProviderAttempt_idempotencyKey_key" ON "VoiceProviderAttempt"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "VoiceProviderAttempt_sessionId_idx" ON "VoiceProviderAttempt"("sessionId");
+
+-- CreateIndex
+CREATE INDEX "VoiceProviderAttempt_provider_createdAt_idx" ON "VoiceProviderAttempt"("provider", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "VoiceUsageEvent_sessionId_idx" ON "VoiceUsageEvent"("sessionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceUsageEvent_provider_eventId_key" ON "VoiceUsageEvent"("provider", "eventId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceDevice_serialHash_key" ON "VoiceDevice"("serialHash");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceDevice_bindCodeHash_key" ON "VoiceDevice"("bindCodeHash");
+
+-- CreateIndex
+CREATE INDEX "VoiceDevice_currentUserId_idx" ON "VoiceDevice"("currentUserId");
+
+-- CreateIndex
+CREATE INDEX "VoiceDevice_circleId_idx" ON "VoiceDevice"("circleId");
+
+-- CreateIndex
+CREATE INDEX "VoiceDevice_status_idx" ON "VoiceDevice"("status");
+
+-- CreateIndex
+CREATE INDEX "VoiceDeviceBinding_userId_idx" ON "VoiceDeviceBinding"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceDeviceBinding_deviceId_bindingVersion_key" ON "VoiceDeviceBinding"("deviceId", "bindingVersion");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceDeviceTransfer_tokenHash_key" ON "VoiceDeviceTransfer"("tokenHash");
+
+-- CreateIndex
+CREATE INDEX "VoiceDeviceTransfer_deviceId_status_idx" ON "VoiceDeviceTransfer"("deviceId", "status");
+
+-- CreateIndex
+CREATE INDEX "VoiceFirmwareRelease_boardName_status_idx" ON "VoiceFirmwareRelease"("boardName", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceFirmwareRelease_boardName_version_key" ON "VoiceFirmwareRelease"("boardName", "version");
+
+-- CreateIndex
+CREATE INDEX "VoiceFirmwareDeviceState_deviceId_idx" ON "VoiceFirmwareDeviceState"("deviceId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VoiceFirmwareDeviceState_releaseId_deviceId_key" ON "VoiceFirmwareDeviceState"("releaseId", "deviceId");
+
+-- CreateIndex
+CREATE INDEX "AudioListenProgress_userId_bookId_idx" ON "AudioListenProgress"("userId", "bookId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AudioListenProgress_userId_chapterId_textType_key" ON "AudioListenProgress"("userId", "chapterId", "textType");
+
+-- CreateIndex
+CREATE INDEX "PaipanReportKnowledge_paipanType_status_idx" ON "PaipanReportKnowledge"("paipanType", "status");
+
+-- CreateIndex
+CREATE INDEX "PaipanReportKnowledge_paipanType_school_status_idx" ON "PaipanReportKnowledge"("paipanType", "school", "status");
+
+-- CreateIndex
+CREATE INDEX "PaipanReportKnowledge_topic_idx" ON "PaipanReportKnowledge"("topic");
+
+-- CreateIndex
+CREATE INDEX "PaipanReportKnowledge_debateKey_idx" ON "PaipanReportKnowledge"("debateKey");
+
+-- CreateIndex
+CREATE INDEX "PaipanReportKnowledge_paipanType_stance_idx" ON "PaipanReportKnowledge"("paipanType", "stance");
+
+-- CreateIndex
+CREATE INDEX "PaipanReportKnowledge_sourceKind_idx" ON "PaipanReportKnowledge"("sourceKind");
+
+-- CreateIndex
+CREATE INDEX "PaipanCaseFeedback_paipanType_status_idx" ON "PaipanCaseFeedback"("paipanType", "status");
+
+-- CreateIndex
+CREATE INDEX "PaipanCaseFeedback_paipanType_verdict_outcomeAt_idx" ON "PaipanCaseFeedback"("paipanType", "verdict", "outcomeAt");
+
+-- CreateIndex
+CREATE INDEX "PaipanCaseFeedback_paipanRecordId_idx" ON "PaipanCaseFeedback"("paipanRecordId");
+
+-- CreateIndex
+CREATE INDEX "PaipanCaseFeedback_userId_createdAt_idx" ON "PaipanCaseFeedback"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PaipanCaseFeedback_status_outcomeAt_idx" ON "PaipanCaseFeedback"("status", "outcomeAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AiUsageRecord_idempotencyKey_key" ON "AiUsageRecord"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "AiUsageRecord_userId_idx" ON "AiUsageRecord"("userId");
+
+-- CreateIndex
+CREATE INDEX "AiUsageRecord_scene_idx" ON "AiUsageRecord"("scene");
+
+-- CreateIndex
+CREATE INDEX "AiUsageRecord_provider_model_idx" ON "AiUsageRecord"("provider", "model");
+
+-- CreateIndex
+CREATE INDEX "AiUsageRecord_createdAt_idx" ON "AiUsageRecord"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "AiUsageRecord_relatedType_relatedId_idx" ON "AiUsageRecord"("relatedType", "relatedId");
+
+-- CreateIndex
 CREATE INDEX "ClassicBookList_status_sortOrder_idx" ON "ClassicBookList"("status", "sortOrder");
+
+-- CreateIndex
+CREATE INDEX "ClassicCopyright_bookId_idx" ON "ClassicCopyright"("bookId");
+
+-- CreateIndex
+CREATE INDEX "ClassicCopyright_license_idx" ON "ClassicCopyright"("license");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ClassicCopyright_bookId_sourceName_key" ON "ClassicCopyright"("bookId", "sourceName");
 
 -- CreateIndex
 CREATE INDEX "ClassicFavorite_userId_idx" ON "ClassicFavorite"("userId");
@@ -5594,7 +8975,16 @@ CREATE INDEX "ClassicFavorite_userId_idx" ON "ClassicFavorite"("userId");
 CREATE UNIQUE INDEX "ClassicFavorite_userId_bookId_key" ON "ClassicFavorite"("userId", "bookId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "ClassicCompanionSession_userId_bookId_key" ON "ClassicCompanionSession"("userId", "bookId");
+
+-- CreateIndex
+CREATE INDEX "ClassicCompanionMessage_sessionId_createdAt_idx" ON "ClassicCompanionMessage"("sessionId", "createdAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "CommissionConfig_configKey_key" ON "CommissionConfig"("configKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Withdrawal_payoutRef_key" ON "Withdrawal"("payoutRef");
 
 -- CreateIndex
 CREATE INDEX "Withdrawal_userId_idx" ON "Withdrawal"("userId");
@@ -5633,6 +9023,9 @@ CREATE INDEX "VirtualCoinTransaction_refId_idx" ON "VirtualCoinTransaction"("ref
 CREATE INDEX "VirtualCoinTransaction_userId_type_createdAt_idx" ON "VirtualCoinTransaction"("userId", "type", "createdAt");
 
 -- CreateIndex
+CREATE INDEX "CirclePostRewardNotice_createdAt_debitId_idx" ON "CirclePostRewardNotice"("createdAt", "debitId");
+
+-- CreateIndex
 CREATE INDEX "VideoCreatorWithdrawal_userId_createdAt_idx" ON "VideoCreatorWithdrawal"("userId", "createdAt");
 
 -- CreateIndex
@@ -5646,6 +9039,30 @@ CREATE INDEX "VirtualCoinRecharge_userId_createdAt_idx" ON "VirtualCoinRecharge"
 
 -- CreateIndex
 CREATE INDEX "VirtualCoinRecharge_orderNo_idx" ON "VirtualCoinRecharge"("orderNo");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppleIapPurchase_transactionId_key" ON "AppleIapPurchase"("transactionId");
+
+-- CreateIndex
+CREATE INDEX "AppleIapPurchase_userId_createdAt_idx" ON "AppleIapPurchase"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AppleIapPurchase_originalTransactionId_idx" ON "AppleIapPurchase"("originalTransactionId");
+
+-- CreateIndex
+CREATE INDEX "AppleIapPurchase_status_createdAt_idx" ON "AppleIapPurchase"("status", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppleIapNotification_notificationUuid_key" ON "AppleIapNotification"("notificationUuid");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppleIapNotification_payloadHash_key" ON "AppleIapNotification"("payloadHash");
+
+-- CreateIndex
+CREATE INDEX "AppleIapNotification_transactionId_idx" ON "AppleIapNotification"("transactionId");
+
+-- CreateIndex
+CREATE INDEX "AppleIapNotification_notificationType_createdAt_idx" ON "AppleIapNotification"("notificationType", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "PaidQuestion_circleId_status_idx" ON "PaidQuestion"("circleId", "status");
@@ -5673,6 +9090,9 @@ CREATE INDEX "AudioCallRecord_stationId_idx" ON "AudioCallRecord"("stationId");
 
 -- CreateIndex
 CREATE INDEX "AudioCallBilling_callRecordId_idx" ON "AudioCallBilling"("callRecordId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "GiftRecord_idempotencyKey_key" ON "GiftRecord"("idempotencyKey");
 
 -- CreateIndex
 CREATE INDEX "GiftRecord_liveRoomId_createdAt_idx" ON "GiftRecord"("liveRoomId", "createdAt");
@@ -5745,6 +9165,15 @@ CREATE INDEX "WebhookSubscription_event_isActive_idx" ON "WebhookSubscription"("
 
 -- CreateIndex
 CREATE INDEX "WebhookSubscription_url_idx" ON "WebhookSubscription"("url");
+
+-- CreateIndex
+CREATE INDEX "WebhookDelivery_status_nextAttemptAt_idx" ON "WebhookDelivery"("status", "nextAttemptAt");
+
+-- CreateIndex
+CREATE INDEX "WebhookDelivery_subscriptionId_createdAt_idx" ON "WebhookDelivery"("subscriptionId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "WebhookDelivery_subscriptionId_eventKey_key" ON "WebhookDelivery"("subscriptionId", "eventKey");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "FeatureFlag_key_key" ON "FeatureFlag"("key");
@@ -5936,6 +9365,9 @@ CREATE INDEX "SettlementOrder_userId_period_idx" ON "SettlementOrder"("userId", 
 CREATE INDEX "SettlementOrder_status_idx" ON "SettlementOrder"("status");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "WithdrawalApplication_payoutRef_key" ON "WithdrawalApplication"("payoutRef");
+
+-- CreateIndex
 CREATE INDEX "WithdrawalApplication_userId_status_idx" ON "WithdrawalApplication"("userId", "status");
 
 -- CreateIndex
@@ -6050,6 +9482,9 @@ CREATE INDEX "BountyQuestion_category_status_idx" ON "BountyQuestion"("category"
 CREATE INDEX "BountyQuestion_stationId_idx" ON "BountyQuestion"("stationId");
 
 -- CreateIndex
+CREATE INDEX "BountyQuestion_closedBy_closedAt_idx" ON "BountyQuestion"("closedBy", "closedAt");
+
+-- CreateIndex
 CREATE INDEX "BountyReview_questionId_idx" ON "BountyReview"("questionId");
 
 -- CreateIndex
@@ -6077,7 +9512,34 @@ CREATE INDEX "Merchant_status_idx" ON "Merchant"("status");
 CREATE INDEX "Merchant_status_createdAt_idx" ON "Merchant"("status", "createdAt");
 
 -- CreateIndex
+CREATE INDEX "Merchant_qualificationStatus_qualificationNextReviewAt_idx" ON "Merchant"("qualificationStatus", "qualificationNextReviewAt");
+
+-- CreateIndex
+CREATE INDEX "Merchant_riskLevel_idx" ON "Merchant"("riskLevel");
+
+-- CreateIndex
 CREATE INDEX "Merchant_shopName_idx" ON "Merchant"("shopName");
+
+-- CreateIndex
+CREATE INDEX "MerchantSupplier_merchantId_status_updatedAt_idx" ON "MerchantSupplier"("merchantId", "status", "updatedAt");
+
+-- CreateIndex
+CREATE INDEX "MerchantSupplier_merchantId_lastPurchasedAt_idx" ON "MerchantSupplier"("merchantId", "lastPurchasedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MerchantSupplier_merchantId_name_key" ON "MerchantSupplier"("merchantId", "name");
+
+-- CreateIndex
+CREATE INDEX "MerchantQualificationReview_merchantId_createdAt_idx" ON "MerchantQualificationReview"("merchantId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "MerchantQualificationReview_status_createdAt_idx" ON "MerchantQualificationReview"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "MerchantMember_userId_status_idx" ON "MerchantMember"("userId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MerchantMember_merchantId_userId_key" ON "MerchantMember"("merchantId", "userId");
 
 -- CreateIndex
 CREATE INDEX "MerchantViolation_merchantId_idx" ON "MerchantViolation"("merchantId");
@@ -6102,6 +9564,21 @@ CREATE INDEX "merchant_settlements_createdAt_idx" ON "merchant_settlements"("cre
 
 -- CreateIndex
 CREATE INDEX "MerchantAgreement_merchantId_idx" ON "MerchantAgreement"("merchantId");
+
+-- CreateIndex
+CREATE INDEX "MerchantMetric_date_idx" ON "MerchantMetric"("date");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MerchantMetric_merchantId_date_key" ON "MerchantMetric"("merchantId", "date");
+
+-- CreateIndex
+CREATE INDEX "MerchantCreditLog_merchantId_idx" ON "MerchantCreditLog"("merchantId");
+
+-- CreateIndex
+CREATE INDEX "MerchantPunishment_merchantId_idx" ON "MerchantPunishment"("merchantId");
+
+-- CreateIndex
+CREATE INDEX "MerchantPunishment_merchantId_status_idx" ON "MerchantPunishment"("merchantId", "status");
 
 -- CreateIndex
 CREATE INDEX "CircleKnowledge_circleId_status_idx" ON "CircleKnowledge"("circleId", "status");
@@ -6176,6 +9653,18 @@ CREATE INDEX "TaskTransferLog_taskId_idx" ON "TaskTransferLog"("taskId");
 CREATE INDEX "TaskTransferLog_createdAt_idx" ON "TaskTransferLog"("createdAt");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "OpsTask_sourceEventId_key" ON "OpsTask"("sourceEventId");
+
+-- CreateIndex
+CREATE INDEX "OpsTask_status_priority_idx" ON "OpsTask"("status", "priority");
+
+-- CreateIndex
+CREATE INDEX "OpsTask_type_status_idx" ON "OpsTask"("type", "status");
+
+-- CreateIndex
+CREATE INDEX "OpsTask_createdAt_idx" ON "OpsTask"("createdAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "AutomationPermission_resource_action_key" ON "AutomationPermission"("resource", "action");
 
 -- CreateIndex
@@ -6212,6 +9701,9 @@ CREATE INDEX "InstituteContentPurchase_contentId_idx" ON "InstituteContentPurcha
 CREATE INDEX "InstituteContentPurchase_userId_idx" ON "InstituteContentPurchase"("userId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "InstituteContentPurchase_contentId_userId_key" ON "InstituteContentPurchase"("contentId", "userId");
+
+-- CreateIndex
 CREATE INDEX "TemporaryReferralConfig_validFrom_validTo_idx" ON "TemporaryReferralConfig"("validFrom", "validTo");
 
 -- CreateIndex
@@ -6233,6 +9725,15 @@ CREATE UNIQUE INDEX "UserPoints_userId_key" ON "UserPoints"("userId");
 CREATE INDEX "PointsRecord_userId_createdAt_idx" ON "PointsRecord"("userId", "createdAt");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "MemberMonthlyBenefitNotice_couponRecordId_key" ON "MemberMonthlyBenefitNotice"("couponRecordId");
+
+-- CreateIndex
+CREATE INDEX "MemberMonthlyBenefitNotice_createdAt_id_idx" ON "MemberMonthlyBenefitNotice"("createdAt", "id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MemberMonthlyBenefitNotice_userId_source_key" ON "MemberMonthlyBenefitNotice"("userId", "source");
+
+-- CreateIndex
 CREATE INDEX "PointsProduct_status_sortOrder_idx" ON "PointsProduct"("status", "sortOrder");
 
 -- CreateIndex
@@ -6248,7 +9749,28 @@ CREATE INDEX "GrowthRecord_userId_createdAt_idx" ON "GrowthRecord"("userId", "cr
 CREATE INDEX "LegalDocument_type_status_idx" ON "LegalDocument"("type", "status");
 
 -- CreateIndex
-CREATE INDEX "AppVersion_platform_publishedAt_idx" ON "AppVersion"("platform", "publishedAt");
+CREATE UNIQUE INDEX "AppVersion_activePlatformKey_key" ON "AppVersion"("activePlatformKey");
+
+-- CreateIndex
+CREATE INDEX "AppVersion_applicationId_platform_channelId_status_publishe_idx" ON "AppVersion"("applicationId", "platform", "channelId", "status", "publishedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppVersion_applicationId_platform_channelId_version_buildNu_key" ON "AppVersion"("applicationId", "platform", "channelId", "version", "buildNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppDistribution_clientKey_key" ON "AppDistribution"("clientKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppDistribution_applicationId_platform_channelId_key" ON "AppDistribution"("applicationId", "platform", "channelId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ResourceRelease_activeScopeKey_key" ON "ResourceRelease"("activeScopeKey");
+
+-- CreateIndex
+CREATE INDEX "ResourceRelease_applicationId_platform_channelId_status_idx" ON "ResourceRelease"("applicationId", "platform", "channelId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ResourceRelease_applicationId_platform_channelId_resourceVe_key" ON "ResourceRelease"("applicationId", "platform", "channelId", "resourceVersion");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TopicTag_name_key" ON "TopicTag"("name");
@@ -6323,6 +9845,12 @@ CREATE INDEX "CircleRevenueRecord_settled_idx" ON "CircleRevenueRecord"("settled
 CREATE INDEX "CircleRevenueRecord_type_idx" ON "CircleRevenueRecord"("type");
 
 -- CreateIndex
+CREATE INDEX "CircleRevenueRecord_orderId_idx" ON "CircleRevenueRecord"("orderId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleRevenueRecord_type_orderId_key" ON "CircleRevenueRecord"("type", "orderId");
+
+-- CreateIndex
 CREATE INDEX "CircleRevenueSplit_circleId_idx" ON "CircleRevenueSplit"("circleId");
 
 -- CreateIndex
@@ -6384,6 +9912,15 @@ CREATE INDEX "Competition_organizerId_idx" ON "Competition"("organizerId");
 
 -- CreateIndex
 CREATE INDEX "Competition_createdAt_idx" ON "Competition"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "CompetitionStage_competitionId_status_idx" ON "CompetitionStage"("competitionId", "status");
+
+-- CreateIndex
+CREATE INDEX "CompetitionStage_status_startAt_idx" ON "CompetitionStage"("status", "startAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CompetitionStage_competitionId_seq_key" ON "CompetitionStage"("competitionId", "seq");
 
 -- CreateIndex
 CREATE INDEX "CompetitionRound_competitionId_sortOrder_idx" ON "CompetitionRound"("competitionId", "sortOrder");
@@ -6459,6 +9996,12 @@ CREATE INDEX "CompetitionArticle_isFeatured_idx" ON "CompetitionArticle"("isFeat
 
 -- CreateIndex
 CREATE INDEX "CompetitionArticle_qualityRating_idx" ON "CompetitionArticle"("qualityRating");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CompetitionTalent_userId_key" ON "CompetitionTalent"("userId");
+
+-- CreateIndex
+CREATE INDEX "CompetitionTalent_talentScore_idx" ON "CompetitionTalent"("talentScore");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "SpecialTeacher_userId_key" ON "SpecialTeacher"("userId");
@@ -6545,6 +10088,9 @@ CREATE INDEX "CommissionRecall_userId_status_idx" ON "CommissionRecall"("userId"
 CREATE INDEX "CommissionRecall_refundId_idx" ON "CommissionRecall"("refundId");
 
 -- CreateIndex
+CREATE INDEX "CommissionRecall_status_createdAt_idx" ON "CommissionRecall"("status", "createdAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "UserWallet_userId_key" ON "UserWallet"("userId");
 
 -- CreateIndex
@@ -6578,6 +10124,12 @@ CREATE INDEX "ConsultCall_callerId_idx" ON "ConsultCall"("callerId");
 CREATE INDEX "ConsultCall_expertId_status_idx" ON "ConsultCall"("expertId", "status");
 
 -- CreateIndex
+CREATE INDEX "ConsultCall_expertId_rating_idx" ON "ConsultCall"("expertId", "rating");
+
+-- CreateIndex
+CREATE INDEX "ConsultCall_disputeStatus_idx" ON "ConsultCall"("disputeStatus");
+
+-- CreateIndex
 CREATE INDEX "ImC2CCounter_toUserId_idx" ON "ImC2CCounter"("toUserId");
 
 -- CreateIndex
@@ -6586,11 +10138,248 @@ CREATE UNIQUE INDEX "ImC2CCounter_fromUserId_toUserId_key" ON "ImC2CCounter"("fr
 -- CreateIndex
 CREATE INDEX "fund_approval_status_createdAt_idx" ON "fund_approval"("status", "createdAt");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "SettlementRule_scene_key" ON "SettlementRule"("scene");
+
+-- CreateIndex
+CREATE INDEX "LedgerEntry_refType_refId_idx" ON "LedgerEntry"("refType", "refId");
+
+-- CreateIndex
+CREATE INDEX "LedgerEntry_beneficiaryType_beneficiaryId_status_idx" ON "LedgerEntry"("beneficiaryType", "beneficiaryId", "status");
+
+-- CreateIndex
+CREATE INDEX "LedgerEntry_status_availableAt_idx" ON "LedgerEntry"("status", "availableAt");
+
+-- CreateIndex
+CREATE INDEX "LedgerEntry_scene_createdAt_idx" ON "LedgerEntry"("scene", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ChannelClick_userId_targetType_targetId_clickedAt_idx" ON "ChannelClick"("userId", "targetType", "targetId", "clickedAt");
+
+-- CreateIndex
+CREATE INDEX "ChannelClick_expiresAt_idx" ON "ChannelClick"("expiresAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AdvisorRule_ruleKey_key" ON "AdvisorRule"("ruleKey");
+
+-- CreateIndex
+CREATE INDEX "AdvisorRule_roleType_enabled_idx" ON "AdvisorRule"("roleType", "enabled");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserGrowth_userId_key" ON "UserGrowth"("userId");
+
+-- CreateIndex
+CREATE INDEX "Mentorship_mentorId_idx" ON "Mentorship"("mentorId");
+
+-- CreateIndex
+CREATE INDEX "Mentorship_discipleId_idx" ON "Mentorship"("discipleId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserBotQuota_userId_botConfigId_key" ON "UserBotQuota"("userId", "botConfigId");
+
+-- CreateIndex
+CREATE INDEX "BotQuotaReservation_status_createdAt_idx" ON "BotQuotaReservation"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "BotQuotaReservation_userId_botConfigId_createdAt_idx" ON "BotQuotaReservation"("userId", "botConfigId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "BotQuotaPurchase_userId_createdAt_idx" ON "BotQuotaPurchase"("userId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "BotQuotaPurchase_userId_botConfigId_requestId_key" ON "BotQuotaPurchase"("userId", "botConfigId", "requestId");
+
+-- CreateIndex
+CREATE INDEX "ContentQualityScore_targetType_total_idx" ON "ContentQualityScore"("targetType", "total");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ContentQualityScore_targetType_targetId_key" ON "ContentQualityScore"("targetType", "targetId");
+
+-- CreateIndex
+CREATE INDEX "UserAchievement_userId_earnedAt_idx" ON "UserAchievement"("userId", "earnedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserAchievement_userId_code_key" ON "UserAchievement"("userId", "code");
+
+-- CreateIndex
+CREATE INDEX "UserTitle_userId_equipped_idx" ON "UserTitle"("userId", "equipped");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserTitle_userId_code_key" ON "UserTitle"("userId", "code");
+
+-- CreateIndex
+CREATE INDEX "AdvisorInsight_roleType_subjectId_status_idx" ON "AdvisorInsight"("roleType", "subjectId", "status");
+
+-- CreateIndex
+CREATE INDEX "AdvisorInsight_ruleKey_subjectId_createdAt_idx" ON "AdvisorInsight"("ruleKey", "subjectId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SharedReadingGroup_inviteToken_key" ON "SharedReadingGroup"("inviteToken");
+
+-- CreateIndex
+CREATE INDEX "SharedReadingGroup_status_idx" ON "SharedReadingGroup"("status");
+
+-- CreateIndex
+CREATE INDEX "SharedReadingGroup_initiatorId_idx" ON "SharedReadingGroup"("initiatorId");
+
+-- CreateIndex
+CREATE INDEX "SharedReadingMember_groupId_idx" ON "SharedReadingMember"("groupId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SharedReadingMember_groupId_userId_key" ON "SharedReadingMember"("groupId", "userId");
+
+-- CreateIndex
+CREATE INDEX "SolarTermParticipation_userId_idx" ON "SolarTermParticipation"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SolarTermParticipation_userId_termName_year_key" ON "SolarTermParticipation"("userId", "termName", "year");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DashboardDaily_date_key" ON "DashboardDaily"("date");
+
+-- CreateIndex
+CREATE INDEX "MarketingContent_userId_createdAt_idx" ON "MarketingContent"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ClientBook_ownerId_createdAt_idx" ON "ClientBook"("ownerId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ClientBook_ownerId_lastServeAt_idx" ON "ClientBook"("ownerId", "lastServeAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ClientBook_ownerId_sourceUserId_key" ON "ClientBook"("ownerId", "sourceUserId");
+
+-- CreateIndex
+CREATE INDEX "ClientServeLog_clientId_servedAt_idx" ON "ClientServeLog"("clientId", "servedAt");
+
+-- CreateIndex
+CREATE INDEX "ClientServeLog_ownerId_servedAt_idx" ON "ClientServeLog"("ownerId", "servedAt");
+
+-- CreateIndex
+CREATE INDEX "ClientReminder_ownerId_status_dueAt_idx" ON "ClientReminder"("ownerId", "status", "dueAt");
+
+-- CreateIndex
+CREATE INDEX "ClientReminder_clientId_kind_dueAt_idx" ON "ClientReminder"("clientId", "kind", "dueAt");
+
+-- CreateIndex
+CREATE INDEX "AdminFeedback_status_createdAt_idx" ON "AdminFeedback"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AdminFeedback_category_status_idx" ON "AdminFeedback"("category", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PayeeAccount_huifuId_key" ON "PayeeAccount"("huifuId");
+
+-- CreateIndex
+CREATE INDEX "PayeeAccount_status_idx" ON "PayeeAccount"("status");
+
+-- CreateIndex
+CREATE INDEX "PayeeAccount_userId_idx" ON "PayeeAccount"("userId");
+
+-- CreateIndex
+CREATE INDEX "PayeeAccount_settlementMode_status_idx" ON "PayeeAccount"("settlementMode", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PayeeAccount_subjectType_subjectId_key" ON "PayeeAccount"("subjectType", "subjectId");
+
+-- CreateIndex
+CREATE INDEX "ZidianEntry_pinyin_idx" ON "ZidianEntry"("pinyin");
+
+-- CreateIndex
+CREATE INDEX "ZidianEntry_pinyinPlain_idx" ON "ZidianEntry"("pinyinPlain");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PractitionerProfile_userId_key" ON "PractitionerProfile"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PractitionerReport_shareToken_key" ON "PractitionerReport"("shareToken");
+
+-- CreateIndex
+CREATE INDEX "PractitionerReport_ownerId_updatedAt_idx" ON "PractitionerReport"("ownerId", "updatedAt");
+
+-- CreateIndex
+CREATE INDEX "PractitionerCase_ownerId_occurredAt_idx" ON "PractitionerCase"("ownerId", "occurredAt");
+
+-- CreateIndex
+CREATE INDEX "PractitionerAppointment_ownerId_startAt_idx" ON "PractitionerAppointment"("ownerId", "startAt");
+
+-- CreateIndex
+CREATE INDEX "PractitionerLedger_ownerId_occurredAt_idx" ON "PractitionerLedger"("ownerId", "occurredAt");
+
+-- CreateIndex
+CREATE INDEX "BaziCase_dayPillar_status_idx" ON "BaziCase"("dayPillar", "status");
+
+-- CreateIndex
+CREATE INDEX "BaziCase_status_source_idx" ON "BaziCase"("status", "source");
+
+-- CreateIndex
+CREATE INDEX "BaziCase_status_isPremium_idx" ON "BaziCase"("status", "isPremium");
+
+-- CreateIndex
+CREATE INDEX "BaziCase_contributorId_idx" ON "BaziCase"("contributorId");
+
+-- CreateIndex
+CREATE INDEX "BaziCaseAttempt_userId_idx" ON "BaziCaseAttempt"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "BaziCaseAttempt_caseId_userId_key" ON "BaziCaseAttempt"("caseId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleGovernanceNotice_eventKey_key" ON "CircleGovernanceNotice"("eventKey");
+
+-- CreateIndex
+CREATE INDEX "CircleGovernanceNotice_occurredAt_id_idx" ON "CircleGovernanceNotice"("occurredAt", "id");
+
+-- AddForeignKey
+ALTER TABLE "ManagedDeployment" ADD CONSTRAINT "ManagedDeployment_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "ManagedCustomer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedApplication" ADD CONSTRAINT "ManagedApplication_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "ManagedCustomer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedGrant" ADD CONSTRAINT "ManagedGrant_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "ManagedCustomer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedMembership" ADD CONSTRAINT "ManagedMembership_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "ManagedCustomer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedLeaseIdentity" ADD CONSTRAINT "ManagedLeaseIdentity_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedLeaseRefresh" ADD CONSTRAINT "ManagedLeaseRefresh_identityId_fkey" FOREIGN KEY ("identityId") REFERENCES "ManagedLeaseIdentity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedLeaseOrder" ADD CONSTRAINT "ManagedLeaseOrder_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedLeasePostRequest" ADD CONSTRAINT "ManagedLeasePostRequest_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedLeaseChatMessage" ADD CONSTRAINT "ManagedLeaseChatMessage_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "ManagedLeaseChatSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedLeaseExportPage" ADD CONSTRAINT "ManagedLeaseExportPage_exportId_fkey" FOREIGN KEY ("exportId") REFERENCES "ManagedLeaseExport"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedBrandOrder" ADD CONSTRAINT "ManagedBrandOrder_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedAudit" ADD CONSTRAINT "ManagedAudit_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "ManagedCustomer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_competitionInviteCodeId_fkey" FOREIGN KEY ("competitionInviteCodeId") REFERENCES "CompetitionInviteCode"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Auth" ADD CONSTRAINT "Auth_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EntitlementLedger" ADD CONSTRAINT "EntitlementLedger_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EntitlementBalance" ADD CONSTRAINT "EntitlementBalance_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LegacyMigrationMap" ADD CONSTRAINT "LegacyMigrationMap_batchId_fkey" FOREIGN KEY ("batchId") REFERENCES "LegacyMigrationBatch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -6600,6 +10389,9 @@ ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "MemberPurchase" ADD CONSTRAINT "MemberPurchase_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MemberPurchase" ADD CONSTRAINT "MemberPurchase_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ReferralRelation" ADD CONSTRAINT "ReferralRelation_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -6629,10 +10421,40 @@ ALTER TABLE "Circle" ADD CONSTRAINT "Circle_ownerId_fkey" FOREIGN KEY ("ownerId"
 ALTER TABLE "Circle" ADD CONSTRAINT "Circle_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "Station"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "CircleMembershipExpiryNotice" ADD CONSTRAINT "CircleMembershipExpiryNotice_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleMembershipExpiryNotice" ADD CONSTRAINT "CircleMembershipExpiryNotice_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CirclePublishGrant" ADD CONSTRAINT "CirclePublishGrant_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CirclePublishGrant" ADD CONSTRAINT "CirclePublishGrant_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CirclePublishGrant" ADD CONSTRAINT "CirclePublishGrant_reviewerId_fkey" FOREIGN KEY ("reviewerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "CircleMember" ADD CONSTRAINT "CircleMember_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CircleMember" ADD CONSTRAINT "CircleMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleKnowledgeShowcaseNode" ADD CONSTRAINT "CircleKnowledgeShowcaseNode_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleKnowledgeShowcaseNode" ADD CONSTRAINT "CircleKnowledgeShowcaseNode_sourceKnowledgeId_fkey" FOREIGN KEY ("sourceKnowledgeId") REFERENCES "CircleKnowledge"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleKnowledgeShowcaseEdge" ADD CONSTRAINT "CircleKnowledgeShowcaseEdge_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleKnowledgeShowcaseEdge" ADD CONSTRAINT "CircleKnowledgeShowcaseEdge_fromId_fkey" FOREIGN KEY ("fromId") REFERENCES "CircleKnowledgeShowcaseNode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleKnowledgeShowcaseEdge" ADD CONSTRAINT "CircleKnowledgeShowcaseEdge_toId_fkey" FOREIGN KEY ("toId") REFERENCES "CircleKnowledgeShowcaseNode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CircleAnnouncement" ADD CONSTRAINT "CircleAnnouncement_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -6728,7 +10550,25 @@ ALTER TABLE "Product" ADD CONSTRAINT "Product_circleId_fkey" FOREIGN KEY ("circl
 ALTER TABLE "Product" ADD CONSTRAINT "Product_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "Station"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Product" ADD CONSTRAINT "Product_freightTemplateId_fkey" FOREIGN KEY ("freightTemplateId") REFERENCES "FreightTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "ProductSku" ADD CONSTRAINT "ProductSku_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PurchaseOrder" ADD CONSTRAINT "PurchaseOrder_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "MerchantSupplier"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PurchaseOrderItem" ADD CONSTRAINT "PurchaseOrderItem_purchaseOrderId_fkey" FOREIGN KEY ("purchaseOrderId") REFERENCES "PurchaseOrder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PurchaseReceipt" ADD CONSTRAINT "PurchaseReceipt_purchaseOrderId_fkey" FOREIGN KEY ("purchaseOrderId") REFERENCES "PurchaseOrder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PurchaseReceiptItem" ADD CONSTRAINT "PurchaseReceiptItem_receiptId_fkey" FOREIGN KEY ("receiptId") REFERENCES "PurchaseReceipt"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PurchaseReceiptItem" ADD CONSTRAINT "PurchaseReceiptItem_purchaseOrderItemId_fkey" FOREIGN KEY ("purchaseOrderItemId") REFERENCES "PurchaseOrderItem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -6749,6 +10589,12 @@ ALTER TABLE "CourseReview" ADD CONSTRAINT "CourseReview_userId_fkey" FOREIGN KEY
 ALTER TABLE "TeacherCertification" ADD CONSTRAINT "TeacherCertification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "OrderBusinessNotice" ADD CONSTRAINT "OrderBusinessNotice_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "FreeCourseEnrollmentNotice" ADD CONSTRAINT "FreeCourseEnrollmentNotice_id_fkey" FOREIGN KEY ("id") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "LiveRoom" ADD CONSTRAINT "LiveRoom_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -6759,6 +10605,15 @@ ALTER TABLE "LiveRoom" ADD CONSTRAINT "LiveRoom_courseId_fkey" FOREIGN KEY ("cou
 
 -- AddForeignKey
 ALTER TABLE "LiveRoom" ADD CONSTRAINT "LiveRoom_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "Station"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LiveBooking" ADD CONSTRAINT "LiveBooking_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "LiveRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LiveWatchProgress" ADD CONSTRAINT "LiveWatchProgress_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LiveWatchProgress" ADD CONSTRAINT "LiveWatchProgress_liveRoomId_fkey" FOREIGN KEY ("liveRoomId") REFERENCES "LiveRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LiveProduct" ADD CONSTRAINT "LiveProduct_liveId_fkey" FOREIGN KEY ("liveId") REFERENCES "LiveRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -6803,6 +10658,12 @@ ALTER TABLE "BotKnowledgeBase" ADD CONSTRAINT "BotKnowledgeBase_botConfigId_fkey
 ALTER TABLE "PaipanRecord" ADD CONSTRAINT "PaipanRecord_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "CoupleChart" ADD CONSTRAINT "CoupleChart_initiatorId_fkey" FOREIGN KEY ("initiatorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CoupleChart" ADD CONSTRAINT "CoupleChart_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "AiAnalysisRecord" ADD CONSTRAINT "AiAnalysisRecord_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -6839,6 +10700,9 @@ ALTER TABLE "Station" ADD CONSTRAINT "Station_operatorId_fkey" FOREIGN KEY ("ope
 ALTER TABLE "StationPick" ADD CONSTRAINT "StationPick_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "Station"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "StationPinnedContent" ADD CONSTRAINT "StationPinnedContent_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "Station"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Operator" ADD CONSTRAINT "Operator_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -6851,13 +10715,31 @@ ALTER TABLE "StationEarning" ADD CONSTRAINT "StationEarning_stationId_fkey" FORE
 ALTER TABLE "OperatorEarning" ADD CONSTRAINT "OperatorEarning_operatorId_fkey" FOREIGN KEY ("operatorId") REFERENCES "Operator"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "TeamTask" ADD CONSTRAINT "TeamTask_operatorId_fkey" FOREIGN KEY ("operatorId") REFERENCES "Operator"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TeamTaskProgress" ADD CONSTRAINT "TeamTaskProgress_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "TeamTask"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TeamTaskProgress" ADD CONSTRAINT "TeamTaskProgress_stationMasterId_fkey" FOREIGN KEY ("stationMasterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "StationOffline" ADD CONSTRAINT "StationOffline_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "OfflineCourse" ADD CONSTRAINT "OfflineCourse_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "StationOffline"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "OfflineCourseReview" ADD CONSTRAINT "OfflineCourseReview_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "OfflineCourse"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "OfflineCourseRegistration" ADD CONSTRAINT "OfflineCourseRegistration_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "OfflineCourse"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StationEvent" ADD CONSTRAINT "StationEvent_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "StationOffline"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StationEventRegistration" ADD CONSTRAINT "StationEventRegistration_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "StationEvent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "StationProduct" ADD CONSTRAINT "StationProduct_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "StationOffline"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -6894,6 +10776,15 @@ ALTER TABLE "InstituteMember" ADD CONSTRAINT "InstituteMember_userId_fkey" FOREI
 
 -- AddForeignKey
 ALTER TABLE "InstituteMember" ADD CONSTRAINT "InstituteMember_instituteId_fkey" FOREIGN KEY ("instituteId") REFERENCES "Institute"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "InstituteBoardGroup" ADD CONSTRAINT "InstituteBoardGroup_instituteId_fkey" FOREIGN KEY ("instituteId") REFERENCES "Institute"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "InstituteBoardGroup" ADD CONSTRAINT "InstituteBoardGroup_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "InstituteSharePoint" ADD CONSTRAINT "InstituteSharePoint_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "InstituteMember"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "InstituteTask" ADD CONSTRAINT "InstituteTask_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "InstituteMember"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -6944,6 +10835,9 @@ ALTER TABLE "SearchHistory" ADD CONSTRAINT "SearchHistory_userId_fkey" FOREIGN K
 ALTER TABLE "ClassicChapter" ADD CONSTRAINT "ClassicChapter_bookId_fkey" FOREIGN KEY ("bookId") REFERENCES "ClassicBook"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "ClassicSegment" ADD CONSTRAINT "ClassicSegment_chapterId_fkey" FOREIGN KEY ("chapterId") REFERENCES "ClassicChapter"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "ClassicCommentary" ADD CONSTRAINT "ClassicCommentary_bookId_fkey" FOREIGN KEY ("bookId") REFERENCES "ClassicBook"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -6980,6 +10874,9 @@ ALTER TABLE "ClassicAnnotation" ADD CONSTRAINT "ClassicAnnotation_bookId_fkey" F
 ALTER TABLE "ClassicAnnotation" ADD CONSTRAINT "ClassicAnnotation_chapterId_fkey" FOREIGN KEY ("chapterId") REFERENCES "ClassicChapter"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "ClassicAnnotation" ADD CONSTRAINT "ClassicAnnotation_segmentId_fkey" FOREIGN KEY ("segmentId") REFERENCES "ClassicSegment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "ClassicReadingNote" ADD CONSTRAINT "ClassicReadingNote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -6987,6 +10884,24 @@ ALTER TABLE "ClassicReadingNote" ADD CONSTRAINT "ClassicReadingNote_bookId_fkey"
 
 -- AddForeignKey
 ALTER TABLE "ClassicReadingNote" ADD CONSTRAINT "ClassicReadingNote_chapterId_fkey" FOREIGN KEY ("chapterId") REFERENCES "ClassicChapter"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClassicReadingNote" ADD CONSTRAINT "ClassicReadingNote_segmentId_fkey" FOREIGN KEY ("segmentId") REFERENCES "ClassicSegment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "VoiceAgentProfileVersion" ADD CONSTRAINT "VoiceAgentProfileVersion_profileId_fkey" FOREIGN KEY ("profileId") REFERENCES "VoiceAgentProfile"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "VoiceDeviceBinding" ADD CONSTRAINT "VoiceDeviceBinding_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "VoiceDevice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "VoiceDeviceTransfer" ADD CONSTRAINT "VoiceDeviceTransfer_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "VoiceDevice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "VoiceFirmwareDeviceState" ADD CONSTRAINT "VoiceFirmwareDeviceState_releaseId_fkey" FOREIGN KEY ("releaseId") REFERENCES "VoiceFirmwareRelease"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClassicCopyright" ADD CONSTRAINT "ClassicCopyright_bookId_fkey" FOREIGN KEY ("bookId") REFERENCES "ClassicBook"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Withdrawal" ADD CONSTRAINT "Withdrawal_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -7004,7 +10919,13 @@ ALTER TABLE "VirtualCoinAccount" ADD CONSTRAINT "VirtualCoinAccount_userId_fkey"
 ALTER TABLE "VirtualCoinTransaction" ADD CONSTRAINT "VirtualCoinTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "CirclePostRewardNotice" ADD CONSTRAINT "CirclePostRewardNotice_debitId_fkey" FOREIGN KEY ("debitId") REFERENCES "VirtualCoinTransaction"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "VirtualCoinRecharge" ADD CONSTRAINT "VirtualCoinRecharge_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppleIapPurchase" ADD CONSTRAINT "AppleIapPurchase_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PaidQuestion" ADD CONSTRAINT "PaidQuestion_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -7038,6 +10959,12 @@ ALTER TABLE "GiftRecord" ADD CONSTRAINT "GiftRecord_liveRoomId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "GiftRecord" ADD CONSTRAINT "GiftRecord_giftId_fkey" FOREIGN KEY ("giftId") REFERENCES "Gift"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LiveGiftSpendingPreference" ADD CONSTRAINT "LiveGiftSpendingPreference_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WebhookDelivery" ADD CONSTRAINT "WebhookDelivery_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "WebhookSubscription"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Ebook" ADD CONSTRAINT "Ebook_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "EbookCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -7121,6 +11048,15 @@ ALTER TABLE "BountyQuestion" ADD CONSTRAINT "BountyQuestion_stationId_fkey" FORE
 ALTER TABLE "Merchant" ADD CONSTRAINT "Merchant_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "MerchantSupplier" ADD CONSTRAINT "MerchantSupplier_merchantId_fkey" FOREIGN KEY ("merchantId") REFERENCES "Merchant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MerchantQualificationReview" ADD CONSTRAINT "MerchantQualificationReview_merchantId_fkey" FOREIGN KEY ("merchantId") REFERENCES "Merchant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MerchantMember" ADD CONSTRAINT "MerchantMember_merchantId_fkey" FOREIGN KEY ("merchantId") REFERENCES "Merchant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "MerchantViolation" ADD CONSTRAINT "MerchantViolation_merchantId_fkey" FOREIGN KEY ("merchantId") REFERENCES "Merchant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -7163,6 +11099,12 @@ ALTER TABLE "Category" ADD CONSTRAINT "Category_parentId_fkey" FOREIGN KEY ("par
 ALTER TABLE "InstituteContentPurchase" ADD CONSTRAINT "InstituteContentPurchase_contentId_fkey" FOREIGN KEY ("contentId") REFERENCES "InstituteContent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "MemberMonthlyBenefitNotice" ADD CONSTRAINT "MemberMonthlyBenefitNotice_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MemberMonthlyBenefitNotice" ADD CONSTRAINT "MemberMonthlyBenefitNotice_id_fkey" FOREIGN KEY ("id") REFERENCES "PointsRecord"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "PointsExchangeRecord" ADD CONSTRAINT "PointsExchangeRecord_productId_fkey" FOREIGN KEY ("productId") REFERENCES "PointsProduct"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -7179,6 +11121,9 @@ ALTER TABLE "CircleGuestEarning" ADD CONSTRAINT "CircleGuestEarning_circleId_fke
 
 -- AddForeignKey
 ALTER TABLE "CircleEvent" ADD CONSTRAINT "CircleEvent_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CompetitionStage" ADD CONSTRAINT "CompetitionStage_competitionId_fkey" FOREIGN KEY ("competitionId") REFERENCES "Competition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CompetitionRound" ADD CONSTRAINT "CompetitionRound_competitionId_fkey" FOREIGN KEY ("competitionId") REFERENCES "Competition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -7235,6 +11180,9 @@ ALTER TABLE "CompetitionArticle" ADD CONSTRAINT "CompetitionArticle_competitionI
 ALTER TABLE "CompetitionArticle" ADD CONSTRAINT "CompetitionArticle_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "CompetitionTalent" ADD CONSTRAINT "CompetitionTalent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "SpecialTeacher" ADD CONSTRAINT "SpecialTeacher_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -7252,3 +11200,20 @@ ALTER TABLE "Poetry" ADD CONSTRAINT "Poetry_categoryId_fkey" FOREIGN KEY ("categ
 -- AddForeignKey
 ALTER TABLE "Poetry" ADD CONSTRAINT "Poetry_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "PoetryCollection"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "ClientServeLog" ADD CONSTRAINT "ClientServeLog_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "ClientBook"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClientReminder" ADD CONSTRAINT "ClientReminder_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "ClientBook"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PayeeAccount" ADD CONSTRAINT "PayeeAccount_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BaziCaseAttempt" ADD CONSTRAINT "BaziCaseAttempt_caseId_fkey" FOREIGN KEY ("caseId") REFERENCES "BaziCase"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleGovernanceNotice" ADD CONSTRAINT "CircleGovernanceNotice_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleGovernanceNotice" ADD CONSTRAINT "CircleGovernanceNotice_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;

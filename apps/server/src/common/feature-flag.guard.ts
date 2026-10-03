@@ -1,7 +1,11 @@
 import { Injectable, CanActivate, ExecutionContext, NotFoundException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { FeatureFlagService } from "../modules/feature-flag/feature-flag.service";
-import { FEATURE_FLAG_KEY } from "./feature-flag.decorator";
+import {
+  FEATURE_FLAG_KEY,
+  FEATURE_FLAG_WRITE_KEY,
+  FEATURE_FLAG_OPTIONAL_KEY,
+} from "./feature-flag.decorator";
 
 /** 功能开关守卫 — 开关未启用时返回 404 隐藏功能存在 */
 @Injectable()
@@ -22,9 +26,48 @@ export class FeatureFlagGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<import("express").Request>();
     const userId = request.user?.id;
 
-    const enabled = await this.featureFlag.isEnabled(key, userId);
+    const scope = await this.featureFlag.requestScope(request);
+    const configuredOnly = this.reflector.getAllAndOverride<boolean>(FEATURE_FLAG_OPTIONAL_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    const state = await this.featureFlag[
+      configuredOnly ? "getConfiguredOperationState" : "getOperationState"
+    ](key, userId, scope, String(request.headers["x-native-build"] || ""));
+    // GET 也可能签发新业务凭证，不能仅依据 HTTP 方法当作只读。
+    const writes = this.reflector.getAllAndOverride<boolean>(FEATURE_FLAG_WRITE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    const enabled =
+      state === "OPEN" ||
+      (state === "READ_ONLY" && !writes && ["GET", "HEAD"].includes(request.method));
     if (!enabled) {
       throw new NotFoundException("资源不存在");
+    }
+    // 会员订单也从统一建单接口进入，不能绕过 member_purchase 开关。
+    if (key === "shop_checkout" && request.body?.type === "MEMBER") {
+      const memberState = await this.featureFlag.getOperationState(
+        "member_purchase",
+        userId,
+        scope,
+        String(request.headers["x-native-build"] || ""),
+      );
+      if (memberState !== "OPEN") throw new NotFoundException("当前暂不开放会员购买");
+    }
+    const purchaseKey: Record<string, string> = {
+      COURSE: "client_course_purchase",
+      CIRCLE: "client_circle_join",
+      BOT: "client_agent_purchase",
+    };
+    if (key === "shop_checkout" && purchaseKey[request.body?.type]) {
+      const purchaseState = await this.featureFlag.getConfiguredOperationState(
+        purchaseKey[request.body.type],
+        userId,
+        scope,
+        String(request.headers["x-native-build"] || ""),
+      );
+      if (purchaseState !== "OPEN") throw new NotFoundException("当前暂不开放新购买");
     }
 
     return true;

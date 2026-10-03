@@ -1,0 +1,22 @@
+{
+  "production": false,
+  "checkedAt": "2026-10-03T05:11:38.249Z",
+  "originalCustomers": [
+    {
+      "database": "mt_customer_a",
+      "bindingMatches": true,
+      "state": "ACTIVE",
+      "epoch": 152
+    },
+    {
+      "database": "mt_customer_b",
+      "bindingMatches": true,
+      "state": "ACTIVE",
+      "epoch": 27
+    }
+  ],
+  "preservedCutoverAndRollbackDatabases": 14,
+  "allTargetsFrozen": true,
+  "credentialsPrinted": false,
+  "sourceAndRestoredDataDeleted": false
+}

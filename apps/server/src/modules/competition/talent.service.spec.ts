@@ -169,6 +169,12 @@ describe("TalentService", () => {
     mockPrisma.competitionTalent.count.mockResolvedValue(1);
 
     const r: any = await service.listTalents(1, 20);
+    expect(mockPrisma.competitionTalent.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { NOT: { userId: { startsWith: "comp-demo-" } } } }),
+    );
+    expect(mockPrisma.competitionTalent.count).toHaveBeenCalledWith({
+      where: { NOT: { userId: { startsWith: "comp-demo-" } } },
+    });
     expect(r._paginated).toBe(true);
     expect(r.total).toBe(1);
     const item = r.rows[0];

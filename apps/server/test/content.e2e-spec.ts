@@ -58,8 +58,8 @@ describe("Content E2E", () => {
 
   describe("GET /api/v1/contents/:id", () => {
     it("返回内容详情", async () => {
-      prisma.content.findUnique.mockResolvedValue({
-        id: "c1", title: "论语精选", body: "学而时习之", type: "CLASSIC",
+      prisma.content.findFirst.mockResolvedValue({
+        id: "c1", title: "论语精选", body: "学而时习之", type: "CLASSIC", status: "PUBLISHED",
       })
 
       const res = await request(app.getHttpServer())
@@ -67,10 +67,21 @@ describe("Content E2E", () => {
         .expect(200)
 
       expect(res.body.title).toBe("论语精选")
+      expect(prisma.content.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: "c1", status: "PUBLISHED", stationId: null, deletedAt: null }) }),
+      )
+    })
+
+    it("匿名请求不能读取草稿详情", async () => {
+      prisma.content.findFirst.mockResolvedValue(null)
+      await request(app.getHttpServer()).get("/api/v1/contents/draft1").expect(404)
+      expect(prisma.content.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: "draft1", status: "PUBLISHED" }) }),
+      )
     })
 
     it("内容不存在返回 404", async () => {
-      prisma.content.findUnique.mockResolvedValue(null)
+      prisma.content.findFirst.mockResolvedValue(null)
 
       await request(app.getHttpServer())
         .get("/api/v1/contents/nonexistent")

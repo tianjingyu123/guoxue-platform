@@ -7,7 +7,7 @@
     </view>
     <view v-else-if="error" class="hlive-state">
       <text class="hlive-state__txt">{{ error }}</text>
-      <view class="hlive-state__retry" @tap="fetchData('1')"><text class="hlive-state__retry-txt">重试</text></view>
+      <view class="hlive-state__retry" @tap="fetchData(currentRoomId)"><text class="hlive-state__retry-txt">重试</text></view>
     </view>
     <template v-else>
     <!-- ============ 横屏主体（仅 ≥1024px 显示，照原型 lg:flex） ============ -->
@@ -15,18 +15,20 @@
       <!-- 左：视频/课件主区 -->
       <view class="stage-main">
         <!-- 顶部信息栏 -->
-        <view class="host-bar">
+        <view class="host-bar" :style="hostBarSafeStyle">
           <view class="host-bar__left">
             <view class="host-bar__close" @tap="goBack">
               <AppIcon name="x" :size="20" unit="px" color="rgba(255,255,255,0.8)" />
             </view>
-            <image lazy-load class="host-bar__avatar" :src="room.hostAvatar" mode="aspectFill" />
+            <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="host-bar__avatar" />
             <view class="host-bar__info">
               <text class="host-bar__title">{{ room.title }}</text>
               <view class="host-bar__meta">
                 <text class="host-bar__meta-item">{{ room.hostName }}</text>
-                <text class="host-bar__dot">·</text>
-                <text class="host-bar__meta-item">{{ room.hostTitle }}</text>
+                <template v-if="room.hostTitle">
+                  <text class="host-bar__dot">·</text>
+                  <text class="host-bar__meta-item">{{ room.hostTitle }}</text>
+                </template>
               </view>
             </view>
           </view>
@@ -46,7 +48,7 @@
         <!-- 视频/课件区域 -->
         <view class="video-area">
           <!-- 课件展示（showVideo=false 时在上层） -->
-          <view class="slide-stage" :class="{ 'slide-stage--top': !showVideo }">
+          <view v-if="slides.length" class="slide-stage" :class="{ 'slide-stage--top': !showVideo }">
             <view class="slide-stage__inner">
               <text class="slide-stage__symbol">☯</text>
               <text class="slide-stage__title">{{ currentSlide?.title }}</text>
@@ -54,17 +56,17 @@
             </view>
             <!-- 非跟随时显示翻页按钮 -->
             <template v-if="!followSlide">
-              <view class="slide-nav slide-nav--prev" @tap="onPrevSlide">
+              <view class="slide-nav slide-nav--prev" :style="{ left: safeLeft + 16 + 'px' }" @tap="onPrevSlide">
                 <AppIcon name="chevron-left" :size="24" unit="px" color="#fff" />
               </view>
-              <view class="slide-nav slide-nav--next" @tap="onNextSlide">
+              <view class="slide-nav slide-nav--next" :style="{ right: safeRight + 16 + 'px' }" @tap="onNextSlide">
                 <AppIcon name="chevron-right" :size="24" unit="px" color="#fff" />
               </view>
             </template>
           </view>
 
           <!-- 讲师视频画面（showVideo=true 铺满；否则缩为右下角小窗） -->
-          <view class="teacher-cam" :class="{ 'teacher-cam--pip': !showVideo }">
+          <view class="teacher-cam" :class="{ 'teacher-cam--pip': !showVideo }" :style="!showVideo ? pipSafeStyle : undefined">
             <!-- 低延时直播画面（FLV）；未开播/加载时退回占位 -->
             <LivePlayer
               v-if="playUrl"
@@ -75,30 +77,30 @@
             />
             <view v-else class="teacher-cam__inner">
               <view class="teacher-cam__avatar">
-                <image lazy-load class="teacher-cam__img" :src="room.hostAvatar" mode="aspectFill" />
+                <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="teacher-cam__img" />
               </view>
               <text class="teacher-cam__label">讲师画面</text>
             </view>
           </view>
 
           <!-- 切换课件/视频 -->
-          <view class="switch-btn" @tap="onToggleVideo">
+          <view v-if="slides.length" class="switch-btn" :style="{ left: safeLeft + 16 + 'px', bottom: safeBottom + 16 + 'px' }" @tap="onToggleVideo">
             <AppIcon name="book-open" :size="16" unit="px" color="#fff" />
             <text class="switch-btn__txt">{{ showVideo ? '显示课件' : '显示视频' }}</text>
           </view>
 
           <!-- 全屏按钮 -->
-          <view class="round-btn round-btn--fullscreen" @tap="onToggleFullscreen">
+          <view class="round-btn round-btn--fullscreen" :style="{ top: safeTop + 64 + 'px', right: safeRight + 16 + 'px' }" @tap="onToggleFullscreen">
             <AppIcon :name="isFullscreen ? 'minimize-2' : 'maximize-2'" :size="20" unit="px" color="#fff" />
           </view>
 
           <!-- 音量按钮 -->
-          <view class="round-btn round-btn--volume" @tap="onToggleMute">
+          <view class="round-btn round-btn--volume" :style="{ top: safeTop + 64 + 'px', right: safeRight + 64 + 'px' }" @tap="onToggleMute">
             <AppIcon :name="isMuted ? 'volume-x' : 'volume-2'" :size="20" unit="px" color="#fff" />
           </view>
 
           <!-- 连麦中状态 -->
-          <view v-if="micStatus === 'connected'" class="mic-badge">
+          <view v-if="supportsMic && micStatus === 'connected'" class="mic-badge" :style="{ top: safeTop + 64 + 'px', left: safeLeft + 16 + 'px' }">
             <AppIcon name="mic" :size="16" unit="px" color="#fff" />
             <text class="mic-badge__txt">连麦中</text>
             <view class="mic-badge__close" @tap="micStatus = 'none'">
@@ -108,7 +110,7 @@
         </view>
 
         <!-- 底部课件缩略图横条 -->
-        <view class="slide-bar">
+        <view v-if="slides.length" class="slide-bar">
           <scroll-view scroll-x class="slide-bar__scroll">
             <view class="slide-bar__row">
               <view
@@ -138,7 +140,7 @@
       </view>
 
       <!-- 右：互动面板（320px） -->
-      <view class="stage-panel">
+      <view class="stage-panel" :style="{ paddingRight: safeRight + 'px', paddingBottom: safeBottom + 'px' }">
         <!-- Tab 头 -->
         <view class="panel-tabs">
           <view
@@ -155,6 +157,9 @@
         <!-- 聊天 Tab -->
         <view v-if="activeTab === 'chat'" class="tab-chat">
           <scroll-view scroll-y class="tab-chat__list">
+            <view v-if="!messages.length" class="chat-empty">
+              <text class="chat-empty__txt">暂无聊天消息，发一条友善的消息吧</text>
+            </view>
             <view v-for="m in messages" :key="m.id" class="chat-row">
               <view class="chat-row__avatar">
                 <text class="chat-row__avatar-txt">{{ m.userName.charAt(0) }}</text>
@@ -175,7 +180,7 @@
                 <AppIcon name="heart" :size="20" unit="px" :color="liked ? '#C41E3A' : 'rgba(255,255,255,0.6)'" :fill="liked" />
                 <text class="like-btn__txt" :class="{ 'like-btn__txt--on': liked }">{{ likeCount.toLocaleString() }}</text>
               </view>
-              <view class="mic-btn" :class="'mic-btn--' + micStatus" @tap="onApplyMic">
+              <view v-if="supportsMic" class="mic-btn" :class="'mic-btn--' + micStatus" @tap="onApplyMic">
                 <template v-if="micStatus === 'none'">
                   <AppIcon name="hand" :size="16" unit="px" color="#fff" />
                   <text class="mic-btn__txt">举手</text>
@@ -227,7 +232,7 @@
             </view>
             <view v-for="q in filteredQuestions" :key="q.id" class="qa-card">
               <view class="qa-card__head">
-                <image lazy-load class="qa-card__avatar" :src="q.userAvatar" mode="aspectFill" />
+                <smart-avatar :src="q.userAvatar" :name="q.userName" class="qa-card__avatar" />
                 <view class="qa-card__body">
                   <view class="qa-card__meta">
                     <text class="qa-card__name">{{ q.userName }}</text>
@@ -296,19 +301,19 @@
           <scroll-view scroll-y class="tab-intro__scroll">
             <view class="intro-host">
               <view class="intro-host__avatar">
-                <image lazy-load class="intro-host__img" :src="room.hostAvatar" mode="aspectFill" />
+                <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="intro-host__img" />
               </view>
               <text class="intro-host__name">{{ room.hostName }}</text>
-              <text class="intro-host__title">{{ room.hostTitle }}</text>
+              <text v-if="room.hostTitle" class="intro-host__title">{{ room.hostTitle }}</text>
               <text class="intro-host__fans">{{ room.followers.toLocaleString() }} 粉丝</text>
             </view>
             <view class="intro-block">
               <text class="intro-block__h">课程介绍</text>
               <text class="intro-block__p">{{ room.title }}</text>
             </view>
-            <view class="intro-block">
+            <view v-if="room.hostBio" class="intro-block">
               <text class="intro-block__h">讲师简介</text>
-              <text class="intro-block__p intro-block__p--dim">{{ room.hostName }}，资深易学研究员，从事周易研究二十余年，著有《周易入门》《八字命理精解》等多部著作。</text>
+              <text class="intro-block__p intro-block__p--dim">{{ room.hostBio }}</text>
             </view>
           </scroll-view>
         </view>
@@ -316,7 +321,7 @@
     </view>
 
     <!-- ============ 窄屏（<1024px）旋转引导遮罩，照原型 lg:hidden ============ -->
-    <view class="rotate-overlay">
+    <view class="rotate-overlay" :style="{ paddingTop: safeTop + 'px', paddingRight: safeRight + 32 + 'px', paddingBottom: safeBottom + 'px', paddingLeft: safeLeft + 32 + 'px' }">
       <view class="rotate-overlay__icon">
         <AppIcon name="smartphone" :size="32" unit="px" color="#fff" />
       </view>
@@ -333,15 +338,33 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack } from '@/utils/router'
+import { withRef } from '@/utils/referral'
+import { buildH5Url, shareLink } from '@/utils/share'
 import { useTim, type TimMessage } from '@/composables/useTim'
 import { liveApi } from '@/lib/live-data'
+import { likeLiveRoom } from '@/pkg-live/live-interaction-api'
+import { subscribeLiveRealtime, type LiveRealtimeSubscription } from '@/pkg-live/live-realtime'
 
 // ===== 直播间数据 =====
 const loading = ref(true)
 const error = ref('')
+const currentRoomId = ref('')
+const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
+const hostBarSafeStyle = computed(() => ({
+  paddingTop: `${safeTop.value + 12}px`,
+  paddingRight: `${safeRight.value + 16}px`,
+  paddingBottom: '12px',
+  paddingLeft: `${safeLeft.value + 16}px`,
+}))
+const pipSafeStyle = computed(() => ({
+  right: `${safeRight.value + 16}px`,
+  bottom: `${safeBottom.value + 16}px`,
+}))
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({})
 // 幻灯片/问答/消息/资料列表，元素结构由后端返回，保留 any[]
@@ -354,6 +377,14 @@ const files = ref<any[]>([])
 const tim = useTim()
 let danmakuGroupId = ''
 let offTimMessage: (() => void) | null = null
+let realtimeSubscription: LiveRealtimeSubscription | null = null
+
+async function leaveChat() {
+  if (offTimMessage) { offTimMessage(); offTimMessage = null }
+  const groupId = danmakuGroupId
+  danmakuGroupId = ''
+  if (groupId) await tim.quitGroup(groupId).catch(() => undefined)
+}
 
 /** 当前时刻 HH:MM（聊天消息时间戳，横屏消息结构含 time 字段） */
 function nowTime(): string {
@@ -363,7 +394,8 @@ function nowTime(): string {
 
 /** 加入聊天群 + 订阅群消息上屏（仅有 imGroupId 时） */
 async function joinChat(groupId: string) {
-  if (!groupId) return
+  if (!groupId || groupId === danmakuGroupId) return
+  await leaveChat()
   danmakuGroupId = groupId
   try {
     await tim.joinGroup(groupId)
@@ -376,6 +408,33 @@ async function joinChat(groupId: string) {
       if (messages.value.length > 80) messages.value.splice(0, messages.value.length - 80)
     })
   } catch { /* TIM 未就绪 → 聊天降级只读空态，不阻断授课观看 */ }
+}
+
+function startRealtime(roomId: string) {
+  realtimeSubscription?.stop()
+  realtimeSubscription = subscribeLiveRealtime(roomId, {
+    onAvailability: (available) => {
+      if (available) void leaveChat()
+      else if (room.value.imGroupId) void joinChat(room.value.imGroupId)
+    },
+    onComment: (event) => {
+      if (messages.value.some((item) => String(item.id) === String(event.id))) return
+      const optimisticIndex = messages.value.findIndex((item) => String(item.id).startsWith('local-') && item.content === event.content)
+      if (optimisticIndex >= 0) messages.value.splice(optimisticIndex, 1)
+      messages.value.push({ id: event.id, userName: event.userName || '观众', content: event.content, time: nowTime() })
+      if (messages.value.length > 80) messages.value.splice(0, messages.value.length - 80)
+    },
+    onGift: (event) => {
+      messages.value.push({
+        id: `gift-${event.recordId}`,
+        userName: event.userName || '观众',
+        content: `送出 ${event.giftName} x${event.quantity}`,
+        time: nowTime(),
+      })
+      if (messages.value.length > 80) messages.value.splice(0, messages.value.length - 80)
+    },
+    onLike: (event) => { if (Number.isFinite(event.likeCount)) likeCount.value = Math.max(0, event.likeCount) },
+  })
 }
 
 // 低延时播放地址（C1）；仅直播中后端返回，未开播抛错→保持占位
@@ -395,8 +454,7 @@ async function fetchData(roomId: string) {
     messages.value = data.messages
     files.value = data.files
     likeCount.value = data.room.likes || 0
-    // 有聊天群 → 加入 TIM 群实时收发
-    if (data.room.imGroupId) joinChat(data.room.imGroupId)
+    startRealtime(roomId)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -405,7 +463,7 @@ async function fetchData(roomId: string) {
 }
 
 // ===== UI 状态（照原型 useState 初值）=====
-const currentSlideNum = ref(3)         // 原型 currentSlide 初值 3
+const currentSlideNum = ref(1)
 const followSlide = ref(true)
 const showVideo = ref(true)
 const isFullscreen = ref(false)
@@ -417,12 +475,11 @@ const questionDraft = ref('')
 const isPublicQuestion = ref(true)
 const micStatus = ref<'none' | 'applying' | 'waiting' | 'connected'>('none')
 const liked = ref(false)
+const supportsMic = false
 const likeCount = ref(0)
 
 const tabs = [
   { key: 'chat', label: '聊天' },
-  { key: 'qa', label: '问答' },
-  { key: 'files', label: '资料' },
   { key: 'intro', label: '简介' },
 ] as const
 
@@ -438,64 +495,90 @@ function onToggleMute() { isMuted.value = !isMuted.value }
 function onSelectSlide(num: number) { followSlide.value = false; currentSlideNum.value = num }
 function onPrevSlide() { currentSlideNum.value = Math.max(1, currentSlideNum.value - 1) }
 function onNextSlide() { currentSlideNum.value = Math.min(slides.value.length, currentSlideNum.value + 1) }
-function onLike() {
-  if (!liked.value) {
-    liked.value = true
-    likeCount.value += 1
-    // 点赞计数上报（fire-and-forget，失败不影响 UI）
-    liveApi.likeRoom(room.value.id).catch(() => {})
+async function onLike() {
+  if (liked.value) return
+  liked.value = true
+  likeCount.value += 1
+  try {
+    await likeLiveRoom(room.value.id)
+  } catch (e) {
+    liked.value = false
+    likeCount.value = Math.max(0, likeCount.value - 1)
+    uni.showToast({ title: (e as Error)?.message || '点赞失败，请重试', icon: 'none' })
   }
 }
-// @data-needs: 举手连麦申请流程（applying→waiting→connected），由后端信令推进
-function onApplyMic() {
-  if (micStatus.value === 'none') {
-    micStatus.value = 'applying'
-    setTimeout(() => { if (micStatus.value === 'applying') micStatus.value = 'waiting' }, 1000)
-  } else {
-    micStatus.value = 'none'
-  }
-}
-// 发送聊天消息：TIM 群实时下发给其他观众 + 后端持久化，乐观上屏
+// 后端暂无连麦信令，入口隐藏；保留诚实降级防未来误开放。
+function onApplyMic() { uni.showToast({ title: '连麦功能暂未开放', icon: 'none' }) }
+// 发送聊天消息：服务端审核与持久化成功后统一中继到 TIM，客户端只做乐观上屏。
 let sendingChat = false
 async function onSendChat() {
   const text = chatDraft.value.trim()
-  if (!text || sendingChat) { chatDraft.value = ''; return }
+  if (!text || sendingChat) return
   sendingChat = true
-  // 乐观上屏 + 清空
-  messages.value.push({ id: 'local-' + Date.now(), userName: '我', content: text, time: nowTime() })
+  const localId = 'local-' + Date.now()
+  messages.value.push({ id: localId, userName: '我', content: text, time: nowTime() })
   chatDraft.value = ''
   try {
-    // 弹幕走 TIM 群实时下发；同时后端持久化（并行，互不阻塞）
-    if (danmakuGroupId) await tim.sendGroupText(danmakuGroupId, text)
-    liveApi.sendComment(room.value.id, text).catch(() => {})
-  } catch { /* TIM 发送失败 → 已本地上屏，静默降级 */ }
-  finally { sendingChat = false }
+    await liveApi.sendComment(room.value.id, text)
+  } catch (e) {
+    const index = messages.value.findIndex((item) => item.id === localId)
+    if (index >= 0) messages.value.splice(index, 1)
+    chatDraft.value = text
+    uni.showToast({ title: (e as Error)?.message || '消息发送失败，请重试', icon: 'none' })
+  } finally {
+    sendingChat = false
+  }
 }
-// @data-needs: 提交提问，入参 content + isPublic
-function onSubmitQuestion() { questionDraft.value = '' }
-function onShare() {}
-// @data-needs: 下载资料，入参 fileId 返回 URL
-function onDownloadFile(_id: string) {}
+function onSubmitQuestion() { uni.showToast({ title: '直播问答功能暂未开放', icon: 'none' }) }
+function buildShareUrl(): string {
+  return withRef(buildH5Url('pkg-live/horizontal/index', { id: currentRoomId.value }))
+}
+async function onShare() {
+  await shareLink({
+    title: room.value?.title || '国学直播',
+    text: room.value?.hostName ? `来自主播 ${room.value.hostName}` : '进入直播间一起交流学习',
+    url: buildShareUrl(),
+    imageUrl: room.value?.hostAvatar,
+  })
+}
+function onDownloadFile(_id: string) { uni.showToast({ title: '直播资料暂未开放下载', icon: 'none' }) }
 
 onLoad((opts) => {
-  const roomId = opts?.id || '1'
-  fetchData(roomId)
-  fetchPlayUrl(roomId)
+  // #ifdef H5
+  document.documentElement.classList.add('hlive-wide-mode')
+  // #endif
+
+  currentRoomId.value = String(opts?.id || '')
+  if (!currentRoomId.value) {
+    loading.value = false
+    error.value = '缺少直播间信息，请返回后重新进入'
+    return
+  }
+  fetchData(currentRoomId.value)
+  fetchPlayUrl(currentRoomId.value)
 })
 
 onUnmounted(() => {
   // 退订 TIM 群消息 + 退出聊天群
-  if (offTimMessage) offTimMessage()
-  if (danmakuGroupId) tim.quitGroup(danmakuGroupId)
+  realtimeSubscription?.stop()
+  void leaveChat()
+  // #ifdef H5
+  document.documentElement.classList.remove('hlive-wide-mode')
+  // #endif
 })
 </script>
 
 <style scoped>
+:global(html.hlive-wide-mode body) { overflow: hidden; background: #0f0f0f; }
+:global(html.hlive-wide-mode uni-app) { max-width: none !important; margin: 0 !important; transform: none !important; box-shadow: none !important; }
+
 .hlive {
   width: 100vw;
   height: 100vh;
   background-color: #0f0f0f;
-  position: relative;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
   overflow: hidden;
 }
 
@@ -749,12 +832,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
 }
-.round-btn--fullscreen { top: 64px; right: 16px; }
-.round-btn--volume { top: 64px; right: 64px; }
 .mic-badge {
   position: absolute;
-  top: 64px;
-  left: 16px;
   z-index: 30;
   display: flex;
   align-items: center;
@@ -861,6 +940,7 @@ onUnmounted(() => {
   border-left: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 .panel-tabs {
   display: flex;
@@ -907,6 +987,13 @@ onUnmounted(() => {
   gap: 8px;
   margin-bottom: 12px;
 }
+.chat-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+.chat-empty__txt { font-size: 13px; color: rgba(255, 255, 255, 0.45); }
 .chat-row__avatar {
   width: 28px;
   height: 28px;
@@ -1285,6 +1372,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 0 32px;
+  box-sizing: border-box;
 }
 .rotate-overlay__icon {
   width: 64px;

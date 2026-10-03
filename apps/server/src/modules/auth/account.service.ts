@@ -25,7 +25,8 @@ export class AccountService {
     if (user.deleteRequestedAt) throw new BusinessException(ErrorCode.BAD_REQUEST, "注销申请已提交，请等待处理");
 
     // 验证密码
-    const auth = await this.prisma.auth.findFirst({ where: { userId } });
+    // WECHAT/WECHAT_UNION 凭证并不是密码，必须只校验 PASSWORD 身份。
+    const auth = await this.prisma.auth.findFirst({ where: { userId, provider: "PASSWORD" } });
     if (!auth?.credential) throw new BusinessException(ErrorCode.BAD_REQUEST, "当前账号无密码，无法验证");
     const valid = await bcrypt.compare(dto.password, auth.credential);
     if (!valid) throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "密码错误");
@@ -89,12 +90,38 @@ export class AccountService {
     const exists = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(dto.newPhone) } });
     if (exists) throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "新手机号已被注册");
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: buildPhoneFields(dto.newPhone), // M4 灰度双写：phone + phoneHash + phoneEnc
+    const newPhoneHash = phoneHmac(dto.newPhone);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: buildPhoneFields(dto.newPhone), // M4 灰度双写：phone + phoneHash + phoneEnc
+      });
+      const phoneAuth = await tx.auth.findFirst({ where: { userId, provider: "PHONE" } });
+      if (phoneAuth) {
+        await tx.auth.update({
+          where: { id: phoneAuth.id },
+          data: { namespace: "phone", subject: newPhoneHash, openId: newPhoneHash, credential: newPhoneHash, lastUsedAt: new Date() },
+        });
+      } else {
+        await tx.auth.create({
+          data: { userId, provider: "PHONE", namespace: "phone", subject: newPhoneHash, openId: newPhoneHash, credential: newPhoneHash },
+        });
+      }
     });
+
+    // 手机号是登录身份的一部分，变更后立即撤销所有旧端会话。
+    await this.revokeSessions(userId);
 
     this.logger.log(`用户 ${userId} 更换手机号: ${maskPhone(user.phone)} → ${maskPhone(dto.newPhone)}`);
     return { message: "手机号更换成功", phone: dto.newPhone };
+  }
+
+  private async revokeSessions(userId: string) {
+    const tokens = await this.redis.smembers(`refresh:user:${userId}`);
+    for (const token of tokens) {
+      await this.redis.del(`refresh:${token}`);
+    }
+    await this.redis.del(`refresh:user:${userId}`);
+    await this.redis.set(`revoked:user:${userId}`, String(Date.now()), 2 * 3600 + 60);
   }
 }

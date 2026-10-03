@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
-import { Cacheable } from "../../common/cache.decorator";
 import { InsightService } from "../track/insight.service";
 
 @Injectable()
@@ -24,7 +23,6 @@ export class CircleDashboardService {
     }
   }
 
-  @Cacheable({ key: (args) => `circle:dashboard:overview:${args[0]}`, ttl: 30 })
   async getOverview(circleId: string, userId: string) {
     await this.assertCircleOwner(circleId, userId);
     const now = new Date();
@@ -72,7 +70,6 @@ export class CircleDashboardService {
     };
   }
 
-  @Cacheable({ key: (args) => `circle:dashboard:trends:${args[0]}`, ttl: 60 })
   async getTrends(circleId: string, userId: string) {
     await this.assertCircleOwner(circleId, userId);
     const thirtyDaysAgo = new Date();
@@ -305,9 +302,9 @@ export class CircleDashboardService {
   async getPendingQuestions(circleId: string, userId: string) {
     await this.assertCircleOwner(circleId, userId);
     const questions = await this.prisma.paidQuestion.findMany({
-      where: { circleId, status: "PENDING" },
+      where: { circleId, answererId: userId, status: "PENDING" },
       select: { id: true, questionTitle: true, question: true, priceCoin: true, createdAt: true, asker: { select: { id: true, nickname: true } } },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       take: 20,
     });
     return { questions };

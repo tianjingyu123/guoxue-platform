@@ -3,11 +3,12 @@
   <view v-else-if="error" class="load-state">
     <text class="load-state-text">{{ error }}</text>
     <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+    <view class="retry-btn" @tap="goBack"><text class="retry-text">返回上一页</text></view>
   </view>
   <view v-else class="page">
     <DegradedBanner dep="im" text="消息服务临时维护中，收发可能延迟，请稍后再试" />
     <!-- 顶部导航 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="navbar" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))`, ...(menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : {}) }">
       <view class="nav-left">
         <view class="back-btn" @tap="goBack">
           <AppIcon name="arrow-left" :size="24" color="#2c2c2c" />
@@ -17,13 +18,23 @@
           <text class="nav-badge-text">{{ totalUnread > 99 ? '99+' : totalUnread }}</text>
         </view>
       </view>
-      <view class="search-btn" @tap="showSearch = true">
+      <view class="search-btn" role="button" aria-label="搜索消息" tabindex="0" @tap="showSearch = true" @keydown.enter="showSearch = true" @keydown.space.prevent="showSearch = true">
         <AppIcon name="search" :size="20" color="#8a8178" />
       </view>
     </view>
 
+    <!-- 空态 -->
+    <view v-if="sortedConversations.length === 0" class="empty">
+      <AppIcon name="message-circle" :size="64" color="#d1d5db" />
+      <text class="empty-text">暂无消息</text>
+      <text class="empty-hint">去圈子结识同好，开启第一段交流</text>
+      <view class="empty-btn" @tap="goDiscover">
+        <text class="empty-btn-text">去圈子找同好</text>
+      </view>
+    </view>
+
     <!-- 会话列表 -->
-    <view class="conv-list">
+    <view v-else class="conv-list">
       <view
         v-for="conv in sortedConversations"
         :key="conv.id"
@@ -70,8 +81,8 @@
     </view>
 
     <!-- 搜索弹层 -->
-    <view v-if="showSearch" class="search-overlay" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="search-head">
+    <view v-if="showSearch" class="search-overlay" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
+      <view class="search-head" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
         <view class="search-input-wrap">
           <AppIcon name="search" :size="16" color="#8a8178" class="search-input-icon" />
           <input
@@ -86,7 +97,7 @@
             <AppIcon name="x" :size="16" color="#8a8178" />
           </view>
         </view>
-        <text class="search-cancel" @tap="closeSearch">取消</text>
+        <view class="search-cancel" role="button" aria-label="关闭消息搜索" tabindex="0" @tap="closeSearch" @keydown.enter="closeSearch" @keydown.space.prevent="closeSearch"><text>取消</text></view>
       </view>
 
       <view class="search-body">
@@ -152,9 +163,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { onShow, onHide, onUnload } from '@dcloudio/uni-app'
+import { createVisiblePoller } from '@/utils/visible-poller'
 import AppIcon from '@/components/common/app-icon.vue'
 import DegradedBanner from '@/components/degraded-banner.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import {
   imApi,
   getMessageSummary,
@@ -167,6 +181,8 @@ import {
 import { useTim } from '@/composables/useTim'
 
 const statusBarHeight = ref(0)
+const menuSafeRight = getMiniProgramMenuSafeRight()
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 const tim = useTim()
 
 // 列表数据
@@ -182,31 +198,46 @@ const showDeleteConfirm = ref(false)
 const activeConv = ref<ConversationItem | null>(null)
 
 let unsubscribe: (() => void) | null = null
+let loaded = false
+let imMode: 'TENCENT' | 'FALLBACK' = 'FALLBACK'
 
-async function loadData() {
-  loading.value = true
-  error.value = ''
+const poller = createVisiblePoller(async (isCurrent) => {
+  if (!loaded) { loading.value = true; error.value = '' }
   try {
-    conversations.value = await imApi.getConversations()
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载会话列表失败，请重试'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  loadData()
-  // 实时刷新：新消息/已读/置顶等 SDK 会话变化直接驱动列表与未读角标
-  unsubscribe = tim.onConversationsUpdated((list) => {
+    const capabilities = await imApi.getCapabilities(true)
+    if (!isCurrent()) return
+    if (capabilities.mode !== imMode) releaseSubscription()
+    imMode = capabilities.mode
+    const list = await imApi.getConversations()
+    if (!isCurrent()) return
     conversations.value = list
-      .map(timConvToConversationItem)
-      .filter((c): c is ConversationItem => c !== null)
-  })
-})
-onUnmounted(() => {
-  if (unsubscribe) unsubscribe()
-})
+    loaded = true
+    if (imMode === 'TENCENT' && !unsubscribe) {
+      unsubscribe = tim.onConversationsUpdated((items) => {
+        if (!isCurrent() || imMode !== 'TENCENT') return
+        conversations.value = items.map(timConvToConversationItem)
+          .filter((c): c is ConversationItem => c !== null)
+      })
+    }
+  } catch {
+    if (isCurrent() && !loaded) error.value = '暂时无法加载私信，请稍后重试'
+  } finally {
+    if (isCurrent()) loading.value = false
+  }
+}, () => imMode === 'FALLBACK' ? 3_000 : 30_000)
+
+function loadData() { poller.refresh() }
+function releaseSubscription() {
+  unsubscribe?.()
+  unsubscribe = null
+}
+function pauseRefresh() { poller.stop(); releaseSubscription() }
+function disposeRefresh() { poller.dispose(); releaseSubscription() }
+onMounted(() => poller.start())
+onShow(() => poller.start())
+onHide(pauseRefresh)
+onUnload(disposeRefresh)
+onUnmounted(disposeRefresh)
 
 const totalUnread = computed(() => conversations.value.reduce((s, c) => s + c.unreadCount, 0))
 
@@ -224,6 +255,11 @@ const searchMatches = computed(() => {
     (c) => c.targetName.includes(kw) || c.lastMessage.content.includes(kw),
   )
 })
+
+function goDiscover() {
+  // 引导去圈子结识同好（tab 页由 navigateTo 内部自动 reLaunch）
+  navigateTo('/pages/circles/index')
+}
 
 function summary(message: LastMessage) {
   return getMessageSummary(message)
@@ -374,6 +410,8 @@ async function handleDelete() {
 .search-btn {
   width: 48rpx;
   height: 48rpx;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -524,6 +562,7 @@ async function handleDelete() {
 }
 .search-input-wrap {
   flex: 1;
+  min-width: 0;
   position: relative;
   display: flex;
   align-items: center;
@@ -537,6 +576,8 @@ async function handleDelete() {
 }
 .search-input {
   flex: 1;
+  min-width: 0;
+  width: 0;
   height: 72rpx;
   padding-left: 64rpx;
   padding-right: 64rpx;
@@ -552,6 +593,12 @@ async function handleDelete() {
   right: 24rpx;
 }
 .search-cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
   font-size: 28rpx;
   color: #2c2c2c;
 }
@@ -684,6 +731,35 @@ async function handleDelete() {
   background: #dc2626;
 }
 .dialog-confirm-text {
+  font-size: 28rpx;
+  color: #ffffff;
+}
+
+/* 空态 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx 0;
+}
+.empty-text {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #2c2c2c;
+  margin: 32rpx 0 12rpx;
+}
+.empty-hint {
+  font-size: 26rpx;
+  color: #8a8178;
+  margin-bottom: 40rpx;
+}
+.empty-btn {
+  padding: 16rpx 48rpx;
+  background: var(--brand);
+  border-radius: 999rpx;
+}
+.empty-btn-text {
   font-size: 28rpx;
   color: #ffffff;
 }

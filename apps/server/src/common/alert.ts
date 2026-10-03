@@ -4,12 +4,12 @@
  * 启动时由 main 注入企微 notifyAlert；无 webhook 配置时降级为 stderr 日志。
  * 按 key 节流（同类告警 5 分钟内最多一条），防止 5xx 风暴 / 慢请求刷屏把告警群淹没。
  */
-let alertHandler: ((title: string, detail: string) => void) | null = null;
+let alertHandler: ((title: string, detail: string) => unknown) | null = null;
 const lastSentAt = new Map<string, number>();
 const THROTTLE_MS = 5 * 60 * 1000;
 
 /** 注入告警发送实现（如 wework.notifyAlert）。传 null 可解除（测试用）。 */
-export function setAlertHandler(fn: ((title: string, detail: string) => void) | null): void {
+export function setAlertHandler(fn: ((title: string, detail: string) => unknown) | null): void {
   alertHandler = fn;
 }
 
@@ -22,7 +22,16 @@ export function sendAlert(key: string, title: string, detail: string): void {
   if (now - (lastSentAt.get(key) ?? 0) < THROTTLE_MS) return;
   lastSentAt.set(key, now);
   if (alertHandler) {
-    try { alertHandler(title, detail); } catch { /* 告警失败不影响主流程 */ }
+    try { Promise.resolve(alertHandler(title, detail)).catch(() => undefined); } catch { /* 告警失败不影响主流程 */ }
+  } else {
+    process.stderr.write(`[Alert] ${title} | ${detail}\n`);
+  }
+}
+
+/** 需要确认送达的定时告警：失败向上抛出，供任务保留重试机会。 */
+export async function sendAlertConfirmed(title: string, detail: string): Promise<void> {
+  if (alertHandler) {
+    await alertHandler(title, detail);
   } else {
     process.stderr.write(`[Alert] ${title} | ${detail}\n`);
   }

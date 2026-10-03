@@ -1,6 +1,7 @@
 import {
   Controller, Get, Post, Put, Delete,
   Body, Param, Query, Req, UseGuards, Logger,
+  BadRequestException,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
@@ -13,6 +14,7 @@ import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("内容管理")
 @Controller("contents")
@@ -24,6 +26,7 @@ export class ContentController {
   ) {}
 
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "创建内容", targetType: "CONTENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -47,10 +50,12 @@ export class ContentController {
   }
 
   @Get()
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取内容列表" })
   @ApiResponse({ status: 200, description: "成功" })
-  list(@Query() q: ContentListQueryDto) {
-    return this.content.list(q);
+  list(@Query() q: ContentListQueryDto, @Req() req: Request) {
+    // 草稿和审核中内容仅对有内容管理权限的登录用户开放。
+    return this.content.list(q, this.canReadUnpublished(req));
   }
 
   // ───────── 诗词专属 ─────────
@@ -89,11 +94,50 @@ export class ContentController {
   @ApiOperation({ summary: "获取内容详情" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  detail(@Param("id") id: string) {
-    return this.content.detail(id);
+  detail(@Param("id") id: string, @Req() req: Request) {
+    return this.content.detail(id, this.canReadUnpublished(req));
+  }
+
+  private canReadUnpublished(req: Request): boolean {
+    return req.user?.roles?.some(role => ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"].includes(role)) ?? false;
+  }
+
+  @Put(":id/audit")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
+  @Auditable({ action: "内容审核", targetType: "CONTENT" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  // 权限修复(角色断裂)：内容审核员只有审核权（改 status+理由），没有全量编辑权，故独立于 PUT /:id。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @ApiOperation({ summary: "审核内容（通过/驳回）" })
+  @ApiResponse({ status: 200, description: "审核成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  async audit(
+    @Param("id") id: string,
+    @Body("status") status: string,
+    @Body("reason") reason: string | undefined,
+    @Req() req: Request,
+  ) {
+    if (status !== "APPROVED" && status !== "REJECTED") {
+      throw new BadRequestException("status 仅允许 APPROVED 或 REJECTED");
+    }
+    const result = await this.content.audit(id, status as "APPROVED" | "REJECTED", reason);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "AUDIT",
+      targetType: "CONTENT",
+      targetId: id,
+      detail: `审核内容: ${status === "APPROVED" ? "通过" : "驳回"}${reason ? `，理由: ${reason}` : ""}`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("Webhook 发送失败", err));
+    return result;
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "内容审核/编辑", targetType: "CONTENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -117,6 +161,7 @@ export class ContentController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @Auditable({ action: "删除内容", targetType: "CONTENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -143,6 +188,7 @@ export class ContentController {
   // ───────── 批量操作 & 统计 ─────────
 
   @Put("batch/status")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "内容批量审核", targetType: "CONTENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -166,7 +212,8 @@ export class ContentController {
 
   @Get("stats/overview")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：内容审核工作台/内容审核页顶部统计需读该端点，放行 CONTENT_AUDITOR。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "内容统计概览" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })

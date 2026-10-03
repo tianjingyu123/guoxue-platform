@@ -4,11 +4,13 @@ import { AiSearchController } from "./ai-search.controller";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { ContentGuideService } from "./content-guide.service";
 
 const mockGateway: Record<string, jest.Mock> = {
   chat: jest.fn(),
   chatStream: jest.fn(),
 };
+const mockGuide = { guide: jest.fn() };
 
 const mockGuard: CanActivate = { canActivate: () => true };
 
@@ -29,7 +31,10 @@ describe("AiSearchController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [AiSearchController],
-      providers: [{ provide: AiGatewayService, useValue: mockGateway }],
+      providers: [
+        { provide: AiGatewayService, useValue: mockGateway },
+        { provide: ContentGuideService, useValue: mockGuide },
+      ],
     })
       .overrideGuard(JwtAuthGuard).useValue(mockGuard)
       .overrideGuard(StrictRedisThrottleGuard).useValue(mockGuard)
@@ -37,19 +42,58 @@ describe("AiSearchController", () => {
     ctrl = mod.get(AiSearchController);
   });
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGuide.guide.mockResolvedValue({ query: "测试", cards: [] });
+  });
 
   it("应被定义", () => expect(ctrl).toBeDefined());
 
   describe("aiQuery", () => {
     it("AI智能搜索返回答案", async () => {
       mockGateway.chat.mockResolvedValue({ content: "国学是以儒学为主体的中国传统文化体系。" });
+      mockGuide.guide.mockResolvedValue({
+        query: "什么是国学",
+        cards: [{ type: "classic", id: "c1", title: "论语", target: "/pkg-classics/detail/index?id=c1" }],
+      });
       const result: any = await ctrl.aiQuery({ query: "什么是国学" } as any, makeReq());
       expect(result.answer).toContain("国学");
       expect(result.query).toBe("什么是国学");
+      expect(result.cards).toEqual(expect.arrayContaining([expect.objectContaining({ id: "c1" })]));
+      expect(mockGuide.guide).toHaveBeenCalledWith("什么是国学", 4);
       expect(mockGateway.chat).toHaveBeenCalledWith(
         expect.objectContaining({ scene: "smart_search" }),
       );
+    });
+
+    it("独立问候直接短答，不调用检索和模型", async () => {
+      const result = await ctrl.aiQuery({ query: "你好" } as any, makeReq());
+      expect(result.answer).toContain("你好");
+      expect(result.cards).toEqual([]);
+      expect(mockGuide.guide).not.toHaveBeenCalled();
+      expect(mockGateway.chat).not.toHaveBeenCalled();
+    });
+
+    it("带问题的问候仍正常回答", async () => {
+      mockGateway.chat.mockResolvedValue({ content: "《论语》记录了孔子及弟子的言行。" });
+      await ctrl.aiQuery({ query: "你好，论语是什么？" } as any, makeReq());
+      expect(mockGateway.chat).toHaveBeenCalled();
+      expect(mockGuide.guide).toHaveBeenCalled();
+    });
+
+    it("服务问题不导览，但仍交给模型回答", async () => {
+      mockGateway.chat.mockResolvedValue({ content: "请在订单页查看退款进度。" });
+      const result = await ctrl.aiQuery({ query: "退款进度怎么查" } as any, makeReq());
+      expect(result.cards).toEqual([]);
+      expect(mockGuide.guide).not.toHaveBeenCalled();
+      expect(mockGateway.chat).toHaveBeenCalled();
+    });
+
+    it("导览检索异常时仍返回回答与空卡片", async () => {
+      mockGuide.guide.mockRejectedValue(new Error("搜索不可用"));
+      mockGateway.chat.mockResolvedValue({ content: "先说结论。" });
+      const result = await ctrl.aiQuery({ query: "论语是什么" } as any, makeReq());
+      expect(result).toEqual({ answer: "先说结论。", query: "论语是什么", cards: [] });
     });
 
     it("AI未配置时返回503", async () => {

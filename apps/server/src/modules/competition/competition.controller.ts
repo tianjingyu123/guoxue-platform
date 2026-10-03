@@ -19,6 +19,7 @@ import {
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 // ═══════════════════ 管理后台接口 ═══════════════════
 
@@ -43,6 +44,7 @@ export class CompetitionAdminController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "更新赛事（未开赛可改）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -71,6 +73,7 @@ export class CompetitionAdminController {
   }
 
   @Post(":id/stages/:seq/advance")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "人工强制推进阶段（兜底·状态机单步·审计留痕）" })
   @ApiResponse({ status: 201, description: "推进成功" })
   @ApiResponse({ status: 400, description: "阶段不可推进或推进失败" })
@@ -97,6 +100,7 @@ export class CompetitionAdminController {
   }
 
   @Post(":id/publish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "发布赛事" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -105,6 +109,7 @@ export class CompetitionAdminController {
   }
 
   @Post(":id/start")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "开始赛事" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -113,6 +118,7 @@ export class CompetitionAdminController {
   }
 
   @Post(":id/finish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "结束赛事" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -220,6 +226,7 @@ export class CompetitionAdminController {
   }
 
   @Put(":id/registrations/:regId")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "更新报名状态" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -248,6 +255,7 @@ export class CompetitionAdminController {
   }
 
   @Post(":id/calculate-ranking")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "计算排名" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -267,6 +275,7 @@ export class CompetitionAdminController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @HttpCode(204)
   @ApiOperation({ summary: "删除赛事（仅草稿状态）" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -277,6 +286,7 @@ export class CompetitionAdminController {
   }
 
   @Delete(":id/rounds/:roundId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @HttpCode(204)
   @ApiOperation({ summary: "删除赛程" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -287,6 +297,7 @@ export class CompetitionAdminController {
   }
 
   @Delete(":id/questions/:questionId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @HttpCode(204)
   @ApiOperation({ summary: "删除题目" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -311,8 +322,7 @@ export class CompetitionPublicController {
   @ApiOperation({ summary: "赛事列表（公开）" })
   @ApiResponse({ status: 200, description: "成功" })
   list(@Query() query: QueryCompetitionDto) {
-    // 公开只展示已发布及之后状态的赛事
-    return this.service.listCompetitions({ ...query, status: query.status || undefined });
+    return this.service.listPublicCompetitions({ ...query, status: query.status || undefined });
   }
 
   // ── 人才库（二期·赛-P4）——静态路径须先于 :id 声明，否则被详情通配吞掉 ──
@@ -339,18 +349,29 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   get(@Param("id") id: string) {
-    return this.service.getCompetition(id);
+    return this.service.getPublicCompetition(id);
   }
 
   @Get(":id/rankings")
   @ApiOperation({ summary: "排名（公开）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  getRankings(
+  async getRankings(
     @Param("id") id: string,
     @Query() query: QueryRankingDto,
   ) {
+    await this.service.assertPublicCompetition(id);
     return this.service.getRankings({ ...query, competitionId: id });
+  }
+
+  @Get(":id/questions/disclosure")
+  @ApiOperation({ summary: "赛后题目公示（公开·仅已结束赛事·含答案解析·A16 高透明）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 400, description: "赛事未结束，题目不公开" })
+  @ApiResponse({ status: 404, description: "赛事不存在" })
+  async disclosureQuestions(@Param("id") id: string) {
+    await this.service.assertPublicCompetition(id);
+    return this.service.disclosureQuestions(id);
   }
 
   @Post(":id/register")
@@ -360,11 +381,12 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
-  register(
+  async register(
     @Param("id") id: string,
     @Body() body: RegisterCompetitionDto,
     @Req() req: Request,
   ) {
+    await this.service.assertPublicCompetition(id);
     return this.service.register(id, req.user.id, body.inviterId, body.inviteCode);
   }
 
@@ -375,7 +397,8 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
-  getMyRegistration(@Param("id") id: string, @Req() req: Request) {
+  async getMyRegistration(@Param("id") id: string, @Req() req: Request) {
+    await this.service.assertPublicCompetition(id);
     return this.service.getRegistration(id, req.user.id);
   }
 
@@ -386,7 +409,8 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
-  getMyResults(@Param("id") id: string, @Req() req: Request) {
+  async getMyResults(@Param("id") id: string, @Req() req: Request) {
+    await this.service.assertPublicCompetition(id);
     return this.service.getMyResults(id, req.user.id);
   }
 
@@ -397,7 +421,8 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
-  submitAnswer(@Param("roundId") roundId: string, @Body() dto: SubmitAnswerDto, @Req() req: Request) {
+  async submitAnswer(@Param("roundId") roundId: string, @Body() dto: SubmitAnswerDto, @Req() req: Request) {
+    await this.service.assertPublicRound(roundId);
     return this.service.submitAnswer(dto, req.user.id);
   }
 
@@ -408,11 +433,12 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
-  batchSubmit(
+  async batchSubmit(
     @Param("roundId") roundId: string,
     @Body() dto: BatchSubmitAnswerDto,
     @Req() req: Request,
   ) {
+    await this.service.assertPublicRound(roundId);
     return this.service.batchSubmitAnswers({ ...dto, roundId }, req.user.id);
   }
 
@@ -422,7 +448,8 @@ export class CompetitionPublicController {
   @ApiOperation({ summary: "获取试卷（题目乱序）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
-  getPaper(@Param("roundId") roundId: string, @Query("count") count?: string) {
+  async getPaper(@Param("roundId") roundId: string, @Query("count") count?: string) {
+    await this.service.assertPublicRound(roundId);
     return this.service.generatePaper(roundId, Number(count) || 30);
   }
 
@@ -430,6 +457,7 @@ export class CompetitionPublicController {
   @ApiOperation({ summary: "查看电子证书HTML" })
   @ApiResponse({ status: 200, description: "成功" })
   async viewCertificate(@Param("rankingId") rankingId: string) {
+    await this.service.assertPublicRanking(rankingId);
     return this.service.getCertificateHtml(rankingId);
   }
 }
@@ -452,6 +480,7 @@ export class CompetitionJudgeController {
   }
 
   @Post("submissions/:id/score")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "提交评分", description: "对作品进行打分" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -464,6 +493,7 @@ export class CompetitionJudgeController {
   }
 
   @Post("answers/:answerId/grade")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "评委评分（按答案ID）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

@@ -1,6 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
+import {
+  getTencentCredentialMode,
+  getTencentInstanceRoleCredentialProvider,
+  hasTencentCloudCredentialConfiguration,
+  resolveTencentCloudCredentials,
+} from "../../common/tencent-instance-role-credentials";
+import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { getAppleIapSettings } from "../apple-iap/apple-iap.config";
 
 export interface HealthCheck {
   status: "ok" | "degraded" | "fail" | "unconfigured";
@@ -13,6 +21,7 @@ export interface HealthReport {
   uptime: number;
   timestamp: number;
   version: string;
+  releaseId: string;
   memory: { rss: string; heapUsed: string; heapTotal: string; external: string };
   checks: Record<string, HealthCheck>;
 }
@@ -33,20 +42,44 @@ export class HealthService {
     await Promise.allSettled([
       this.checkDb().then((r) => (checks.db = r)),
       this.checkRedis().then((r) => (checks.redis = r)),
-      this.checkDeepSeek().then((r) => { if (r.status !== "unconfigured") checks.ai = r; }),
-      this.checkTencentCloud().then((r) => { if (r.status !== "unconfigured") checks.cloud = r; }),
-      this.checkSms().then((r) => { if (r.status !== "unconfigured") checks.sms = r; }),
-      this.checkCos().then((r) => { if (r.status !== "unconfigured") checks.storage = r; }),
-      this.checkWechatPay().then((r) => { if (r.status !== "unconfigured") checks.payment = r; }),
-      this.checkWechatOpen().then((r) => { if (r.status !== "unconfigured") checks.wechat = r; }),
-      this.checkLiveService().then((r) => { if (r.status !== "unconfigured") checks.live = r; }),
-      this.checkIm().then((r) => { if (r.status !== "unconfigured") checks.im = r; }),
-      this.checkVod().then((r) => { if (r.status !== "unconfigured") checks.vod = r; }),
+      this.checkDeepSeek().then((r) => {
+        if (r.status !== "unconfigured") checks.ai = r;
+      }),
+      this.checkTencentCloud().then((r) => {
+        if (r.status !== "unconfigured") checks.cloud = r;
+      }),
+      this.checkSms().then((r) => {
+        if (r.status !== "unconfigured") checks.sms = r;
+      }),
+      this.checkCos().then((r) => {
+        if (r.status !== "unconfigured" || process.env.STORAGE_PROVIDER === "cos")
+          checks.storage = r;
+      }),
+      this.checkWechatPay().then((r) => {
+        if (r.status !== "unconfigured") checks.payment = r;
+      }),
+      this.checkWechatOpen().then((r) => {
+        if (r.status !== "unconfigured") checks.wechat = r;
+      }),
+      this.checkLiveService().then((r) => {
+        if (r.status !== "unconfigured") checks.live = r;
+      }),
+      this.checkIm().then((r) => {
+        if (r.status !== "unconfigured") checks.im = r;
+      }),
+      this.checkVod().then((r) => {
+        if (r.status !== "unconfigured") checks.vod = r;
+      }),
+      this.checkAppleIap().then((r) => {
+        if (r.status !== "unconfigured") checks.appleIap = r;
+      }),
     ]);
 
     // 汇总状态
     const hasFail = Object.values(checks).some((c) => c.status === "fail");
-    const hasDegraded = Object.values(checks).some((c) => c.status === "degraded" || c.status === "unconfigured");
+    const hasDegraded = Object.values(checks).some(
+      (c) => c.status === "degraded" || c.status === "unconfigured",
+    );
     const status = hasFail ? "fail" : hasDegraded ? "degraded" : "ok";
 
     const mem = process.memoryUsage();
@@ -56,6 +89,7 @@ export class HealthService {
       uptime: process.uptime(),
       timestamp: Date.now(),
       version: "1.0",
+      releaseId: process.env.RELEASE_ID?.trim() || "unversioned",
       memory: {
         rss: this.fmt(mem.rss),
         heapUsed: this.fmt(mem.heapUsed),
@@ -72,15 +106,19 @@ export class HealthService {
     const dbOk = db.status === "fulfilled" && db.value.status === "ok";
     const redisOk = redis.status === "fulfilled" && redis.value.status === "ok";
     return {
-      status: dbOk ? "ready" : "not_ready",
+      status: dbOk && redisOk ? "ready" : "not_ready",
       db: dbOk ? "ok" : "fail",
       redis: redisOk ? "ok" : "fail",
     };
   }
 
   /** 获取简洁的存活检查（K8s liveness probe 用，不做任何外部依赖检查） */
-  liveness(): { status: string; uptime: number } {
-    return { status: "alive", uptime: process.uptime() };
+  liveness(): { status: string; uptime: number; releaseId: string } {
+    return {
+      status: "alive",
+      uptime: process.uptime(),
+      releaseId: process.env.RELEASE_ID?.trim() || "unversioned",
+    };
   }
 
   // ═══════════ 私有检查方法 ═══════════
@@ -99,6 +137,7 @@ export class HealthService {
   private async checkRedis(): Promise<HealthCheck> {
     try {
       const start = Date.now();
+      await this.redis.pingShared();
       const testKey = "health:check:" + Date.now();
       await this.redis.set(testKey, "1", 10);
       const val = await this.redis.get(testKey);
@@ -108,6 +147,16 @@ export class HealthService {
       this.logger.error("Redis 健康检查失败", (e as Error).message);
       return { status: "fail", error: (e as Error).message };
     }
+  }
+
+  private async checkAppleIap(): Promise<HealthCheck> {
+    const settings = getAppleIapSettings();
+    if (settings.enabled) return { status: "ok" };
+    if (!settings.required && !settings.configured) return { status: "unconfigured" };
+    return {
+      status: settings.required ? "fail" : "degraded",
+      error: `APPLE_IAP_CONFIG:${settings.problems.join(",")}`,
+    };
   }
 
   /** public：DegradeService 复用做定时降级探测 */
@@ -150,19 +199,50 @@ export class HealthService {
   private async checkSms(): Promise<HealthCheck> {
     const appId = process.env.SMS_APP_ID;
     if (!appId) return { status: "unconfigured" };
-    // SMS 无免费探测端点，仅验证配置完整
-    if (process.env.SMS_SIGN_NAME && process.env.SMS_TEMPLATE_ID) {
-      return { status: "ok" };
+    if (!process.env.SMS_SIGN_NAME || !process.env.SMS_TEMPLATE_ID) {
+      return { status: "unconfigured", error: "SMS 配置不完整" };
     }
-    return { status: "unconfigured", error: "SMS 配置不完整" };
+
+    const credentialMode = getTencentCredentialMode();
+    if (credentialMode === "static") {
+      const secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID;
+      const secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY;
+      return secretId && secretKey
+        ? { status: "ok" }
+        : { status: "unconfigured", error: "SMS 静态凭据未配置" };
+    }
+
+    if (!process.env.TENCENT_CVM_ROLE_NAME?.trim()) {
+      return { status: "unconfigured", error: "SMS 实例角色未配置" };
+    }
+    try {
+      const start = Date.now();
+      await getTencentInstanceRoleCredentialProvider().getCredentials();
+      return { status: "ok", latencyMs: Date.now() - start };
+    } catch (error) {
+      this.logger.warn("SMS 实例角色凭据检查失败", (error as Error).message);
+      return { status: "degraded", error: (error as Error).message };
+    }
   }
 
   private async checkCos(): Promise<HealthCheck> {
+    const secretId = process.env.COS_SECRET_ID;
+    const secretKey = process.env.COS_SECRET_KEY;
     const bucket = process.env.COS_BUCKET;
     const region = process.env.COS_REGION;
-    if (!bucket || !region) return { status: "unconfigured" };
+    const credentialMode = getTencentCredentialMode();
+    const hasCredentials =
+      credentialMode === "instance-role"
+        ? Boolean(process.env.TENCENT_CVM_ROLE_NAME)
+        : Boolean(secretId && secretKey);
+    if (!hasCredentials || !bucket || !region) {
+      return { status: "unconfigured", error: "COS 配置不完整" };
+    }
     try {
       const start = Date.now();
+      if (credentialMode === "instance-role") {
+        await getTencentInstanceRoleCredentialProvider().getCredentials();
+      }
       const url = `https://${bucket}.cos.${region}.myqcloud.com`;
       const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(5000) });
       // COS 无权限返回 403，说明 bucket 存在可达
@@ -176,8 +256,22 @@ export class HealthService {
   }
 
   private async checkWechatPay(): Promise<HealthCheck> {
-    const mchId = process.env.WECHAT_PAY_MCH_ID;
+    const mchId = process.env.WECHAT_PAY_MCH_ID?.trim();
     if (!mchId) return { status: "unconfigured" };
+    if (process.env.NODE_ENV === "production") {
+      if (process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE !== "DB") {
+        return { status: "degraded", error: "WECHAT_PAY_DATABASE_CONFIG_INCOMPLETE" };
+      }
+      const allowedMchId = process.env.WECHAT_PAY_ALLOWED_MCH_ID?.trim();
+      if (!allowedMchId || allowedMchId !== mchId) {
+        return { status: "degraded", error: "WECHAT_PAY_MERCHANT_ALLOWLIST_INVALID" };
+      }
+      const hasPublicKey = !!process.env.WECHAT_PAY_PUBLIC_KEY?.trim();
+      const hasPublicKeyId = !!process.env.WECHAT_PAY_PUBLIC_KEY_ID?.trim();
+      if (hasPublicKey !== hasPublicKeyId) {
+        return { status: "degraded", error: "WECHAT_PAY_PUBLIC_KEY_PAIR_INCOMPLETE" };
+      }
+    }
     try {
       const start = Date.now();
       const res = await fetch("https://api.mch.weixin.qq.com/", {
@@ -194,8 +288,17 @@ export class HealthService {
   }
 
   private async checkWechatOpen(): Promise<HealthCheck> {
-    const appId = process.env.WECHAT_APP_ID;
-    if (!appId) return { status: "unconfigured" };
+    const hasOfficial =
+      !!(process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID) &&
+      !!(process.env.WECHAT_OFFICIAL_APP_SECRET || process.env.WECHAT_APP_SECRET);
+    const hasMiniProgram =
+      !!(
+        process.env.WECHAT_MINI_APP_ID ||
+        process.env.MINIPROGRAM_APP_ID ||
+        process.env.WECHAT_MP_APP_ID ||
+        process.env.WECHAT_APP_ID
+      ) && !!(process.env.MINIPROGRAM_APP_SECRET || process.env.WECHAT_APP_SECRET);
+    if (!hasOfficial && !hasMiniProgram) return { status: "unconfigured" };
     try {
       const start = Date.now();
       const res = await fetch("https://api.weixin.qq.com/cgi-bin/token", {
@@ -212,8 +315,33 @@ export class HealthService {
   }
 
   private async checkLiveService(): Promise<HealthCheck> {
-    const pushDomain = process.env.LIVE_PUSH_DOMAIN;
-    if (!pushDomain) return { status: "unconfigured" };
+    const required = [
+      "LIVE_PUSH_DOMAIN",
+      "LIVE_PLAY_DOMAIN",
+      "LIVE_PUSH_KEY",
+      "LIVE_PLAY_KEY",
+      "TRTC_SDK_APP_ID",
+      "TRTC_SECRET_KEY",
+    ] as const;
+    const missing = required.filter((key) => !String(process.env[key] || "").trim());
+    if (missing.length === required.length) return { status: "unconfigured" };
+    if (missing.length) {
+      return { status: "fail", error: `LIVE_CONFIG_MISSING:${missing.join(",")}` };
+    }
+    const mixingEnabled = /^(1|true|yes|on)$/i.test(String(process.env.LIVE_MULTI_GUEST_MIXING_ENABLED || ""));
+    const obsTrtcEnabled = /^(1|true|yes|on)$/i.test(String(process.env.LIVE_OBS_TRTC_INGEST_ENABLED || ""));
+    if (obsTrtcEnabled && !mixingEnabled) {
+      return { status: "fail", error: "LIVE_OBS_TRTC_REQUIRES_MIXING" };
+    }
+    if (obsTrtcEnabled && !String(process.env.TRTC_CALLBACK_KEY || process.env.TENCENT_CALLBACK_KEY || "").trim()) {
+      return { status: "fail", error: "LIVE_OBS_TRTC_CALLBACK_KEY_MISSING" };
+    }
+    if (mixingEnabled && !hasTencentCloudCredentialConfiguration(
+      process.env.TENCENT_SECRET_ID || "",
+      process.env.TENCENT_SECRET_KEY || "",
+    )) {
+      return { status: "fail", error: "LIVE_MIXING_CREDENTIAL_MISSING" };
+    }
     return { status: "ok" };
   }
 
@@ -237,9 +365,67 @@ export class HealthService {
   }
 
   private async checkVod(): Promise<HealthCheck> {
-    const subAppId = process.env.VOD_SUB_APP_ID;
+    const subAppId = process.env.VOD_SUB_APP_ID?.trim();
     if (!subAppId) return { status: "unconfigured" };
-    return { status: "ok" };
+
+    const numericSubAppId = Number(subAppId);
+    if (!Number.isSafeInteger(numericSubAppId) || numericSubAppId <= 0) {
+      return { status: "fail", error: "VOD_SUB_APP_ID_INVALID" };
+    }
+
+    const secretId = process.env.COS_SECRET_ID || process.env.TENCENT_SECRET_ID || "";
+    const secretKey = process.env.COS_SECRET_KEY || process.env.TENCENT_SECRET_KEY || "";
+    if (!hasTencentCloudCredentialConfiguration(secretId, secretKey)) {
+      return { status: "fail", error: "VOD_CREDENTIAL_MISSING" };
+    }
+
+    try {
+      const start = Date.now();
+      const credentials = await resolveTencentCloudCredentials(secretId, secretKey);
+      const { host, headers, payloadStr } = tc3Sign({
+        secretId: credentials.secretId,
+        secretKey: credentials.secretKey,
+        securityToken: credentials.securityToken,
+        service: "vod",
+        action: "SearchMedia",
+        version: "2018-07-17",
+        payload: {
+          SubAppId: numericSubAppId,
+          Offset: 0,
+          Limit: 1,
+        },
+      });
+      const response = await fetch(`https://${host}`, {
+        method: "POST",
+        headers,
+        body: payloadStr,
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) {
+        this.logger.warn("VOD 健康检查返回非成功状态", `HTTP ${response.status}`);
+        return { status: "degraded", error: `VOD_API_HTTP_${response.status}` };
+      }
+
+      const payload = await response.json() as TencentCloudResponse;
+      const apiError = payload.Response?.Error;
+      if (apiError) {
+        this.logger.warn("VOD 健康检查 API 拒绝", `${apiError.Code}: ${apiError.Message}`);
+        const permissionMissing = apiError.Code.includes("UnauthorizedOperation");
+        return {
+          status: "degraded",
+          error: permissionMissing
+            ? "VOD_SEARCH_PERMISSION_MISSING"
+            : "VOD_API_REJECTED",
+        };
+      }
+      if (!process.env.VOD_PLAY_KEY?.trim()) {
+        return { status: "degraded", error: "VOD_PLAY_KEY_MISSING" };
+      }
+      return { status: "ok", latencyMs: Date.now() - start };
+    } catch (error) {
+      this.logger.warn("VOD 健康检查失败", (error as Error).message);
+      return { status: "degraded", error: "VOD_API_UNAVAILABLE" };
+    }
   }
 
   private fmt(bytes: number): string {

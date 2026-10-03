@@ -37,7 +37,7 @@ onMounted(async () => {
 })
 
 function goRitual() {
-  navigateTo('/pkg-poetry/solar-term/index')
+  navigateTo('/pkg-solar-term/index/index')
 }
 </script>
 

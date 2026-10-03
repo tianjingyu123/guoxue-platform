@@ -1,6 +1,6 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from "@nestjs/common";
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger, ServiceUnavailableException } from "@nestjs/common";
 import { Observable } from "rxjs";
-import { tap } from "rxjs/operators";
+import { concatMap, tap } from "rxjs/operators";
 import { AuditService } from "../modules/audit/audit.service";
 import { AUDITABLE_KEY } from "./audit.decorator";
 
@@ -25,6 +25,25 @@ export class AuditInterceptor implements NestInterceptor {
     const targetType = auditable?.targetType || req.route?.path?.split("/")[3] || "unknown";
     const userId = req.user?.id;
     const ip = req.ip || req.connection?.remoteAddress;
+    // MerchantGuard 会在拦截器之前注入 merchant。把店铺上下文写入日志前缀，
+    // 让同一操作员服务多家店时仍可严格按店铺隔离查询；只记路径，不落请求体/查询参数。
+    const merchantId = typeof req.merchant?.id === "string" ? req.merchant.id.trim() : "";
+    const requestPath = String(req.originalUrl || req.url || "").split("?", 1)[0].slice(0, 512);
+    const detail = `${merchantId ? `merchant:${merchantId} | ` : ""}${req.method} ${requestPath}`;
+
+    // 只对显式标记的敏感查看等待落库，不改变支付/退款等普通事务的异步审计边界。
+    if (auditable?.requireSuccess) {
+      return next.handle().pipe(concatMap(async (result) => {
+        const targetId = (result as { id?: string } | null | undefined)?.id || req.params?.id;
+        try {
+          await this.audit.log({ userId, action, targetType, targetId, detail, ip });
+        } catch {
+          this.logger.warn("敏感查看审计失败，已阻止明文返回");
+          throw new ServiceUnavailableException("审计服务暂不可用，请稍后重试");
+        }
+        return result;
+      }));
+    }
 
     return next.handle().pipe(
       tap((result) => {
@@ -34,7 +53,7 @@ export class AuditInterceptor implements NestInterceptor {
           action,
           targetType,
           targetId,
-          detail: `${req.method} ${req.url}`,
+          detail,
           ip,
         }).catch((err) => this.logger.warn("审计日志写入失败", err));
       }),

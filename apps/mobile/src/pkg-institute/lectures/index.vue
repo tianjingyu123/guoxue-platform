@@ -68,7 +68,7 @@
             </view>
             <view class="card-foot">
               <text v-if="lec.price === 0" class="price-free">免费</text>
-              <text v-else class="price">¥{{ lec.price }}</text>
+              <text v-else class="price">¥{{ formatPrice(lec.price) }}</text>
               <view class="foot-right">
                 <app-icon name="users" :size="13" color="#9ca3af" />
                 <text class="foot-meta">{{ lec.studentCount }} 人已学 · {{ fmtDate(lec.createdAt) }}</text>
@@ -91,7 +91,8 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack } from '@/utils/router'
 import { useList } from '@/composables/useList'
-import { instituteApi, lecturerLevelLabel, lecturerLevelColor, fmtDate, type LectureItem } from '@/lib/institute-data'
+import { instituteApi, lecturerLevelLabel, lecturerLevelColor, fmtDate, type LectureItem } from '@/pkg-institute/lib/institute-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -115,7 +116,7 @@ function goDetail(id: string) {
 .page { min-height: 100vh; background: #f5f5f5; }
 .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 20; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid #ececec; }
 .nav-bar { height: 44px; display: flex; align-items: center; padding: 0 12px; }
-.nav-back { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin-left: -4px; }
+.nav-back { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin: 0 -6px 0 -10px; } /* 触控热区≥44px：容器扩大+负margin保持视觉位置 */
 .nav-title { flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #1a1a1a; }
 .nav-placeholder { width: 32px; }
 .scroll { height: 100vh; box-sizing: border-box; }

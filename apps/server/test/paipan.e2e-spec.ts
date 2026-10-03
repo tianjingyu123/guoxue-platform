@@ -4,11 +4,13 @@ import request from "supertest"
 import { createE2eApp } from "./e2e-setup"
 
 describe("Paipan E2E", () => {
+  const originalMode = process.env.PAIPAN_MODE
   let app: INestApplication
   let prisma: any
   let jwt: JwtService
 
   beforeAll(async () => {
+    process.env.PAIPAN_MODE = "native"
     const ctx = await createE2eApp()
     app = ctx.app
     prisma = ctx.prisma
@@ -17,10 +19,18 @@ describe("Paipan E2E", () => {
 
   afterAll(async () => {
     await app.close()
+    if (originalMode === undefined) delete process.env.PAIPAN_MODE
+    else process.env.PAIPAN_MODE = originalMode
   })
 
   beforeEach(() => {
     jest.clearAllMocks()
+  })
+
+  it("legacy 模式下普通用户直达自研接口返回 404", async () => {
+    process.env.PAIPAN_MODE = "legacy"
+    await request(app.getHttpServer()).post("/api/v1/paipan/bazi/preview").send({}).expect(404)
+    process.env.PAIPAN_MODE = "native"
   })
 
   // ═══════════════════ 八字预览 ═══════════════════

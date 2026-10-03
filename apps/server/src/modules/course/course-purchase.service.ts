@@ -1,12 +1,14 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger, Optional, Inject } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
-import { Prisma, OrderStatus } from "@prisma/client";
+import { Prisma, Order, OrderStatus } from "@prisma/client";
 import { safePagination } from "../../common/pagination";
 import { RedisService } from "../../redis/redis.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
+import { ShopAttributionService } from "../shop/shop-attribution.service";
 import { PurchaseCourseDto } from "./course.dto";
+import { NotificationService } from "../notification/notification.service";
 
 /**
  * 课程-购买与访问权限域（从 course.service 拆出·纯搬家不改逻辑）。
@@ -15,14 +17,77 @@ import { PurchaseCourseDto } from "./course.dto";
  */
 @Injectable()
 export class CoursePurchaseService {
+  private readonly logger = new Logger(CoursePurchaseService.name);
+
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
     private unifiedPricing: UnifiedPricingService,
+    private attribution: ShopAttributionService,
+    @Optional() private notifications?: NotificationService,
+    @Optional() @Inject("COMMERCE_SCOPE") private readonly commerceScope: "PLATFORM" | "INDEPENDENT" = "PLATFORM",
   ) {}
 
+  /** 免费订阅订单已经落库后才建通知；不在下单流程中等待可选通知服务。 */
+  private notifyFreeEnrollment(order: Pick<Order, "id" | "userId" | "targetId" | "status" | "payMethod" | "paidAt">) {
+    if (!this.notifications || order.status !== "PAID" || order.payMethod !== "FREE" || !order.paidAt || !order.targetId) return;
+    try {
+      void this.notifications.sendOnce(order.userId, `COURSE_ENROLLED:${order.id}`, {
+        type: "COURSE",
+        title: "课程订阅成功",
+        content: "课程已加入我的课程，可查看并开始学习。",
+        targetType: "COURSE",
+        targetId: order.targetId,
+      }).catch((error) => this.logger.warn(`免费课程订阅已完成但站内通知失败 order=${order.id}`, error));
+    } catch (error) {
+      this.logger.warn(`免费课程订阅已完成但站内通知调用失败 order=${order.id}`, error);
+    }
+  }
+
+  /**
+   * 课程订单复用商城统一归因口径：
+   * 临时分享链接 / 有效 ChannelClick 优先，永久分站归属兜底。
+   * 任一归因查询失败均 fail-open，不能阻断正常下单。
+   */
+  private async resolveOrderAttribution(userId: string, courseId: string, dto?: PurchaseCourseDto) {
+    if(this.commerceScope==="INDEPENDENT")return {permanentReferrerId:null,tempReferrerId:null,tempRefSubjectType:null};
+    let tempReferrerId: string | null = null;
+    let tempRefSubjectType: string | null = null;
+    try {
+      // referrerId 是历史客户端字段，按临时分享推荐人兼容读取；新客户端使用 tempReferrerId。
+      tempReferrerId = await this.attribution.resolveReferrerUserId(
+        dto?.tempReferrerId || dto?.referrerId,
+        userId,
+      );
+      if (await this.attribution.isChannelAttributionEnabled()) {
+        const click = await this.attribution.findLatestChannelClick(userId, courseId);
+        if (click && click.beneficiaryUserId !== userId) {
+          tempReferrerId = click.beneficiaryUserId;
+          tempRefSubjectType = click.subjectType;
+        }
+      }
+    } catch (error) {
+      this.logger.warn("课程临时归因查询失败，回落永久归属或无推荐人", error);
+    }
+
+    let permanentReferrerId: string | null = null;
+    try {
+      const relation = await this.prisma.referralRelation.findFirst({
+        where: { userId, referrerType: "STATION_MASTER", relationStatus: "ACTIVE" },
+        orderBy: { createdAt: "asc" },
+        select: { referrerId: true },
+      });
+      permanentReferrerId = relation?.referrerId ?? null;
+    } catch (error) {
+      this.logger.warn("课程永久归属查询失败，按无永久归属继续下单", error);
+    }
+
+    return { permanentReferrerId, tempReferrerId, tempRefSubjectType };
+  }
+
   /** 创建课程购买订单（Redis 锁防并发重复下单） */
-  async purchase(userId: string, courseId: string, dto?: PurchaseCourseDto) {
+  async purchase(userId: string, courseId: string, dto?: PurchaseCourseDto,request?:{clientRequestId:string}) {
+    if(request&&!/^[a-zA-Z0-9_-]{1,128}$/.test(request.clientRequestId))throw new BusinessException(ErrorCode.BAD_REQUEST,"内部课程请求标识无效");
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
       select: { id: true, price: true, title: true, validityDays: true },
@@ -60,8 +125,9 @@ export class CoursePurchaseService {
       const pendingOrder = await this.prisma.order.findFirst({
         where: { userId, type: "COURSE", targetId: courseId, status: "PENDING" },
       });
-      if (pendingOrder) return pendingOrder;
+      if (pendingOrder) {if(request&&pendingOrder.clientRequestId!==request.clientRequestId)throw new BusinessException(ErrorCode.BAD_REQUEST,"课程已有其他来源的待支付订单，请先处理原订单");return pendingOrder;}
 
+      const attribution = await this.resolveOrderAttribution(userId, courseId, dto);
       const orderData: any = {
         userId,
         type: "COURSE",
@@ -69,18 +135,46 @@ export class CoursePurchaseService {
         amount: pricing.effectivePrice,
         originalAmount: pricing.originalPrice > pricing.effectivePrice ? pricing.originalPrice : undefined,
         couponId: dto?.couponId,
-        referrerId: dto?.referrerId,
+        referrerId: attribution.permanentReferrerId,
+        tempReferrerId: attribution.tempReferrerId,
+        tempRefSubjectType: attribution.tempRefSubjectType,
         status: "PENDING",
+        ...(request?{clientRequestId:request.clientRequestId}:{}),
       };
       if (pricing.appliedPromotion) {
         orderData.promotionType = pricing.appliedPromotion.type;
         orderData.promotionId = pricing.appliedPromotion.id;
       }
-      const order = await this.prisma.order.create({ data: orderData });
+      // 免费课「订阅即完成」（董事长 2026-07-18 拍板：免费课也要订阅动作，统一进「我的课程」）：
+      // ¥0 单无需支付流程直接置 PAID——getMyCourses 查 PAID/COMPLETED 即自动收录；
+      // checkAccess 对 price=0 本就放行，此单的意义是让用户在「我的课程」里找得到它。幂等由上方已购检查保证
+      if (Number(pricing.effectivePrice) === 0) {
+        orderData.status = "PAID";
+        orderData.paidAt = new Date();
+        orderData.payMethod = "FREE";
+        orderData.payAmount = 0;
+      }
+      // 免费订阅与新通知事实一同提交，收费待支付订单仍走原路径。
+      const order = orderData.payMethod === "FREE"
+        ? await this.prisma.$transaction(async (tx) => {
+            const created = await tx.order.create({ data: orderData });
+            await tx.freeCourseEnrollmentNotice.create({
+              data: { id: created.id, userId: created.userId, courseId: created.targetId },
+            });
+            return created;
+          })
+        : await this.prisma.order.create({ data: orderData });
+      this.notifyFreeEnrollment(order);
       return order;
     } finally {
       await this.redis.del(lockKey).catch(() => {});
     }
+  }
+  /** 品牌建单把原课程内核复用在外层数据库事务内，通知事实仍与零价订单同组提交。 */
+  async purchaseInTransaction(tx:Prisma.TransactionClient,userId:string,courseId:string,dto:PurchaseCourseDto,clientRequestId:string){
+    const prisma=new Proxy(tx,{get(target,key){if(key==="$transaction")return (work:(inner:Prisma.TransactionClient)=>Promise<unknown>)=>work(tx);const value=Reflect.get(target,key);return typeof value==="function"?value.bind(target):value;}}) as unknown as PrismaService;
+    // 事务尚未提交，不发送可选通知；原持久化通知事实由既有后台处理。
+    return new CoursePurchaseService(prisma,this.redis,this.unifiedPricing,this.attribution,undefined,this.commerceScope).purchase(userId,courseId,dto,{clientRequestId});
   }
 
   /** 检查用户是否有课程访问权限（含有效期检查；会员专属精品课对有效会员免费） */
@@ -96,7 +190,8 @@ export class CoursePurchaseService {
     if (course.memberFree && (await this.isActiveMember(userId))) return true;
 
     const order = await this.prisma.order.findFirst({
-      where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
+      where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] }, paidAt: { not: null } },
+      orderBy: { paidAt: "desc" },
     });
     if (!order || !order.paidAt) return false;
 
@@ -185,6 +280,7 @@ export class CoursePurchaseService {
 
     const courseMap = new Map(courses.map((c) => [c.id, c]));
 
+    const seenCourseIds = new Set<string>();
     const validCourses = orders
       .filter((o) => {
         const course = courseMap.get(o.targetId);
@@ -192,6 +288,11 @@ export class CoursePurchaseService {
         if (course.validityDays === 0) return true; // 永久有效
         const expiresAt = new Date(o.paidAt.getTime() + course.validityDays * 86400000);
         return expiresAt > new Date();
+      })
+      .filter((o) => {
+        if (seenCourseIds.has(o.targetId)) return false;
+        seenCourseIds.add(o.targetId);
+        return true;
       })
       .map((o) => {
         const course = courseMap.get(o.targetId)!;
@@ -222,9 +323,14 @@ export class CoursePurchaseService {
   }
 
   /** 获取我购买的课程 */
-  async getMyCourses(userId: string, rawPage = 1, rawPageSize = 20) {
+  async getMyCourses(userId: string, rawPage = 1, rawPageSize = 20, targetId?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where: Prisma.OrderWhereInput = { userId, type: "COURSE" as const, status: { in: [OrderStatus.PAID, OrderStatus.COMPLETED] } };
+    const where: Prisma.OrderWhereInput = {
+      userId,
+      type: "COURSE" as const,
+      status: { in: [OrderStatus.PAID, OrderStatus.COMPLETED] },
+      ...(targetId ? { targetId } : {}),
+    };
     const [orders, total] = await Promise.all([
       this.prisma.order.findMany({
         where,

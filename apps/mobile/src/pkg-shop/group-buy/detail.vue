@@ -13,8 +13,7 @@
 
     <!-- 加载中 -->
     <view v-if="loading" class="state-box">
-      <view class="state-spin" />
-      <text class="state-text">加载中...</text>
+      <AppLoading />
     </view>
     <!-- 加载失败 -->
     <view v-else-if="error" class="state-box">
@@ -35,8 +34,8 @@
             <text class="pc-title">{{ detail.title }}</text>
             <text class="pc-desc">{{ detail.description }}</text>
             <view class="pc-price">
-              <text class="price-now">¥{{ detail.price }}</text>
-              <text class="price-old">¥{{ detail.originalPrice }}</text>
+              <text class="price-now">¥{{ formatPrice(detail.price) }}</text>
+              <text class="price-old">¥{{ formatPrice(detail.originalPrice) }}</text>
               <text class="save-tag">省¥{{ savedAmount }}</text>
             </view>
           </view>
@@ -46,9 +45,9 @@
             <app-icon name="users" :size="28" color="#ff6b35" />
             <text class="meta-text">{{ detail.minMembers }}人成团</text>
           </view>
-          <view class="meta-item">
+          <view v-if="validityText" class="meta-item">
             <app-icon name="clock" :size="28" color="#ff6b35" />
-            <text class="meta-text">24小时有效</text>
+            <text class="meta-text">{{ validityText }}</text>
           </view>
         </view>
       </view>
@@ -117,7 +116,7 @@
       <view class="footer">
         <view class="footer-btn" hover-class="btn-hover" @tap="create">
           <app-icon name="plus" :size="28" color="#fff" />
-          <text class="footer-btn-text">¥{{ detail.price }} 开新团</text>
+          <text class="footer-btn-text">¥{{ formatPrice(detail.price) }} 开新团</text>
         </view>
       </view>
     </template>
@@ -128,7 +127,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo, redirectTo } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
 import { shopApi, formatCountdown } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 interface GroupBuyDetailData {
   id: string
@@ -139,6 +140,7 @@ interface GroupBuyDetailData {
   price: number
   originalPrice: number
   rules: string[]
+  expireMinutes?: number
 }
 interface ActiveGroup {
   id: string
@@ -152,6 +154,12 @@ interface ActiveGroup {
 const detail = ref<GroupBuyDetailData | null>(null)
 /** 节省金额：两位小数取整，避免浮点误差 */
 const savedAmount = computed(() => Math.max(0, Math.round(((detail.value?.originalPrice || 0) - (detail.value?.price || 0)) * 100) / 100))
+/** 有效期展示：用真实 expireMinutes 换算（整点→X小时，否则X分钟）；后端未配(0)则不显固定"24小时" */
+const validityText = computed(() => {
+  const min = detail.value?.expireMinutes || 0
+  if (min <= 0) return ''
+  return min % 60 === 0 ? `${min / 60}小时有效` : `${min}分钟有效`
+})
 const groups = ref<ActiveGroup[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -528,17 +536,6 @@ async function retryLoad() {
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
-}
-.state-spin {
-  width: 64rpx;
-  height: 64rpx;
-  border: 4rpx solid #e8e3db;
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 .state-icon {
   width: 120rpx;

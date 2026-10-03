@@ -4,7 +4,7 @@
       <template #center>
         <view class="nav-title-wrap">
           <text class="nav-title">评价订单</text>
-          <text class="nav-id">#{{ orderId }}</text>
+          <text v-if="orderId" class="nav-id">#{{ orderId }}</text>
         </view>
       </template>
     </app-nav-bar>
@@ -105,7 +105,7 @@
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
-import { orderApi, reviewTagsByRating, reviewRatingLabels, type ReviewItem } from '@/lib/order-data'
+import { orderApi, reviewTagsByRating, reviewRatingLabels, type ReviewItem } from '@/pkg-order/lib/order-data'
 
 const safeBottom = ref(0)
 const orderId = ref('')
@@ -396,7 +396,7 @@ async function submit() {
   left: 0;
   right: 0;
   padding: 16rpx 32rpx;
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   border-top: 1rpx solid #E8E3DB;
 }
 .submit-hint {

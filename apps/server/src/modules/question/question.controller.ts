@@ -9,6 +9,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
 import { SanitizePipe } from "../../common/sanitize.pipe";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("付费问答")
 @ApiBearerAuth()
@@ -64,6 +65,13 @@ export class QuestionController {
     return this.svc.listQuestions(q);
   }
 
+  @Get("my")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的付费问答列表（仅登录者本人）" })
+  listMyQuestions(@Req() req: Request, @Query() q: QuestionQueryDto) {
+    return this.svc.listMyQuestions(req.user.id, q);
+  }
+
   @Get(":id")
   @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "问答详情", description: "查看单条付费问答的完整信息；非当事人/未围观时 answer 受付费墙保护" })
@@ -75,6 +83,7 @@ export class QuestionController {
   }
 
   @Post(":id/refund")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @Auditable({ action: "问答退款", targetType: "QUESTION" })
@@ -89,6 +98,7 @@ export class QuestionController {
   }
 
   @Post("admin/refund-expired")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "超时退款", description: "对超时未回答的提问执行自动退款（按各自超时配置）" })

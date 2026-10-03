@@ -1,0 +1,34 @@
+{
+  "sourceCommit": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+  "actualPreviewSourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+  "snapshot": {
+    "sourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "files": 2749,
+    "copiedBytes": 11043224,
+    "allHashesEqual": true,
+    "appid": "wx06397e8ab26bed9e",
+    "scope": "official-preview-not-upload-or-release"
+  },
+  "mainBytes": 1890595,
+  "mainRemainingBytes": 206557,
+  "largestSubpackage": {
+    "name": "/pkg-paipan/",
+    "size": 1950310
+  },
+  "largestRemainingBytes": 146842,
+  "subpackageCount": 33,
+  "totalBytes": 12573545,
+  "scope": "official-cli-preview-not-phone-upload-review-release",
+  "newSimulatorPageLoadAtCurrentSource": false,
+  "passed": true,
+  "priorSimulatorEvidenceSource": "1843d1b0e8a041bf82943ae4fcfb5160bf765ad2",
+  "clientTreeEquivalent": true,
+  "comparedPaths": [
+    "apps/mobile",
+    "apps/admin",
+    "packages",
+    "package.json",
+    "pnpm-lock.yaml"
+  ],
+  "freshOfficialPreviewAtCurrentSource": false
+}

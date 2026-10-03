@@ -444,7 +444,9 @@ export class ExportService {
   }
 
   private escapeCsvField(val: string): string {
-    const str = String(val);
+    let str = String(val);
+    // 防止 Excel / WPS 公式注入；带前导空白、制表符或换行的公式同样按文本输出。
+    if (/^[\t\r\n ]*[=+\-@]/u.test(str)) str = `'${str}`;
     if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
       return `"${str.replace(/"/g, '""')}"`;
     }

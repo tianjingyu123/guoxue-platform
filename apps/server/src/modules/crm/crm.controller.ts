@@ -11,6 +11,7 @@ import {
   CreateServeLogDto, UpdateServeLogDto, ReminderQueryDto, FromOrderDto,
 } from "./crm.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 /**
  * 课-P3 客户经营 CRM（服务环）
@@ -98,6 +99,7 @@ export class CrmController {
   }
 
   @Delete("clients/:id")
+  @RedLineGate(RedLine.USER_DATA, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除客户档案（硬删+审计留痕·客户可要求删除）" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 404, description: "客户不存在" })
@@ -136,6 +138,7 @@ export class CrmController {
   }
 
   @Delete("serve-logs/:id")
+  @RedLineGate(RedLine.USER_DATA, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除服务记录" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 404, description: "服务记录不存在" })

@@ -1,0 +1,49 @@
+{
+  "head": "6bb0b15608114996db5eac1a64945a98290494c4",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-lease-content.ts": "72d6b7d39a28f2927d63bade0240192cd96fbc921d9355acb3b20f73ab1f8dd5",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "864821d1c5742b30b9f3941e1f712453fd835a71483bd086fdd9d0af7f7c8019",
+    "apps/server/src/modules/managed-tenancy/managed-lease.module.ts": "8008d0a67ad14feae1ff45dee9a245fe31e0f6dcd08dd592dd0fcb8b8f4fa123",
+    "apps/server/src/modules/managed-tenancy/managed-lease-permissions.ts": "ba677560f44eda7291ea5a786deb0c104c3ca981dd2a42dc66f4d228add736e6",
+    "pilots/managed-tenancy/postgres-harness.mjs": "096b032599e3fc523ca45a1768665665bfad6e6c6e4e40c2f94504b643abcbba",
+    "pilots/managed-tenancy/verify-content-postgres.mjs": "2152df4cf673d6f442024eba2e264311f7e88f9f6640af674f692f92b9cd7825"
+  },
+  "checks": [
+    {
+      "name": "真实附件字节、摘要与应用来源；普通用户不能管理、读未发布附件，未知字段和非法类型拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "商品创建、人工上架与关联附件读取已接线；同客户另一应用和另一客户不能自动共享或修改",
+      "status": "PASS"
+    },
+    {
+      "name": "跨进程旧修订号竞争只有一次内容变更和审计；编辑回待审核，普通附件读取即时停止",
+      "status": "PASS"
+    },
+    {
+      "name": "课程创建、章节管理、人工审核及学习贯通；无章节不能上架，修改内容重审，不向另一应用授课",
+      "status": "PASS"
+    },
+    {
+      "name": "52条已发布合成目录通过真实HTTP读取完整两页，游标无重复；另一应用没有来源不能读取",
+      "status": "PASS"
+    },
+    {
+      "name": "圈子建立应用来源和唯一圈主，智能体审核与公开目录贯通；单智能体模板拒绝发布第二角色且不读取私有prompt",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 7,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本任务三个Nest进程与真实PostgreSQL合成数据，没有生产业务或渠道登记",
+    "本地数据库PNG/JPEG字节存储不代表COS、视频、真实支付或语音供应商已经接通"
+  ]
+}

@@ -4,7 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 
 const mockPrisma: any = {
   userPoints: { findUnique: jest.fn(), create: jest.fn(), upsert: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
-  pointsRecord: { findMany: jest.fn(), count: jest.fn(), create: jest.fn() },
+  pointsRecord: { findMany: jest.fn(), count: jest.fn(), create: jest.fn(), aggregate: jest.fn() },
   growthValue: { findUnique: jest.fn(), create: jest.fn(), upsert: jest.fn(), update: jest.fn() },
   growthRecord: { findMany: jest.fn(), count: jest.fn(), create: jest.fn() },
 };
@@ -23,6 +23,7 @@ describe("PointsService", () => {
     }).compile();
     svc = mod.get(PointsService);
     jest.clearAllMocks();
+    mockPrisma.pointsRecord.aggregate.mockResolvedValue({ _sum: { amount: null } });
   });
 
   it("应被定义", () => expect(svc).toBeDefined());
@@ -33,7 +34,7 @@ describe("PointsService", () => {
       mockPrisma.userPoints.findUnique.mockResolvedValue(points);
 
       const result = await svc.getPoints("u1");
-      expect(result).toEqual(points);
+      expect(result).toEqual({ ...points, todayEarned: 0, monthEarned: 0 });
       expect(mockPrisma.userPoints.create).not.toHaveBeenCalled();
     });
 
@@ -43,8 +44,46 @@ describe("PointsService", () => {
       mockPrisma.userPoints.create.mockResolvedValue(points);
 
       const result = await svc.getPoints("u1");
-      expect(result).toEqual(points);
+      expect(result).toEqual({ ...points, todayEarned: 0, monthEarned: 0 });
       expect(mockPrisma.userPoints.create).toHaveBeenCalledWith({ data: { userId: "u1" } });
+    });
+
+    it("按北京时间自然日与自然月聚合真实获取积分", async () => {
+      jest.useFakeTimers().setSystemTime(new Date("2026-07-21T16:30:00.000Z"));
+      try {
+        mockPrisma.userPoints.findUnique.mockResolvedValue({ userId: "u1", balance: 100 });
+        mockPrisma.pointsRecord.aggregate
+          .mockResolvedValueOnce({ _sum: { amount: 15 } })
+          .mockResolvedValueOnce({ _sum: { amount: 80 } });
+
+        const result = await svc.getPoints("u1");
+
+        expect(result).toMatchObject({ todayEarned: 15, monthEarned: 80 });
+        expect(mockPrisma.pointsRecord.aggregate).toHaveBeenNthCalledWith(1, {
+          where: {
+            userId: "u1",
+            type: "EARN",
+            createdAt: {
+              gte: new Date("2026-07-21T16:00:00.000Z"),
+              lt: new Date("2026-07-22T16:00:00.000Z"),
+            },
+          },
+          _sum: { amount: true },
+        });
+        expect(mockPrisma.pointsRecord.aggregate).toHaveBeenNthCalledWith(2, {
+          where: {
+            userId: "u1",
+            type: "EARN",
+            createdAt: {
+              gte: new Date("2026-06-30T16:00:00.000Z"),
+              lt: new Date("2026-07-31T16:00:00.000Z"),
+            },
+          },
+          _sum: { amount: true },
+        });
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 

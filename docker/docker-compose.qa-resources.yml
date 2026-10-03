@@ -1,0 +1,21 @@
+# 共享开发服务器专用：仅约束本次独立 QA 项目，不更改既有容器。
+networks:
+  default:
+    # 运行时禁止外网访问，避免测试触发真实短信、AI、支付或云资源调用。
+    internal: true
+services:
+  postgres:
+    mem_limit: 768m
+    cpus: "1.0"
+    pids_limit: 128
+  redis:
+    mem_limit: 384m
+    cpus: "0.5"
+    pids_limit: 64
+  test:
+    # 完整 Nest 图的 ts-jest 类型编译峰值超过 3 GiB；保留容器与宿主机余量。
+    mem_limit: 6g
+    cpus: "2.0"
+    pids_limit: 512
+    environment:
+      NODE_OPTIONS: --max-old-space-size=5120

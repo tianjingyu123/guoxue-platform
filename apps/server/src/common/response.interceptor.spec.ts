@@ -11,6 +11,7 @@ describe("ResponseInterceptor", () => {
 
   const mockContext = (path: string): ExecutionContext =>
     ({
+      getHandler: () => mockContext,
       switchToHttp: () => ({
         getRequest: () => ({ path }),
       }),
@@ -20,6 +21,19 @@ describe("ResponseInterceptor", () => {
     ({
       handle: () => of(data),
     } as any);
+
+  it("@SkipFormat 标记存在时返回原始响应", (done) => {
+    const reflector = { get: jest.fn().mockReturnValue(true) } as any;
+    const skipInterceptor = new ResponseInterceptor(reflector);
+    const rawAck = { code: "FAIL", message: "请重试" };
+    const result = skipInterceptor.intercept(mockContext("/api/v1/payout/wechat/transfer-notify"), mockHandler(rawAck));
+
+    result.subscribe((r: any) => {
+      expect(reflector.get).toHaveBeenCalled();
+      expect(r).toBe(rawAck);
+      done();
+    });
+  });
 
   it("普通对象被包装为 {code,data,message}", (done) => {
     const ctx = mockContext("/api/v1/users");

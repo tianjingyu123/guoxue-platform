@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { HunyuanEmbeddingService } from "./hunyuan-embedding.service";
 
 interface VectorSearchResult {
   id: string;
@@ -12,15 +13,24 @@ interface VectorSearchResult {
 
 /** 余弦相似度 */
 function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
   let dot = 0, normA = 0, normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
+  const dimension = Math.max(a.length, b.length);
+  for (let i = 0; i < dimension; i++) {
+    const av = a[i] ?? 0;
+    const bv = b[i] ?? 0;
+    dot += av * bv;
+    normA += av * av;
+    normB += bv * bv;
   }
   const denom = Math.sqrt(normA) * Math.sqrt(normB);
   return denom === 0 ? 0 : dot / denom;
+}
+
+/** 将不同供应商的向量统一到数据库 vector(1536) 维度。补零不改变余弦方向。 */
+function normalizeVectorDimension(vector: number[], dimension: number): number[] {
+  if (vector.length === dimension) return vector;
+  if (vector.length > dimension) return vector.slice(0, dimension);
+  return [...vector, ...new Array(dimension - vector.length).fill(0)];
 }
 
 /** 将中文文本转为字符哈希向量（Embedding API 不可用时的本地降级方案） */
@@ -82,14 +92,26 @@ export class VectorService {
   private embeddingApiAvailable = false;
   private embeddingApiChecked = false;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly hunyuan: HunyuanEmbeddingService,
+  ) {
     // Embedding 独立配置：优先 EMBEDDING_API_KEY，回退 DASHSCOPE（阿里百炼有真实 embedding），
     // 再回退 DEEPSEEK（注意 DeepSeek 无 embedding 端点，仅作最后兜底→会降级字符哈希）。
     this.embeddingApiKey =
       process.env.EMBEDDING_API_KEY || process.env.DASHSCOPE_API_KEY || process.env.DEEPSEEK_API_KEY || "";
     this.embeddingBaseUrl = process.env.EMBEDDING_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1";
     this.embeddingModel = process.env.EMBEDDING_MODEL || "text-embedding-v2";
-    this.dimension = parseInt(process.env.EMBEDDING_DIMENSION || "1536", 10);
+    const configuredDimension = parseInt(
+      process.env.EMBEDDING_DIMENSION || "1536",
+      10,
+    );
+    this.dimension = 1536;
+    if (configuredDimension !== this.dimension) {
+      this.logger.warn(
+        `EMBEDDING_DIMENSION=${configuredDimension} 与数据库 vector(1536) 不一致；运行时将统一补齐或截断为 ${this.dimension} 维`,
+      );
+    }
     if (!this.embeddingApiKey) {
       this.logger.warn("未配置 embedding API Key（EMBEDDING_API_KEY/DASHSCOPE_API_KEY），使用本地字符哈希向量");
     }
@@ -101,7 +123,16 @@ export class VectorService {
     this.pgvectorDetected = true;
     try {
       const rows = await this.prisma.$queryRawUnsafe<Array<{ exists: boolean }>>(
-        `SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'vector')`,
+        `SELECT
+           EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'vector')
+           AND EXISTS(
+             SELECT 1
+             FROM information_schema.columns
+             WHERE table_schema = 'public'
+               AND table_name = 'CircleKnowledge'
+               AND column_name = 'embedding'
+               AND udt_name = 'vector'
+           ) AS exists`,
       );
       this.pgvectorAvailable = rows[0]?.exists ?? false;
     } catch (err: any) {
@@ -146,8 +177,33 @@ export class VectorService {
     }
   }
 
-  /** 文本转向量 */
+  /**
+   * 文本转向量（三级优先：混元真语义 > 兼容 Embedding API > 本地字符哈希）。
+   * 所有供应商输出最终统一为数据库 vector(1536)，避免写入时报维度不一致后静默降级。
+   */
   async embed(texts: string[]): Promise<number[][]> {
+    // 优先腾讯混元真语义向量
+    if (this.hunyuan.isEnabled) {
+      try {
+        const hy = await this.hunyuan.embedBatch(texts);
+        // 未命中项（本批 API 失败）用同维（1024）字符哈希兜底，保证维度一致
+        return texts.map((t, i) =>
+          normalizeVectorDimension(
+            hy[i] ?? textToSparseVector(t, this.hunyuan.dimension),
+            this.dimension,
+          ),
+        );
+      } catch (err: any) {
+        this.logger.warn(`混元向量异常，降级字符哈希(1024): ${err.message}`);
+        return texts.map((t) =>
+          normalizeVectorDimension(
+            textToSparseVector(t, this.hunyuan.dimension),
+            this.dimension,
+          ),
+        );
+      }
+    }
+
     await this.detectEmbeddingApi();
 
     if (this.embeddingApiAvailable) {
@@ -173,18 +229,23 @@ export class VectorService {
     }
 
     const json = await resp.json() as { data?: { embedding: number[] }[] };
-    return json.data?.map((d) => d.embedding) || [];
+    return (
+      json.data?.map((d) =>
+        normalizeVectorDimension(d.embedding, this.dimension),
+      ) || []
+    );
   }
 
   /** 将向量写入 circle_knowledge 表 */
   async storeCircleKnowledge(id: string, vector: number[]): Promise<void> {
     await this.detectPgvector();
+    const normalized = normalizeVectorDimension(vector, this.dimension);
 
     if (this.pgvectorAvailable) {
-      const vectorStr = `[${vector.join(",")}]`;
+      const vectorStr = `[${normalized.join(",")}]`;
       try {
         await this.prisma.$executeRawUnsafe(
-          `UPDATE circle_knowledge SET embedding = $1::vector WHERE id = $2`,
+          `UPDATE "CircleKnowledge" SET "embedding" = $1::vector WHERE "id" = $2`,
           vectorStr,
           id,
         );
@@ -192,13 +253,13 @@ export class VectorService {
         this.logger.debug(`pgvector 写入失败，降级到JSON: ${err.message}`);
         await this.prisma.circleKnowledge.update({
           where: { id },
-          data: { vectorJson: JSON.stringify(vector) },
+          data: { vectorJson: JSON.stringify(normalized) },
         });
       }
     } else {
       await this.prisma.circleKnowledge.update({
         where: { id },
-        data: { vectorJson: JSON.stringify(vector) },
+        data: { vectorJson: JSON.stringify(normalized) },
       });
     }
   }
@@ -266,14 +327,18 @@ export class VectorService {
 
     if (this.pgvectorAvailable) {
       try {
-        const vectorStr = `[${queryVector.join(",")}]`;
+        const normalized = normalizeVectorDimension(
+          queryVector,
+          this.dimension,
+        );
+        const vectorStr = `[${normalized.join(",")}]`;
         return this.prisma.$queryRawUnsafe<VectorSearchResult[]>(
-          `SELECT id, content, 1 - (embedding <=> $1::vector) AS similarity
-           FROM circle_knowledge
-           WHERE embedding IS NOT NULL
-             AND status = 'active'
-             AND scope = 'global'
-           ORDER BY embedding <=> $1::vector
+          `SELECT "id", "content", 1 - ("embedding" <=> $1::vector) AS similarity
+           FROM "CircleKnowledge"
+           WHERE "embedding" IS NOT NULL
+             AND "status" = 'active'
+             AND "scope" = 'global'
+           ORDER BY "embedding" <=> $1::vector
            LIMIT $2`,
           vectorStr,
           topK,
@@ -313,7 +378,7 @@ export class VectorService {
     if (this.pgvectorAvailable) {
       try {
         await this.prisma.$executeRawUnsafe(
-          `UPDATE circle_knowledge SET embedding = NULL WHERE id = $1`,
+          `UPDATE "CircleKnowledge" SET "embedding" = NULL WHERE "id" = $1`,
           id,
         );
       } catch (err: any) {
@@ -337,8 +402,8 @@ export class VectorService {
         pgRows = await this.prisma.$queryRawUnsafe<
           Array<{ id: string; content: string }>
         >(
-          `SELECT id, content FROM circle_knowledge
-           WHERE embedding IS NULL AND status = 'active'
+          `SELECT "id", "content" FROM "CircleKnowledge"
+           WHERE "embedding" IS NULL AND "status" = 'active'
            LIMIT $1`,
           limit,
         );
@@ -372,13 +437,14 @@ export class VectorService {
     queryVector: number[],
     topK: number,
   ): Promise<VectorSearchResult[]> {
-    const vectorStr = `[${queryVector.join(",")}]`;
+    const normalized = normalizeVectorDimension(queryVector, this.dimension);
+    const vectorStr = `[${normalized.join(",")}]`;
     return this.prisma.$queryRawUnsafe<VectorSearchResult[]>(
-      `SELECT id, content, 1 - (embedding <=> $1::vector) AS similarity
-       FROM circle_knowledge
-       WHERE embedding IS NOT NULL
-         AND status = 'active'
-       ORDER BY embedding <=> $1::vector
+      `SELECT "id", "content", 1 - ("embedding" <=> $1::vector) AS similarity
+       FROM "CircleKnowledge"
+       WHERE "embedding" IS NOT NULL
+         AND "status" = 'active'
+       ORDER BY "embedding" <=> $1::vector
        LIMIT $2`,
       vectorStr,
       topK,
@@ -390,14 +456,15 @@ export class VectorService {
     circleId: string,
     topK: number,
   ): Promise<VectorSearchResult[]> {
-    const vectorStr = `[${queryVector.join(",")}]`;
+    const normalized = normalizeVectorDimension(queryVector, this.dimension);
+    const vectorStr = `[${normalized.join(",")}]`;
     return this.prisma.$queryRawUnsafe<VectorSearchResult[]>(
-      `SELECT id, content, 1 - (embedding <=> $1::vector) AS similarity
-       FROM circle_knowledge
-       WHERE embedding IS NOT NULL
-         AND circle_id = $2
-         AND status = 'active'
-       ORDER BY embedding <=> $1::vector
+      `SELECT "id", "content", 1 - ("embedding" <=> $1::vector) AS similarity
+       FROM "CircleKnowledge"
+       WHERE "embedding" IS NOT NULL
+         AND "circleId" = $2
+         AND "status" = 'active'
+       ORDER BY "embedding" <=> $1::vector
        LIMIT $3`,
       vectorStr,
       circleId,
@@ -410,15 +477,16 @@ export class VectorService {
     circleIds: string[],
     topK: number,
   ): Promise<VectorSearchResult[]> {
-    const vectorStr = `[${queryVector.join(",")}]`;
+    const normalized = normalizeVectorDimension(queryVector, this.dimension);
+    const vectorStr = `[${normalized.join(",")}]`;
     const placeholders = circleIds.map((_, i) => `$${i + 2}`).join(",");
     return this.prisma.$queryRawUnsafe<VectorSearchResult[]>(
-      `SELECT id, content, 1 - (embedding <=> $1::vector) AS similarity
-       FROM circle_knowledge
-       WHERE embedding IS NOT NULL
-         AND circle_id IN (${placeholders})
-         AND status = 'active'
-       ORDER BY embedding <=> $1::vector
+      `SELECT "id", "content", 1 - ("embedding" <=> $1::vector) AS similarity
+       FROM "CircleKnowledge"
+       WHERE "embedding" IS NOT NULL
+         AND "circleId" IN (${placeholders})
+         AND "status" = 'active'
+       ORDER BY "embedding" <=> $1::vector
        LIMIT $${circleIds.length + 2}`,
       vectorStr,
       ...circleIds,

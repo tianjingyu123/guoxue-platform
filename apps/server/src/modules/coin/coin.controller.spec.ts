@@ -72,12 +72,13 @@ describe("CoinController", () => {
     expect(result).toHaveLength(1);
   });
 
-  it("POST /coin/spend — 消费虚拟币", async () => {
+  // 🔴 通用 /coin/spend 已 fail-closed：白名单为空，任何业务 scene 一律拒绝。
+  //    防止客户端自造 PEEK_ANSWER 等「流水即已付凭证」的消费记录绕过付费墙。
+  it("POST /coin/spend — 拒绝客户端直接扣币（白名单外场景）", async () => {
     const req: any = { user: { id: "u1" } };
-    const dto: any = { amount: 20, scene: "ASK_QUESTION" };
-    const result: any = await ctrl.spend(req, dto);
-    expect(result.success).toBe(true);
-    expect(mockCoinSvc.spend).toHaveBeenCalledWith("u1", dto);
+    const dto: any = { amountCoin: 20, scene: "PEEK_ANSWER", refId: "q1" };
+    expect(() => ctrl.spend(req, dto)).toThrow(/不支持直接扣币/);
+    expect(mockCoinSvc.spend).not.toHaveBeenCalled();
   });
 
   it("GET /coin/gifts — 礼物列表", async () => {
@@ -101,20 +102,20 @@ describe("CoinController", () => {
 
   it("POST /coin/gifts/send — 赠送礼物", async () => {
     const req: any = { user: { id: "u1" } };
-    const dto: any = { liveRoomId: "r1", toUserId: "u2", giftId: "g1", quantity: 3 };
+    const dto: any = { liveRoomId: "r1", toUserId: "u2", giftId: "g1", quantity: 3, idempotencyKey: "coin-gift:r1:request-001" };
     const result: any = await ctrl.sendGift(req, dto);
     expect(result.success).toBe(true);
-    expect(mockCoinSvc.sendGift).toHaveBeenCalledWith("u1", "r1", "u2", "g1", 3);
+    expect(mockCoinSvc.sendGift).toHaveBeenCalledWith("u1", "r1", "u2", "g1", 3, "coin-gift:r1:request-001");
   });
 
   it("POST /coin/gifts/send — 默认数量为1", async () => {
     const req: any = { user: { id: "u1" } };
-    const dto: any = { liveRoomId: "r1", toUserId: "u2", giftId: "g1" };
+    const dto: any = { liveRoomId: "r1", toUserId: "u2", giftId: "g1", idempotencyKey: "coin-gift:r1:request-002" };
     await ctrl.sendGift(req, dto);
-    expect(mockCoinSvc.sendGift).toHaveBeenCalledWith("u1", "r1", "u2", "g1", 1);
+    expect(mockCoinSvc.sendGift).toHaveBeenCalledWith("u1", "r1", "u2", "g1", 1, "coin-gift:r1:request-002");
   });
 
-  it("GET /coin/gifts/rank/:liveRoomId — 礼物排行", async () => {
+  it("GET /coin/gifts/rank/:liveRoomId — 授权管理角色读取礼物经营明细", async () => {
     const result: any = await ctrl.getGiftRank("r1");
     expect(result).toHaveLength(1);
     expect(mockCoinSvc.getGiftRank).toHaveBeenCalledWith("r1");

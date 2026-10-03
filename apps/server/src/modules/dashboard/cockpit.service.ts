@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { PAID_ORDER_STATUSES } from "./order-status.constants";
 
 @Injectable()
 export class CockpitService {
@@ -24,25 +25,28 @@ export class CockpitService {
       paidUsers, monthPaidUsers,
       totalUsers, onlineUsers,
       commissionTotal, monthCommission,
+      monthRefund,
     ] = await Promise.all([
       this.prisma.order.aggregate({
-        where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: today } },
+        where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: today } },
         _sum: { amount: true },
       }),
       this.prisma.order.aggregate({
-        where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: monthStart } },
+        where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: monthStart } },
         _sum: { amount: true },
       }),
-      this.prisma.order.groupBy({ by: ["userId"], where: { status: { in: ["PAID", "COMPLETED"] } } }).then(r => r.length),
-      this.prisma.order.groupBy({ by: ["userId"], where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: monthStart } } }).then(r => r.length),
+      this.prisma.order.groupBy({ by: ["userId"], where: { status: { in: PAID_ORDER_STATUSES } } }).then(r => r.length),
+      this.prisma.order.groupBy({ by: ["userId"], where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: monthStart } } }).then(r => r.length),
       this.prisma.user.count(),
       this.redis.get("ws:online_count").then(v => parseInt(v || "0") || 0).catch((err) => { this.logger.error("获取在线用户数失败", err.stack); return 0; }),
       this.prisma.stationEarning.aggregate({ _sum: { earned: true } }),
       this.prisma.stationEarning.aggregate({ where: { createdAt: { gte: monthStart } }, _sum: { earned: true } }),
+      this.prisma.order.aggregate({ where: { status: "REFUNDED", updatedAt: { gte: monthStart } }, _sum: { amount: true } }),
     ]);
 
     const monthRevenue = Number(monthGmv._sum.amount || 0);
     const monthComm = Number(monthCommission._sum.earned || 0);
+    const monthRefunded = Number(monthRefund._sum.amount || 0);
 
     const data = {
       todayGmv: Number(todayGmv._sum.amount || 0),
@@ -53,7 +57,11 @@ export class CockpitService {
       onlineUsers,
       totalCommissionPaid: Number(commissionTotal._sum.earned || 0),
       monthCommissionPaid: monthComm,
-      estimatedNetProfit: monthRevenue - monthComm,
+      monthRefunded,
+      // 诚实估算净利润 = 本月 GMV - 分佣支出 - 已退款；佣金/成本数据不全故标记为估算值。
+      // 佣金为 0 时不再等同于 GMV（避免"净利润≡营收"的误导），至少扣减退款。
+      estimatedNetProfit: Math.round((monthRevenue - monthComm - monthRefunded) * 100) / 100,
+      netProfitIsEstimate: true,
     };
 
     await this.redis.setJson("cockpit:overview", data, 300);
@@ -65,7 +73,7 @@ export class CockpitService {
 
     const orderByType = await this.prisma.order.groupBy({
       by: ["type"],
-      where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: monthStart } },
+      where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: monthStart } },
       _sum: { amount: true },
       _count: true,
     });
@@ -153,7 +161,7 @@ export class CockpitService {
     thirtyDaysAgo.setHours(0, 0, 0, 0);
 
     const orders = await this.prisma.order.findMany({
-      where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: thirtyDaysAgo } },
+      where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: thirtyDaysAgo } },
       select: { type: true, amount: true, createdAt: true },
       orderBy: { createdAt: "asc" },
     });

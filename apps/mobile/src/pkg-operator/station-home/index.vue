@@ -2,9 +2,18 @@
 /** 品牌定制分站首页 — 千人千面：品牌(logo/名称/主题色)+模板(特色入口/楼层)由站长配置真实渲染，
  *  内容来自平台真实推荐流。用户扫站长推广码进入，看到站长专属品牌的国学首页。 */
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import FeedCard from '@/components/feed/feed-card.vue'
+import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
+import CoreEntryGrid from '@/components/navigation/core-entry-grid.vue'
+import type { SmartFeedChannel } from '@/lib/feed-data'
+import PlatformSupportActions from '@/components/common/platform-support-actions.vue'
+import { rememberStationNavigation, clearStationNavigation } from '@/lib/station-navigation'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import { navigateTo } from '@/utils/router'
+import { captureRefFromQuery } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import {
   stationHomeApi,
   deriveFeatures,
@@ -12,20 +21,28 @@ import {
   feedTypeLabel,
   feedTypeIcon,
   formatStatNumber,
+  stationFeedTargetUrl,
   type StationBrandFull,
   type StationFeature,
   type StationFeedCard,
   type MicroPageView,
-} from '@/lib/station-home-data'
+} from '@/pkg-operator/lib/station-home-data'
+import { formatPrice } from '@/utils/format'
+import { resolveOwnerPaipanState, type LegacyStationSyncState } from '@/pkg-operator/lib/legacy-paipan-station'
+import { useShare } from '@/composables/useShare'
 
 const loading = ref(true)
 const error = ref('')
+const feedError = ref(false)
+const feedLoading = ref(false)
 const notFound = ref(false)
 
 const stationCode = ref('')
+const ownPreview = ref(false)
 const brand = ref<StationBrandFull>({} as StationBrandFull)
 const features = ref<StationFeature[]>([])
 const feedList = ref<StationFeedCard[]>([])
+const pinnedList = ref<StationFeedCard[]>([]) // 站长在后台锁定的主推位（站长严选）
 const microPage = ref<MicroPageView | null>(null)
 
 const primary = computed(() => brand.value.themeColor || '#C41E3A')
@@ -33,11 +50,25 @@ const template = computed(() => brand.value.template)
 const showFeed = computed(() => sectionVisible(template.value, 'recommend') || sectionVisible(template.value, 'course'))
 // 站长发布了微页面 → 优先渲染微页面楼层；否则回退模板默认楼层
 const useMicroPage = computed(() => !!microPage.value && microPage.value.components.length > 0)
-// 微页面里的「内容推荐」类楼层复用平台精选 feed 渲染
+// 微页面里的「内容推荐」类楼层复用精选 feed 渲染：站长有锁定主推位则优先展示，否则回退平台推荐流
 function isFeedFloor(type: string) { return type === 'recommend' || type === 'recommend-course' || type === 'recommend-agent' }
+const activeChannel = ref<SmartFeedChannel>('recommend')
+const emptyMessage = computed(() => activeChannel.value === 'following' ? '关注的圈子、老师和商铺有新动态时会出现在这里' : activeChannel.value === 'hot' ? '热门榜单正在更新，请稍后再来看看' : '这里还没有内容，可先浏览上方栏目')
+const tabs = [{ id: 'recommend', label: '推荐' }, { id: 'following', label: '关注' }, { id: 'hot', label: '热门' }, { id: 'local', label: '同城' }] as const
+const platformFeed = computed(() => feedList.value.filter(item => !pinnedList.value.some(pin => pin.type === item.type && String(pin.id) === String(item.id))))
+const recFeed = computed(() => activeChannel.value === 'recommend' ? [...pinnedList.value, ...platformFeed.value] : feedList.value)
+const paipanUrl = computed(() => brand.value.id ? `/pages/paipan/index?target=station&stationId=${encodeURIComponent(brand.value.id)}` : '/pages/paipan/index')
+const unifiedFeed = recFeed
+const feedColumns = computed(() => [recFeed.value.filter((_, i) => i % 2 === 0), recFeed.value.filter((_, i) => i % 2 === 1)])
+const feedPage = ref(0)
+const feedEnd = ref(false)
 
 onLoad((q: Record<string, string> = {}) => {
-  stationCode.value = q.s || q.code || q.station || ''
+  clearStationNavigation()
+  // 分享链接统一使用 ref；既加载对应分站品牌，也写入七天临时归因（最近点击优先）。
+  captureRefFromQuery(q)
+  stationCode.value = q.ref || q.s || q.code || q.station || ''
+  ownPreview.value = !stationCode.value
   loadData()
 })
 
@@ -54,14 +85,17 @@ async function loadData() {
     }
     if (!code) { notFound.value = true; return }
 
-    const [b, feeds, mp] = await Promise.all([
+    const [b, feeds, mp, pinned] = await Promise.all([
       stationHomeApi.getBrand(code),
-      stationHomeApi.getFeed(),
+      loadFeed(),
       stationHomeApi.getMicroPage(code),
+      stationHomeApi.getPinnedBoards(code),
     ])
     brand.value = b
+    rememberStationNavigation(code, b.id)
     features.value = deriveFeatures(b.template?.modules || [])
     feedList.value = Array.isArray(feeds) ? feeds : []
+    pinnedList.value = Array.isArray(pinned) ? pinned : []
     microPage.value = mp
   } catch (e) {
     const msg = (e as Error)?.message || ''
@@ -73,26 +107,96 @@ async function loadData() {
 }
 async function retry() { await loadData() }
 
-function openFeature(f: StationFeature) {
+// 推荐加载失败只影响推荐区，保留分站品牌和功能入口。
+async function loadFeed(more = false): Promise<StationFeedCard[]> {
+  if (feedLoading.value) return feedList.value
+  feedLoading.value = true
+  feedError.value = false
+  try {
+    const page = more ? feedPage.value + 1 : 1
+    const items = await stationHomeApi.getFeed(page, activeChannel.value)
+    feedList.value = more ? [...feedList.value, ...items.filter(item => !feedList.value.some(old => old.type === item.type && String(old.id) === String(item.id)))] : items
+    feedPage.value = page
+    feedEnd.value = items.length < 20
+  } catch {
+    feedError.value = true
+  } finally {
+    feedLoading.value = false
+  }
+  return feedList.value
+}
+
+function switchTab(id: SmartFeedChannel | 'local') {
+  if (id === 'local') { uni.showToast({ title: '同城频道即将开放', icon: 'none' }); return }
+  // 请求完成前保持当前频道，避免旧响应覆盖新频道。
+  if (feedLoading.value || id === activeChannel.value) return
+  activeChannel.value = id
+  feedList.value = []
+  feedPage.value = 0
+  feedEnd.value = false
+  void loadFeed()
+}
+
+function loadMoreFeed() {
+  if (!loading.value && !feedLoading.value && !feedEnd.value && !feedError.value) void loadFeed(true)
+}
+
+function openStationPaipan() {
+  navigateTo(`/pages/paipan/index?target=station&stationId=${encodeURIComponent(brand.value.id)}`)
+}
+
+function handleStationSyncState(state: LegacyStationSyncState) {
+  if (state.state === 'SYNCED') return openStationPaipan()
+  if (state.state === 'PENDING_AUTHORIZATION' && state.authorizationUrl) {
+    navigateTo('/pkg-operator/station-paipan-auth/index')
+    return
+  }
+  uni.showToast({ title: '分站排盘正在同步，请稍后重试', icon: 'none' })
+}
+
+async function openFeature(f: StationFeature) {
+  if (f.key === 'paipan') {
+    if (!ownPreview.value) return openStationPaipan()
+    try {
+      const state = await resolveOwnerPaipanState()
+      handleStationSyncState(state)
+    } catch {
+      uni.showToast({ title: '分站排盘暂时不可用，请稍后重试', icon: 'none' })
+    }
+    return
+  }
   navigateTo(f.path)
 }
-function openFeed(_item: StationFeedCard) {
-  // 内容详情路由按类型分发（P1-b 先统一进发现页，精准详情路由 P2 深度集成）
-  navigateTo('/pages/discover/index')
+function openFeed(item: StationFeedCard) {
+  const target = stationFeedTargetUrl(item)
+  if (!target) {
+    uni.showToast({ title: '该内容暂不可查看', icon: 'none' })
+    return
+  }
+  navigateTo(target)
 }
 
 // 分享：复制分站推广链接（真实 code；海报图生成 P3 做）
 const showShare = ref(false)
 const shareLink = computed(() => {
-  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
-  const base = (import.meta as any).env?.VITE_H5_URL || ''
-  return `${base}/#/pkg-operator/station-home/index?ref=${stationCode.value}`
+  return buildH5Url('/pkg-operator/station-home/index', { ref: stationCode.value })
 })
 function handleShare() { showShare.value = true }
 function closeShare() { showShare.value = false }
-function copyLink() {
-  uni.setClipboardData({ data: shareLink.value, success: () => uni.showToast({ title: '推广链接已复制', icon: 'none' }) })
-}
+const stationShareTitle = computed(() => `欢迎来到${brand.value.name || '主题分站'}`)
+const stationShareSummary = computed(() => brand.value.intro || '精选国学内容、课程与服务，从这里开始探索。')
+const stationShareMeta = computed(() => `${recFeed.value.length} 项精选内容`)
+const { toAppMessage, toTimeline } = useShare()
+onShareAppMessage(() => toAppMessage({
+  title: stationShareTitle.value,
+  path: `/pkg-operator/station-home/index?ref=${encodeURIComponent(stationCode.value)}`,
+  cover: brand.value.logo,
+}))
+onShareTimeline(() => toTimeline({
+  title: stationShareTitle.value,
+  path: `/pkg-operator/station-home/index?ref=${encodeURIComponent(stationCode.value)}`,
+  cover: brand.value.logo,
+}))
 
 function goBack() {
   uni.navigateBack({ delta: 1, fail: () => uni.switchTab({ url: '/pages/index/index', fail: () => {} }) })
@@ -104,7 +208,7 @@ function goBack() {
     <!-- 品牌导航栏 -->
     <view class="sh-header" :style="{ background: primary, paddingTop: 'var(--status-bar-height, 0px)' }">
       <view class="sh-header-inner">
-        <view class="sh-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#ffffff" /></view>
+        <view class="sh-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <view class="sh-brand">
           <image lazy-load v-if="brand.logo" class="sh-logo" :src="brand.logo" mode="aspectFill" />
           <text class="sh-brand-name">{{ brand.name || '分站' }}</text>
@@ -113,7 +217,7 @@ function goBack() {
       </view>
     </view>
 
-    <scroll-view scroll-y class="sh-scroll">
+    <scroll-view scroll-y class="sh-scroll" @scrolltolower="loadMoreFeed">
       <!-- 三态 -->
       <view v-if="loading" class="state-box">
         <view class="sh-sk-hero" />
@@ -132,130 +236,55 @@ function goBack() {
       </view>
 
       <template v-else>
-        <!-- 模板 hero 横幅（品牌简介 + 模板定位） -->
-        <view class="sh-hero" :style="{ background: `linear-gradient(135deg, ${primary}, ${primary}cc)` }">
-          <text class="sh-hero-name">{{ brand.name }}</text>
-          <text v-if="brand.intro" class="sh-hero-intro">{{ brand.intro }}</text>
-          <view v-if="template?.name" class="sh-hero-badge">
-            <app-icon name="layout" :size="22" color="#ffffff" />
-            <text class="sh-hero-badge-txt">{{ template.name }}</text>
+        <view class="brand-row">
+          <view class="home-search"><search-bar default-tab="all" placeholder="搜古籍 · 课程 · 排盘 · 智能体" /></view>
+          <platform-support-actions />
+        </view>
+        <view class="tabs-inner" role="tablist" aria-label="首页内容频道">
+          <view v-for="tab in tabs" :key="tab.id" class="tab" :class="{ on: activeChannel === tab.id, disabled: tab.id === 'local' }" role="tab" :aria-selected="activeChannel === tab.id" @tap="switchTab(tab.id)">
+            <text class="tab-label">{{ tab.label }}</text><text v-if="tab.id === 'local'" class="tab-soon">即将开放</text>
           </view>
         </view>
-
-        <!-- 微页面楼层（站长发布的微页面优先渲染） -->
-        <view v-if="useMicroPage && microPage" class="sh-mp">
-          <view v-for="comp in microPage.components" :key="comp.id" class="sh-mp-floor">
-            <!-- 公告 -->
-            <view v-if="comp.type === 'richtext' && comp.config.content" class="sh-mp-notice">
-              <view class="sh-mp-notice-bar" :style="{ background: primary }" />
-              <view class="sh-mp-notice-body">
-                <text v-if="comp.title" class="sh-mp-notice-title">{{ comp.title }}</text>
-                <text class="sh-mp-notice-text">{{ comp.config.content }}</text>
-              </view>
-            </view>
-            <!-- 站长名片 -->
-            <view v-else-if="comp.type === 'master-card'" class="sh-mp-card">
-              <image lazy-load v-if="brand.logo" class="sh-mp-card-logo" :src="brand.logo" mode="aspectFill" />
-              <view class="sh-mp-card-info">
-                <text class="sh-mp-card-name">{{ brand.name }}</text>
-                <text v-if="comp.config.intro" class="sh-mp-card-intro">{{ comp.config.intro }}</text>
-              </view>
-            </view>
-            <!-- 轮播图 -->
-            <swiper v-else-if="comp.type === 'banner' && (comp.config.images || []).length" class="sh-mp-banner" circular autoplay :interval="4000" :duration="500">
-              <swiper-item v-for="(img, ii) in comp.config.images" :key="ii">
-                <image lazy-load class="sh-mp-banner-img" :src="img.url" mode="aspectFill" />
-              </swiper-item>
-            </swiper>
-            <!-- 内容推荐 → 平台精选 feed（紧凑网格） -->
-            <view v-else-if="isFeedFloor(comp.type)" class="sh-mp-rec">
-              <text class="sh-mp-rec-title">{{ comp.title || '精选推荐' }}</text>
-              <view class="sh-mp-grid">
-                <view v-for="item in feedList.slice(0, 6)" :key="item.id" class="sh-mp-gcard" @tap="openFeed(item)">
-                  <image lazy-load class="sh-mp-gcover" :src="item.cover || ''" mode="aspectFill" />
-                  <text class="sh-mp-gname">{{ item.title }}</text>
-                  <text v-if="item.price !== undefined && item.price > 0" class="sh-mp-gprice" :style="{ color: primary }">¥{{ item.price }}</text>
-                </view>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <!-- 默认模板楼层（无已发布微页面时回退） -->
-        <template v-else>
-        <!-- 特色入口（按模板 modules 真实驱动） -->
-        <view v-if="features.length" class="sh-features">
-          <view v-for="f in features" :key="f.key" class="sh-feature" @tap="openFeature(f)">
-            <view class="sh-feature-icon" :style="{ background: f.color + '26' }">
-              <app-icon :name="f.icon" :size="48" :color="f.color" />
-            </view>
-            <text class="sh-feature-name">{{ f.name }}</text>
-          </view>
-        </view>
-
-        <!-- 精选内容 Feed（平台真实推荐流） -->
-        <view v-if="showFeed" class="sh-feed">
-          <view class="sh-feed-head">
-            <text class="sh-feed-title">精选内容</text>
-            <text class="sh-feed-sub">为你优选的国学好课好物</text>
-          </view>
-          <view v-if="feedList.length" class="sh-feed-list">
-            <view v-for="item in feedList" :key="item.id" class="sh-feed-card" @tap="openFeed(item)">
-              <view class="sh-feed-cover-wrap">
-                <image lazy-load class="sh-feed-cover" :src="item.cover || ''" mode="aspectFill" />
-                <view v-if="item.isLive" class="sh-feed-live">
-                  <view class="sh-feed-live-dot" /><text class="sh-feed-live-txt">直播中</text>
-                </view>
-                <view v-else-if="item.type === 'video'" class="sh-feed-play"><app-icon name="play" :size="56" color="#ffffff" /></view>
-              </view>
-              <view class="sh-feed-info">
-                <view class="sh-feed-type">
-                  <app-icon :name="feedTypeIcon(item.type)" :size="24" color="#999" />
-                  <text class="sh-feed-type-txt">{{ feedTypeLabel(item.type) }}</text>
-                </view>
+        <core-entry-grid :paipan-url="paipanUrl" />
+        <view v-if="unifiedFeed.length" class="flow">
+          <view v-for="(column, index) in feedColumns" :key="index" class="col">
+            <view v-for="item in column" :key="item.type + ':' + item.id">
+              <feed-card v-if="item.platformItem" :item="item.platformItem" />
+              <view v-else class="station-pinned-card" @tap="openFeed(item)">
+                <image v-if="item.cover" :src="item.cover" mode="widthFix" style="width:100%" />
                 <text class="sh-feed-name">{{ item.title }}</text>
-                <view class="sh-feed-bottom">
-                  <view class="sh-feed-author">
-                    <text class="sh-feed-author-name">{{ item.author || '国学平台' }}</text>
-                  </view>
-                  <view class="sh-feed-stats">
-                    <view v-if="item.viewers" class="sh-feed-stat"><app-icon name="eye" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.viewers) }}</text></view>
-                    <view v-if="item.likes" class="sh-feed-stat"><app-icon name="heart" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.likes) }}</text></view>
-                  </view>
-                </view>
-                <text v-if="item.price !== undefined && item.price > 0" class="sh-feed-price" :style="{ color: primary }">¥{{ item.price }}</text>
+                <text class="sh-feed-type-txt">{{ feedTypeLabel(item.type) }}</text>
               </view>
             </view>
           </view>
-          <view v-else class="sh-feed-empty"><text class="sh-feed-empty-txt">暂无内容</text></view>
         </view>
-        </template>
-
+        <view v-else class="sh-feed-empty">
+          <text v-if="feedLoading">正在加载推荐内容…</text>
+          <text v-else-if="feedError" @tap="loadFeed()">推荐内容加载失败，点击重试</text>
+          <text v-else>{{ emptyMessage }}</text>
+        </view>
+        <view v-if="feedList.length" class="sh-feed-empty">
+          <text v-if="feedLoading">正在加载…</text>
+          <text v-else-if="feedError" @tap="loadFeed(true)">加载失败，点击重试</text>
+          <text v-else-if="!feedEnd" @tap="loadMoreFeed">加载更多</text>
+        </view>
         <view class="sh-bottom-pad" />
       </template>
     </scroll-view>
 
-    <!-- 分享弹层（真实推广链接） -->
-    <view v-if="showShare" class="sh-poster-mask" @tap="closeShare">
-      <view class="sh-poster-sheet" @tap.stop>
-        <view class="sh-poster-head">
-          <text class="sh-poster-head-title">分享我的分站</text>
-          <view class="sh-poster-close" @tap="closeShare"><app-icon name="x" :size="40" color="#666" /></view>
-        </view>
-        <view class="sh-poster-body">
-          <view class="sh-share-card" :style="{ borderColor: primary }">
-            <image lazy-load v-if="brand.logo" class="sh-share-logo" :src="brand.logo" mode="aspectFill" />
-            <text class="sh-share-name">{{ brand.name }}</text>
-            <text v-if="brand.intro" class="sh-share-intro">{{ brand.intro }}</text>
-            <view class="sh-share-link"><text class="sh-share-link-txt">{{ shareLink }}</text></view>
-          </view>
-          <view class="sh-poster-actions">
-            <view class="sh-poster-btn primary" :style="{ background: primary }" @tap="copyLink"><text class="sh-poster-btn-txt primary">复制推广链接</text></view>
-          </view>
-          <text class="sh-poster-hint">分享链接给好友，好友下单你得佣金</text>
-        </view>
-      </view>
-    </view>
+    <bottom-nav active="home" :paipan-url="paipanUrl" />
+
+    <content-share-sheet
+      :visible="showShare"
+      kind="station"
+      :title="stationShareTitle"
+      :summary="stationShareSummary"
+      :meta="stationShareMeta"
+      :cover="brand.logo || ''"
+      :url="shareLink"
+      :poster-enabled="false"
+      @close="closeShare"
+    />
   </view>
 </template>
 
@@ -334,7 +363,10 @@ function goBack() {
 .sh-feed-price { display: inline-block; margin-top: 8rpx; font-size: 24rpx; font-weight: 600; }
 .sh-feed-empty { padding: 80rpx 0; text-align: center; }
 .sh-feed-empty-txt { font-size: 26rpx; color: var(--text-soft, #999); }
-.sh-bottom-pad { height: 64rpx; }
+.sh-bottom-pad { height: calc(160rpx + env(safe-area-inset-bottom)); }
+.station-pinned-card { background: var(--bg-card, #fff); border-radius: 16rpx; overflow: hidden; padding-bottom: 20rpx; }
+.flow { display: flex; gap: 18rpx; padding: 0 24rpx 18rpx; }
+.col { flex: 1; display: flex; flex-direction: column; gap: 18rpx; min-width: 0; }
 
 /* 骨架 */
 .state-box { padding: 32rpx; }
@@ -367,4 +399,69 @@ function goBack() {
 .sh-poster-btn-txt { font-size: 28rpx; }
 .sh-poster-btn-txt.primary { color: #ffffff; }
 .sh-poster-hint { margin-top: 24rpx; font-size: 22rpx; color: var(--text-soft, #999); text-align: center; }
+.brand-row {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: auto;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 12rpx 24rpx 8rpx;
+  background-color: #faf8f5;
+}
+.home-search {
+  flex: 1;
+  min-width: 0;
+}
+.tabs-inner {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 750rpx;
+  padding: 8rpx 18rpx 16rpx;
+}
+.tab {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  min-width: 0;
+  padding-bottom: 8rpx;
+}
+.tab-label {
+  font-size: 30rpx;
+  color: #8a8578;
+}
+.tab.on .tab-label {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #2c2c2c;
+}
+.tab.disabled .tab-label {
+  color: #a9a397;
+}
+.tab-soon {
+  padding: 3rpx 7rpx;
+  border: 1rpx solid #ddd4c8;
+  border-radius: 999rpx;
+  font-size: 16rpx;
+  line-height: 1.15;
+  color: #9a9184;
+  background-color: #f4f0ea;
+}
+.tab.on::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: 40rpx;
+  height: 6rpx;
+  border-radius: 4rpx;
+  background-color: #c41e3a;
+}
+
 </style>

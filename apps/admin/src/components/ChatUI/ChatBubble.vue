@@ -11,7 +11,9 @@
         content="此内容由AI生成，仅供参考"
         placement="top"
       >
-        <el-icon class="ai-info-icon"><InfoFilled /></el-icon>
+        <el-icon class="ai-info-icon">
+          <InfoFilled />
+        </el-icon>
       </el-tooltip>
     </div>
 
@@ -22,15 +24,18 @@
         v-if="message.isStreaming"
         class="bubble-text streaming"
       >
-        <span v-html="renderedContent" />
+        <SafeHtml
+          tag="span"
+          :html="renderedContent"
+        />
         <span class="cursor-blink">|</span>
       </div>
 
       <!-- 完整消息：Markdown 渲染 -->
-      <div
+      <SafeHtml
         v-else
         class="bubble-text"
-        v-html="renderedContent"
+        :html="renderedContent"
         @click="onContentClick"
       />
 
@@ -111,6 +116,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Cpu, Select, CloseBold, Refresh, InfoFilled } from '@element-plus/icons-vue'
+import SafeHtml from '@/components/SafeHtml.vue'
 import { renderMarkdown } from './markdown'
 import type { ChatMessage, ChatSource } from './types'
 

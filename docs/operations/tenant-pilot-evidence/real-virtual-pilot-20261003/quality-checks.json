@@ -1,0 +1,8 @@
+{
+  "sourceHead": "d4503b782f3378eee1c9a64bad97e957195c12ce",
+  "production": false,
+  "checks": [
+    {"command": "pnpm --filter @guoxue/server exec tsc -p ../../scripts/ops/prisma-candidate/tsconfig.candidate.json --noEmit false --outDir .prisma-candidate/server-build --tsBuildInfoFile .prisma-candidate/server-build.tsbuildinfo", "exitCode": 0},
+    {"command": "pnpm --filter @guoxue/server exec eslint src/modules/managed-tenancy/managed-client-address.ts src/modules/managed-tenancy/managed-credentials.ts src/modules/managed-tenancy/managed-lease.module.ts src/modules/managed-tenancy/managed-lease.runtime.ts", "exitCode": 0}
+  ]
+}

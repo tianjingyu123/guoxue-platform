@@ -53,11 +53,8 @@
                 label-width="80px"
                 size="small"
               >
-                <el-form-item label="图片URL">
-                  <el-input
-                    v-model="auditForm.imageUrl"
-                    placeholder="请输入图片的URL地址"
-                  />
+                <el-form-item label="图片">
+                  <CosImageUpload v-model="auditForm.imageUrl" />
                 </el-form-item>
                 <el-form-item label="上下文">
                   <el-input
@@ -331,10 +328,10 @@
                 label-width="80px"
                 size="small"
               >
-                <el-form-item label="音频URL">
-                  <el-input
+                <el-form-item label="音频">
+                  <VodUpload
                     v-model="transcribeForm.audioUrl"
-                    placeholder="请输入音频文件的URL地址"
+                    placeholder="音频URL·可手填，或用下方本地上传"
                   />
                 </el-form-item>
                 <el-form-item label="语言">
@@ -439,6 +436,8 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { api } from "@/api";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
+import VodUpload from "@/components/upload/VodUpload.vue";
 
 // 图像审核结果
 interface AuditResult {
@@ -533,7 +532,7 @@ async function submitAudit() {
     lastAuditResult.value = data;
     ElMessage.success("AI审核完成");
     loadTasks();
-  } catch { /* ignore */ } finally { auditing.value = false; }
+  } catch { ElMessage.error("图片审核失败，请检查图片地址后重试"); } finally { auditing.value = false; }
 }
 
 async function submitTts() {
@@ -547,7 +546,7 @@ async function submitTts() {
     });
     ElMessage.success("TTS任务已提交");
     loadTasks();
-  } catch { /* ignore */ } finally { ttsGenerating.value = false; }
+  } catch { ElMessage.error("TTS 任务提交失败，请重试"); } finally { ttsGenerating.value = false; }
 }
 
 async function submitTranscribe() {
@@ -560,7 +559,7 @@ async function submitTranscribe() {
     });
     ElMessage.success("转写任务已提交");
     loadTasks();
-  } catch { /* ignore */ } finally { transcribing.value = false; }
+  } catch { ElMessage.error("转写任务提交失败，请检查音频地址后重试"); } finally { transcribing.value = false; }
 }
 
 function onTabChange(_tab: string) { loadTasks(); }

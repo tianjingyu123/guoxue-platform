@@ -1,0 +1,471 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-02T02:00:32.666Z",
+  "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+  "baseline": "70906c05e05b7b389c17ed6bc5bde2bc8d9c50aa",
+  "receivedCommits": [
+    "9b8370734f71ec2b8a388fbab7732998ee2ec327",
+    "ad85d913ecdf2facf92bd8c33357a04afefbe814",
+    "51b9883dd5670c549ff02f9c40a73d1e06f2006a"
+  ],
+  "rollbackOrder": [
+    "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "ad85d913ecdf2facf92bd8c33357a04afefbe814",
+    "9b8370734f71ec2b8a388fbab7732998ee2ec327"
+  ],
+  "conflicts": false,
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（限定本记录范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "ci": {
+    "jobsPassed": 8,
+    "passed": 8935,
+    "production": false,
+    "skipped": 144,
+    "runId": 36951628317,
+    "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "checkedAt": "2026-10-02T01:55:25.8793528Z",
+    "shards": [
+      {
+        "skipped": 40,
+        "name": "单元测试 (3/3)",
+        "passed": 3050,
+        "summary": "2026-10-02T01:40:03.8995009Z Tests:       40 skipped, 3050 passed, 3090 total",
+        "id": 110666001262
+      },
+      {
+        "skipped": 54,
+        "name": "单元测试 (1/3)",
+        "passed": 2849,
+        "summary": "2026-10-02T01:50:59.0267019Z Tests:       54 skipped, 2849 passed, 2903 total",
+        "id": 110666001278
+      },
+      {
+        "skipped": 50,
+        "name": "单元测试 (2/3)",
+        "passed": 3036,
+        "summary": "2026-10-02T01:39:53.8194227Z Tests:       50 skipped, 3036 passed, 3086 total",
+        "id": 110666001350
+      }
+    ]
+  },
+  "localTests": {
+    "passed": 49,
+    "failed": 0,
+    "skipped": 0,
+    "postgres": "16.13",
+    "noRealChannels": true
+  },
+  "linuxTests": {
+    "passed": 49,
+    "failed": 0,
+    "skipped": 0,
+    "postgres": "18.4",
+    "runId": 36951670421,
+    "verificationCommit": "dacd138115f2a2fe80653ab1474ce5b839886dd2",
+    "artifactId": 11203912634,
+    "digestVerified": true,
+    "sourceHashesMatched": true
+  },
+  "formalImage": {
+    "checkedAt": "2026-10-02T01:57:47.414Z",
+    "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "runId": 36952768170,
+    "verificationCommit": "8e8198e35de592b495e17928508d041a5af0180f",
+    "sourceArchiveSha256": "f507594430b349069dc724388d0b968505423d8ba9725aac46b784def7d5a337",
+    "image": "sha256:29054f0de7f7a8b94718bc584b937179215928fb4e5e00e16cf708b174c70381",
+    "checksPassed": 27,
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry",
+      "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions",
+      "free-course-full-http-postcommit-notification-failure-and-permissions",
+      "live-booking-real-db-failures-retry-concurrency-and-http-target-permissions",
+      "compiled-entitlement-service-and-durable-notification-idempotency"
+    ],
+    "compiledEntitlementCheck": {
+      "count": 1,
+      "keyMatches": true,
+      "targetIsOwner": true,
+      "type": "ENTITLEMENT",
+      "quantity": 2,
+      "grants": 1
+    },
+    "cleanupAllConfirmed": true,
+    "postgresImage": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff",
+    "redisImage": "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2",
+    "artifactId": 11204234020,
+    "artifactDigestVerified": true,
+    "runtimeReportSha256": "c9358ee4d8f2e4942d837b0c73dfa0cddccfde430b5da13f6e754624cf4d0fc0",
+    "production": false,
+    "realChannels": false,
+    "actualPostgres": "18.6",
+    "targetObservedPostgres": "18.4",
+    "patchMatchRequiredForFinalAcceptance": true
+  },
+  "frontend": {
+    "presentationAssertions": 9,
+    "mainAdapterRegression": true,
+    "syntheticBrowserScenarios": [
+      "two-identical-notices-kept",
+      "transaction-category",
+      "notification-click-to-current-user-rights",
+      "keyboard-return-to-list",
+      "empty",
+      "load-error",
+      "click-retry-recovery"
+    ],
+    "pointerBackAutomationCovered": false,
+    "realMobile": false
+  },
+  "miniProgram": {
+    "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "measurement": "local-file-sum-plus-conservative-platform-overhead-not-official-upload",
+    "mainBytes": 1701654,
+    "estimatedUploadBytes": 1996566,
+    "estimatedRemainingBytes": 100586,
+    "mandatoryReserveBytes": 81920,
+    "subpackages": [
+      {
+        "name": "pkg-paipan",
+        "bytes": 1764521
+      },
+      {
+        "name": "pkg-circle",
+        "bytes": 1147445
+      },
+      {
+        "name": "pkg-mine",
+        "bytes": 660168
+      },
+      {
+        "name": "pkg-paipan2",
+        "bytes": 580473
+      },
+      {
+        "name": "pkg-live",
+        "bytes": 566894
+      },
+      {
+        "name": "pkg-merchant",
+        "bytes": 539464
+      },
+      {
+        "name": "pkg-operator",
+        "bytes": 496813
+      },
+      {
+        "name": "pkg-classics",
+        "bytes": 406996
+      },
+      {
+        "name": "pkg-institute",
+        "bytes": 281696
+      },
+      {
+        "name": "pkg-offline",
+        "bytes": 276850
+      },
+      {
+        "name": "pkg-course",
+        "bytes": 272353
+      },
+      {
+        "name": "pkg-agent",
+        "bytes": 250898
+      },
+      {
+        "name": "pkg-competition",
+        "bytes": 228961
+      },
+      {
+        "name": "pkg-shop",
+        "bytes": 213154
+      },
+      {
+        "name": "pkg-workspace",
+        "bytes": 210027
+      },
+      {
+        "name": "pkg-video",
+        "bytes": 189113
+      },
+      {
+        "name": "pkg-paipan3",
+        "bytes": 178884
+      },
+      {
+        "name": "pkg-im",
+        "bytes": 165968
+      },
+      {
+        "name": "pkg-account",
+        "bytes": 152674
+      },
+      {
+        "name": "pkg-order",
+        "bytes": 142973
+      },
+      {
+        "name": "pkg-mall",
+        "bytes": 116024
+      },
+      {
+        "name": "pkg-creator",
+        "bytes": 83244
+      },
+      {
+        "name": "pkg-bounty",
+        "bytes": 79751
+      },
+      {
+        "name": "pkg-auth",
+        "bytes": 71099
+      },
+      {
+        "name": "pkg-settings",
+        "bytes": 70501
+      },
+      {
+        "name": "pkg-search",
+        "bytes": 56877
+      },
+      {
+        "name": "pkg-report",
+        "bytes": 55003
+      },
+      {
+        "name": "pkg-profile",
+        "bytes": 46762
+      },
+      {
+        "name": "pkg-common",
+        "bytes": 42252
+      },
+      {
+        "name": "pkg-notices",
+        "bytes": 34900
+      },
+      {
+        "name": "pkg-solar-term",
+        "bytes": 19199
+      },
+      {
+        "name": "pkg-help",
+        "bytes": 15187
+      },
+      {
+        "name": "pkg-discover",
+        "bytes": 7752
+      }
+    ],
+    "packageCount": 33
+  },
+  "clients": {
+    "counts": {
+      "targets": 5,
+      "files": 5427,
+      "bytes": 54196202,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 505,
+        "bytes": 6487585,
+        "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1181,
+        "bytes": 11147342,
+        "contentSha256": "7bfa26f8fc7fd23d0e030373c68aeb7ec88b3bd5a3767be3babd7a04579b2933",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2759,
+        "bytes": 11126976,
+        "contentSha256": "36dd25cc55d453219e09112e5682cce424b995dcaf3e4af554c722c0bdd1a8ab",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 492,
+        "bytes": 12897393,
+        "contentSha256": "61ce7485c6b86783a52274ca39f5204adb2243e5214bc86a69e7727026cdcd07",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12536906,
+        "contentSha256": "2171ef1661b4cd1b356f918c73e388d4760e394b09ea9f9e265e99f621621506",
+        "matches": true
+      }
+    ],
+    "mobileTargetsRebuilt": 4,
+    "adminInputsAndArtifactEquivalentTo": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "nativeSignedPackage": false
+  },
+  "publicBuildConfig": {
+    "input": "apps/mobile/.env.production",
+    "api": "https://api.rebugx.cn",
+    "h5": "https://gx.yrydai.com/h5/",
+    "assets": "https://static.rebugx.cn",
+    "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b",
+    "target": "北京两节点正式域名配置；解析、CORS、WS和实际部署仍需逐节点验收",
+    "allThirdPartyConfigVerified": false
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-02T01:45:16.226Z",
+    "archive": "gx-deploy-91-launch-20261001-51b9883dd.tar.gz",
+    "sha256": "f507594430b349069dc724388d0b968505423d8ba9725aac46b784def7d5a337",
+    "releaseId": "launch-20261001-51b9883dd",
+    "commit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "expectedCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "fileCount": 4444,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "draft": {
+    "draft": true,
+    "published": false,
+    "tag": "launch-20261001-51b9883dd",
+    "officialDigestMatches": true,
+    "archiveSha256": "f507594430b349069dc724388d0b968505423d8ba9725aac46b784def7d5a337",
+    "checkedAt": "2026-10-02T01:47:48.4428561Z",
+    "assetId": 604554962,
+    "releaseId": 401482188,
+    "bytes": 15754775,
+    "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a"
+  },
+  "notification": {
+    "event": "ENTITLEMENT_GRANTED:<ledgerId>",
+    "databaseKey": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
+    "factMarker": "ENTITLEMENT_GRANTED_V1",
+    "sameTransactionAsGrant": true,
+    "delivery": "站内通知，每分钟扫描，数据库唯一键，失败保留待办",
+    "newGrantsOnly": true,
+    "excludedMembershipKeys": [
+      "membership.school",
+      "membership.practitioner"
+    ],
+    "historicalBackfill": false,
+    "realPush": false,
+    "paymentRefundCodeUnchanged": true,
+    "allBusinessTriggersCompleted": false,
+    "persistentRecoveryForAllBusinessEvents": false
+  },
+  "notificationObjectBindings": [
+    {
+      "path": "apps/server/src/modules/notification",
+      "before": "051db995057c3b2cc6ad4e30424be7458ea996b6",
+      "after": "3ce1ad30c87997c53f348aab265bb22f93c1ea71"
+    },
+    {
+      "path": "apps/server/src/modules/entitlement",
+      "before": "4692dbf0bad118f51b9845af63c24f441531dc97",
+      "after": "6f57a4f9ca7634cec15a842b3949da4eabb6fc33"
+    },
+    {
+      "path": "apps/server/src/modules/course",
+      "before": "926fc7798e2463ec2a8d66396abab85a43d0e4ad",
+      "after": "926fc7798e2463ec2a8d66396abab85a43d0e4ad"
+    },
+    {
+      "path": "apps/server/src/modules/live",
+      "before": "aa859d3b6ca34818109a1cfb6f7009d77bb6df43",
+      "after": "aa859d3b6ca34818109a1cfb6f7009d77bb6df43"
+    },
+    {
+      "path": "apps/server/src/modules/circle",
+      "before": "aa9685c57c3f22503b10a17bd2011f41a1cba637",
+      "after": "aa9685c57c3f22503b10a17bd2011f41a1cba637"
+    },
+    {
+      "path": "apps/server/src/modules/shop",
+      "before": "14d387db935db80077e13736df39d35e9a109bb2",
+      "after": "14d387db935db80077e13736df39d35e9a109bb2"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback.service.ts",
+      "before": "37150cf599075785236b2b0490d3a7e5a69e2cfd",
+      "after": "37150cf599075785236b2b0490d3a7e5a69e2cfd"
+    },
+    {
+      "path": "apps/server/src/modules/user/user.module.ts",
+      "before": "c7d7457f9782b284c32d23141f24c8216153c567",
+      "after": "c7d7457f9782b284c32d23141f24c8216153c567"
+    },
+    {
+      "path": "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+      "before": "ad0ee1e9a795217bb2d145b6eb9c68822b745a57",
+      "after": "ad0ee1e9a795217bb2d145b6eb9c68822b745a57"
+    },
+    {
+      "path": "apps/server/src/modules/ai-gateway/customer-service.controller.ts",
+      "before": "30c45f619481ebfb4f2c50ea9282c8058aabbf97",
+      "after": "30c45f619481ebfb4f2c50ea9282c8058aabbf97"
+    },
+    {
+      "path": "apps/server/src/modules/coin",
+      "before": "593ef5c060c8acf9553864036734b4fe24fdb0f0",
+      "after": "593ef5c060c8acf9553864036734b4fe24fdb0f0"
+    }
+  ],
+  "schemaChanged": false,
+  "productionMigration": false,
+  "deployed": false,
+  "realOrderOrBalanceOperation": false,
+  "uncovered": [
+    "独立会员发放真实生效与通知闭环",
+    "所有人工客服和圈务触发器",
+    "其他业务提交后进程崩溃的持久重试",
+    "真实Cron、真实渠道、两节点候选运行",
+    "最终同版签名App和小程序真机旅程",
+    "正式小程序upload体积与审核发布",
+    "H5返回图标指针操作：浏览器工具报无节点；Enter键返回已通过"
+  ],
+  "failureEvidence": [
+    "本机真实库时区问题：修复前5失败/40通过，修复后49通过",
+    "旧主通知适配器反证：同文案两笔被合并且无跳转",
+    "Linux检出两次失败：历史技能gitlink缺.gitmodules；采用已验证检出方式后通过"
+  ],
+  "nextIndependentWork": [
+    "界定并补齐人工客服回复的持久通知事实源",
+    "逐项核对剩余圈务通知及会员真实状态",
+    "继续最终同版客户端和运营验收"
+  ]
+}

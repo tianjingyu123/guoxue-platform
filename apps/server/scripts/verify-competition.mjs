@@ -3,7 +3,13 @@
 const BASE = 'http://localhost:3000/api/v1'
 const C = 'comp-demo-bazi'
 const R1 = 'comp-demo-bazi-r1'
-const PHONE = '13912340077', PWD = 'Test1234'
+const PHONE = '13912340077'
+const PWD = process.env.TEST_ACCOUNT_PASSWORD
+
+if (!PWD) {
+  console.error('缺少 TEST_ACCOUNT_PASSWORD，拒绝使用仓库内固定口令执行验证')
+  process.exit(2)
+}
 
 async function call(path, { method = 'GET', token, body } = {}) {
   const res = await fetch(BASE + path, {

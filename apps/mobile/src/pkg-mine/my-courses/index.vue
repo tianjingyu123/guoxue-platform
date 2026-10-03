@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="page">
     <!-- 顶部导航 + Tab -->
     <view class="header">
@@ -62,7 +63,7 @@
       <!-- 课程列表 -->
       <view class="list">
         <!-- 加载态 -->
-        <view v-if="loading" class="state-box"><text class="state-txt">加载中...</text></view>
+        <view v-if="loading" class="state-box"><AppLoading /></view>
         <!-- 错误态 -->
         <view v-else-if="error" class="state-box">
           <text class="state-txt">{{ error }}</text>
@@ -143,6 +144,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { mineApi, type MyCourseItem } from '@/lib/mine-data'
 
@@ -198,8 +200,9 @@ async function refresh() {
   try { await fetchData() } finally { isRefreshing.value = false }
 }
 function openCourse(c: MyCourseItem) {
+  // 课程 V0 重构：per-course learn 页已退役，进行中课程直接进播放页续学
   if (c.status === 'completed') navigateTo(`/courses/${c.id}`)
-  else navigateTo(`/courses/${c.id}/learn`)
+  else navigateTo(`/courses/${c.id}/player`)
 }
 function continueStudy(c: MyCourseItem) {
   navigateTo(`/courses/${c.id}/player`)
@@ -219,7 +222,7 @@ function goCourseList() {
 }
 .header {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 50;
   background: #faf8f5;
   border-bottom: 1rpx solid #e8e3db;

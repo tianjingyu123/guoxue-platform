@@ -16,8 +16,8 @@ const mockMerchantSvc = {
   submitForReview: jest.fn().mockResolvedValue({ id: "m1", status: "PENDING_REVIEW" }),
 };
 const mockDepositSvc = {
-  getDepositInfo: jest.fn().mockResolvedValue({ depositAmount: 2000, depositPaid: false }),
-  payDeposit: jest.fn().mockResolvedValue({ depositRecordId: "dr1", amount: 2000, payMethod: "WECHAT" }),
+  getDepositInfo: jest.fn().mockResolvedValue({ depositAmount: 0, depositPaid: false, waived: true, collectionAvailable: false, refundAvailable: false }),
+  payDeposit: jest.fn().mockRejectedValue(new Error("当前实行免保证金入驻，无需支付")),
 };
 const mockAgreementSvc = {
   getLatestAgreement: jest.fn().mockResolvedValue({ id: "a1", version: "1.0", title: "协议" }),
@@ -52,7 +52,10 @@ describe("MerchantController", () => {
   const mockReq = (id = "u1") => ({ user: { id }, socket: { remoteAddress: "127.0.0.1" } } as any);
 
   it("POST /merchant/apply — 提交入驻申请", async () => {
-    const result = await ctrl.createApplication(mockReq(), { shopName: "测试店铺", contactName: "张三", contactPhone: "13800138000", idCardNumber: "110101199001011234" } as any);
+    const result = await ctrl.createApplication(mockReq(), {
+      shopName: "测试店铺", contactName: "张三", contactPhone: "13800138000",
+      idCardNumber: "110101199001011234", businessLicense: "https://cdn.example.com/license.jpg",
+    } as any);
     expect(result.status).toBe("PENDING_REVIEW");
     expect(mockMerchantSvc.createApplication).toHaveBeenCalled();
   });
@@ -74,12 +77,13 @@ describe("MerchantController", () => {
 
   it("GET /merchant/deposit-info — 获取保证金信息", async () => {
     const result = await ctrl.getDepositInfo(mockReq());
-    expect(result.depositAmount).toBe(2000);
+    expect(result.depositAmount).toBe(0);
+    expect(result.waived).toBe(true);
   });
 
-  it("POST /merchant/pay-deposit — 发起保证金支付", async () => {
-    const result = await ctrl.payDeposit(mockReq(), { payMethod: "WECHAT" });
-    expect(result.amount).toBe(2000);
+  it("POST /merchant/pay-deposit — 当前免缴时拒绝支付", async () => {
+    await expect(ctrl.payDeposit(mockReq(), { payMethod: "WECHAT" })).rejects.toThrow("无需支付");
+    expect(mockDepositSvc.payDeposit).toHaveBeenCalled();
   });
 
   it("GET /merchant/agreement-preview — 预览协议", async () => {

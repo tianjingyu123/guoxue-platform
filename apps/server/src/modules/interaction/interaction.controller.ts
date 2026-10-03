@@ -12,6 +12,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { Request } from "express";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("互动")
 @Controller("interaction")
@@ -29,6 +30,18 @@ export class InteractionController {
   @ApiBearerAuth()
   toggleLike(@Req() req: Request, @Body() dto: LikeDto) {
     return this.svc.toggleLike(req.user.id, dto);
+  }
+
+  @Delete("like/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "按点赞记录 ID 取消自己的点赞" })
+  @ApiResponse({ status: 200, description: "取消成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权操作" })
+  @ApiResponse({ status: 404, description: "点赞记录不存在" })
+  @ApiBearerAuth()
+  removeLike(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.removeLike(req.user.id, id);
   }
 
   @Get("like/check")
@@ -99,6 +112,7 @@ export class InteractionController {
   }
 
   @Put("comment/:id/hide")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "隐藏评论（管理员）" })
@@ -205,9 +219,30 @@ export class InteractionController {
     return this.svc.report(req.user.id, dto);
   }
 
+  @Get("report/mine")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "获取我的举报记录" })
+  getMyReports(
+    @Req() req: Request,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.getMyReports(req.user.id, +page, +pageSize);
+  }
+
+  @Get("report/mine/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "获取我的举报详情" })
+  getMyReport(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.getMyReport(req.user.id, id);
+  }
+
   @Get("report")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：客服工作台负责举报处理，放行 CUSTOMER_SERVICE。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "获取举报列表（管理员）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -218,8 +253,10 @@ export class InteractionController {
   }
 
   @Put("report/:id/process")
+  @RedLineGate(RedLine.USER_DATA, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：客服工作台负责举报处理，放行 CUSTOMER_SERVICE。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "处理举报（管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -227,13 +264,20 @@ export class InteractionController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  processReport(@Param("id") id: string, @Body("result") result?: string) {
-    return this.svc.processReport(id, result);
+  processReport(
+    @Param("id") id: string,
+    @Body("result") result?: string,
+    @Body("reason") reason?: string,
+  ) {
+    // 兼容前端两种字段名：处理结论存入 Report.result
+    return this.svc.processReport(id, result ?? reason);
   }
 
   @Put("report/:id/dismiss")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：客服工作台负责举报处理，放行 CUSTOMER_SERVICE。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "驳回举报（管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -241,8 +285,12 @@ export class InteractionController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  dismissReport(@Param("id") id: string) {
-    return this.svc.dismissReport(id);
+  dismissReport(
+    @Param("id") id: string,
+    @Body("reason") reason?: string,
+    @Body("result") result?: string,
+  ) {
+    return this.svc.dismissReport(id, reason ?? result);
   }
 
   @Get("report/admin/:id/target")

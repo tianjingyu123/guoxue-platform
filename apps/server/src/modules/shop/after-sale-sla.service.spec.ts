@@ -16,6 +16,7 @@ const mockPrisma: any = {
   order: { findMany: jest.fn() },
   notification: { findMany: jest.fn(), createMany: jest.fn() },
   userRole: { findMany: jest.fn() },
+  user: { findMany: jest.fn() },
 };
 
 /** 造一条售后单行（仅覆盖 service 用到的字段） */
@@ -56,6 +57,7 @@ describe("AfterSaleSlaService（F5 投诉 SLA）", () => {
     mockPrisma.notification.findMany.mockResolvedValue([]);
     mockPrisma.notification.createMany.mockResolvedValue({ count: 0 });
     mockPrisma.userRole.findMany.mockResolvedValue([]);
+    mockPrisma.user.findMany.mockResolvedValue([]);
   });
 
   // ── SLA 推导（不动 schema·createdAt+24h） ──
@@ -164,9 +166,10 @@ describe("AfterSaleSlaService（F5 投诉 SLA）", () => {
 
   // ── admin 列表增强 ──
   describe("listWithSla", () => {
-    it("分页列表行均带 SLA 字段；status 过滤透传", async () => {
+    it("分页列表行均带 SLA 字段 + 买家昵称；status 过滤透传", async () => {
       mockPrisma.afterSale.findMany.mockResolvedValue([afterSaleRow()]);
       mockPrisma.afterSale.count.mockResolvedValue(1);
+      mockPrisma.user.findMany.mockResolvedValue([{ id: "u1", nickname: "张三" }]);
 
       const res = await svc.listWithSla(1, 20, "PENDING");
 
@@ -176,6 +179,7 @@ describe("AfterSaleSlaService（F5 投诉 SLA）", () => {
       expect(res.total).toBe(1);
       expect(res.items[0]).toHaveProperty("slaDueAt");
       expect(res.items[0]).toHaveProperty("fastRefundEligible");
+      expect(res.items[0].user).toEqual({ id: "u1", nickname: "张三" });
     });
   });
 });

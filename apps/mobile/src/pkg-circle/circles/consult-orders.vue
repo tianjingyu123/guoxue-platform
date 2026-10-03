@@ -1,174 +1,440 @@
 <script setup lang="ts">
 /**
- * 咨询订单（真连后端 GET /question）—— 图文问答订单
- * 我在本圈的图文问答记录：我提问的 + 我作为达人被提问的。circleId 由 onLoad 带入。
- * 后端按 circleId + participantId（asker OR answerer）维度精确筛选（不再前端过滤降级）。
- * 注：本页仅图文问答（电话连麦订单属通话子系统，另页处理），故汇总不含「通话次数」。
- * 金额单位为金币（后端资金以币计，非现金 ¥）。三态齐全；点击进详情。
+ * 咨询订单 · 图文＋通话聚合 — V0 circle-consult-orders.html 还原（2026-07-10 批④）
+ * 结构：顶栏+状态筛选(全部/已完成/待处理/已退款) → 累计卡 → 「我提问的」「我回答的」分组订单流。
+ * 数据：图文 GET /question/my（JWT 本人参与）+ 通话 GET /consult-calls/my-page
+ *       （按 circleId 过滤·记录仅当事人可见），前端合并排序分组。
+ * 口径（后端为准·记台账）：
+ *  - 我回答的图文收入：实际入账按平台分成规则结算（比例走 SettlementRule·无前端可读字段）→
+ *    金额列展示订单原价并标注「按分成结算」，不冒充净收入；
+ *  - 我回答的通话：仅展示订单金额，达人收益按 50% 记录，到账以收益账户为准；
+ *  - V0「累计回答/分成收入」无可靠聚合字段 → 第二格改为真实「咨询总笔数」。
  */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad, onReachBottom, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { questionApi, getCurrentUserId, splitQuestion, type PaidQuestion } from '@/lib/circle-consult-data'
+import { callApi, type ConsultCallRecord } from '@/lib/consult-call-data'
 
-type OrderStatus = 'all' | 'completed' | 'pending' | 'refunded'
+type Bucket = 'done' | 'pending' | 'refunded' | 'review'
+type Filter = 'all' | 'done' | 'pending' | 'refunded'
+
+interface OrderItem {
+  key: string
+  kind: 'qa' | 'call'
+  id: string
+  mine: boolean // true=我提问的/我发起的
+  title: string
+  counterpart: string
+  bucket: Bucket
+  createdAt: string
+  /** 金额列 */
+  amountText: string
+  amountCls: 'expense' | 'income' | 'neutral'
+  /** 底部补充说明 */
+  note: string
+}
 
 const circleId = ref('')
 const myId = ref('')
 const loading = ref(true)
 const error = ref('')
-const all = ref<PaidQuestion[]>([])
+const orders = ref<OrderItem[]>([])
+const qaRows = ref<OrderItem[]>([])
+const answerRows = ref<OrderItem[]>([])
+const callRows = ref<OrderItem[]>([])
+const qaPage = ref(0)
+const callPage = ref(0)
+const qaTotal = ref(0)
+const callTotal = ref(0)
+const callFetched = ref(0)
+const qaError = ref('')
+const callError = ref('')
+const moreQaError = ref('')
+const moreCallError = ref('')
+const loadingMoreQa = ref(false)
+const loadingMoreCall = ref(false)
+const PAGE_SIZE = 20
 
-const filterTabs: OrderStatus[] = ['all', 'completed', 'pending', 'refunded']
-const filter = ref<OrderStatus>('all')
+const filterTabs: { key: Filter; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'done', label: '已完成' },
+  { key: 'pending', label: '待处理' },
+  { key: 'refunded', label: '已退款' },
+]
+const filter = ref<Filter>('all')
 
-/** 后端状态 → 订单三态 */
-function bucket(q: PaidQuestion): Exclude<OrderStatus, 'all'> {
-  if (q.status === 'ANSWERED') return 'completed'
+const BADGE: Record<Bucket, { label: string; cls: string }> = {
+  done: { label: '已完成', cls: 'done' },
+  pending: { label: '待处理', cls: 'pending' },
+  refunded: { label: '已退款', cls: 'refunded' },
+  review: { label: '待核实', cls: 'review' },
+}
+
+function fmtTime(s: string) {
+  if (!s) return ''
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return ''
+  const diff = Date.now() - d.getTime()
+  const days = Math.floor(diff / 86_400_000)
+  if (days <= 0) {
+    const hours = Math.floor(diff / 3_600_000)
+    return hours <= 0 ? '刚刚' : `${hours} 小时前`
+  }
+  if (days < 7) return `${days} 天前`
+  return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
+function qaBucket(q: PaidQuestion): Bucket {
+  if (q.status === 'ANSWERED') return 'done'
   if (q.status === 'PENDING') return 'pending'
-  return 'refunded' // REFUNDED / REJECTED / EXPIRED / CLOSED
+  return q.status === 'REFUNDED' ? 'refunded' : 'review'
+}
+function callBucket(c: ConsultCallRecord): Bucket {
+  if (c.status === 'ENDED') return 'done'
+  if (c.status === 'WAITING' || c.status === 'ONGOING') return 'pending'
+  return 'refunded'
 }
 
-const STATUS_CFG: Record<Exclude<OrderStatus, 'all'>, { label: string; icon: string; color: string }> = {
-  completed: { label: '已完成', icon: 'check-circle', color: '#16A34A' },
-  pending: { label: '待处理', icon: 'clock', color: '#F59E0B' },
-  refunded: { label: '已退款', icon: 'x-circle', color: '#999999' },
-}
-
-// 后端已按 participantId（我提问的 + 我回答的）维度筛选，列表即「我的订单」
-const mine = computed(() => all.value)
-const filtered = computed(() => filter.value === 'all' ? mine.value : mine.value.filter(q => bucket(q) === filter.value))
-
-// 汇总：累计消费=我作为提问者且未退款的支付金币；问答总数；已回答数
-const totalSpent = computed(() =>
-  mine.value.filter(q => q.askerId === myId.value && bucket(q) !== 'refunded').reduce((s, q) => s + q.priceCoin, 0),
-)
-const totalCount = computed(() => mine.value.length)
-const answeredCount = computed(() => mine.value.filter(q => q.status === 'ANSWERED').length)
-
-function tabLabel(f: OrderStatus) { return f === 'all' ? '全部' : STATUS_CFG[f].label }
-function roleLabel(q: PaidQuestion) { return q.askerId === myId.value ? '我提问' : '我回答' }
-function counterpart(q: PaidQuestion) { return q.askerId === myId.value ? q.answerer : q.asker }
-function fmtDate(s: string) { return s ? String(s).slice(0, 10) : '' }
-
-async function load() {
-  if (!circleId.value) { error.value = '缺少圈子参数'; loading.value = false; return }
-  if (!myId.value) { error.value = '请先登录'; loading.value = false; return }
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await questionApi.list({ circleId: circleId.value, participantId: myId.value, page: 1, pageSize: 100 })
-    all.value = res.items
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载失败'
-  } finally {
-    loading.value = false
+function mapQa(q: PaidQuestion): OrderItem {
+  const mine = q.askerId === myId.value
+  const p = splitQuestion(q.question)
+  const bucket = qaBucket(q)
+  let amountText = ''
+  let amountCls: OrderItem['amountCls'] = 'neutral'
+  let note = ''
+  if (mine) {
+    if (bucket === 'refunded') { amountText = `+${q.priceCoin}`; amountCls = 'income'; note = '金币已退回钱包' }
+    else if (bucket === 'review') { amountText = '待核实'; note = '历史关闭状态，退款请以钱包记录为准' }
+    else { amountText = `−${q.priceCoin}`; amountCls = 'expense'; note = bucket === 'pending' ? '托管中' : '' }
+  } else {
+    amountText = bucket === 'review' ? '待核实' : `${q.priceCoin}`
+    amountCls = bucket === 'done' ? 'income' : 'neutral'
+    note = bucket === 'done' ? '按平台分成结算' : bucket === 'pending' ? '待我回答' : bucket === 'refunded' ? '已拒答退回' : '历史关闭状态，退款待核对'
+  }
+  return {
+    key: `qa-${q.id}`, kind: 'qa', id: q.id, mine,
+    title: p.title || p.body || '图文咨询',
+    counterpart: (mine ? q.answerer?.nickname : q.asker?.nickname) || (mine ? '达人' : '提问者'),
+    bucket, createdAt: q.createdAt, amountText, amountCls, note,
   }
 }
 
-function openDetail(id: string) { navigateTo(`/pkg-circle/circles/question-detail?id=${id}`) }
+function mapCall(c: ConsultCallRecord): OrderItem {
+  const mine = c.callerId === myId.value
+  const bucket = callBucket(c)
+  const minutes = Math.max(1, Math.ceil((c.durationSec || 0) / 60))
+  const typeLabel = c.type === 'VIDEO' ? '视频' : '语音'
+  let amountText = ''
+  let amountCls: OrderItem['amountCls'] = 'neutral'
+  let note = ''
+  if (bucket === 'refunded') { amountText = '0'; amountCls = 'neutral'; note = '预扣已全额退回' }
+  else if (bucket === 'pending' && mine) { amountText = `−${c.prepaidCoin}`; amountCls = 'expense'; note = '金币预扣中，尚未结算' }
+  else if (bucket === 'pending') { amountText = '0'; amountCls = 'neutral'; note = '对方预扣中，你尚无收入' }
+  else if (mine) { amountText = `−${c.settledCoin}`; amountCls = 'expense'; note = `${c.pricePerMinute} 金币/分钟` }
+  else { amountText = `订单 ${c.settledCoin}`; amountCls = 'neutral'; note = '分成到账请以收益账户为准' }
+  return {
+    key: `call-${c.id}`, kind: 'call', id: c.id, mine,
+    title: bucket === 'done' ? `${typeLabel}连麦 ${minutes} 分钟` : `${typeLabel}连麦`,
+    counterpart: (mine ? c.expertName : c.callerName) || '对方',
+    bucket, createdAt: c.createdAt, amountText, amountCls, note,
+  }
+}
 
-onLoad((opt) => { circleId.value = (opt?.circleId || opt?.id || '') as string })
-onMounted(() => { myId.value = getCurrentUserId(); load() })
+const filtered = computed(() => filter.value === 'all' ? orders.value : orders.value.filter(o => o.bucket === filter.value))
+const askedOrders = computed(() => filtered.value.filter(o => o.mine))
+const answeredOrders = computed(() => filtered.value.filter(o => !o.mine))
+
+/** 累计咨询消费（我提问的图文未退款 + 我发起的已结算通话·金币） */
+const totalSpent = computed(() =>
+  orders.value.filter(o => o.mine && (o.bucket === 'pending' || o.bucket === 'done')).reduce((s, o) => {
+    const n = Math.abs(parseInt(o.amountText.replace(/[^0-9-]/g, ''), 10) || 0)
+    return s + n
+  }, 0),
+)
+const totalCount = computed(() => orders.value.length)
+const allLoaded = computed(() => !qaError.value && !callError.value && qaRows.value.length >= qaTotal.value && callFetched.value >= callTotal.value)
+const hasMoreQa = computed(() => qaPage.value > 0 && qaRows.value.length < qaTotal.value)
+const hasMoreCalls = computed(() => callPage.value > 0 && callFetched.value < callTotal.value)
+
+function mergeOrders() {
+  const qaIds = new Set(qaRows.value.map(item => item.id))
+  orders.value = [...qaRows.value, ...answerRows.value.filter(item => !qaIds.has(item.id)), ...callRows.value].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  )
+}
+
+async function loadQaPage() {
+  if (loadingMoreQa.value || (qaPage.value > 0 && !hasMoreQa.value)) return
+  loadingMoreQa.value = true
+  moreQaError.value = ''
+  try {
+    const next = qaPage.value + 1
+    const result = await questionApi.listMine({ circleId: circleId.value || undefined, participantId: myId.value, page: next, pageSize: PAGE_SIZE })
+    qaRows.value = next === 1 ? result.items.map(mapQa) : qaRows.value.concat(result.items.map(mapQa))
+    qaTotal.value = result.total
+    if (next > 1 && !result.items.length) qaTotal.value = qaRows.value.length
+    qaPage.value = next
+    qaError.value = ''
+    mergeOrders()
+  } catch (e) {
+    const message = (e as Error)?.message || '图文咨询加载失败'
+    if (!qaPage.value) qaError.value = message
+    else moreQaError.value = message
+  } finally {
+    loadingMoreQa.value = false
+  }
+}
+
+async function loadCallPage() {
+  if (loadingMoreCall.value || (callPage.value > 0 && !hasMoreCalls.value)) return
+  loadingMoreCall.value = true
+  moreCallError.value = ''
+  try {
+    const next = callPage.value + 1
+    const result = await callApi.myCallsPage(next, PAGE_SIZE)
+    const pageRows = circleId.value ? result.items.filter(c => c.circleId === circleId.value) : result.items
+    callRows.value = next === 1 ? pageRows.map(mapCall) : callRows.value.concat(pageRows.map(mapCall))
+    callFetched.value = next === 1 ? result.items.length : callFetched.value + result.items.length
+    callTotal.value = result.total
+    if (next > 1 && !result.items.length) callTotal.value = callFetched.value
+    callPage.value = next
+    callError.value = ''
+    mergeOrders()
+  } catch (e) {
+    const message = (e as Error)?.message || '通话记录加载失败'
+    if (!callPage.value) callError.value = message
+    else moreCallError.value = message
+  } finally {
+    loadingMoreCall.value = false
+  }
+}
+
+async function load() {
+  if (!myId.value) { error.value = '请先登录'; loading.value = false; return }
+  loading.value = true
+  error.value = ''
+  qaRows.value = []
+  answerRows.value = []
+  callRows.value = []
+  qaPage.value = 0
+  callPage.value = 0
+  qaTotal.value = 0
+  callTotal.value = 0
+  callFetched.value = 0
+  qaError.value = ''
+  callError.value = ''
+  moreQaError.value = ''
+  moreCallError.value = ''
+  orders.value = []
+  await Promise.all([loadQaPage(), loadCallPage()])
+  if (filter.value === 'pending') {
+    // 工作台待答入口还需包含由我回答的跨圈订单，不影响原列表的分页游标。
+    try {
+      const pendingRows = new Map<string, OrderItem>()
+      let page = 1
+      let total = 0
+      do {
+        const result = await questionApi.list({ answererId: myId.value, status: 'PENDING', page, pageSize: 100 })
+        for (const item of result.items) pendingRows.set(item.id, mapQa(item))
+        total = result.total
+        if (!result.items.length) break
+        page++
+      } while ((page - 1) * 100 < total)
+      answerRows.value = [...pendingRows.values()]
+      mergeOrders()
+    } catch (e) {
+      moreQaError.value = (e as Error)?.message || '待回答记录加载失败'
+    }
+  }
+  if (qaError.value && callError.value) error.value = '咨询记录加载失败，请重试'
+  loading.value = false
+}
+
+onReachBottom(() => {
+  if (hasMoreQa.value && !moreQaError.value) void loadQaPage()
+  if (hasMoreCalls.value && !moreCallError.value) void loadCallPage()
+})
+
+function openDetail(o: OrderItem) {
+  if (o.kind === 'qa') navigateTo(`/pkg-circle/circles/question-detail?id=${o.id}`)
+  else if (o.bucket !== 'pending') navigateTo(`/pkg-circle/circles/call-end?id=${o.id}`)
+}
+
+onLoad((opt) => {
+  circleId.value = (opt?.circleId || opt?.id || '') as string
+  if (opt?.filter === 'pending') filter.value = 'pending'
+})
+// 从回答/拒答详情返回时重新读取真实状态，避免旧的“待我回答”继续留在列表。
+onShow(() => { myId.value = getCurrentUserId(); void load() })
 </script>
 
 <template>
-  <view class="co-page">
-    <view class="co-nav">
-      <view class="co-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
-      <text class="co-nav-title">咨询订单</text>
-    </view>
-
-    <view class="co-summary">
-      <view class="co-sum-item"><text class="co-sum-num is-primary">{{ totalSpent }}</text><text class="co-sum-label">累计消费(币)</text></view>
-      <view class="co-sum-item"><text class="co-sum-num">{{ totalCount }}</text><text class="co-sum-label">问答总数</text></view>
-      <view class="co-sum-item"><text class="co-sum-num">{{ answeredCount }}</text><text class="co-sum-label">已回答</text></view>
-    </view>
-
-    <scroll-view scroll-x class="co-filters" :show-scrollbar="false">
-      <view class="co-filters-inner">
-        <view v-for="f in filterTabs" :key="f" class="co-filter" :class="{ 'is-active': filter === f }" @tap="filter = f">
-          <text class="co-filter-t" :class="{ 'is-active': filter === f }">{{ tabLabel(f) }}</text>
+  <view class="cor-page">
+    <!-- 顶栏 + 状态筛选 -->
+    <view class="cor-topbar">
+      <view class="cor-topbar-row">
+        <view class="cor-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+        <text class="cor-title">咨询订单</text>
+      </view>
+      <view class="cor-filters">
+        <view
+          v-for="f in filterTabs" :key="f.key"
+          class="cor-filter" :class="{ 'is-active': filter === f.key }"
+          role="tab" tabindex="0" :aria-selected="filter === f.key"
+          @tap="filter = f.key" @keydown.enter="filter = f.key"
+        >
+          <text class="cor-filter-t" :class="{ 'is-active': filter === f.key }">{{ f.label }}</text>
         </view>
       </view>
-    </scroll-view>
+    </view>
 
     <!-- 三态 -->
-    <view v-if="loading" class="co-state"><text class="co-state-t">加载中…</text></view>
-    <view v-else-if="error" class="co-state">
-      <text class="co-state-t">{{ error }}</text>
-      <view class="co-retry" @tap="load"><text class="co-retry-t">重试</text></view>
+    <view v-if="loading" class="cor-state"><view class="cor-skel" /><view class="cor-skel" /></view>
+    <view v-else-if="error" class="cor-state">
+      <text class="cor-state-t">{{ error }}</text>
+      <view class="cor-retry" @tap="load"><text class="cor-retry-t">重试</text></view>
     </view>
-    <view v-else-if="filtered.length === 0" class="co-state"><text class="co-state-t">暂无订单</text></view>
+    <view v-else-if="orders.length === 0 && !qaError && !callError" class="cor-state"><text class="cor-state-t">暂无咨询订单</text></view>
 
-    <view v-else class="co-list">
-      <view v-for="o in filtered" :key="o.id" class="co-card" @tap="openDetail(o.id)">
-        <view class="co-card-head">
-          <text class="co-order-no">订单号：{{ o.id.slice(0, 8).toUpperCase() }}</text>
-          <view class="co-status">
-            <app-icon :name="STATUS_CFG[bucket(o)].icon" :size="22" :color="STATUS_CFG[bucket(o)].color" />
-            <text class="co-status-t" :style="{ color: STATUS_CFG[bucket(o)].color }">{{ STATUS_CFG[bucket(o)].label }}</text>
-          </view>
+    <template v-else>
+      <view v-if="qaError" class="cor-warning">
+        <text class="cor-warning-t">图文咨询未加载：{{ qaError }}</text>
+        <view class="cor-warning-action" @tap="loadQaPage">重试</view>
+      </view>
+      <view v-if="callError" class="cor-warning">
+        <text class="cor-warning-t">通话记录未加载：{{ callError }}</text>
+        <view class="cor-warning-action" @tap="loadCallPage">重试</view>
+      </view>
+      <!-- 累计数据 -->
+      <view v-if="orders.length" class="cor-total">
+        <view class="cor-total-item">
+          <text class="cor-total-label">{{ allLoaded ? '咨询已付及托管' : '已显示的已付及托管' }}</text>
+          <text class="cor-total-num">{{ totalSpent }}<text class="cor-total-unit"> 金币</text></text>
         </view>
-        <view class="co-card-body">
-          <image lazy-load class="co-avatar" :src="counterpart(o)?.avatar || ''" mode="aspectFill" />
-          <view class="co-info">
-            <view class="co-info-top">
-              <text class="co-expert">{{ counterpart(o)?.nickname || '用户' }}</text>
-              <view class="co-type">
-                <app-icon name="message-square" :size="20" color="#999999" />
-                <text class="co-type-t">图文 · {{ roleLabel(o) }}</text>
-              </view>
-            </view>
-            <text class="co-desc">{{ splitQuestion(o.question).title || splitQuestion(o.question).body }}</text>
-          </view>
-          <view class="co-amount-wrap">
-            <text class="co-amount" :class="{ 'is-refunded': bucket(o) === 'refunded' }">{{ o.priceCoin }}币</text>
-            <text class="co-date">{{ fmtDate(o.createdAt) }}</text>
-          </view>
+        <view class="cor-total-item bordered">
+          <text class="cor-total-label">{{ allLoaded ? '咨询总笔数' : '已显示笔数' }}</text>
+          <text class="cor-total-num">{{ totalCount }}<text class="cor-total-unit"> 笔</text></text>
         </view>
       </view>
-    </view>
+
+      <!-- 我提问的 -->
+      <template v-if="askedOrders.length">
+        <text class="cor-group">我提问的 · {{ askedOrders.length }} 笔</text>
+        <view v-for="o in askedOrders" :key="o.key" class="cor-order" @tap="openDetail(o)">
+          <view class="cor-order-head">
+            <text class="cor-type">{{ o.kind === 'qa' ? '图文' : '通话' }}</text>
+            <text class="cor-order-title">{{ o.title }}</text>
+            <text class="cor-badge" :class="'cor-badge-' + o.bucket">{{ BADGE[o.bucket].label }}</text>
+          </view>
+          <view class="cor-order-foot">
+            <text class="cor-foot-t">{{ o.counterpart }} · {{ fmtTime(o.createdAt) }}{{ o.note ? ' · ' + o.note : '' }}</text>
+            <view class="cor-spacer" />
+            <text class="cor-amount" :class="'cor-amount-' + o.amountCls">{{ o.amountText }}<text v-if="o.bucket !== 'review'" class="cor-amount-unit"> 金币</text></text>
+          </view>
+        </view>
+      </template>
+
+      <!-- 我回答的 -->
+      <template v-if="answeredOrders.length">
+        <text class="cor-group">我回答的 · {{ answeredOrders.length }} 笔</text>
+        <view v-for="o in answeredOrders" :key="o.key" class="cor-order" @tap="openDetail(o)">
+          <view class="cor-order-head">
+            <text class="cor-type">{{ o.kind === 'qa' ? '图文' : '通话' }}</text>
+            <text class="cor-order-title">{{ o.title }}</text>
+            <text class="cor-badge" :class="'cor-badge-' + o.bucket">{{ BADGE[o.bucket].label }}</text>
+          </view>
+          <view class="cor-order-foot">
+            <text class="cor-foot-t">{{ o.counterpart }} {{ o.kind === 'qa' ? '提问' : '发起' }} · {{ fmtTime(o.createdAt) }}{{ o.note ? ' · ' + o.note : '' }}</text>
+            <view class="cor-spacer" />
+            <text class="cor-amount" :class="'cor-amount-' + o.amountCls">{{ o.amountText }}<text v-if="o.bucket !== 'review'" class="cor-amount-unit"> 金币</text></text>
+          </view>
+        </view>
+      </template>
+      <view v-if="hasMoreQa || moreQaError" class="cor-more" @tap="loadQaPage">
+        {{ loadingMoreQa ? '正在加载图文咨询…' : moreQaError ? `图文咨询加载失败，点击重试` : '查看更多图文咨询' }}
+      </view>
+      <view v-if="orders.length && !askedOrders.length && !answeredOrders.length" class="cor-state">
+        <text class="cor-state-t">当前没有此状态的咨询订单</text>
+        <view class="cor-retry" role="button" tabindex="0" @tap="filter = 'all'" @keydown.enter="filter = 'all'"><text class="cor-retry-t">查看全部</text></view>
+      </view>
+      <view v-if="hasMoreCalls || moreCallError" class="cor-more" @tap="loadCallPage">
+        {{ loadingMoreCall ? '正在加载通话记录…' : moreCallError ? '通话记录加载失败，点击重试' : '查看更多通话记录' }}
+      </view>
+    </template>
   </view>
 </template>
 
 <style scoped lang="scss">
-.co-page { min-height: 100vh; background: #F5F1E8; padding-bottom: 48rpx; }
-.co-nav { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 16rpx; height: 88rpx; padding: 0 24rpx; background: #F5F1E8; border-bottom: 1rpx solid #E8E0D0; }
-.co-nav-btn { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; }
-.co-nav-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
-.co-summary { display: flex; gap: 32rpx; margin: 24rpx; padding: 28rpx; background: rgba(196,30,58,0.05); border: 1rpx solid rgba(196,30,58,0.2); border-radius: 20rpx; }
-.co-sum-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6rpx; }
-.co-sum-num { font-size: 38rpx; font-weight: 700; color: #2C2C2C; }
-.co-sum-num.is-primary { color: var(--brand); }
-.co-sum-label { font-size: 22rpx; color: #999; }
-.co-filters { white-space: nowrap; padding: 8rpx 24rpx 16rpx; }
-.co-filters-inner { display: inline-flex; gap: 16rpx; }
-.co-filter { padding: 12rpx 28rpx; border-radius: 999rpx; background: #ECE6D8; }
-.co-filter.is-active { background: var(--brand); }
-.co-filter-t { font-size: 26rpx; color: #2C2C2C; font-weight: 500; }
-.co-filter-t.is-active { color: #fff; }
-.co-state { padding: 140rpx 0; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
-.co-state-t { font-size: 26rpx; color: #999; }
-.co-retry { padding: 12rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
-.co-retry-t { font-size: 26rpx; color: #fff; }
-.co-list { display: flex; flex-direction: column; gap: 20rpx; padding: 8rpx 24rpx 0; }
-.co-card { background: #fff; border: 1rpx solid #E8E0D0; border-radius: 20rpx; padding: 24rpx; }
-.co-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
-.co-order-no { font-size: 22rpx; color: #999; }
-.co-status { display: flex; align-items: center; gap: 6rpx; }
-.co-status-t { font-size: 22rpx; }
-.co-card-body { display: flex; align-items: center; gap: 16rpx; }
-.co-avatar { width: 72rpx; height: 72rpx; border-radius: 50%; flex-shrink: 0; background: #ECE6D8; }
-.co-info { flex: 1; min-width: 0; }
-.co-info-top { display: flex; align-items: center; gap: 12rpx; }
-.co-expert { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.co-type { display: flex; align-items: center; gap: 4rpx; }
-.co-type-t { font-size: 22rpx; color: #999; }
-.co-desc { display: block; font-size: 22rpx; color: #999; margin-top: 6rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.co-amount-wrap { text-align: right; flex-shrink: 0; }
-.co-amount { display: block; font-size: 28rpx; font-weight: 700; color: var(--brand); }
-.co-amount.is-refunded { text-decoration: line-through; color: #999; }
-.co-date { display: block; font-size: 20rpx; color: #999; margin-top: 6rpx; }
+.cor-page { min-height: 100vh; background: var(--bg-page, #faf8f5); padding-bottom: 64rpx; }
+
+/* 顶栏 + 筛选 */
+.cor-topbar {
+  position: sticky; top: 0; z-index: 10;
+  padding: 24rpx 32rpx 0;
+  padding-top: calc(var(--status-bar-height, 0px) + 24rpx);
+  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
+}
+.cor-topbar-row { display: flex; align-items: center; gap: 20rpx; }
+.cor-back { display: flex; padding: 8rpx; margin-left: -8rpx; }
+.cor-title { flex: 1; font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.cor-filters { display: flex; gap: 16rpx; padding: 24rpx 0; }
+.cor-filter { min-height: 44px; padding: 0 28rpx; display: flex; align-items: center; border-radius: 30rpx; background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); }
+.cor-filter:focus-visible { outline: 2px solid #2b6f68; outline-offset: 2px; }
+.cor-filter.is-active { background: var(--text-primary, #2c2c2c); }
+.cor-filter-t { font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
+.cor-filter-t.is-active { color: #fff; font-weight: 500; }
+
+/* 三态 */
+.cor-state { padding: 120rpx 32rpx; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
+.cor-state-t { font-size: 26rpx; color: var(--text-tertiary, #999); }
+.cor-retry { padding: 14rpx 56rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
+.cor-retry-t { font-size: 26rpx; color: #fff; }
+.cor-warning { margin: 24rpx 32rpx; padding: 24rpx; display: flex; align-items: center; gap: 16rpx; border-radius: 20rpx; background: #fff4e8; }
+.cor-warning-t { flex: 1; font-size: 24rpx; color: #775022; }
+.cor-warning-action { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; color: var(--brand, #c41e3a); font-size: 26rpx; }
+.cor-more { margin: 24rpx 32rpx; min-height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 20rpx; background: #fff; color: var(--brand, #c41e3a); font-size: 26rpx; }
+.cor-skel { width: 100%; height: 170rpx; border-radius: 36rpx; background: #ede7dd; }
+
+/* 累计卡 */
+.cor-total {
+  margin: 8rpx 32rpx 0; padding: 28rpx 32rpx;
+  display: flex; align-items: center;
+  background: var(--bg-warm, #f8f4ec); border-radius: 28rpx;
+}
+.cor-total-item { flex: 1; }
+.cor-total-item.bordered { border-left: 1rpx solid var(--separator, #ede7dd); padding-left: 32rpx; }
+.cor-total-label { display: block; font-size: 22rpx; color: var(--text-tertiary, #999); }
+.cor-total-num { display: block; font-size: 38rpx; font-weight: 700; color: var(--gold, #c9a96e); margin-top: 4rpx; }
+.cor-total-unit { font-size: 20rpx; font-weight: 400; color: var(--text-tertiary, #999); }
+
+/* 分组 */
+.cor-group { display: block; margin: 36rpx 36rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
+
+/* 订单条目 */
+.cor-order {
+  margin: 0 32rpx 20rpx; padding: 28rpx 32rpx;
+  background: var(--bg-card, #fff); border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.cor-order-head { display: flex; align-items: center; gap: 16rpx; }
+.cor-type { flex-shrink: 0; padding: 1rpx 14rpx; border-radius: 10rpx; font-size: 20rpx; border: 1rpx solid var(--separator, #ede7dd); color: var(--text-tertiary, #999); }
+.cor-order-title { flex: 1; min-width: 0; font-size: 26rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cor-badge { flex-shrink: 0; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 20rpx; }
+.cor-badge-done { background: rgba(91, 138, 94, 0.1); color: #5b8a5e; }
+.cor-badge-pending { background: rgba(201, 123, 45, 0.1); color: #c97b2d; }
+.cor-badge-refunded { background: var(--bg-warm, #f8f4ec); color: var(--text-tertiary, #999); }
+.cor-badge-review { background: #fff4e8; color: #775022; }
+.cor-order-foot {
+  display: flex; align-items: center; gap: 16rpx;
+  margin-top: 18rpx; padding-top: 18rpx; border-top: 1rpx solid var(--separator, #ede7dd);
+}
+.cor-foot-t { font-size: 22rpx; color: var(--text-tertiary, #999); }
+.cor-spacer { flex: 1; }
+.cor-amount { font-size: 26rpx; font-weight: 700; flex-shrink: 0; }
+.cor-amount-expense { color: var(--text-primary, #2c2c2c); }
+.cor-amount-income { color: var(--gold, #c9a96e); }
+.cor-amount-neutral { color: var(--text-secondary, #6e6e73); }
+.cor-amount-unit { font-size: 20rpx; font-weight: 400; color: var(--text-tertiary, #999); }
 </style>

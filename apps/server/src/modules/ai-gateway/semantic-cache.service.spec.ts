@@ -87,4 +87,40 @@ describe("SemanticCacheService", () => {
       expect(result).toBeNull();
     });
   });
+
+  describe("scopeKey 数据隔离（防跨圈串答·后端审计P1）", () => {
+    it("store 传 scopeKey → 持久层 scene 列按实体分区（circle_assistant#circleA）", async () => {
+      mockPrisma.aiCacheEntry.findFirst.mockResolvedValue(null);
+      await svc.store("circle_assistant", "本圈课程怎么退款", "A圈答案", "deepseek", undefined, "circleA");
+      await new Promise((r) => setImmediate(r));
+
+      const data = mockPrisma.aiCacheEntry.create.mock.calls[0][0].data;
+      expect(data.scene).toBe("circle_assistant#circleA");
+    });
+
+    it("同一问题不同圈 → Redis 键不同 → A 圈答案不会命中给 B 圈", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.aiCacheEntry.findFirst.mockResolvedValue(null);
+      const q = "本圈课程怎么退款";
+
+      await svc.lookup("circle_assistant", q, "circleA");
+      await svc.lookup("circle_assistant", q, "circleB");
+
+      const keyA = mockRedis.getJson.mock.calls[0][0] as string;
+      const keyB = mockRedis.getJson.mock.calls[1][0] as string;
+      expect(keyA).toContain("circle_assistant#circleA");
+      expect(keyB).toContain("circle_assistant#circleB");
+      expect(keyA).not.toBe(keyB); // 键不同 → 跨圈不串
+    });
+
+    it("不传 scopeKey → 行为向后兼容（scene 不变，旧缓存仍可命中）", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.aiCacheEntry.findFirst.mockResolvedValue(null);
+
+      await svc.lookup("classic_translate", "欲做精金美玉的人品");
+      const key = mockRedis.getJson.mock.calls[0][0] as string;
+      expect(key).toContain("sem:v1:classic_translate:");
+      expect(key).not.toContain("#");
+    });
+  });
 });

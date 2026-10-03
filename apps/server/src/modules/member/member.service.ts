@@ -4,12 +4,17 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "@guoxue/shared";
 import { maskPhone } from "../../common/crypto.util";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { Prisma, MemberLevel } from "@prisma/client";
+import { EntitlementService } from "../entitlement/entitlement.service";
 
 @Injectable()
 export class MemberService {
   private readonly logger = new Logger(MemberService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly entitlement: EntitlementService,
+  ) {}
 
   /** 获取所有启用的会员套餐 */
   async getPlans() {
@@ -65,17 +70,32 @@ export class MemberService {
 
   // ═══════════════════ 管理员方法 ═══════════════════
 
-  /** 管理员查看所有会员购买记录 */
-  async getAdminPurchases(rawPage = 1, rawPageSize = 20) {
+  /** 管理员查看所有会员购买记录（可选按类型 + 购买时间范围筛选，服务端过滤支撑全量导出） */
+  async getAdminPurchases(
+    rawPage = 1,
+    rawPageSize = 20,
+    filter?: { type?: string; startDate?: string; endDate?: string },
+  ) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
+    const where: Prisma.MemberPurchaseWhereInput = {};
+    // type → memberType（枚举 MONTHLY/QUARTERLY/YEARLY/LIFETIME）；不传即不过滤，向后兼容
+    if (filter?.type) where.memberType = filter.type as MemberLevel;
+    // 购买时间范围（paidAt）：起始含当日 00:00、截止含当日 23:59:59.999，与前端本地筛选口径一致
+    if (filter?.startDate || filter?.endDate) {
+      const paidAt: Prisma.DateTimeFilter = {};
+      if (filter.startDate) paidAt.gte = new Date(`${filter.startDate}T00:00:00.000`);
+      if (filter.endDate) paidAt.lte = new Date(`${filter.endDate}T23:59:59.999`);
+      where.paidAt = paidAt;
+    }
     const [items, total] = await Promise.all([
       this.prisma.memberPurchase.findMany({
+        where,
         skip,
         take: pageSize,
         orderBy: { paidAt: "desc" },
         include: { user: { select: { id: true, nickname: true, phone: true } } },
       }),
-      this.prisma.memberPurchase.count(),
+      this.prisma.memberPurchase.count({ where }),
     ]);
     // 管理端列表脱敏会员手机号
     const masked = items.map((it) => ({
@@ -102,15 +122,22 @@ export class MemberService {
   }
 
   /** 管理员手动授予会员 */
-  async grantMember(userId: string, level: string, durationDays = 30) {
+  async grantMember(userId: string, level: string, durationDays = 30, operatorId?: string) {
+    if (!(["MONTHLY", "QUARTERLY", "YEARLY", "LIFETIME"] as string[]).includes(level)
+      || !Number.isSafeInteger(durationDays) || durationDays <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择有效会员等级和正整数有效天数");
+    }
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
 
     const now = new Date();
     const expireAt = level === "LIFETIME" ? null : new Date(now.getTime() + durationDays * 86400000);
+    if (expireAt && !Number.isFinite(expireAt.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "会员有效天数超出支持范围");
+    }
 
-    await this.prisma.$transaction([
-      this.prisma.memberPurchase.create({
+    await this.prisma.$transaction(async (tx) => {
+      const purchase = await tx.memberPurchase.create({
         data: {
           userId,
           memberType: level as any,
@@ -118,12 +145,25 @@ export class MemberService {
           paidAt: now,
           expireAt,
         },
-      }),
-      this.prisma.user.update({
+      });
+      await tx.user.update({
         where: { id: userId },
         data: { memberLevel: level as any, memberExpire: expireAt },
-      }),
-    ]);
+      });
+      await this.entitlement.grantWithTx(tx, {
+        userId,
+        entitlementKey: "membership.school",
+        kind: "MEMBERSHIP",
+        resourceType: "MEMBER_PLAN",
+        unlimited: true,
+        validUntil: expireAt,
+        sourceType: "ADMIN",
+        sourceId: purchase.id,
+        idempotencyKey: `admin-member-grant:${purchase.id}`,
+        // 标记随会员购买记录、实际会员状态和权益流水同事务提交，不在主事务发送通知。
+        metadata: { level, durationDays, notificationEvent: "MEMBER_GRANTED_V1", ...(operatorId ? { operatorId } : {}) },
+      });
+    });
 
     this.logger.log(`管理员授予用户 ${userId} 会员 ${level}`);
     return { userId, level, expireAt };
@@ -131,9 +171,18 @@ export class MemberService {
 
   /** 管理员撤销会员 */
   async revokeMember(userId: string) {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { memberLevel: "NONE", memberExpire: null },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { memberLevel: "NONE", memberExpire: null },
+      });
+      await this.entitlement.revokeEntitlementWithTx(
+        tx,
+        userId,
+        "membership.school",
+        "管理员撤销会员",
+        `admin-member-revoke:${userId}:${Date.now()}`,
+      );
     });
     this.logger.log(`管理员撤销用户 ${userId} 会员`);
     return { userId, revoked: true };

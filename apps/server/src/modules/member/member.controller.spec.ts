@@ -106,7 +106,11 @@ describe("MemberController", () => {
     it("GET admin/purchases → 购买记录", async () => {
       const res = await ctrl.getAdminPurchases(1, 20);
       expect(res).toHaveProperty("items");
-      expect(mockService.getAdminPurchases).toHaveBeenCalledWith(1, 20);
+      expect(mockService.getAdminPurchases).toHaveBeenCalledWith(1, 20, {
+        type: undefined,
+        startDate: undefined,
+        endDate: undefined,
+      });
     });
 
     it("GET admin/stats → 会员统计", async () => {
@@ -120,7 +124,7 @@ describe("MemberController", () => {
       const dto = { userId: "u1", level: "MONTHLY" as any, durationDays: 30 };
       const res = await ctrl.grantMember(dto, req);
       expect(res.userId).toBe("u1");
-      expect(mockService.grantMember).toHaveBeenCalledWith("u1", "MONTHLY", 30);
+      expect(mockService.grantMember).toHaveBeenCalledWith("u1", "MONTHLY", 30, "admin1");
     });
 
     it("POST admin/revoke/:userId → 撤销会员", async () => {

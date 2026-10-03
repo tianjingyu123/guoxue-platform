@@ -5,9 +5,13 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import QimenNotesPanel from '@/components/qimen/notes-panel.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
+import ToolAiAnalysis from '@/components/paipan/tool-ai-analysis.vue'
 import { navigateTo } from '@/utils/router'
+import { routeClockPart } from '@/lib/paipan/route-clock'
 import { getToken } from '@/utils/storage'
 import { qimenApi, type QimenResult, type QimenInput } from '@/lib/qimen-data'
+import { computePaipan } from '@/lib/paipan/engine-client'
+import { saveQimenHistory } from './qimen-history'
 import { BRAND } from '@/lib/brand'
 
 // ─── 奇门常量 ───
@@ -44,6 +48,7 @@ const loading = ref(true)
 const errMsg = ref('')
 const result = ref<QimenResult | null>(null)
 const saving = ref(false)
+const serverRecordId = ref('')
 
 function buildInput(): QimenInput {
   return {
@@ -60,16 +65,42 @@ function buildInput(): QimenInput {
   }
 }
 
+/**
+ * 起局（2026-09-21 第 4 步）：计算迁至服务端 POST /paipan/engine/qimen（即原前端 qimen-adapter + shared 奇门引擎，84/84 黄金测试），
+ * 前端不再包含奇门算法；并修了 ★48（飞宫方式此前未传引擎）。
+ * 本地重算（2026-07-14 去伪存真）：改用 pkg-paipan/lib/qimen-engine（84/84 黄金测试）。
+ * 此前走 qimenApi.calculate → 后端 qimen.calculator 只有转盘法，飞盘被错误委托给阴盘引擎
+ * （阴盘是另一流派，以月柱推局），导致选「飞盘」时拿到的是阴盘。
+ */
 async function load() {
   loading.value = true
   errMsg.value = ''
+  serverRecordId.value = ''
   try {
-    result.value = await qimenApi.calculate(buildInput())
+    result.value = await computePaipan<QimenResult>('qimen', { ...buildInput() })
+    saveRecord(result.value)
   } catch (e) {
-    errMsg.value = (e as Error)?.message || '排盘失败，请稍后重试'
+    const msg = (e as Error)?.message || ''
+    errMsg.value = msg.startsWith('参数') ? '起局参数无效，请检查后重试' : '排盘服务暂时不可用，请稍后重试'
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * 起局成功后落本地记录（无需登录）——记录页读的就是它。
+ * 与下方 onSave（登录后存后端、供 AI 解盘/从业者调阅）是两码事，不要合并。
+ */
+function saveRecord(r: QimenResult | null) {
+  if (!r) return
+  saveQimenHistory({
+    ...buildInput(),
+    matter: q.matter || '',
+    juLabel: `${r.dunType === 'yang' ? '阳遁' : '阴遁'}${r.juNumber}局`,
+    zhiFu: r.zhiFu,
+    zhiShiMen: r.zhiShiMen,
+    jieQi: r.jieQi,
+  })
 }
 
 /** 保存排盘记录（需登录，防重复提交） */
@@ -78,7 +109,8 @@ async function onSave() {
   if (!getToken()) { uni.showToast({ title: '请先登录后保存', icon: 'none' }); return }
   saving.value = true
   try {
-    await qimenApi.save(buildInput())
+    const saved = await qimenApi.save(buildInput())
+    serverRecordId.value = saved.id
     uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
@@ -87,9 +119,55 @@ async function onSave() {
   }
 }
 
-/** AI 智能解析（后端时家奇门 AI 端点尚未提供，暂占位） */
-function onAnalyze() {
-  uni.showToast({ title: 'AI 智能解析即将上线', icon: 'none' })
+// 生成局书：需要服务端记录，已保存则直接用，否则先保存再跳
+const generatingReport = ref(false)
+async function openJuShu() {
+  if (!getToken()) { uni.showToast({ title: '请先登录后生成局书', icon: 'none' }); return }
+  if (generatingReport.value) return
+  generatingReport.value = true
+  try {
+    let id = serverRecordId.value
+    if (!id) {
+      const saved = await qimenApi.save(buildInput())
+      serverRecordId.value = saved.id
+      id = saved.id
+    }
+    navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${id}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '生成失败，请稍后重试', icon: 'none' })
+  } finally {
+    generatingReport.value = false
+  }
+}
+
+/** 当前盘面 AI 输入：补齐统一工具提示词需要的可读字段，结果仍以引擎结构化数据为准。 */
+const aiInput = computed(() => ({
+  ...buildInput(),
+  matter: q.matter,
+  question: q.matter,
+  method: q.panMethod === 'fei' ? '飞盘' : '转盘',
+  qiJuMethod: q.startMethod === 'zhirun' ? '置闰' : q.startMethod === 'chaibu' ? '拆补' : q.startMethod === 'maoshan' ? '茅山' : '自定局',
+  datetime: `${q.year}-${pad(q.month)}-${pad(q.day)} ${pad(q.hour)}:${pad(q.minute)}`,
+}))
+const aiRequestKey = computed(() => JSON.stringify(aiInput.value))
+
+/** 分享：H5 系统分享/复制链接，其余端复制盘面摘要（照 jinkoujue/meihua 范式） */
+function handleShare() {
+  const r = result.value
+  if (!r) return
+  const summary = `奇门遁甲：${q.year}年${pad(q.month)}月${pad(q.day)}日${q.hour}时 ${juLabel.value} 值符${r.zhiFu} 值使${zhiShiMenLabel.value}${q.matter ? ` · ${q.matter}` : ''}`
+  // #ifdef H5
+  const url = window.location.href
+  const nav = navigator as Navigator & { share?: (data: { title?: string; url?: string }) => Promise<void> }
+  if (nav.share) {
+    nav.share({ title: summary, url }).catch(() => {})
+  } else {
+    uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
+  }
+  // #endif
+  // #ifndef H5
+  uni.setClipboardData({ data: summary, success: () => uni.showToast({ title: '盘面已复制', icon: 'none' }) })
+  // #endif
 }
 
 onLoad((opts: Record<string, string> = {}) => {
@@ -97,14 +175,16 @@ onLoad((opts: Record<string, string> = {}) => {
   q.year = Number(opts.year) || 2026
   q.month = Number(opts.month) || 5
   q.day = Number(opts.day) || 17
-  q.hour = Number(opts.hour) || 13
-  q.minute = Number(opts.minute) || 59
+  q.hour = routeClockPart(opts.hour, 13, 23)
+  q.minute = routeClockPart(opts.minute, 59, 59)
   q.panMethod = opts.panMethod || 'zhuan'
   q.flyMethod = opts.flyMethod || 'yinyang'
   q.startMethod = opts.startMethod || 'zhirun'
   q.anganMethod = opts.anganMethod || 'dipan'
   q.customJu = opts.customJu ? decodeURIComponent(opts.customJu) : ''
-  q.useTrueSolar = opts.useTrueSolar === 'true'
+  // 兼容三种写法：入口页 useTrueSolar=true、历史页 useTrueSolar=1、旧链接 trueSolar=true/1
+  const ts = opts.useTrueSolar ?? opts.trueSolar
+  q.useTrueSolar = ts === 'true' || ts === '1'
   q.lat = Number(opts.lat) || 0
   q.lng = Number(opts.lng) || 0
   editedMatter.value = q.matter
@@ -243,7 +323,7 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
       <view class="hdr-inner">
         <view class="hdr-back" @tap="navigateTo('/paipan/qimen')"><app-icon name="chevron-left" :size="40" color="var(--text-ink)" /></view>
         <text class="hdr-title">{{ BRAND.nameShort }}奇门遁甲</text>
-        <view class="hdr-share"><app-icon name="share-2" :size="32" color="var(--text-soft)" /></view>
+        <view class="hdr-share" @tap="handleShare"><app-icon name="share-2" :size="32" color="var(--text-soft)" /></view>
       </view>
     </view>
 
@@ -404,9 +484,22 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
       </view>
 
       <!-- AI解析/保存 -->
-      <view class="cta">
-        <view class="cta-ai" @tap="onAnalyze"><app-icon name="sparkles" :size="32" color="#ffffff" /><text class="cta-ai-t">AI智能解析</text></view>
-        <view class="cta-save" :class="{ disabled: saving }" @tap="onSave"><app-icon name="save" :size="30" color="var(--text-ink)" /><text class="cta-save-t">{{ saving ? '保存中…' : '保存' }}</text></view>
+      <tool-ai-analysis tool-id="qimen-yang" :input="aiInput" :result="result" :request-key="aiRequestKey" :record-id="serverRecordId">
+        <template #secondary>
+          <view class="cta-save" :class="{ disabled: saving }" @tap="onSave">
+            <app-icon name="save" :size="30" color="var(--text-ink)" />
+            <text class="cta-save-t">{{ saving ? '保存中…' : '保存' }}</text>
+          </view>
+        </template>
+      </tool-ai-analysis>
+
+      <!-- 生成局书：用神落宫、格局吉凶、方位取用、应期与断语，带依据出处 -->
+      <view class="jushu" @tap="openJuShu">
+        <view class="jushu-main">
+          <text class="jushu-title">{{ generatingReport ? '正在准备…' : '生成小卜局书' }}</text>
+          <text class="jushu-sub">按所问取用神，逐条讲清落宫、格局、方位与应期，并注明依据出处</text>
+        </view>
+        <app-icon name="chevron-right" :size="30" color="#ffffff" />
       </view>
 
       <!-- 免责声明 -->
@@ -535,13 +628,14 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
 .detail-combo { border-top: 2rpx solid rgba(0,0,0,0.06); padding-top: 16rpx; margin-top: 16rpx; font-size: 26rpx; color: var(--text-ink); line-height: 1.6; }
 
 /* CTA */
-.cta { display: flex; gap: 24rpx; padding: 24rpx 24rpx 0; }
-.cta-ai { flex: 1; display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 26rpx 0; background: var(--brand); border-radius: 20rpx; box-shadow: 0 8rpx 20rpx rgba(196,30,58,0.25); }
-.cta-ai-t { font-size: 28rpx; font-weight: 500; color: #fff; }
 .cta-save { display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 26rpx 48rpx; background: var(--card); border: 2rpx solid var(--border); border-radius: 20rpx; }
 .cta-save.disabled { opacity: 0.55; }
 .cta-save-t { font-size: 28rpx; font-weight: 500; color: var(--text-ink); }
 
+.jushu { display: flex; align-items: center; gap: 16rpx; margin: 16rpx 24rpx 4rpx; padding: 26rpx 28rpx; border-radius: 20rpx; background: var(--brand); }
+.jushu-main { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
+.jushu-title { font-size: 30rpx; font-weight: 700; color: #fff; }
+.jushu-sub { font-size: 22rpx; color: rgba(255, 255, 255, 0.85); line-height: 1.5; }
 .dc-wrap { padding: 24rpx; }
 
 /* FAB */

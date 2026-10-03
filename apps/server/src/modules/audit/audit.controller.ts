@@ -9,7 +9,8 @@ import { ComplianceScanService } from "./compliance-scan.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
-import { AuditListQueryDto, ModerateImageDto, ModerateTextDto, OperationLogListQueryDto, AddSensitiveWordDto, AddSensitiveWordsDto, CheckSensitiveDto, ComplianceScanQueryDto, ComplianceScanStatusDto } from "./audit.dto";
+import { AuditListQueryDto, ModerateImageDto, ModerateTextDto, OperationLogListQueryDto, AddSensitiveWordDto, AddSensitiveWordsDto, CheckSensitiveDto, ComplianceScanQueryDto, ComplianceScanStatusDto, ContentAuditListQueryDto, ContentAuditReviewDto } from "./audit.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("审核与审计")
 @Controller("audit")
@@ -31,6 +32,18 @@ export class AuditController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   list(@Query() q: AuditListQueryDto) {
     return this.svc.list(q);
+  }
+
+  @Post("admin/backfill-moderation")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "存量内容机审兜底扫描（配合存量 PENDING 放行 SQL 使用）" })
+  @ApiResponse({ status: 201, description: "已排队" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  backfillModeration(@Body() body: { type: "VIDEO" | "COURSE" | "LIVE"; limit?: number; beforeDate?: string }) {
+    return this.svc.backfillModeration(body.type, body.limit ?? 200, body.beforeDate);
   }
 
   @Post("moderate/image")
@@ -90,6 +103,7 @@ export class AuditController {
   }
 
   @Put("reports/:id")
+  @RedLineGate(RedLine.USER_DATA, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "处理举报" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -131,6 +145,7 @@ export class AuditController {
   }
 
   @Post("sensitive-words")
+  @RedLineGate(RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "添加敏感词" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -144,6 +159,7 @@ export class AuditController {
   }
 
   @Post("sensitive-words/batch")
+  @RedLineGate(RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "批量添加敏感词" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -157,6 +173,7 @@ export class AuditController {
   }
 
   @Delete("sensitive-words/:word")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "删除敏感词" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -170,10 +187,12 @@ export class AuditController {
   }
 
   @Post("sensitive-words/check")
-  @UseGuards(ThrottleGuard)
-  @ApiOperation({ summary: "检测文本敏感词（公开接口）" })
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiOperation({ summary: "检测文本敏感词（需登录）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
   checkSensitive(@Body() body: CheckSensitiveDto) {
     const hits = this.sensitiveWord.check(body.text);
     return { hasSensitive: hits.length > 0, hits };
@@ -218,6 +237,7 @@ export class AuditController {
   }
 
   @Put("compliance-scan/records/:id/status")
+  @RedLineGate(RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "处置合规扫描记录（RESOLVED已整改/IGNORED误报忽略/OPEN重开）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -228,6 +248,51 @@ export class AuditController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   updateComplianceStatus(@Req() req: Request, @Param("id") id: string, @Body() dto: ComplianceScanStatusDto) {
     return this.complianceScan.updateStatus(id, dto.status, req.user.id);
+  }
+
+  // ─── 平台内容审核（开放范围=PLATFORM 的五类内容统一审核队列）───
+
+  @Get("content-audits/mine")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的发布审核状态（C端·仅本人提交的平台开放申请）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  myContentAudits(@Req() req: Request, @Query() q: ContentAuditListQueryDto) {
+    return this.svc.listContentAudits({
+      finalStatus: q.finalStatus || "ALL",
+      contentType: q.contentType,
+      page: q.page,
+      pageSize: q.pageSize,
+      submitterId: req.user.id,
+    });
+  }
+
+  @Get("content-audits")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: "平台内容审核队列（向全平台开放必审·五类内容统一台账）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  listContentAudits(@Query() q: ContentAuditListQueryDto) {
+    return this.svc.listContentAudits(q);
+  }
+
+  @Put("content-audits/:id/review")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiOperation({ summary: "审核裁决（通过→进平台公共池 / 驳回→记原因·内容保持圈内可见）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "记录已审结" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  reviewContent(@Req() req: Request, @Param("id") id: string, @Body() dto: ContentAuditReviewDto) {
+    return this.svc.reviewContent(id, req.user.id, dto.action, dto.reason);
   }
 
   // ─── 平台操作日志 ───

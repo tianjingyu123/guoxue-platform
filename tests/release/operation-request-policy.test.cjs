@@ -1,0 +1,20 @@
+const { test } = require('node:test')
+const assert = require('node:assert/strict')
+const vm = require('node:vm')
+const path = require('node:path')
+const { readFileSync } = require('node:fs')
+const { createRequire } = require('node:module')
+const ts = createRequire(path.resolve(__dirname, '../../apps/mobile/package.json'))('typescript')
+test('独立请求策略：明确关闭和紧急关闭；历史确认、退款和续聊沿用授权', () => {
+ const source = readFileSync(path.resolve(__dirname, '../../apps/mobile/src/lib/operation-request-policy.ts'), 'utf8')
+ const exports = {}
+ vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports })
+ const policy = exports
+ assert.equal(policy.isOperationRequestAllowed('/courses/test/purchase', 'POST'), true)
+ policy.setOperationRequestSnapshotResolver(() => ({ features: {}, operations: { client_course_purchase: 'READ_ONLY', client_circle_join: 'MAINTENANCE', client_agent_purchase: 'UNOPENED' } }))
+ for (const route of ['/courses/test/purchase', '/circles/test/join', '/circles/test/join/prepare', '/circles/test/renew', '/circles/join-by-code', '/bots/test/purchase-uses']) assert.equal(policy.isOperationRequestAllowed(route, 'POST'), false)
+ for (const type of ['COURSE', 'CIRCLE', 'BOT']) assert.equal(policy.isOperationRequestAllowed('/shop/orders', 'POST', { type }), false)
+ for (const route of ['/circles/test/join/confirm', '/circles/test/renew/confirm', '/shop/orders/test/refund', '/bots/test/chat']) assert.equal(policy.isOperationRequestAllowed(route, 'POST'), true)
+ policy.setOperationRequestSnapshotResolver(() => ({ features: { client_emergency_close: true }, operations: { client_course_purchase: 'OPEN' } }))
+ assert.equal(policy.isOperationRequestAllowed('/courses/test/purchase', 'POST'), false)
+})

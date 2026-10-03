@@ -2,12 +2,23 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { authApi } from "@/api";
 import { ElMessage } from "element-plus";
+import { buildMenus } from "@/lib/menu-structure";
+import { clearAdminSession } from "@/utils/auth-session";
+import { isNativePaipanEnabled, refreshPaipanMode } from "@/lib/paipan-runtime";
 
 export interface MenuItem {
   title: string;
   icon?: string;
   path?: string;
   children?: MenuItem[];
+}
+
+interface AdminProfile {
+  id?: string;
+  nickname?: string;
+  roles?: Array<string | { roleType?: string }>;
+  merchant?: { status?: string } | null;
+  [key: string]: unknown;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -23,17 +34,20 @@ const ROLE_LABELS: Record<string, string> = {
   OPERATOR: "运营商",
   STATION_OFFLINE_OWNER: "驿站主",
   INSTITUTE_MEMBER: "研究院成员",
+  MERCHANT: "商家",
 };
 
 export const useAuthStore = defineStore("auth", () => {
-  const user = ref<any>(null);
+  const user = ref<AdminProfile | null>(null);
   const token = ref<string | null>(localStorage.getItem("token"));
   const menus = ref<MenuItem[]>([]);
   const isLogin = computed(() => !!token.value && !!user.value);
 
   // 当前用户角色列表
   const roles = computed<string[]>(() => {
-    return (user.value?.roles || []).map((r: any) => r.roleType);
+    return (user.value?.roles || [])
+      .map((role: unknown) => typeof role === "string" ? role : (role as { roleType?: unknown })?.roleType)
+      .filter((role: unknown): role is string => typeof role === "string" && role.length > 0);
   });
 
   // 角色中文标签（用于 header 展示）
@@ -55,6 +69,7 @@ export const useAuthStore = defineStore("auth", () => {
       children: [
         { title: "数据概览", icon: "DataAnalysis", path: "/merchant-backend/dashboard" },
         { title: "商品管理", icon: "Goods", path: "/merchant-backend/products" },
+        { title: "库存与采购", icon: "Box", path: "/merchant-backend/inventory" },
         { title: "订单管理", icon: "Document", path: "/merchant-backend/orders" },
         { title: "发货管理", icon: "Van", path: "/merchant-backend/shipping" },
         { title: "售后管理", icon: "Service", path: "/merchant-backend/after-sales" },
@@ -75,6 +90,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function login(phone: string, password: string) {
     const { data } = await authApi.login({ phone, password });
+    clearAdminSession({ preserveRedirect: true });
     token.value = data.accessToken ?? data.access_token;
     localStorage.setItem("token", token.value!);
     const rt = data.refreshToken ?? data.refresh_token;
@@ -88,33 +104,64 @@ export const useAuthStore = defineStore("auth", () => {
       const { data } = await authApi.getProfile();
       user.value = data;
       // 缓存角色供路由守卫使用
-      const roleList = (data?.roles || []).map((r: any) => r.roleType);
-      localStorage.setItem("user_roles", JSON.stringify(roleList));
+      localStorage.setItem("user_roles", JSON.stringify(roles.value));
     } catch {
-      logout();
+      logout({ notify: false });
       throw new Error("获取用户信息失败");
     }
   }
 
   async function fetchMenus() {
+    // 目录重构批（2026-07-11）：菜单改为前端按员工工作流分组生成（lib/menu-structure.ts·可见性以路由 meta.roles 为准），
+    // 后端 /auth/menus 仅作兜底（前端构建异常/为空时回退旧菜单·后端不动可随时回滚）
+    let base: MenuItem[] = [];
     try {
-      const { data } = await authApi.getMenus();
-      const base = data || [];
-      // 商家用户追加商家后台菜单
-      menus.value = isMerchant.value ? [...base, ...MERCHANT_MENUS] : base;
+      await refreshPaipanMode();
+      base = buildMenus(roles.value, isNativePaipanEnabled());
     } catch {
-      menus.value = [];
+      base = [];
     }
+    if (base.length === 0) {
+      try {
+        const { data } = await authApi.getMenus();
+        base = data || [];
+      } catch {
+        base = [];
+      }
+    }
+    if (!isNativePaipanEnabled()) {
+      const nativePaths = new Set(["/bazi", "/ziwei", "/qimen", "/liuyao", "/daliuren", "/paipan-records"]);
+      const stripNative = (items: MenuItem[]): MenuItem[] => items
+        .filter((item) => !item.path || !nativePaths.has(item.path))
+        .map((item) => ({ ...item, children: item.children ? stripNative(item.children) : undefined }))
+        .filter((item) => !item.children || item.children.length > 0);
+      base = stripNative(base);
+    }
+    // 商家用户追加商家后台菜单
+    menus.value = isMerchant.value ? [...base, ...MERCHANT_MENUS] : base;
   }
 
-  function logout() {
+  function logout(options: { notify?: boolean } = {}) {
     token.value = null;
     user.value = null;
     menus.value = [];
-    localStorage.removeItem("token");
-    localStorage.removeItem("user_roles");
-    ElMessage.success("已退出登录");
+    clearAdminSession();
+    if (options.notify !== false) ElMessage.success("已退出登录");
   }
 
-  return { user, token, menus, isLogin, roles, roleLabels, isSuperAdmin, isMerchant, hasRole, login, fetchProfile, fetchMenus, logout };
+  return {
+    user,
+    token,
+    menus,
+    isLogin,
+    roles,
+    roleLabels,
+    isSuperAdmin,
+    isMerchant,
+    hasRole,
+    login,
+    fetchProfile,
+    fetchMenus,
+    logout,
+  };
 });

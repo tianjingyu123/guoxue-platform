@@ -1,13 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
-  <circle cx="40" cy="40" r="36" stroke="#C9A96E" stroke-width="1.5" fill="none"/>
-  <circle cx="40" cy="40" r="24" stroke="#C9A96E" stroke-width="1" fill="none"/>
-  <circle cx="40" cy="40" r="12" stroke="#C9A96E" stroke-width="1" fill="none"/>
-  <line x1="52" y1="40" x2="76" y2="40" stroke="#C9A96E" stroke-width="0.8"/>
-  <line x1="48.49" y1="48.49" x2="65.46" y2="65.46" stroke="#C9A96E" stroke-width="0.8"/>
-  <line x1="40" y1="52" x2="40" y2="76" stroke="#C9A96E" stroke-width="0.8"/>
-  <line x1="31.51" y1="48.49" x2="14.54" y2="65.46" stroke="#C9A96E" stroke-width="0.8"/>
-  <line x1="28" y1="40" x2="4" y2="40" stroke="#C9A96E" stroke-width="0.8"/>
-  <line x1="31.51" y1="31.51" x2="14.54" y2="14.54" stroke="#C9A96E" stroke-width="0.8"/>
-  <line x1="40" y1="28" x2="40" y2="4" stroke="#C9A96E" stroke-width="0.8"/>
-  <line x1="48.49" y1="31.51" x2="65.46" y2="14.54" stroke="#C9A96E" stroke-width="0.8"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><g fill="none" stroke="#C9A96E"><circle cx="40" cy="40" r="36" stroke-width="1.5"/><circle cx="40" cy="40" r="24"/><circle cx="40" cy="40" r="12"/><g stroke-width=".8"><path d="M52 40h24M48.49 48.49l16.97 16.97M40 52v24M31.51 48.49L14.54 65.46M28 40H4M31.51 31.51L14.54 14.54M40 28V4M48.49 31.51l16.97-16.97"/></g></g></svg>

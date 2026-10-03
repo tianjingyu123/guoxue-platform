@@ -1,10 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { randomBytes } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy";
+import { RedisService } from "../../redis/redis.service";
 import { UserGrowthService } from "../user-growth/user-growth.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { CreateGroupDto } from "./shared-reading.dto";
+import { getH5Base } from "../../config/h5-entry";
 
 /** 单章视为"读完"的进度阈值（ReadingProgress.progress 为 0-100） */
 export const PROGRESS_THRESHOLD = 80;
@@ -40,13 +44,55 @@ export class SharedReadingService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
     private readonly userGrowth: UserGrowthService,
   ) {}
+
+  /**
+   * 每日兜底结算超时未结算的共读组（分布式锁防多实例重复跑）。
+   * 修复(后端审计D8)：结算原仅在 getDetail 内惰性触发，deadline 已过但无人 GET 详情时
+   * 状态恒 READING、已完成成员的荣誉学分永不发放。此处补每日扫描兜底。
+   * settle 内发奖用 rewardedAt CAS 占位，与惰性结算并发安全、可重复调用不重复发奖。
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  async settleExpiredGroupsCron() {
+    await this.redis.runExclusive("shared_reading_settle_expired", 300, async () => {
+      const expired = await this.prisma.sharedReadingGroup.findMany({
+        where: { status: "READING", deadline: { lte: new Date() } },
+        select: { id: true, classicBookId: true, targetChapters: true },
+      });
+      let settled = 0;
+      for (const group of expired) {
+        try {
+          const members = await this.prisma.sharedReadingMember.findMany({ where: { groupId: group.id } });
+          const stats: MemberStat[] = await Promise.all(
+            members.map(async (m) => {
+              const p = await this.computeProgress(m.userId, group.classicBookId, group.targetChapters);
+              return {
+                memberId: m.id,
+                userId: m.userId,
+                isLeader: m.isLeader,
+                rewardedAt: m.rewardedAt,
+                completedChapters: p.completedChapters,
+                completed: p.completed,
+              };
+            }),
+          );
+          const allCompleted = stats.length > 0 && stats.every((s) => s.completed);
+          await this.settle(group.id, stats, allCompleted);
+          settled++;
+        } catch (err) {
+          this.logger.warn(`共读组兜底结算失败 [${group.id}]`, err instanceof Error ? err.message : err);
+        }
+      }
+      if (settled > 0) this.logger.log(`共读组超时兜底结算: ${settled} 组`);
+    });
+  }
 
   // ── 1. 建组 ──
   async createGroup(userId: string, dto: CreateGroupDto) {
     const book = await this.prisma.classicBook.findFirst({
-      where: { id: dto.classicBookId, deletedAt: null },
+      where: { id: dto.classicBookId, ...PUBLIC_CLASSIC_BOOK_WHERE },
       select: { id: true, title: true, chapterCount: true },
     });
     if (!book) throw new BusinessException(ErrorCode.CLASSIC_BOOK_NOT_FOUND);
@@ -89,7 +135,7 @@ export class SharedReadingService {
     return {
       groupId: group.id,
       inviteToken,
-      shareUrl: `${process.env.H5_BASE_URL || ""}/#/pkg-classics/shared-reading/invite?token=${inviteToken}`,
+      shareUrl: `${(await getH5Base(this.prisma))}/pkg-classics/shared-reading/invite?token=${inviteToken}`,
     };
   }
 
@@ -170,7 +216,7 @@ export class SharedReadingService {
       inviteToken: iAmMember && status === "RECRUITING" ? group.inviteToken : null,
       shareUrl:
         iAmMember && status === "RECRUITING"
-          ? `${process.env.H5_BASE_URL || ""}/#/pkg-classics/shared-reading/invite?token=${group.inviteToken}`
+          ? `${(await getH5Base(this.prisma))}/pkg-classics/shared-reading/invite?token=${group.inviteToken}`
           : null,
     };
   }

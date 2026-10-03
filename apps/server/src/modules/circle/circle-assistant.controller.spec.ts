@@ -114,17 +114,44 @@ describe("CircleAssistantController", () => {
       expect(res.end).toHaveBeenCalled();
     });
 
+    it("检索命中摘要以元信息发送，不把知识原文写入 SSE", async () => {
+      const res = mockRes();
+      svc.askStream.mockImplementation((_question, _circleId, _userId, _history, onMatches) => {
+        return (async function* () {
+          onMatches?.({ circle: 2, global: 1 });
+          yield "回答";
+        })();
+      });
+      await ctrl.askStream("circle1", { question: "问" }, mockReq("u1"), res);
+      expect(res.write).toHaveBeenCalledWith(`data: ${JSON.stringify({ type: "meta", knowledgeMatches: { circle: 2, global: 1 } })}\n\n`);
+      expect(res.write).toHaveBeenCalledWith(`data: ${JSON.stringify({ type: "chunk", content: "回答" })}\n\n`);
+    });
+
     it("流式提问带 history", async () => {
       const res = mockRes();
       svc.askStream.mockReturnValue(makeAsyncIterable(["带历史流式回答"]));
 
-      const history = [{ role: "system" as const, content: "你是一个助手" }];
+      const history = [{ role: "user" as const, content: "上一问" }];
       await ctrl.askStream("circle1", { question: "问", history }, mockReq("u1"), res);
 
-      expect(svc.askStream).toHaveBeenCalledWith("问", "circle1", "u1", history);
+      expect(svc.askStream).toHaveBeenCalledWith("问", "circle1", "u1", history, expect.any(Function), expect.any(Function));
       expect(res.write).toHaveBeenCalledWith(
         `data: ${JSON.stringify({ type: "chunk", content: "带历史流式回答" })}\n\n`,
       );
+    });
+
+    it("流式回答结束后将相关资源作为元信息发送", async () => {
+      const res = mockRes();
+      const recommendation = { presentation: "inline", items: [{ type: "classic", data: { id: "book-1" } }] };
+      svc.askStream.mockImplementation((_question, _circleId, _userId, _history, _onMatches, onRecommendation) => {
+        return (async function* () {
+          yield "正文";
+          onRecommendation?.(recommendation as any);
+        })();
+      });
+      await ctrl.askStream("circle1", { question: "推荐古籍" }, mockReq("u1"), res);
+      expect(res.write).toHaveBeenCalledWith(`data: ${JSON.stringify({ type: "meta", recommendation })}\n\n`);
+      expect(res.write).toHaveBeenCalledWith(`data: ${JSON.stringify({ type: "done" })}\n\n`);
     });
 
     it("流式提问异常时写入错误消息并结束", async () => {

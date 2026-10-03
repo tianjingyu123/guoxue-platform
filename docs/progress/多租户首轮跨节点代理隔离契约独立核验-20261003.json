@@ -1,0 +1,127 @@
+{
+  "checkedAt": "2026-10-03T14:55:35.061Z",
+  "preExecutionReviewSha256": "c6434bb8497280ae1040978bbd2ad8cd53adf053b2fc57d3e843358a82baf85c",
+  "ownerResultSha256": "5f66a1ea757a4fc3b6a145414273fc2012f6fcc78874e405e25277583f1302a7",
+  "review": {
+    "checkedAt": "2026-10-03T14:51:42.802Z",
+    "executionWrapperPath": "D:/gx-deploy-91/artifacts/ops/tenant-linux-sandbox-20261003/35-stage-node-a-cross-node-contract.sh",
+    "executionWrapperBytes": 24997,
+    "executionWrapperSha256": "c5e06ccb003fc457ac426d195ccd11656f6de571710d8ce0361c2327439b66bc",
+    "embeddedPayloads": [
+      {
+        "file": "generator.py",
+        "bytes": 2795,
+        "sha256": "c1ec62d099ef0a953d8e75c9056fe4c993b643d1ed70b05457b1d38b9dc02b97"
+      },
+      {
+        "file": "contract.sh",
+        "bytes": 12368,
+        "sha256": "7da087019d89cf377f3f310e6d35720d7b4aa0ad0e7671ecd95befba843086b3"
+      }
+    ],
+    "nodeImageProof": {
+      "taskId": "invt-a9f2ka0p03",
+      "invocationId": "inv-a9f2ka0p02",
+      "instanceId": "ins-0sen8yvf",
+      "rawRecordSha256": "80d0decd267884ee55eba58bd17491d18f44641e6faa266381cf28c5b2dbbf59",
+      "executedScriptSha256": "359fa532dc49689d3592645f7c0b007f3cf7e43c42cacf85cd2335bd4493ad58",
+      "facts": {
+        "APP_IMAGE_ID": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484",
+        "NGINX_IMAGE_ID": "sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10",
+        "NODE_A_IMAGE_IDS_READONLY": "OK"
+      }
+    },
+    "scope": "仅A节点独立内部网络、合成Node后端/客户端和Nginx代理契约；现场A配置作为两份已知相同基线，生产逻辑方向B到A的测试地址投影；不修改生产配置或执行正式恢复模板。",
+    "stageToken": "p20261003a01",
+    "supersededUnexecutedWrapperSha256": "0de687990a45a1e7a0a732eff02d430e1ae9def0087df3d73c344076e81a32e2",
+    "generatorIndependentLocalChecks": {
+      "positive": 1,
+      "negative": 4,
+      "passed": true,
+      "fixture": "仓库标准模板；不是现场字节",
+      "initialParentUtf8ChildGbkCaptureFailurePreserved": true,
+      "cleanNormalModeRerunExitCode": 0
+    },
+    "isolatedExecutionReviewed": true,
+    "productionExecutionReviewed": false,
+    "executed": false
+  },
+  "execution": {
+    "instanceId": "ins-0sen8yvf",
+    "taskId": "invt-a9f2qi01pn",
+    "invocationId": "inv-a9f2qi01pm",
+    "status": "SUCCESS",
+    "exitCode": 0,
+    "dropped": 0,
+    "rawRecordSha256": "bbb332573dfffe12f18efd88bff04c87a0c3b30071366a7f5644604e155bccdd",
+    "executedScriptSha256": "c5e06ccb003fc457ac426d195ccd11656f6de571710d8ce0361c2327439b66bc",
+    "rawRecordActuallyRead": true,
+    "transformationManifest": {
+      "schemaVersion": 1,
+      "direction": "172.21.0.14->172.21.0.10",
+      "sourceBaselineSha256": "c4318885c2206d8a09b88e133067c37bb2f016c307c680765dc6b6a02b3b8812",
+      "targetBaselineSha256": "c4318885c2206d8a09b88e133067c37bb2f016c307c680765dc6b6a02b3b8812",
+      "sourceOutputSha256": "459561ff8a9fedad760bf7c4a6cda8e88516a739027bd74ae5d18d4eb068fd12",
+      "targetOutputSha256": "c752c671f1ceda0f5877d3260c8680e74db3297fc2d3391aa6c19f79e50b1c77",
+      "proxyPassReplacementCount": 9,
+      "sourceTrustCidr": "172.21.0.14/32",
+      "allVpcTrusted": false,
+      "bidirectionalProxy": false
+    },
+    "facts": {
+      "PRODUCTION_SOURCE_TRANSFORMED_SHA256": "459561ff8a9fedad760bf7c4a6cda8e88516a739027bd74ae5d18d4eb068fd12",
+      "PRODUCTION_TARGET_TRANSFORMED_SHA256": "c752c671f1ceda0f5877d3260c8680e74db3297fc2d3391aa6c19f79e50b1c77",
+      "PRODUCTION_SOURCE_BASELINE_SHA256": "c4318885c2206d8a09b88e133067c37bb2f016c307c680765dc6b6a02b3b8812",
+      "PRODUCTION_TARGET_BASELINE_SHA256": "c4318885c2206d8a09b88e133067c37bb2f016c307c680765dc6b6a02b3b8812",
+      "TEST_SOURCE_PROJECTION_SHA256": "b4623b8da259876e6264818c6d2389c0266fb7b3710af0a03a655b1e85373395",
+      "TEST_TARGET_PROJECTION_SHA256": "a361fb0c75b2fbcd228aeb40e265a4cec59fe354715f2bf5b818fc2497b919e2",
+      "TEST_SOURCE_RESTORE_BASELINE_SHA256": "da380fd0bda12002022fb132d0a3a4d93b8b443f28df7da5fa028b6fe803fb22",
+      "TEST_TARGET_RESTORE_BASELINE_SHA256": "3337b540ee26c53981cc921d37100fa5e331aa9f2df67fb0497677cae09c42a5",
+      "GET_POST_HEADERS_BODY_WS": "PASS",
+      "RECEIPTS": "PASS",
+      "REAL_CLIENT_IP_PRESERVED": "PASS",
+      "BINARY_REMOTE_ADDR_RATE_KEY_CONFIG_PRESENT": "PASS",
+      "RATE_LIMIT_REJECTION_BEHAVIOR_TESTED": "NO",
+      "ISOLATED_NGINX_RESTORE_AND_RELOAD": "PASS",
+      "FORMAL_PRODUCTION_RESTORE_TEMPLATE_31_EXECUTED": "NO",
+      "READ_ONLY_INPUT_CONFIG_DIGESTS_UNCHANGED": "PASS",
+      "ISOLATED_CROSS_NODE_PROXY_CONTRACT": "PASS",
+      "CLEANUP_ZERO_RESIDUE": "PASS",
+      "STAGE_TOKEN": "p20261003a01",
+      "PRODUCTION_DIRECTION_PROJECTED": "B_172.21.0.14_TO_A_172.21.0.10",
+      "ACTIVE_BASELINE_SHA256": "c4318885c2206d8a09b88e133067c37bb2f016c307c680765dc6b6a02b3b8812",
+      "PRODUCTION_CONFIG_MUTATED": "NO",
+      "PRODUCTION_CONTAINERS": "RUNNING_HEALTHY",
+      "STAGE_DIR_REMOVED": "YES",
+      "MT06_ISOLATED_STAGE": "PASS"
+    }
+  },
+  "independentReadonlyPostCheck": {
+    "instanceId": "ins-0sen8yvf",
+    "taskId": "invt-d9f2ra08xp",
+    "invocationId": "inv-d9f2ra08xn",
+    "status": "SUCCESS",
+    "exitCode": 0,
+    "dropped": 0,
+    "rawRecordSha256": "a0750a2f02bf092c2917405597dfb37b5d5df7f4ebb831df1bf669b5ad684772",
+    "executedScriptSha256": "8e5d61e7da91c5ed3e6c140f697e76bc15fedd7e8c0f34a5bcd91fb1a76ee55f",
+    "rawRecordActuallyRead": true,
+    "facts": {
+      "ISOLATED_RESOURCE_RESIDUE_COUNT": "0",
+      "APP_STATUS": "running/healthy",
+      "NGINX_STATUS": "running/healthy",
+      "ACTIVE_CONFIG_SHA256": "c4318885c2206d8a09b88e133067c37bb2f016c307c680765dc6b6a02b3b8812",
+      "POST_ISOLATED_CONTRACT_READONLY": "PASS"
+    }
+  },
+  "isolatedProxyContractSubitemClosed": true,
+  "realClientIpAndHostProtocolPostBodyVerifiedInIsolation": true,
+  "websocketUpgradeAndAcceptVerifiedInIsolation": true,
+  "fullSocketIoProtocolOrReconnectVerified": false,
+  "rateLimitRejectionBehaviorVerified": false,
+  "formalProductionRestoreTemplateExecuted": false,
+  "formalProxyEnabled": false,
+  "realPaymentUploadCallbackOrFinalReleaseVerified": false,
+  "productionConfigurationModified": false,
+  "scope": "A执行主机、现场A c431基线复制为两份同字节输入；B到A逻辑方向经明确测试地址投影。只关闭隔离代理契约，正式两节点应用、静态切换、在途排空、迁移和回退仍按最终版本验收。"
+}

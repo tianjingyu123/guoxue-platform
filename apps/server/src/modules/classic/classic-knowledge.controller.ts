@@ -1,9 +1,16 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from "@nestjs/swagger";
+import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse, ApiBearerAuth } from "@nestjs/swagger";
 import { KnowledgeGraphService } from "../ai-gateway/knowledge-graph.service";
+import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 
 @ApiTags("古籍知识图谱")
 @Controller("classic/knowledge")
+@ApiBearerAuth()
+// 当前实体图谱混合各圈知识，尚无公开授权筛选；在完成数据隔离前仅允许平台管理员查询。
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 export class ClassicKnowledgeController {
   constructor(private readonly kg: KnowledgeGraphService) {}
 

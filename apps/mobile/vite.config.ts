@@ -1,30 +1,310 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import uni from "@dcloudio/vite-plugin-uni";
 import { resolve } from "path";
+import { readFileSync, realpathSync } from "fs";
 
-export default defineConfig({
-  plugins: [uni()],
-  resolve: {
-    alias: {
-      "@": resolve(__dirname, "src"),
-      "@guoxue/shared": resolve(__dirname, "../../packages/shared/src/index.ts"),
+const LEGACY_PUBLIC_ORIGIN = "https://api.rebugx.cn";
+const THIRD_PARTY_PROBE_ORIGIN = "https://example.com";
+const RESERVED_PROBE_ORIGIN = "https://example.invalid";
+const REQUIRED_PRODUCTION_CLIENT_ENV = [
+  "VITE_API_URL",
+  "VITE_PUBLIC_H5_URL",
+  "VITE_PUBLIC_ASSET_ORIGIN",
+] as const;
+const EXPLICIT_CLIENT_ENV = [...REQUIRED_PRODUCTION_CLIENT_ENV, "VITE_RELEASE_CHANNEL"] as const;
+const FORMAL_RELEASE_CHANNELS = new Set(["formal", "production"]);
+
+const FORMAL_CLIENT_ENV = {
+  VITE_API_URL: "https://api.rebugx.cn",
+  VITE_PUBLIC_H5_URL: "https://gx.yrydai.com/h5/",
+  VITE_PUBLIC_ASSET_ORIGIN: "https://static.rebugx.cn",
+} as const;
+
+function normalizeOrigin(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
+
+export function resolveClientEnv(
+  loadedEnv: Record<string, string>,
+  explicitEnv: Record<string, string | undefined>,
+): Record<string, string> {
+  const resolved = { ...loadedEnv };
+  for (const key of EXPLICIT_CLIENT_ENV) {
+    if (Object.prototype.hasOwnProperty.call(explicitEnv, key)) {
+      resolved[key] = explicitEnv[key] || "";
+    }
+  }
+  return resolved;
+}
+
+export function validateProductionClientEnv(mode: string, env: Record<string, string>): void {
+  if (mode !== "production") return;
+
+  const missing = REQUIRED_PRODUCTION_CLIENT_ENV.filter((key) => !env[key]?.trim());
+  if (missing.length > 0) {
+    throw new Error(`生产客户端构建缺少公开配置：${missing.join(", ")}`);
+  }
+
+  for (const key of REQUIRED_PRODUCTION_CLIENT_ENV) {
+    let parsed: URL;
+    try {
+      parsed = new URL(env[key]);
+    } catch {
+      throw new Error(`生产客户端构建配置 ${key} 不是有效 URL`);
+    }
+    if (key === "VITE_API_URL" && parsed.pathname !== "/") {
+      throw new Error("VITE_API_URL 只能填写域名，不能包含 /api/v1 或其他路径");
+    }
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) {
+      throw new Error(`生产客户端构建配置 ${key} 必须是无凭据、查询参数和片段的 HTTPS URL`);
+    }
+  }
+
+  if (FORMAL_RELEASE_CHANNELS.has(env.VITE_RELEASE_CHANNEL)) {
+    const mismatched = Object.entries(FORMAL_CLIENT_ENV)
+      .filter(([key, expected]) => env[key] !== expected)
+      .map(([key]) => key);
+    if (mismatched.length > 0) {
+      throw new Error(`正式客户端构建域名不符合发布基线：${mismatched.join(", ")}`);
+    }
+  }
+}
+
+/**
+ * 历史演示数据中仍有旧站绝对资源地址。迁移期间不能逐条依赖旧域名，
+ * 构建时统一改写到新对象存储/CDN；未配置时才保留现网地址供本地开发。
+ */
+/** 把微信 OAuth 回跳页直接产出到 H5 根目录，避免 uni-app 静态目录过滤 HTML 文件。 */
+export function emitWechatOauthCallback(): Plugin {
+  return {
+    name: "emit-wechat-oauth-callback",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "wechat-oauth-callback.html",
+        source: readFileSync(resolve(__dirname, "static/wechat-oauth-callback.html"), "utf8"),
+      });
     },
-  },
-  build: {
-    minify: "terser",
-    terserOptions: {
-      compress: { drop_console: true, drop_debugger: true },
+  };
+}
+
+export function rewriteLegacyPublicAssetSource(code: string, id: string, publicAssetOrigin: string, sourceDirectory: string): string | null {
+  if (!code.includes(`${LEGACY_PUBLIC_ORIGIN}/assets`)) return null;
+  let canonicalId: string;
+  try {
+    // HBuilderX 可能从项目别名或目录联接构建，以真实路径确认仍是本项目源码。
+    canonicalId = realpathSync(id.split("?", 1)[0]).replaceAll("\\", "/");
+  } catch { return null; }
+  const sourceRoot = realpathSync(sourceDirectory).replaceAll("\\", "/") + "/";
+  if (!canonicalId.startsWith(sourceRoot)) return null;
+  const targetOrigin = normalizeOrigin(publicAssetOrigin) || LEGACY_PUBLIC_ORIGIN;
+  return code.replaceAll(`${LEGACY_PUBLIC_ORIGIN}/assets`, `${targetOrigin}/assets`);
+}
+
+export function rewriteLegacyPublicAssets(publicAssetOrigin: string): Plugin {
+  const sourceDirectory = resolve(__dirname, "src");
+  return {
+    name: "rewrite-legacy-public-assets",
+    enforce: "pre",
+    transform(code, id) {
+      const rewritten = rewriteLegacyPublicAssetSource(code, id, publicAssetOrigin, sourceDirectory);
+      return rewritten === null ? null : { code: rewritten, map: null };
     },
-  },
-  base: '/h5/',
-  server: {
-    port: 5173,
-    allowedHosts: ['api.rebugx.cn', '.rebugx.cn'],
-    proxy: {
-      "/api": {
-        target: "http://localhost:3000",
-        changeOrigin: true,
+  };
+}
+
+/** 避免 flv.js 的能力探测地址把公网示例域名带入正式 H5 产物。 */
+export function rewriteFlvProbeOrigin(): Plugin {
+  return {
+    name: "rewrite-flv-probe-origin",
+    enforce: "pre",
+    transform(code, id) {
+      const normalizedId = id.replaceAll("\\", "/");
+      if (!normalizedId.includes("/flv.js/") || !code.includes(THIRD_PARTY_PROBE_ORIGIN)) {
+        return null;
+      }
+      return {
+        code: code.replaceAll(THIRD_PARTY_PROBE_ORIGIN, RESERVED_PROBE_ORIGIN),
+        map: null,
+      };
+    },
+  };
+}
+
+/**
+ * 微信开发者工具的旧解析器无法稳定处理康熙字典被压缩成的超大汉字键对象。
+ * 小程序构建时改为分段字符串并在运行时解析，避免超长单一语法节点；
+ * 其他平台继续沿用 Vite 的 JSON 模块处理，不改变现有产物。
+ */
+export function loadKangxiDictionaryForWechat(): Plugin {
+  const virtualId = "\0rebu-kangxi-dictionary-wechat";
+  const enabled = process.env.UNI_PLATFORM === "mp-weixin";
+  return {
+    name: "load-kangxi-dictionary-for-wechat",
+    enforce: "pre",
+    resolveId(source, importer) {
+      const normalizedImporter = importer?.replaceAll("\\", "/") || "";
+      if (
+        enabled &&
+        source.endsWith("kangxi-strokes.json") &&
+        normalizedImporter.includes("/src/pkg-paipan2/lib/")
+      ) {
+        return virtualId;
+      }
+      return null;
+    },
+    load(id) {
+      if (id !== virtualId) return null;
+      const source = readFileSync(
+        resolve(__dirname, "src/pkg-paipan2/lib/data/kangxi-strokes.json"),
+        "utf8",
+      );
+      const chunks: string[] = [];
+      for (let offset = 0; offset < source.length; offset += 8192) {
+        chunks.push(JSON.stringify(source.slice(offset, offset + 8192)));
+      }
+      return `const chunks=[${chunks.join(",")}];export default JSON.parse(chunks.join(""));`;
+    },
+  };
+}
+
+const WECHAT_SUBPACKAGE_ENGINE_SOURCES = new Map([
+  [
+    "/src/pkg-paipan/lib/qimen-engine.ts",
+    "../../packages/shared/src/paipan/qimen-engine.ts",
+  ],
+  [
+    "/src/pkg-paipan/lib/daliuren-engine.ts",
+    "../../packages/shared/src/paipan/daliuren-engine.ts",
+  ],
+] as const);
+
+/**
+ * uni-app 会把工作区共享包中的模块归入根目录 common/vendor.js。奇门、大六壬
+ * 引擎实际只由排盘分包使用，若继续转发共享包，微信仍会把算法代码
+ * 计入主包。小程序构建时从唯一真源读取源码并注入分包内的转发模块，使算法跟随
+ * 页面分包分发；H5、App、Harmony 与后端仍直接引用共享包，不改变运行逻辑。
+ */
+export function loadPaipanEnginesIntoWechatSubpackages(
+  platform = process.env.UNI_PLATFORM,
+): Plugin {
+  const enabled = platform === "mp-weixin";
+  return {
+    name: "load-paipan-engines-into-wechat-subpackages",
+    enforce: "pre",
+    load(id) {
+      if (!enabled) return null;
+      const normalizedId = id.replaceAll("\\", "/").split("?", 1)[0];
+      const matched = [...WECHAT_SUBPACKAGE_ENGINE_SOURCES.entries()].find(([suffix]) =>
+        normalizedId.endsWith(suffix),
+      );
+      if (!matched) return null;
+
+      const source = readFileSync(resolve(__dirname, matched[1]), "utf8");
+      return source
+        .replaceAll('from "./ganzhi"', 'from "@/lib/paipan/ganzhi"')
+        .replaceAll('from "./jieqi"', 'from "@/lib/paipan/jieqi"');
+    },
+  };
+}
+
+/**
+ * App 原生运行时使用 IIFE 主服务脚本。Android/iOS 云端运行时未提供 AMD define，
+ * 因此动态导入必须内联；H5 与小程序仍保留原有分包策略。
+ */
+export function shouldInlineNativeDynamicImports(
+  platform = process.env.UNI_PLATFORM,
+  compiler = process.env.UNI_COMPILER,
+): boolean {
+  return (platform === "app-harmony" || platform === "app") && compiler !== "nvue";
+}
+
+export function nativeAppIifeBuildCompatibility(): Plugin {
+  return {
+    name: "native-app-iife-build-compatibility",
+    apply: "build",
+    enforce: "post",
+    config() {
+      if (!shouldInlineNativeDynamicImports()) return;
+      return {
+        build: {
+          rollupOptions: {
+            output: {
+              inlineDynamicImports: true,
+            },
+          },
+        },
+      };
+    },
+    configResolved(config) {
+      if (!shouldInlineNativeDynamicImports()) return;
+      const output = config.build.rollupOptions.output;
+      const outputs = Array.isArray(output) ? output : output ? [output] : [];
+      for (const item of outputs) {
+        delete item.manualChunks;
+        item.inlineDynamicImports = true;
+      }
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => {
+  const env = resolveClientEnv(loadEnv(mode, __dirname, ""), process.env);
+  validateProductionClientEnv(mode, env);
+  const isNativeRuntimeApp = shouldInlineNativeDynamicImports();
+  const publicAssetOrigin =
+    env.VITE_PUBLIC_ASSET_ORIGIN || env.VITE_API_URL || LEGACY_PUBLIC_ORIGIN;
+  const devProxyTarget = normalizeOrigin(env.VITE_DEV_PROXY_TARGET || "http://localhost:3000");
+
+  return {
+    plugins: [
+      rewriteLegacyPublicAssets(publicAssetOrigin),
+      emitWechatOauthCallback(),
+      rewriteFlvProbeOrigin(),
+      loadKangxiDictionaryForWechat(),
+      loadPaipanEnginesIntoWechatSubpackages(),
+      uni(),
+      nativeAppIifeBuildCompatibility(),
+    ],
+    resolve: {
+      alias: [
+        { find: "@", replacement: resolve(__dirname, "src") },
+        // 精确匹配主入口，避免子模块被拼到 index.ts 后面；子模块仍按需引入，控制小程序主包体积。
+        { find: /^@guoxue\/shared\/paipan\/(.+)$/, replacement: resolve(__dirname, "../../packages/shared/src/paipan/$1") },
+        { find: /^@guoxue\/shared\/paipan$/, replacement: resolve(__dirname, "../../packages/shared/src/paipan/index.ts") },
+        { find: /^@guoxue\/shared$/, replacement: resolve(__dirname, "../../packages/shared/src/index.ts") },
+      ],
+    },
+    build: {
+      minify: "terser",
+      terserOptions: {
+        compress: { drop_console: true, drop_debugger: true, passes: 3 },
+      },
+      // iOS Safari/WebView 对 Vite 动态分包的 modulepreload/CSS preload link 处理与安卓 Chrome 不同，
+      // preload 失败会导致整个分包 import 被 reject → 懒加载页(如设置页)在 iOS 白屏(安卓正常)。
+      // 关闭 modulePreload：__vitePreload 不再注入会失败的 preload link，改用浏览器原生 import() 直接加载分包。
+      modulePreload: false,
+      // App 原生运行时的页面脚本使用 IIFE，Rollup 不允许 IIFE 与动态代码拆分同时启用。
+      // 仅 App 原生平台内联动态导入；H5 与小程序仍保留原有分包策略。
+      rollupOptions: isNativeRuntimeApp
+        ? {
+            output: {
+              inlineDynamicImports: true,
+            },
+          }
+        : undefined,
+    },
+    base: "/h5/",
+    server: {
+      port: 5173,
+      allowedHosts: ["api.rebugx.cn", ".rebugx.cn"],
+      proxy: {
+        "/api": {
+          target: devProxyTarget,
+          changeOrigin: true,
+        },
       },
     },
-  },
+  };
 });

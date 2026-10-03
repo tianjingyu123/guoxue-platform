@@ -154,12 +154,10 @@ export class UpdateFlashSaleItemDto {
 // 拼团管理 DTO
 // ════════════════════════════════════════
 
+// 注意：GroupBuy 表无 name 列（活动展示名取关联商品标题），此前 DTO 收 name 但 create 从不消费，
+// 前端填了名字保存后消失形似 bug。已从 DTO 移除（全局 ValidationPipe whitelist:true 会静默 strip
+// 前端仍传来的 name，不会 400），列表接口补 productTitle 供展示。
 export class CreateGroupBuyDto {
-  @IsOptional()
-  @IsString()
-  @MinLength(1)
-  name?: string;
-
   @IsString()
   @MinLength(1)
   productId: string;
@@ -534,6 +532,11 @@ export class UpdateMarketingPageDto {
   @IsOptional()
   @IsBoolean()
   entryVisible?: boolean;
+
+  // 页面状态：DRAFT（草稿/下线）/ PUBLISHED（已发布）。用于「下线/停用」把已发布页改回草稿态。
+  @IsOptional()
+  @IsIn(["DRAFT", "PUBLISHED"])
+  status?: string;
 }
 
 export class CreatePageComponentDto {

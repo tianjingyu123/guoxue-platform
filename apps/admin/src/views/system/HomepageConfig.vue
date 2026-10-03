@@ -16,6 +16,15 @@
       </div>
     </div>
 
+    <el-alert
+      type="warning"
+      :closable="false"
+      show-icon
+      title="配置生效范围提示"
+      description="本页维护的是首页模块布局配置项（home:layout 等）。当前 C 端首页装修以「平台页面布局」为准，本页部分模块可能暂无 C 端消费方，保存后不一定立即反映到用户端。请与前端页面布局方案确认后再调整，避免误以为已生效。"
+      style="margin-bottom:12px"
+    />
+
     <!-- 错误态 -->
     <el-result
       v-if="loadError"
@@ -409,6 +418,9 @@ interface HomeModule {
   config?: Record<string, unknown>;
   condition?: string;
 }
+interface HomeModuleEditor extends HomeModule { configJson: string }
+interface SystemConfigValue { configKey: string; configValue: string }
+function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null; }
 
 const saving = ref(false);
 const showPreview = ref(false);
@@ -433,8 +445,7 @@ const newTag = ref("");
 
 // 编辑
 const editDialog = ref(false);
-// 编辑态对象含动态 configJson 字段且在模板内多处裸绑定（v-if 守卫），保留 any 避免连锁报错
-const editTarget = ref<any>(null);
+const editTarget = ref<HomeModuleEditor | null>(null);
 const editIndex = ref(-1);
 
 const enabledModules = computed(() => modules.value.filter((m) => m.enabled));
@@ -447,7 +458,9 @@ async function refresh() {
   try {
     // 加载首页配置
     const { data: configsData } = await systemApi.listConfigs();
-    const configs = (configsData as any)?.configs || [];
+    const configs = isRecord(configsData) && Array.isArray(configsData.configs)
+      ? configsData.configs as SystemConfigValue[]
+      : [];
 
     const findCfg = (key: string) => {
       const c = configs.find((c: { configKey: string; configValue: string }) => c.configKey === key);
@@ -475,15 +488,15 @@ async function refresh() {
 
     // 发现页
     const discovery = findCfg("home:discovery");
-    if (discovery) {
-      discoveryCategories.value = discovery.categories || [];
-      discoveryCols.value = discovery.cols || 3;
+    if (isRecord(discovery)) {
+      discoveryCategories.value = Array.isArray(discovery.categories) ? discovery.categories as string[] : [];
+      discoveryCols.value = typeof discovery.cols === "number" ? discovery.cols : 3;
     }
 
     // 排盘入口
     const paipan = findCfg("home:paipan_slot");
-    paipanSlot.value = Number(paipan?.slot || paipan || 6);
-    if (paipan?.tools) paipanTools.value = paipan.tools;
+    paipanSlot.value = Number(isRecord(paipan) ? paipan.slot || 6 : paipan || 6);
+    if (isRecord(paipan) && Array.isArray(paipan.tools)) paipanTools.value = paipan.tools as string[];
 
     // 精选标签
     const tags = findCfg("home:featured_tags");
@@ -552,14 +565,22 @@ function editModule(element: HomeModule, index: number) {
 }
 
 function confirmEdit() {
+  const target = editTarget.value;
+  if (!target) return;
   const item: HomeModule = {
-    key: editTarget.value.key || `${editTarget.value.type}_${Date.now()}`,
-    type: editTarget.value.type,
-    enabled: editTarget.value.enabled !== false,
-    description: editTarget.value.description,
-    condition: editTarget.value.condition || undefined,
+    key: target.key || `${target.type}_${Date.now()}`,
+    type: target.type,
+    enabled: target.enabled !== false,
+    description: target.description,
+    condition: target.condition || undefined,
   };
-  try { item.config = JSON.parse(editTarget.value.configJson || "{}"); } catch { item.config = {}; }
+  // JSON 解析失败要明确报错，禁止静默吞成 {} 导致配置丢失
+  try {
+    item.config = JSON.parse(target.configJson || "{}");
+  } catch (e) {
+    ElMessage.error("配置数据不是合法的 JSON，请检查后重试：" + (e as Error).message);
+    return;
+  }
 
   if (editIndex.value >= 0) {
     modules.value[editIndex.value] = item;
@@ -590,7 +611,7 @@ function moveDown(index: number) {
 }
 
 function onTypeChange(type: string) {
-  if (!editTarget.value.key) {
+  if (editTarget.value && !editTarget.value.key) {
     editTarget.value.key = `${type}_${Date.now()}`;
   }
 }

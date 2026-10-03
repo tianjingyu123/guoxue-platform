@@ -1,3 +1,4 @@
+import { GoneException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { PricingController } from "./pricing.controller";
 import { PricingService } from "./pricing.service";
@@ -7,17 +8,13 @@ import { RolesGuard } from "../../common/roles.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 
 const mockPricingSvc = {
-  calculatePrice: jest.fn().mockResolvedValue({ finalPrice: 50, originalPrice: 100, discount: 0.5 }),
-  listRules: jest.fn().mockResolvedValue([{ id: "r1", name: "规则1" }]),
-  createRule: jest.fn().mockResolvedValue({ id: "r1", name: "新规则" }),
-  updateRule: jest.fn().mockResolvedValue({ id: "r1", name: "更新规则" }),
-  deleteRule: jest.fn().mockResolvedValue({ success: true }),
+  listRules: jest.fn().mockResolvedValue([{ id: "r1", name: "历史规则" }]),
   getDemandHeatmap: jest.fn().mockResolvedValue({ data: [], total: 0 }),
 };
 
 const mockUnifiedPricingSvc = {
   calculateEffectivePrice: jest.fn().mockResolvedValue({ effectivePrice: 99 }),
-  batchCalculateEffectivePrice: jest.fn().mockResolvedValue([]),
+  batchCalculateEffectivePrice: jest.fn().mockResolvedValue([{ productId: "p1", effectivePrice: 99 }]),
 };
 
 describe("PricingController", () => {
@@ -38,45 +35,54 @@ describe("PricingController", () => {
     ctrl = mod.get(PricingController);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-  it("should be defined", () => {
+  it("控制器可正常创建", () => {
     expect(ctrl).toBeDefined();
   });
 
-  it("GET /pricing/calc-price — 计算动态价格", async () => {
-    const result = await ctrl.calcPrice("consultation", "c1", "100");
-    expect(result).toBeDefined();
-    expect(mockPricingSvc.calculatePrice).toHaveBeenCalledWith("consultation", "c1", undefined, 100);
+  it("商品统一价格仍走真实统一计价服务", async () => {
+    await expect(ctrl.getUnifiedPrice("p1", "sku1", "page1", "mall")).resolves.toEqual({ effectivePrice: 99 });
+    expect(mockUnifiedPricingSvc.calculateEffectivePrice).toHaveBeenCalledWith(
+      "p1",
+      "sku1",
+      undefined,
+      { pageId: "page1", scene: "mall" },
+    );
   });
 
-  it("GET /pricing/admin/rules — 定价规则列表", async () => {
-    const result = await ctrl.listRules();
-    expect(result).toBeDefined();
+  it("批量统一价格仍走真实统一计价服务", async () => {
+    const body = { items: [{ productId: "p1" }], pageId: "page1", scene: "mall" };
+    await expect(ctrl.batchUnifiedPrice(body)).resolves.toEqual({
+      items: [{ productId: "p1", effectivePrice: 99 }],
+    });
+    expect(mockUnifiedPricingSvc.batchCalculateEffectivePrice).toHaveBeenCalledWith(
+      body.items,
+      undefined,
+      { pageId: "page1", scene: "mall" },
+    );
+  });
+
+  it("旧动态价格试算明确返回 410", () => {
+    expect(() => ctrl.calcPrice()).toThrow(GoneException);
+  });
+
+  it("旧规则历史记录仍可只读查询", async () => {
+    await expect(ctrl.listRules()).resolves.toEqual([{ id: "r1", name: "历史规则" }]);
     expect(mockPricingSvc.listRules).toHaveBeenCalled();
   });
 
-  it("POST /pricing/admin/rules — 创建定价规则", async () => {
-    const body: any = { name: "新规则", type: "discount" };
-    const result = await ctrl.createRule(body);
-    expect(result).toBeDefined();
-    expect(mockPricingSvc.createRule).toHaveBeenCalledWith(body);
+  it.each([
+    ["创建", () => ctrl.createRule()],
+    ["更新", () => ctrl.updateRule()],
+    ["删除", () => ctrl.deleteRule()],
+  ])("旧规则%s入口明确返回 410 且不写库", (_label, action) => {
+    expect(action).toThrow(GoneException);
   });
 
-  it("PUT /pricing/admin/rules/:id — 更新规则", async () => {
-    const body: any = { name: "更新规则" };
-    const result = await ctrl.updateRule("r1", body);
-    expect(result).toBeDefined();
-    expect(mockPricingSvc.updateRule).toHaveBeenCalledWith("r1", body);
-  });
-
-  it("DELETE /pricing/admin/rules/:id — 删除规则", async () => {
-    const result = await ctrl.deleteRule("r1");
-    expect(result).toBeDefined();
-    expect(mockPricingSvc.deleteRule).toHaveBeenCalledWith("r1");
-  });
-
-  it("GET /pricing/admin/demand — 需求热力图", async () => {
+  it("需求热力图仍保持只读可用", async () => {
     const result = await ctrl.getDemand();
     expect(result).toBeDefined();
     expect(mockPricingSvc.getDemandHeatmap).toHaveBeenCalled();

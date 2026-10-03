@@ -126,7 +126,7 @@ export class DailyBriefService {
     const title = `运营日报 ${date}`;
 
     // 当日聚合：缺则调看-P1 的重算方法生成（幂等 upsert）
-    let row = await this.prisma.dashboardDaily.findUnique({ where: { date }, select: { metrics: true } });
+    const row = await this.prisma.dashboardDaily.findUnique({ where: { date }, select: { metrics: true } });
     let metrics: DailyMetrics;
     if (row) {
       metrics = row.metrics as unknown as DailyMetrics;

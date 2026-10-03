@@ -1,0 +1,863 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-03T15:45:29.611Z",
+  "reviewParent": "1bd57bb6006d5f6c77a3f1dc3b9a000321379464",
+  "sourceCommit": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069",
+  "businessCodeChanged": true,
+  "acceptedCandidateMigrations": 145,
+  "monthlyCouponCandidateAccepted": false,
+  "monthlyCouponPendingDecision": true,
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "defaultCi": {
+    "runId": 37091033180,
+    "passed": 9104,
+    "skipped": 621
+  },
+  "softwareSkips": {
+    "covered": 592,
+    "hardwareDeferred": 29,
+    "unclassified": 0,
+    "sourceBoundFiles": 2361,
+    "runs": [
+      {
+        "run": 37097064949,
+        "artifact": 11264557315,
+        "head": "90e15907dc2df9fcc7ce6a87ca4a471f2c94c4fb",
+        "conclusion": "failure",
+        "passed": 572,
+        "suites": 47,
+        "digest": "sha256:22d3bd6727a34cead6342b559631e7e053377038d8224115564b3756ff38815f",
+        "digestVerified": true,
+        "sourceBoundFiles": 2361,
+        "workerExitWarning": true,
+        "production": false
+      },
+      {
+        "run": 37097421377,
+        "artifact": 11264653947,
+        "head": "d9b260ea75fc6d3fc77522c4271adb2b75b7ccf7",
+        "conclusion": "success",
+        "passed": 20,
+        "suites": 1,
+        "digest": "sha256:1f1bcd9e0b3904a78d8c8eaeaa4eec4d975adb3484991ee1630cb4693aa65152",
+        "digestVerified": true,
+        "sourceBoundFiles": 2361,
+        "workerExitWarning": false,
+        "production": false
+      }
+    ],
+    "caseMappingFile": "current-skips-verified.json",
+    "warning": "572项所在运行整体失败：另外20项因专用合成库库名守卫而未注册；定向20项另成功。首批worker退出告警保留，未证明产品资源泄漏或已修复，不合并为单条592成功运行。"
+  },
+  "boundedImage": {
+    "checkedAt": "2026-10-03T05:09:51.593Z",
+    "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+    "verificationHead": "ab4bd0c65fc219d40c11a945ec93f345061fd5cd",
+    "runId": 37098185885,
+    "artifactId": 11265451522,
+    "artifactDigest": "sha256:0b49243a49d71a4c083e210f723c88918fda0ecd95b509ab7f3874a1ef5036c5",
+    "digestVerified": true,
+    "passedChecks": 34,
+    "schemaMigrationCount": 136,
+    "schemaFingerprint": "ad40b9587d9c42393668f3d5a2432ec0b73855504f83f0d74ee19f7f9f74965c",
+    "burst": {
+      "passed": true,
+      "requests": 384,
+      "stages": [
+        {
+          "concurrency": 2,
+          "requests": 128,
+          "durationMs": 848.6635100000001,
+          "p95Ms": 67.4801950000001,
+          "p99Ms": 96.45301199999994,
+          "requestsPerSecond": 150.8253842562407,
+          "expectedStatusMatched": 128,
+          "nodes": [
+            {
+              "node": 0,
+              "requests": 64
+            },
+            {
+              "node": 1,
+              "requests": 64
+            }
+          ],
+          "cases": [
+            {
+              "name": "notification-owner",
+              "expected": 200,
+              "requests": 16
+            },
+            {
+              "name": "notification-other-denied",
+              "expected": 404,
+              "requests": 16
+            },
+            {
+              "name": "order-owner",
+              "expected": 200,
+              "requests": 16
+            },
+            {
+              "name": "order-other-denied",
+              "expected": 403,
+              "requests": 16
+            },
+            {
+              "name": "notification-anonymous-denied",
+              "expected": 401,
+              "requests": 16
+            },
+            {
+              "name": "admin-authorized",
+              "expected": 200,
+              "requests": 16
+            },
+            {
+              "name": "admin-finance-denied",
+              "expected": 403,
+              "requests": 16
+            },
+            {
+              "name": "admin-customer-denied",
+              "expected": 403,
+              "requests": 16
+            }
+          ]
+        },
+        {
+          "concurrency": 8,
+          "requests": 128,
+          "durationMs": 431.7870899999998,
+          "p95Ms": 63.834978999999976,
+          "p99Ms": 89.43936099999996,
+          "requestsPerSecond": 296.44239710826014,
+          "expectedStatusMatched": 128,
+          "nodes": [
+            {
+              "node": 0,
+              "requests": 64
+            },
+            {
+              "node": 1,
+              "requests": 64
+            }
+          ],
+          "cases": [
+            {
+              "name": "notification-owner",
+              "expected": 200,
+              "requests": 16
+            },
+            {
+              "name": "notification-other-denied",
+              "expected": 404,
+              "requests": 16
+            },
+            {
+              "name": "order-owner",
+              "expected": 200,
+              "requests": 16
+            },
+            {
+              "name": "order-other-denied",
+              "expected": 403,
+              "requests": 16
+            },
+            {
+              "name": "notification-anonymous-denied",
+              "expected": 401,
+              "requests": 16
+            },
+            {
+              "name": "admin-authorized",
+              "expected": 200,
+              "requests": 16
+            },
+            {
+              "name": "admin-finance-denied",
+              "expected": 403,
+              "requests": 16
+            },
+            {
+              "name": "admin-customer-denied",
+              "expected": 403,
+              "requests": 16
+            }
+          ]
+        },
+        {
+          "concurrency": 16,
+          "requests": 128,
+          "durationMs": 629.7921899999999,
+          "p95Ms": 307.8393879999999,
+          "p99Ms": 380.9715859999999,
+          "requestsPerSecond": 203.2416438825639,
+          "expectedStatusMatched": 128,
+          "nodes": [
+            {
+              "node": 0,
+              "requests": 64
+            },
+            {
+              "node": 1,
+              "requests": 64
+            }
+          ],
+          "cases": [
+            {
+              "name": "notification-owner",
+              "expected": 200,
+              "requests": 16
+            },
+            {
+              "name": "notification-other-denied",
+              "expected": 404,
+              "requests": 16
+            },
+            {
+              "name": "order-owner",
+              "expected": 200,
+              "requests": 16
+            },
+            {
+              "name": "order-other-denied",
+              "expected": 403,
+              "requests": 16
+            },
+            {
+              "name": "notification-anonymous-denied",
+              "expected": 401,
+              "requests": 16
+            },
+            {
+              "name": "admin-authorized",
+              "expected": 200,
+              "requests": 16
+            },
+            {
+              "name": "admin-finance-denied",
+              "expected": 403,
+              "requests": 16
+            },
+            {
+              "name": "admin-customer-denied",
+              "expected": 403,
+              "requests": 16
+            }
+          ]
+        }
+      ],
+      "maxConcurrency": 16,
+      "p95ThresholdMs": 800,
+      "p99ThresholdMs": 1500,
+      "realJwt": true,
+      "defaultThrottleRetained": true,
+      "realSharedRedis": true,
+      "twoCompleteApps": true,
+      "readOnlyFixturesUnchanged": true,
+      "production": false,
+      "realChannels": false,
+      "productionPeakCapacityProven": false,
+      "scope": "受限容器/小量合成数据有界读取；不代表CLB、生产数据规模、支付写入或长时间稳定性"
+    },
+    "resources": {
+      "limits": [
+        {
+          "name": "rebu-app-2fd5eba912",
+          "memoryBytes": 1073741824,
+          "memorySwapBytes": 1073741824,
+          "nanoCpus": 1000000000
+        },
+        {
+          "name": "rebu-app-second-2fd5eba912",
+          "memoryBytes": 1073741824,
+          "memorySwapBytes": 1073741824,
+          "nanoCpus": 1000000000
+        },
+        {
+          "name": "rebu-db-2fd5eba912",
+          "memoryBytes": 1073741824,
+          "memorySwapBytes": 1073741824,
+          "nanoCpus": 1000000000
+        },
+        {
+          "name": "rebu-redis-2fd5eba912",
+          "memoryBytes": 268435456,
+          "memorySwapBytes": 268435456,
+          "nanoCpus": 250000000
+        }
+      ],
+      "hostCpuCount": 4,
+      "hostMemoryBytes": 16770748416,
+      "production": false
+    },
+    "cleanup": {
+      "rebu-app-second-2fd5eba912": true,
+      "rebu-app-2fd5eba912": true,
+      "rebu-db-2fd5eba912": true,
+      "rebu-redis-2fd5eba912": true,
+      "networkAbsent": true
+    },
+    "previousFailure": {
+      "runId": 37097747187,
+      "head": "a1cded0b5ae1f14810843ddbc3dc26cedac0c836",
+      "originalChecksPassed": 33,
+      "burstExecuted": false,
+      "reason": "Docker更新内存限额时未同步memoryswap，工具配置已修，原失败证据保留"
+    },
+    "releaseReady": false
+  },
+  "phone": {
+    "versionCode": 253,
+    "note": "当前253旧包，不作为cc78最终同版真机验证；未读取用户私信、手机号、订单或余额",
+    "android": "14",
+    "versionName": "1.1.0",
+    "journeyTested": false,
+    "realPayment": false,
+    "installed": false,
+    "method": "Android官方adb系统和应用版本只读",
+    "package": "com.rebu.apprebu",
+    "checkedAt": "2026-10-03T05:10:22.3210384Z",
+    "candidateMatchingProven": false,
+    "model": "LE2100",
+    "chargedPhoneNumberRequest": false,
+    "candidateSource": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e"
+  },
+  "operationalResources": {
+    "checkedAt": "2026-10-03T04:39:53.318Z",
+    "scriptSha256": "abe0262ab2ae7a27e12a8bb642b70d2f3a9c9aa65e9b261829e4d3daaba0ddb8",
+    "nodes": [
+      {
+        "node": "guoxue2",
+        "instanceId": "ins-0sen8yvf",
+        "taskId": "invt-d9egptgce5",
+        "checkedAt": "2026-10-03T04:37:11Z",
+        "image": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484",
+        "sourceRawSha256": "6d899fbc18a45163c3ae871c22d78b1f3724e28d1807d843293920f0bf741688",
+        "inventory": {
+          "transactionReadOnly": true,
+          "tables": [
+            {
+              "table": "Product",
+              "readable": true,
+              "truncated": false,
+              "count": 0,
+              "rows": []
+            },
+            {
+              "table": "Station",
+              "readable": true,
+              "truncated": false,
+              "count": 0,
+              "rows": []
+            },
+            {
+              "table": "StationOffline",
+              "readable": true,
+              "truncated": false,
+              "count": 1,
+              "rows": [
+                {
+                  "recordFingerprint": "ababd99c942808f6538e67f4ed609fc16e157aa4a807bfb32217e06afbe15284",
+                  "label": "[QA-20260825] 线下驿站",
+                  "status": "DISABLED",
+                  "deleted": false,
+                  "potentiallyVisible": false
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "node": "guoxue1",
+        "instanceId": "ins-n0sqc627",
+        "taskId": "invt-e9egqd02j3",
+        "checkedAt": "2026-10-03T04:37:47Z",
+        "image": "sha256:e47d5a8c92151d28cd493ea269a066e32038ea3560855a67b15afc26d43d0eb7",
+        "sourceRawSha256": "0b25fc29ddc9587a490f3e832bdd96fb914f182ba7becbe0ef3c5fdcf79e89dd",
+        "inventory": {
+          "transactionReadOnly": true,
+          "tables": [
+            {
+              "table": "Product",
+              "readable": true,
+              "truncated": false,
+              "count": 0,
+              "rows": []
+            },
+            {
+              "table": "Station",
+              "readable": true,
+              "truncated": false,
+              "count": 0,
+              "rows": []
+            },
+            {
+              "table": "StationOffline",
+              "readable": true,
+              "truncated": false,
+              "count": 1,
+              "rows": [
+                {
+                  "recordFingerprint": "ababd99c942808f6538e67f4ed609fc16e157aa4a807bfb32217e06afbe15284",
+                  "label": "[QA-20260825] 线下驿站",
+                  "status": "DISABLED",
+                  "deleted": false,
+                  "potentiallyVisible": false
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "readonly": true,
+    "productionMutation": false,
+    "cleanupPerformed": false,
+    "phoneJourney": false,
+    "queryScope": "只匹配标明预发布勿购买的商品、名称同时含QA及驿站的分站/线下驿站；不推断全部测试资料已清空"
+  },
+  "sourceGapAudit": {
+    "checkedAt": "2026-10-03T05:11:44.721Z",
+    "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+    "scannedTrackedFiles": 2438,
+    "patternCounts": {
+      "P0": 0,
+      "P1": 0,
+      "P2": 10
+    },
+    "patternFindings": 10,
+    "confirmedPatternGaps": 9,
+    "commentOnly": {
+      "path": "apps/mobile/src/pages/paipan/index.vue",
+      "line": 108,
+      "reason": "工具列表注释，不是独立功能缺口；小程序首发排盘升级提示按已批准边界保留"
+    },
+    "groups": [
+      {
+        "id": "F1",
+        "title": "八字四柱直接录入到排盘",
+        "current": "四柱直录已接入正式引擎反查和提交前复核；候选时分必须明确选择，原公历/农历与保存分组保持。",
+        "remaining": "原生键盘/滚动/picker真机，以及真实网络下结果保存和报告事实动线；代码和脚本验证不能替代真机。",
+        "businessDecision": "四柱对应多日期时需要可解释选择流程，无新增付费政策。",
+        "done": false,
+        "deferredByUser": false,
+        "evidence": [
+          {
+            "path": "apps/mobile/src/components/bazi/date-picker-modal.vue",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "3f9d086a62b495cbbb9110f466f24ec084f0002c08ce098adb6a3fdb63e55707"
+          }
+        ],
+        "codeComplete": true,
+        "isolatedValidationComplete": true,
+        "currentEvidence": {
+          "source": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
+          "document": "docs/operations/F1与配置资金补件接收验收-20261003.json"
+        }
+      },
+      {
+        "id": "F2",
+        "title": "第三方账号新绑定",
+        "current": "用户端新绑定处于预告；后端确有受保护的POST /auth/bind/wechat，不能误写为所有绑定接口都不存在。QQ、Apple绑定不据微信接口推定完成。",
+        "remaining": "核对已有微信授权与绑定入口、渠道能力、绑定冲突和账号合并边界，复用已有授权流程；逐渠道补接口与页面联调。",
+        "businessDecision": "不能将第三方登录等同账号绑定，不能自动合并不同用户账号。",
+        "done": false,
+        "deferredByUser": false,
+        "evidence": [
+          {
+            "path": "apps/mobile/src/lib/mine-data.ts",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "4aefb144e0a56344523292ae8263fc5584dca42618ad8c8865f8d14a45981ba4"
+          },
+          {
+            "path": "apps/mobile/src/pkg-mine/bind-accounts/index.vue",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "2235410b66288c7f01d26e4b6d5641d71dad99f98ba3fa29033ca878d90ea73c"
+          },
+          {
+            "path": "apps/server/src/modules/auth/auth.controller.ts",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "1a888ada51ca78a7357cad4477689beee4c3949066389f7ad03be94aceb836ce"
+          },
+          {
+            "path": "apps/server/src/modules/auth/auth.service.ts",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "81f6944621e5c84ece37adcf180ae71a21ef36fe0135a09ae7f46ba4a1b25faa"
+          }
+        ]
+      },
+      {
+        "id": "F3",
+        "title": "首页同城频道",
+        "current": "切换local时只提示即将开放并返回，未拉取同城内容。",
+        "remaining": "核实可用地域内容查询，设计拒绝定位后手选地区和空态，补真实页面加载。",
+        "businessDecision": "定位需用户授权；不能静默取精确位置或以随机推荐冒充同城。",
+        "done": false,
+        "deferredByUser": false,
+        "evidence": [
+          {
+            "path": "apps/mobile/src/pages/index/index.vue",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "1e5897bb8cc34ef76a2f184a5eca8d5149a9814d470b6a2bc341c869ae0bc742"
+          }
+        ]
+      },
+      {
+        "id": "F4",
+        "title": "赛事直播、线下赛、签到与邀请奖励",
+        "current": "四个页面主要是静态预告；已有赛事列表、报名、排名和考试入口不等于直播PK、现场核销或奖励闭环。register确实接受邀请参数，不因此证明发奖。",
+        "remaining": "先补赛事事实与页面闭包；直播PK/线下凭证需有受控会话、校验、防重和审计；邀请奖励另核真实规则与发放依据。",
+        "businessDecision": "邀请获奖连带收益和具体发放规则未从这些静态文案获得授权，不直接生成资金写接口。",
+        "done": false,
+        "deferredByUser": false,
+        "evidence": [
+          {
+            "path": "apps/mobile/src/pkg-competition/invite-rewards/index.vue",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "816ee8a6d6755fe0aca4614ae7a58c095f920f7064721861606f981bd957abfe"
+          },
+          {
+            "path": "apps/mobile/src/pkg-competition/live-arena/index.vue",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "dd1c71b742834cd14607a30a53805a3f97c5c6cd4197dc1b76399b72faa5eb6a"
+          },
+          {
+            "path": "apps/mobile/src/pkg-competition/offline-checkin/index.vue",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "6416069a07b67555802f9e3ebf3db442ee2a70e4448f7900976bae18094b084e"
+          },
+          {
+            "path": "apps/mobile/src/pkg-competition/offline-detail/index.vue",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "5d635a32dc1890c34ce25781f009bdd3b1eda6650d314fdacfc75b7cdf2ad011"
+          },
+          {
+            "path": "apps/mobile/src/pkg-competition/lib/competition-data.ts",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "51a22bea9e7ab0786cf67807817e643e81650dd45397aab879418690669cf874"
+          },
+          {
+            "path": "apps/server/src/modules/competition/competition.controller.ts",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "83f112ac350aa2f15c3a74266331e1c6e5e3471a46eb4d3276deb656ac0aa621"
+          },
+          {
+            "path": "apps/server/src/modules/competition/competition.service.ts",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "7a3086e964609359858492d52efc62ebdb9d9624f8bc0f25b2894682dd6bfecc"
+          }
+        ]
+      },
+      {
+        "id": "F5",
+        "title": "普通用户邀请分享、记录与奖励汇总",
+        "current": "邀请分享与专属码不可用，记录页为预告空态；registeredCount*7是页面表达，不能据此认定会员天数已发。注册推荐关系存在不等于用户聚合和奖励闭环。",
+        "remaining": "核对已有真实推荐关系与邀请来源，补本人只读记录/专属邀请链接，再衔接分享与受控验收；奖励按正式规则另接。",
+        "businessDecision": "不能自行批准每邀请一人赠7天或奖励金额，不能输出被邀请者不必要个人信息。",
+        "done": false,
+        "deferredByUser": false,
+        "evidence": [
+          {
+            "path": "apps/mobile/src/pkg-profile/invite/index.vue",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "54bb4f1a8e49572ed5873189df661c2243c8be894c9c5ffdd314c4297fb0cded"
+          },
+          {
+            "path": "apps/mobile/src/pkg-profile/invite/history/index.vue",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "5ae6485eec8af44b75716507579d0fd250bf86814b0c5d3e4fe23da138dde6be"
+          },
+          {
+            "path": "apps/mobile/src/pkg-mine/invite-records/index.vue",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "eb8e4a438b331bce196340b503a5adb35948c76b9e02ce167f9b2f68dd3af92e"
+          },
+          {
+            "path": "apps/server/src/modules/auth/auth.service.ts",
+            "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+            "gitBlobSha256": "81f6944621e5c84ece37adcf180ae71a21ef36fe0135a09ae7f46ba4a1b25faa"
+          }
+        ]
+      }
+    ],
+    "priority": [
+      "F2复用现有微信绑定入口",
+      "F5本人邀请只读与真实分享来源",
+      "F1四柱录入与日期反查",
+      "F3同城内容与地域降级",
+      "F4赛事会话、签到和邀请奖励闭环"
+    ],
+    "scope": "本轮源码模式扫描与人工入口核对，不是全平台功能验收，其他待办仍在统一七类门槛中",
+    "uiJourneyTested": false,
+    "unapprovedItemsNotSilentlyDeferred": true,
+    "releaseReady": false
+  },
+  "notCovered": [
+    "生产峰值与长时间稳定性、CLB、生产数据规模、支付写入容量",
+    "最终同版签名包真机与真实微信/短信/App推送",
+    "生产升级、两节点同包切换、停写一致性备份",
+    "N5政策确认和137迁移候选正式接收",
+    "五组未闭环功能及企微人工回流、版权/运营验收"
+  ],
+  "mutations": {
+    "deployment": false,
+    "productionMigration": false,
+    "realNotification": false,
+    "realFunds": false,
+    "paidPackaging": false,
+    "phoneInstallation": false
+  },
+  "previousSourceBeforeTenantCombination": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+  "migrationCount": 145,
+  "tenantCombinedIntake": {
+    "record": "docs/operations/多租户与同城组合接收验收-20261003.json",
+    "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+    "received": true,
+    "independentlyVerified": true,
+    "fullSource33SuitesRerun": false,
+    "fullBootstrapVerified": true,
+    "productionUpgrade": false,
+    "officialCi": {
+      "runId": 37122191101,
+      "passed": 9156,
+      "skipped": 631
+    },
+    "evidenceSeal": {
+      "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+      "sealedAt": "2026-10-03T12:38:52.042Z",
+      "fileCount": 8779,
+      "package": "pilots/managed-tenancy/.runtime/provider-intake-20261003/combined-evidence-1791031125981.tar.gz",
+      "packageBytes": 27391353,
+      "packageSha256": "1be7c6f09cacdb9dc9ab779f984ea0022e058995aa5941699f840616c3b3d76a",
+      "manifestSha256": "2b4453f085d49f447318a1fa67935bd4aa8a0bb643faeb5f02151151aff87b62",
+      "freshExtractionAllMatch": true,
+      "localArchiveOnly": true,
+      "remotePersistentArchive": false,
+      "production": false
+    }
+  },
+  "currentMigrationInventory": {
+    "candidateCount": 144,
+    "lastObservedProductionCount": 103,
+    "provisionalDifference": 41,
+    "productionLedgerReadThisBatch": false,
+    "productionExecuted": false,
+    "record": "docs/operations/多租户与同城组合接收验收-20261003.json"
+  },
+  "latestSourceCI": {
+    "conclusion": "success",
+    "formalDockerImage": false,
+    "shards": [
+      {
+        "log": "combined-official-job-111200632849.log",
+        "name": "单元测试 (1/3)",
+        "skipped": 241,
+        "total": 3185,
+        "passed": 2944,
+        "sha256": "3fa282a12a80830fa900ab2e82d0163f97fcaa28e9f6dcf6d819bbf022ee80b2",
+        "id": 111200632849
+      },
+      {
+        "log": "combined-official-job-111200632893.log",
+        "name": "单元测试 (2/3)",
+        "skipped": 226,
+        "total": 3284,
+        "passed": 3058,
+        "sha256": "587b373142a13702f4ddc9255a229b5d817e2e21040316d049514e521ab41b6a",
+        "id": 111200632893
+      },
+      {
+        "log": "combined-official-job-111200632909.log",
+        "name": "单元测试 (3/3)",
+        "skipped": 164,
+        "total": 3318,
+        "passed": 3154,
+        "sha256": "cbe60210a12c12a46e0569fd9f792a1ffe8714d92bf43434f6d54104caeb6ec1",
+        "id": 111200632909
+      }
+    ],
+    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37122191101",
+    "passed": 9156,
+    "realChannels": false,
+    "artifacts": [
+      {
+        "extracted": "combined-official-11273912820",
+        "sha256": "5b657b481b72f217a79bd21c9b5e6a96ed420c7f448113670fe5c1df3d01f472",
+        "name": "server-build",
+        "id": 11273912820,
+        "zip": "combined-official-11273912820.zip",
+        "bytes": 7667280,
+        "officialDigest": "sha256:5b657b481b72f217a79bd21c9b5e6a96ed420c7f448113670fe5c1df3d01f472",
+        "digestVerified": true
+      }
+    ],
+    "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+    "skipped": 631,
+    "checkedAt": "2026-10-03T12:34:44.522439Z",
+    "production": false,
+    "runId": 37122191101,
+    "jobs": [
+      {
+        "conclusion": "success",
+        "name": "TypeScript 类型检查",
+        "id": 111200347476
+      },
+      {
+        "conclusion": "success",
+        "name": "迁移与上线代码门禁",
+        "id": 111200347566
+      },
+      {
+        "conclusion": "success",
+        "name": "ESLint + Prettier",
+        "id": 111200347572
+      },
+      {
+        "conclusion": "success",
+        "name": "单元测试 (1/3)",
+        "id": 111200632849
+      },
+      {
+        "conclusion": "success",
+        "name": "单元测试 (2/3)",
+        "id": 111200632893
+      },
+      {
+        "conclusion": "success",
+        "name": "单元测试 (3/3)",
+        "id": 111200632909
+      },
+      {
+        "conclusion": "success",
+        "name": "构建产物",
+        "id": 111202830010
+      },
+      {
+        "conclusion": "success",
+        "name": "测试结果汇总",
+        "id": 111202830020
+      }
+    ]
+  },
+  "currentDefaultCiSkipped": 631,
+  "currentDefaultCiSkippedSourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+  "currentSoftwareCoverageAppliesToNewBackend": false,
+  "tenantIntegrationNotFullBusinessAcceptance": true,
+  "managedExitDownloadLateCandidate": {
+    "downloadFormatVerifySourcesRead": true,
+    "sourceSuitesHistorical": 34,
+    "mustReviewBeforeLaunch": true,
+    "sourceWorktree": "C:/Users/Administrator/.codex/worktrees/tenant-isolation-pilot-20261002/gx-deploy-91",
+    "bundleSha256": "3fe361e393346e9a5bd867a94e0697366550e5077ff68e68e03297d53fce2703",
+    "fullDiffRead": true,
+    "independentTestRerun": false,
+    "deferred": false,
+    "archive": "ba682221c28ebaf195c71f65dc401e514495e437",
+    "checkedAt": "2026-10-03T12:49:36.1803700Z",
+    "currentCandidateMigrationCount": 144,
+    "record": "退出文件采集晚到候选接收预检-20261003.md",
+    "sourceMigrationCount": 143,
+    "production": false,
+    "actualBundleHashChecked": true,
+    "candidate": "1e1199a9b9bc0e48092526017447b18ba37fb688",
+    "received": false,
+    "bundleBytes": 147950062,
+    "blocksFirstLaunch": false,
+    "scopeReason": "用户已确认先上线主平台与品牌分站，独立系统保留虚拟试点；原候选未接收事实保留。"
+  },
+  "firstLaunchScope": {
+    "userResponseVerified": true,
+    "scope": "先上线主平台和品牌分站，独立系统保留虚拟试点",
+    "document": "docs/operations/首轮上线范围与固定发布输入-20261003.md",
+    "sourceCommit": "7c060d32ff72b6594a36f894a11cb7d54975d2dc",
+    "testedSource": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+    "releaseId": "launch-20261003-7c060d32f",
+    "sourcePackageVerified": true,
+    "archiveSha256": "5c4a487ea9d72d385c1135dda8699c64273934c45b6122ca1fe78e558476c46a",
+    "manifestSha256": "4c492d4ec8fc86af8b35fab5894c438781f9cf28f93e327304bb847b39018533",
+    "migrations": 144,
+    "sourcePackageSubtaskClosed": "PKG-01",
+    "linuxImageRunId": 37126636286,
+    "linuxImageVerified": true,
+    "prodUpgradeVerified": true,
+    "brandEntryEnabled": false,
+    "brandActualMappingVerified": false,
+    "independentTenantCommercializationBlocksFirstLaunch": false,
+    "independentExitCliBlocksFirstLaunch": false,
+    "existingPlatformFeatureGapsRemain": true,
+    "productionGo": false,
+    "prodUpgradeVerificationScope": "生产备份的隔离完整副本103→144演练，非生产迁移",
+    "productionMigrationPerformed": false,
+    "fixed144GateReceipt": "docs/operations/固定144包镜像与完整副本升级验收-20261003.json"
+  },
+  "historicalSnapshotSourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+  "latestLocalReception": {
+    "source": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069",
+    "document": "docs/operations/汇付恢复主线接收验收-20261003.json",
+    "received": {
+      "safety": "79926b179f130429d219ac34802da38a68f5cdd4",
+      "F1": "8fdbcc66aff5e39fb562ba2e59d2221ed666ce53",
+      "F1Followup": "1f0ccd8a2c0498cb309cc1a7ba3e3eed752ae157",
+      "R03": "94999c3fa5e018bc9e6f2c7348f9a2abaed45a51",
+      "R12": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
+      "R04": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069"
+    },
+    "newValidation": {
+      "unit": 331,
+      "pgCompiled": 68,
+      "sourceHistorical68NotAdded": true
+    },
+    "migrations": 145,
+    "previousOfficialFullCiAppliesToThisSource": false,
+    "fixed144HistoricalEvidenceRetained": true,
+    "final145PackageVerified": false,
+    "final145UpgradeVerified": false,
+    "R04CodeClosed": true,
+    "R04IsolatedValidationClosed": true,
+    "R04FormalChannelClosed": false,
+    "productionGo": false
+  },
+  "previousLocalReception": {
+    "source": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
+    "document": "docs/operations/F1与配置资金补件接收验收-20261003.json",
+    "received": {
+      "safety": "79926b179f130429d219ac34802da38a68f5cdd4",
+      "F1": "8fdbcc66aff5e39fb562ba2e59d2221ed666ce53",
+      "F1Followup": "1f0ccd8a2c0498cb309cc1a7ba3e3eed752ae157",
+      "R03": "94999c3fa5e018bc9e6f2c7348f9a2abaed45a51",
+      "R12": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9"
+    },
+    "newValidation": {
+      "f1Engine": 6,
+      "f1State": 10,
+      "f1AdjacentIncludesState": 21,
+      "fundsUnit": 330,
+      "fundsPg": 105,
+      "countsNotSummedBetweenSourceAndCompiled": true
+    },
+    "migrations": 145,
+    "previousOfficialFullCiAppliesToThisSource": false,
+    "fixed144HistoricalEvidenceRetained": true,
+    "final145PackageVerified": false,
+    "final145UpgradeVerified": false,
+    "R04Closed": false,
+    "productionGo": false
+  },
+  "releaseRoute": {
+    "route": "维护窗口：双入口阻新资金写入、核在途、停止两旧业务进程并确认退出后迁移和启动同版",
+    "mixedOldNewForbidden": true,
+    "oldRefundTasksMustNotResumeAfterNewIntents": true,
+    "recoveryIntentAndBaselineMustBeRetainedTogether": true,
+    "existingPauseControlNotVerified": true,
+    "localMaintenanceImplementationUnderReview": true
+  }
+}

@@ -4,7 +4,8 @@ import type { QimenYangInput, QimenResult } from "@guoxue/shared";
 
 /** 阳盘奇门 AI 分析 */
 export function buildQimenYangPrompt(input: QimenYangInput, result: QimenResult): string {
-  const gongLines = result.gongs.map((g) => {
+  const safeResult = (result ?? {}) as Partial<QimenResult>;
+  const gongLines = (Array.isArray(safeResult.gongs) ? safeResult.gongs : []).map((g) => {
     const parts: string[] = [];
     if (g.star) parts.push(`星：${g.star}`);
     if (g.men) parts.push(`门：${g.men}`);
@@ -20,27 +21,30 @@ export function buildQimenYangPrompt(input: QimenYangInput, result: QimenResult)
     const tagStr = tags.length ? ` [${tags.join("、")}]` : "";
     return `[${g.name}] ${parts.join(" | ")}${tagStr}`;
   });
+  const rawInput = (input ?? {}) as QimenYangInput & { matter?: string; question?: string; panMethod?: string; startMethod?: string };
+  const matter = rawInput.matter || rawInput.question || "未填写（按盘面作通用分析）";
 
   return `你是精通奇门遁甲的资深专家，请根据以下阳盘奇门排盘数据进行详细分析。
 
 ## 排盘参数
-- 排盘方法：${input.method}
-- 起居方式：${input.qiJuMethod ?? "拆补"}
-- 排盘时间：${input.datetime ?? "当前时间"}
+- 所问事项：${matter}
+- 排盘方法：${rawInput.method ?? rawInput.panMethod ?? "转盘"}
+- 起局方式：${rawInput.qiJuMethod ?? rawInput.startMethod ?? "拆补"}
+- 排盘时间：${rawInput.datetime ?? "当前时间"}
 
 ## 局数信息
-- 阴阳遁：${result.dunType}
-- 局数：${result.juNumber}局
-- 节气：${result.jieQi}
-- 用事时辰：${result.yongShi}
-- 值符：${result.zhiFu}
-- 值使门：${result.zhiShiMen}
+- 阴阳遁：${safeResult.dunType ?? "未知"}
+- 局数：${safeResult.juNumber ?? "未知"}局
+- 节气：${safeResult.jieQi ?? "未知"}
+- 用事时辰：${safeResult.yongShi ?? "未知"}
+- 值符：${safeResult.zhiFu ?? "未知"}
+- 值使门：${safeResult.zhiShiMen ?? "未知"}
 
 ## 九宫盘
-${gongLines.join("\n")}
+${gongLines.join("\n") || "暂无九宫数据"}
 
 ## 地盘八神
-${result.dipanBashen.join("、")}
+${Array.isArray(safeResult.dipanBashen) ? safeResult.dipanBashen.join("、") : "暂无"}
 
 ---
 请从以下5个方面进行分析：大局分析/值符值使/用神分析/应期判断/行动建议。
@@ -49,7 +53,8 @@ ${result.dipanBashen.join("、")}
 
 /** 阳盘命理奇门 AI 分析 */
 export function buildQimenYangMingLiPrompt(input: QimenYangInput, result: QimenResult): string {
-  const gongLines = result.gongs.map((g) => {
+  const safeResult = (result ?? {}) as Partial<QimenResult> & { mingli?: any; mingLiInfo?: any };
+  const gongLines = (Array.isArray(safeResult.gongs) ? safeResult.gongs : []).map((g) => {
     const parts: string[] = [];
     if (g.star) parts.push(`星：${g.star}`);
     if (g.men) parts.push(`门：${g.men}`);
@@ -61,22 +66,40 @@ export function buildQimenYangMingLiPrompt(input: QimenYangInput, result: QimenR
     return `[${g.name}] ${parts.join(" | ")}${tagStr}`;
   });
 
-  const mingLiInfo = (result as any).mingLiInfo;
+  const rawInput = (input ?? {}) as QimenYangInput & {
+    birthTime?: string; birthplace?: string; place?: string; gender?: string;
+  };
+  // 兼容注册中心旧结构 mingLiInfo 与当前阳盘页真实返回字段 mingli。
+  const mingLiInfo = safeResult.mingli ?? safeResult.mingLiInfo ?? {};
+  const siZhu = mingLiInfo.siZhu;
+  const pillar = (p: any) => p?.gan && p?.zhi ? `${p.gan}${p.zhi}` : "—";
+  const siZhuLine = siZhu
+    ? `${pillar(siZhu.nian)} ${pillar(siZhu.yue)} ${pillar(siZhu.ri)} ${pillar(siZhu.shi)}`
+    : "暂无";
+  const daYunLine = Array.isArray(mingLiInfo.daYun) && mingLiInfo.daYun.length
+    ? mingLiInfo.daYun.slice(0, 8).map((item: any) =>
+      `${item.gan ?? ""}${item.zhi ?? ""}（${item.startAge ?? "?"}-${item.endAge ?? "?"}岁）`,
+    ).join("、")
+    : "暂无";
 
   return `你是精通奇门命理的资深专家，请根据以下阳盘命理奇门排盘进行命理分析。
 
 ## 出生信息
-- 出生时间：${(input as any).birthTime ?? "-"}
-- 出生地点：${(input as any).birthplace ?? "未知"}
-- 性别：${(input as any).gender ?? "-"}
+- 出生时间：${rawInput.birthTime ?? rawInput.datetime ?? "-"}
+- 出生地点：${rawInput.birthplace ?? rawInput.place ?? "未知"}
+- 性别：${rawInput.gender ?? "-"}
+- 四柱：${siZhuLine}
 
 ## 命理盘局
-- 阴阳遁：${result.dunType}
-- 局数：${result.juNumber}局
-${mingLiInfo ? `- 命宫：${mingLiInfo.mingGong ?? "-"}\n- 身宫：${mingLiInfo.shenGong ?? "-"}\n- 大运：${mingLiInfo.daYun ?? "-"}` : ""}
+- 阴阳遁：${safeResult.dunType ?? "未知"}
+- 局数：${safeResult.juNumber ?? "未知"}局
+- 值符：${safeResult.zhiFu ?? "未知"}
+- 值使门：${safeResult.zhiShiMen ?? "未知"}
+- 起运：${mingLiInfo.qiYun?.desc ?? (mingLiInfo.qiYun?.startAge != null ? `${mingLiInfo.qiYun.startAge}岁` : "暂无")}
+- 大运：${daYunLine}
 
 ## 九宫盘
-${gongLines.join("\n")}
+${gongLines.join("\n") || "暂无九宫数据"}
 
 ---
 请从以下4个方面进行分析：命宫解读/事业财运/婚姻感情/大运走势。

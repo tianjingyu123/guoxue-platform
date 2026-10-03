@@ -1,0 +1,18 @@
+{
+  "sourceHead": "1abb07d75b4598d9f2b89270ff3a0a5a03f0a71a",
+  "serverCompile": {
+    "command": "pnpm --filter @guoxue/server exec tsc -p ../../scripts/ops/prisma-candidate/tsconfig.candidate.json --noEmit false --outDir .prisma-candidate/server-build --tsBuildInfoFile .prisma-candidate/server-build.tsbuildinfo",
+    "exitCode": 0,
+    "candidateClientIsolated": true,
+    "afterSourceFreeze": true
+  },
+  "changedServerLint": {
+    "command": "pnpm --filter @guoxue/server exec eslint src/modules/ai-gateway/adapters/bounded-response.ts src/modules/ai-gateway/adapters/qwen.adapter.ts src/modules/managed-tenancy/managed-provider-probe.ts",
+    "exitCode": 0,
+    "errors": 0,
+    "warnings": 0,
+    "afterSourceFreeze": true
+  },
+  "production": false,
+  "limits": ["退出码来自本任务执行工具；实际编译文件与源码摘要另由完整清单核对", "lint只覆盖本批相关文件，不代表全工程或正式镜像验收"]
+}

@@ -1,0 +1,3571 @@
+{
+  "checkedAt": "2026-10-03T05:35:49.230Z",
+  "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+  "pendingMigrations": 33,
+  "targetDeclarations": 210,
+  "targetKinds": {
+    "column": 55,
+    "index": 114,
+    "table": 38,
+    "enumValue": 3
+  },
+  "manifestSha256": "ed9260d985ad0bf75a8e122c7d0dc6bbca0db01a9817db5315fa18714658c6da",
+  "scriptSha256": "9da5356d7382d8ccbbd678ce0e7d7e270014bc70936bf9ab3092f64126a2cc19",
+  "sameCatalogObservationAcrossNodes": true,
+  "present": 1,
+  "missing": 209,
+  "nodes": [
+    {
+      "node": "guoxue2",
+      "instanceId": "ins-0sen8yvf",
+      "taskId": "invt-d9eibt0hh4",
+      "checkedAt": "2026-10-03T05:32:38Z",
+      "image": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484",
+      "sourceRawSha256": "a4101ae99e8e8ef97bcddf8573e5cfefba981a8f150ea487b0c03820154d061c",
+      "transactionReadOnly": true,
+      "objects": [
+        {
+          "migration": "20260918120000_add_circle_revenue_order_idempotency",
+          "kind": "column",
+          "table": "CircleRevenueRecord",
+          "column": "orderId",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260918120000_add_circle_revenue_order_idempotency",
+          "kind": "index",
+          "table": "CircleRevenueRecord",
+          "name": "CircleRevenueRecord_type_orderId_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260918120000_add_circle_revenue_order_idempotency",
+          "kind": "index",
+          "table": "CircleRevenueRecord",
+          "name": "CircleRevenueRecord_orderId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260919090000_add_commission_recall_reason",
+          "kind": "column",
+          "table": "CommissionRecall",
+          "column": "reason",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260919090000_add_commission_recall_reason",
+          "kind": "column",
+          "table": "CommissionRecall",
+          "column": "sourceId",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260919090000_add_commission_recall_reason",
+          "kind": "index",
+          "table": "CommissionRecall",
+          "name": "CommissionRecall_status_createdAt_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260920090000_add_commission_recall_resolution",
+          "kind": "column",
+          "table": "CommissionRecall",
+          "column": "resolvedAt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260920090000_add_commission_recall_resolution",
+          "kind": "column",
+          "table": "CommissionRecall",
+          "column": "resolvedBy",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260920090000_add_commission_recall_resolution",
+          "kind": "column",
+          "table": "CommissionRecall",
+          "column": "resolutionNote",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260920090000_add_commission_recall_resolution",
+          "kind": "column",
+          "table": "CommissionRecall",
+          "column": "resolvedRevenueId",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260923010000_add_public_content_catalog",
+          "kind": "table",
+          "table": "ContentCatalog",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923010000_add_public_content_catalog",
+          "kind": "index",
+          "table": "ContentCatalog",
+          "name": "ContentCatalog_stationId_sourceType_active_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923010000_add_public_content_catalog",
+          "kind": "index",
+          "table": "ContentCatalog",
+          "name": "ContentCatalog_circleId_sourceType_active_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923010000_add_public_content_catalog",
+          "kind": "index",
+          "table": "ContentCatalog",
+          "name": "ContentCatalog_sourceType_indexedAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "table",
+          "table": "CircleKnowledgeShowcaseNode",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "table",
+          "table": "CircleKnowledgeShowcaseEdge",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "index",
+          "table": "CircleKnowledgeShowcaseNode",
+          "name": "CircleKnowledgeShowcaseNode_circleId_status_displayOrder_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "index",
+          "table": "CircleKnowledgeShowcaseNode",
+          "name": "CircleKnowledgeShowcaseNode_sourceKnowledgeId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "index",
+          "table": "CircleKnowledgeShowcaseEdge",
+          "name": "CircleKnowledgeShowcaseEdge_circleId_status_displayOrder_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "index",
+          "table": "CircleKnowledgeShowcaseEdge",
+          "name": "CircleKnowledgeShowcaseEdge_fromId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "index",
+          "table": "CircleKnowledgeShowcaseEdge",
+          "name": "CircleKnowledgeShowcaseEdge_toId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "table",
+          "table": "ImFallbackMessage",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "table",
+          "table": "ImFallbackConversationPreference",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "column",
+          "table": "BrandConfig",
+          "column": "serviceWechatQrUrl",
+          "ifNotExists": true,
+          "present": true
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "index",
+          "table": "ImFallbackMessage",
+          "name": "ImFallbackMessage_fromUserId_toUserId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "index",
+          "table": "ImFallbackMessage",
+          "name": "ImFallbackMessage_toUserId_fromUserId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "index",
+          "table": "ImFallbackMessage",
+          "name": "ImFallbackMessage_toUserId_readAt_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "index",
+          "table": "ImFallbackConversationPreference",
+          "name": "ImFallbackConversationPreference_userId_isPinned_updatedAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "table",
+          "table": "AppDistribution",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "table",
+          "table": "ResourceRelease",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "AppVersion",
+          "column": "applicationId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "AppVersion",
+          "column": "channelId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "AppVersion",
+          "column": "rolloutPercentage",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "AppVersion",
+          "column": "targetUserIds",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "FeatureFlag",
+          "column": "operationState",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "FeatureFlag",
+          "column": "emergencyDisabled",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "FeatureFlag",
+          "column": "scopeRules",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "AppVersion",
+          "name": "AppVersion_applicationId_platform_channelId_status_publishe_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "AppVersion",
+          "name": "AppVersion_applicationId_platform_channelId_version_buildNu_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "AppDistribution",
+          "name": "AppDistribution_clientKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "AppDistribution",
+          "name": "AppDistribution_applicationId_platform_channelId_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "ResourceRelease",
+          "name": "ResourceRelease_activeScopeKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "ResourceRelease",
+          "name": "ResourceRelease_applicationId_platform_channelId_resourceVe_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "ResourceRelease",
+          "name": "ResourceRelease_applicationId_platform_channelId_status_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20261002100008_order_business_notification_facts",
+          "kind": "table",
+          "table": "OrderBusinessNotice",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20261002100008_order_business_notification_facts",
+          "kind": "index",
+          "table": "OrderBusinessNotice",
+          "name": "OrderBusinessNotice_createdAt_eventKey_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_couple_scene",
+          "kind": "column",
+          "table": "CoupleChart",
+          "column": "scene",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_add_couple_scene",
+          "kind": "index",
+          "table": "CoupleChart",
+          "name": "CoupleChart_scene_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_add_order_client_request_id",
+          "kind": "column",
+          "table": "Order",
+          "column": "clientRequestId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_order_client_request_id",
+          "kind": "column",
+          "table": "Order",
+          "column": "requestFingerprint",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_order_client_request_id",
+          "kind": "index",
+          "table": "Order",
+          "name": "Order_userId_clientRequestId_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_paipan_case_feedback",
+          "kind": "table",
+          "table": "PaipanCaseFeedback",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_paipan_case_feedback",
+          "kind": "index",
+          "table": "PaipanCaseFeedback",
+          "name": "PaipanCaseFeedback_paipanType_status_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_paipan_case_feedback",
+          "kind": "index",
+          "table": "PaipanCaseFeedback",
+          "name": "PaipanCaseFeedback_paipanType_verdict_outcomeAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_paipan_case_feedback",
+          "kind": "index",
+          "table": "PaipanCaseFeedback",
+          "name": "PaipanCaseFeedback_paipanRecordId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_paipan_case_feedback",
+          "kind": "index",
+          "table": "PaipanCaseFeedback",
+          "name": "PaipanCaseFeedback_userId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_paipan_case_feedback",
+          "kind": "index",
+          "table": "PaipanCaseFeedback",
+          "name": "PaipanCaseFeedback_status_outcomeAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_user_preferred_name",
+          "kind": "table",
+          "table": "UserPreferredName",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_add_voice_minutes_order_type",
+          "kind": "enumValue",
+          "type": "OrderType",
+          "value": "VOICE_MINUTES",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "ClassicSegment",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "TextDerivedAsset",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "AudioAsset",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "ReportDialogueTurn",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "VoiceAgentProfile",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "VoiceAgentProfileVersion",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "VoiceQuotaAccount",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "VoiceSession",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "VoiceQuotaLedger",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "PaipanReportKnowledge",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "AiUsageRecord",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "column",
+          "table": "ClassicAnnotation",
+          "column": "segmentId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "column",
+          "table": "ClassicReadingNote",
+          "column": "segmentId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ClassicSegment",
+          "name": "ClassicSegment_chapterId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ClassicSegment",
+          "name": "ClassicSegment_contentHash_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ClassicSegment",
+          "name": "ClassicSegment_chapterId_versionTag_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ClassicSegment",
+          "name": "ClassicSegment_chapterId_sortOrder_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "TextDerivedAsset",
+          "name": "TextDerivedAsset_assetKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "TextDerivedAsset",
+          "name": "TextDerivedAsset_sourceType_sourceId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "TextDerivedAsset",
+          "name": "TextDerivedAsset_contentHash_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "TextDerivedAsset",
+          "name": "TextDerivedAsset_resultHash_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "TextDerivedAsset",
+          "name": "TextDerivedAsset_processingStatus_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "TextDerivedAsset",
+          "name": "TextDerivedAsset_qualityVersion_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_assetKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_sourceType_sourceId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_textVersion_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_storageKey_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_synthesisStatus_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_isPlayable_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_ttsProvider_voiceId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ReportDialogueTurn",
+          "name": "ReportDialogueTurn_reportId_userId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ReportDialogueTurn",
+          "name": "ReportDialogueTurn_userId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceAgentProfile",
+          "name": "VoiceAgentProfile_status_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceAgentProfile",
+          "name": "VoiceAgentProfile_ownerType_ownerId_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceAgentProfileVersion",
+          "name": "VoiceAgentProfileVersion_profileId_version_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceQuotaAccount",
+          "name": "VoiceQuotaAccount_ownerType_ownerId_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_userId_startedAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_accountId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_status_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceQuotaLedger",
+          "name": "VoiceQuotaLedger_idempotencyKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceQuotaLedger",
+          "name": "VoiceQuotaLedger_accountId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceQuotaLedger",
+          "name": "VoiceQuotaLedger_sessionId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "PaipanReportKnowledge",
+          "name": "PaipanReportKnowledge_paipanType_status_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "PaipanReportKnowledge",
+          "name": "PaipanReportKnowledge_paipanType_school_status_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "PaipanReportKnowledge",
+          "name": "PaipanReportKnowledge_topic_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AiUsageRecord",
+          "name": "AiUsageRecord_idempotencyKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AiUsageRecord",
+          "name": "AiUsageRecord_userId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AiUsageRecord",
+          "name": "AiUsageRecord_scene_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AiUsageRecord",
+          "name": "AiUsageRecord_provider_model_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AiUsageRecord",
+          "name": "AiUsageRecord_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AiUsageRecord",
+          "name": "AiUsageRecord_relatedType_relatedId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ClassicAnnotation",
+          "name": "ClassicAnnotation_segmentId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ClassicReadingNote",
+          "name": "ClassicReadingNote_segmentId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_commerce_order_types",
+          "kind": "enumValue",
+          "type": "OrderType",
+          "value": "XIAOBU_REPORT",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_commerce_order_types",
+          "kind": "enumValue",
+          "type": "OrderType",
+          "value": "XIAOBU_MEMBER",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_01_knowledge_debate",
+          "kind": "column",
+          "table": "PaipanReportKnowledge",
+          "column": "debateKey",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_01_knowledge_debate",
+          "kind": "column",
+          "table": "PaipanReportKnowledge",
+          "column": "stance",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_01_knowledge_debate",
+          "kind": "index",
+          "table": "PaipanReportKnowledge",
+          "name": "PaipanReportKnowledge_debateKey_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_01_knowledge_debate",
+          "kind": "index",
+          "table": "PaipanReportKnowledge",
+          "name": "PaipanReportKnowledge_paipanType_stance_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_02_knowledge_source",
+          "kind": "column",
+          "table": "PaipanReportKnowledge",
+          "column": "sourceKind",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_02_knowledge_source",
+          "kind": "column",
+          "table": "PaipanReportKnowledge",
+          "column": "sourceRefs",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_02_knowledge_source",
+          "kind": "column",
+          "table": "PaipanReportKnowledge",
+          "column": "restated",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_02_knowledge_source",
+          "kind": "column",
+          "table": "PaipanReportKnowledge",
+          "column": "quotable",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_02_knowledge_source",
+          "kind": "index",
+          "table": "PaipanReportKnowledge",
+          "name": "PaipanReportKnowledge_sourceKind_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_03_owner_services",
+          "kind": "column",
+          "table": "VoiceAgentProfile",
+          "column": "ownerServices",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "table",
+          "table": "VoiceProviderAttempt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "table",
+          "table": "VoiceUsageEvent",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "table",
+          "table": "VoiceDevice",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "table",
+          "table": "VoiceDeviceBinding",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "table",
+          "table": "VoiceDeviceTransfer",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "table",
+          "table": "AudioListenProgress",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "provider",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "providerIsMock",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "agentId",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "requestId",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "startIdempotencyKey",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "usageState",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "technicalOutcome",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "answerCompleteness",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "userSatisfaction",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "contextVersion",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "contextDigest",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "deviceId",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "deviceBindingVersion",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "clientEstimatedSeconds",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "issuedAt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "lastEventAt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "TextDerivedAsset",
+          "column": "reviewStatus",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "TextDerivedAsset",
+          "column": "reviewedBy",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "TextDerivedAsset",
+          "column": "reviewedAt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_requestId_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_startIdempotencyKey_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_provider_providerSessionId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_deviceId_deviceBindingVersion_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceProviderAttempt",
+          "name": "VoiceProviderAttempt_idempotencyKey_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceProviderAttempt",
+          "name": "VoiceProviderAttempt_sessionId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceProviderAttempt",
+          "name": "VoiceProviderAttempt_provider_createdAt_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceUsageEvent",
+          "name": "VoiceUsageEvent_provider_eventId_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceUsageEvent",
+          "name": "VoiceUsageEvent_sessionId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDevice",
+          "name": "VoiceDevice_serialHash_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDevice",
+          "name": "VoiceDevice_bindCodeHash_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDevice",
+          "name": "VoiceDevice_currentUserId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDevice",
+          "name": "VoiceDevice_circleId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDevice",
+          "name": "VoiceDevice_status_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDeviceBinding",
+          "name": "VoiceDeviceBinding_deviceId_bindingVersion_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDeviceBinding",
+          "name": "VoiceDeviceBinding_userId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDeviceTransfer",
+          "name": "VoiceDeviceTransfer_tokenHash_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDeviceTransfer",
+          "name": "VoiceDeviceTransfer_deviceId_status_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "AudioListenProgress",
+          "name": "AudioListenProgress_userId_chapterId_textType_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "AudioListenProgress",
+          "name": "AudioListenProgress_userId_bookId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_05_voice_device_terminal_identity",
+          "kind": "column",
+          "table": "VoiceDevice",
+          "column": "terminalIdHash",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_05_voice_device_terminal_identity",
+          "kind": "column",
+          "table": "VoiceDevice",
+          "column": "terminalPinnedAt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_05_voice_device_terminal_identity",
+          "kind": "column",
+          "table": "VoiceDevice",
+          "column": "terminalPinSource",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_06_voice_firmware_release",
+          "kind": "table",
+          "table": "VoiceFirmwareRelease",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_06_voice_firmware_release",
+          "kind": "table",
+          "table": "VoiceFirmwareDeviceState",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_06_voice_firmware_release",
+          "kind": "index",
+          "table": "VoiceFirmwareRelease",
+          "name": "VoiceFirmwareRelease_boardName_status_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_06_voice_firmware_release",
+          "kind": "index",
+          "table": "VoiceFirmwareRelease",
+          "name": "VoiceFirmwareRelease_boardName_version_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_06_voice_firmware_release",
+          "kind": "index",
+          "table": "VoiceFirmwareDeviceState",
+          "name": "VoiceFirmwareDeviceState_deviceId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_06_voice_firmware_release",
+          "kind": "index",
+          "table": "VoiceFirmwareDeviceState",
+          "name": "VoiceFirmwareDeviceState_releaseId_deviceId_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_07_voice_session_idle",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "lastInputAt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_08_voice_trial_usage",
+          "kind": "table",
+          "table": "VoiceTrialUsage",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_08_voice_trial_usage",
+          "kind": "index",
+          "table": "VoiceTrialUsage",
+          "name": "VoiceTrialUsage_userId_agentId_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_08_voice_trial_usage",
+          "kind": "index",
+          "table": "VoiceTrialUsage",
+          "name": "VoiceTrialUsage_userId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_09_bot_quota_reservation",
+          "kind": "table",
+          "table": "BotQuotaReservation",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_09_bot_quota_reservation",
+          "kind": "index",
+          "table": "BotQuotaReservation",
+          "name": "BotQuotaReservation_status_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_09_bot_quota_reservation",
+          "kind": "index",
+          "table": "BotQuotaReservation",
+          "name": "BotQuotaReservation_userId_botConfigId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_10_bot_quota_purchase_idempotency",
+          "kind": "table",
+          "table": "BotQuotaPurchase",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_10_bot_quota_purchase_idempotency",
+          "kind": "index",
+          "table": "BotQuotaPurchase",
+          "name": "BotQuotaPurchase_userId_botConfigId_requestId_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_10_bot_quota_purchase_idempotency",
+          "kind": "index",
+          "table": "BotQuotaPurchase",
+          "name": "BotQuotaPurchase_userId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_11_notification_idempotency_key",
+          "kind": "column",
+          "table": "Notification",
+          "column": "idempotencyKey",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_11_notification_idempotency_key",
+          "kind": "index",
+          "table": "Notification",
+          "name": "Notification_idempotencyKey_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_01_circle_post_reward_notice",
+          "kind": "table",
+          "table": "CirclePostRewardNotice",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_01_circle_post_reward_notice",
+          "kind": "index",
+          "table": "CirclePostRewardNotice",
+          "name": "CirclePostRewardNotice_createdAt_debitId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_02_circle_membership_expiry_notice",
+          "kind": "table",
+          "table": "CircleMembershipExpiryNotice",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_02_circle_membership_expiry_notice",
+          "kind": "index",
+          "table": "CircleMembershipExpiryNotice",
+          "name": "CircleMembershipExpiryNotice_removedAt_memberId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_02_circle_membership_expiry_notice",
+          "kind": "index",
+          "table": "CircleMembershipExpiryNotice",
+          "name": "CircleMembershipExpiryNotice_cache_pending_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_03_circle_governance_notice",
+          "kind": "table",
+          "table": "CircleGovernanceNotice",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_03_circle_governance_notice",
+          "kind": "index",
+          "table": "CircleGovernanceNotice",
+          "name": "CircleGovernanceNotice_eventKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_03_circle_governance_notice",
+          "kind": "index",
+          "table": "CircleGovernanceNotice",
+          "name": "CircleGovernanceNotice_occurredAt_id_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_04_circle_membership_cache",
+          "kind": "table",
+          "table": "CircleMembershipCacheInvalidation",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_04_circle_membership_cache",
+          "kind": "index",
+          "table": "CircleMembershipCacheInvalidation",
+          "name": "CircleMembershipCacheInvalidation_pending_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_05_member_monthly_benefit_notice",
+          "kind": "table",
+          "table": "MemberMonthlyBenefitNotice",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_05_member_monthly_benefit_notice",
+          "kind": "index",
+          "table": "MemberMonthlyBenefitNotice",
+          "name": "MemberMonthlyBenefitNotice_userId_source_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_05_member_monthly_benefit_notice",
+          "kind": "index",
+          "table": "MemberMonthlyBenefitNotice",
+          "name": "MemberMonthlyBenefitNotice_couponRecordId_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_05_member_monthly_benefit_notice",
+          "kind": "index",
+          "table": "MemberMonthlyBenefitNotice",
+          "name": "MemberMonthlyBenefitNotice_createdAt_id_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_06_free_course_enrollment_notice",
+          "kind": "table",
+          "table": "FreeCourseEnrollmentNotice",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_06_free_course_enrollment_notice",
+          "kind": "index",
+          "table": "FreeCourseEnrollmentNotice",
+          "name": "FreeCourseEnrollmentNotice_createdAt_id_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_07_circle_post_reward_notice_snapshot",
+          "kind": "column",
+          "table": "CirclePostRewardNotice",
+          "column": "sourceVersion",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_07_circle_post_reward_notice_snapshot",
+          "kind": "column",
+          "table": "CirclePostRewardNotice",
+          "column": "sourcePostId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_07_circle_post_reward_notice_snapshot",
+          "kind": "column",
+          "table": "CirclePostRewardNotice",
+          "column": "sourceCircleId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_07_circle_post_reward_notice_snapshot",
+          "kind": "column",
+          "table": "CirclePostRewardNotice",
+          "column": "sourceRecipientId",
+          "ifNotExists": false,
+          "present": false
+        }
+      ],
+      "versionDuplicates": {
+        "checked": true,
+        "duplicateGroups": 0,
+        "scope": "候选迁移把既有行统一归rebu/legacy，新唯一索引按平台/版本/构建号且NULLS NOT DISTINCT；只输出重复组计数"
+      }
+    },
+    {
+      "node": "guoxue1",
+      "instanceId": "ins-n0sqc627",
+      "taskId": "invt-c9eiceghs5",
+      "checkedAt": "2026-10-03T05:33:17Z",
+      "image": "sha256:e47d5a8c92151d28cd493ea269a066e32038ea3560855a67b15afc26d43d0eb7",
+      "sourceRawSha256": "e6bdab2b4439ef42f99f9bfa9ee098d734a7fe730b21763023e0d2f0d5082f2e",
+      "transactionReadOnly": true,
+      "objects": [
+        {
+          "migration": "20260918120000_add_circle_revenue_order_idempotency",
+          "kind": "column",
+          "table": "CircleRevenueRecord",
+          "column": "orderId",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260918120000_add_circle_revenue_order_idempotency",
+          "kind": "index",
+          "table": "CircleRevenueRecord",
+          "name": "CircleRevenueRecord_type_orderId_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260918120000_add_circle_revenue_order_idempotency",
+          "kind": "index",
+          "table": "CircleRevenueRecord",
+          "name": "CircleRevenueRecord_orderId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260919090000_add_commission_recall_reason",
+          "kind": "column",
+          "table": "CommissionRecall",
+          "column": "reason",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260919090000_add_commission_recall_reason",
+          "kind": "column",
+          "table": "CommissionRecall",
+          "column": "sourceId",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260919090000_add_commission_recall_reason",
+          "kind": "index",
+          "table": "CommissionRecall",
+          "name": "CommissionRecall_status_createdAt_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260920090000_add_commission_recall_resolution",
+          "kind": "column",
+          "table": "CommissionRecall",
+          "column": "resolvedAt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260920090000_add_commission_recall_resolution",
+          "kind": "column",
+          "table": "CommissionRecall",
+          "column": "resolvedBy",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260920090000_add_commission_recall_resolution",
+          "kind": "column",
+          "table": "CommissionRecall",
+          "column": "resolutionNote",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260920090000_add_commission_recall_resolution",
+          "kind": "column",
+          "table": "CommissionRecall",
+          "column": "resolvedRevenueId",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "20260923010000_add_public_content_catalog",
+          "kind": "table",
+          "table": "ContentCatalog",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923010000_add_public_content_catalog",
+          "kind": "index",
+          "table": "ContentCatalog",
+          "name": "ContentCatalog_stationId_sourceType_active_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923010000_add_public_content_catalog",
+          "kind": "index",
+          "table": "ContentCatalog",
+          "name": "ContentCatalog_circleId_sourceType_active_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923010000_add_public_content_catalog",
+          "kind": "index",
+          "table": "ContentCatalog",
+          "name": "ContentCatalog_sourceType_indexedAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "table",
+          "table": "CircleKnowledgeShowcaseNode",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "table",
+          "table": "CircleKnowledgeShowcaseEdge",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "index",
+          "table": "CircleKnowledgeShowcaseNode",
+          "name": "CircleKnowledgeShowcaseNode_circleId_status_displayOrder_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "index",
+          "table": "CircleKnowledgeShowcaseNode",
+          "name": "CircleKnowledgeShowcaseNode_sourceKnowledgeId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "index",
+          "table": "CircleKnowledgeShowcaseEdge",
+          "name": "CircleKnowledgeShowcaseEdge_circleId_status_displayOrder_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "index",
+          "table": "CircleKnowledgeShowcaseEdge",
+          "name": "CircleKnowledgeShowcaseEdge_fromId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260923120000_circle_knowledge_showcase",
+          "kind": "index",
+          "table": "CircleKnowledgeShowcaseEdge",
+          "name": "CircleKnowledgeShowcaseEdge_toId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "table",
+          "table": "ImFallbackMessage",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "table",
+          "table": "ImFallbackConversationPreference",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "column",
+          "table": "BrandConfig",
+          "column": "serviceWechatQrUrl",
+          "ifNotExists": true,
+          "present": true
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "index",
+          "table": "ImFallbackMessage",
+          "name": "ImFallbackMessage_fromUserId_toUserId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "index",
+          "table": "ImFallbackMessage",
+          "name": "ImFallbackMessage_toUserId_fromUserId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "index",
+          "table": "ImFallbackMessage",
+          "name": "ImFallbackMessage_toUserId_readAt_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260928183000_add_im_fallback",
+          "kind": "index",
+          "table": "ImFallbackConversationPreference",
+          "name": "ImFallbackConversationPreference_userId_isPinned_updatedAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "table",
+          "table": "AppDistribution",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "table",
+          "table": "ResourceRelease",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "AppVersion",
+          "column": "applicationId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "AppVersion",
+          "column": "channelId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "AppVersion",
+          "column": "rolloutPercentage",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "AppVersion",
+          "column": "targetUserIds",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "FeatureFlag",
+          "column": "operationState",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "FeatureFlag",
+          "column": "emergencyDisabled",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "column",
+          "table": "FeatureFlag",
+          "column": "scopeRules",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "AppVersion",
+          "name": "AppVersion_applicationId_platform_channelId_status_publishe_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "AppVersion",
+          "name": "AppVersion_applicationId_platform_channelId_version_buildNu_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "AppDistribution",
+          "name": "AppDistribution_clientKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "AppDistribution",
+          "name": "AppDistribution_applicationId_platform_channelId_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "ResourceRelease",
+          "name": "ResourceRelease_activeScopeKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "ResourceRelease",
+          "name": "ResourceRelease_applicationId_platform_channelId_resourceVe_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20260930090000_app_distribution_and_operations",
+          "kind": "index",
+          "table": "ResourceRelease",
+          "name": "ResourceRelease_applicationId_platform_channelId_status_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20261002100008_order_business_notification_facts",
+          "kind": "table",
+          "table": "OrderBusinessNotice",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "20261002100008_order_business_notification_facts",
+          "kind": "index",
+          "table": "OrderBusinessNotice",
+          "name": "OrderBusinessNotice_createdAt_eventKey_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_couple_scene",
+          "kind": "column",
+          "table": "CoupleChart",
+          "column": "scene",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_add_couple_scene",
+          "kind": "index",
+          "table": "CoupleChart",
+          "name": "CoupleChart_scene_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_add_order_client_request_id",
+          "kind": "column",
+          "table": "Order",
+          "column": "clientRequestId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_order_client_request_id",
+          "kind": "column",
+          "table": "Order",
+          "column": "requestFingerprint",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_order_client_request_id",
+          "kind": "index",
+          "table": "Order",
+          "name": "Order_userId_clientRequestId_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_paipan_case_feedback",
+          "kind": "table",
+          "table": "PaipanCaseFeedback",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_paipan_case_feedback",
+          "kind": "index",
+          "table": "PaipanCaseFeedback",
+          "name": "PaipanCaseFeedback_paipanType_status_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_paipan_case_feedback",
+          "kind": "index",
+          "table": "PaipanCaseFeedback",
+          "name": "PaipanCaseFeedback_paipanType_verdict_outcomeAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_paipan_case_feedback",
+          "kind": "index",
+          "table": "PaipanCaseFeedback",
+          "name": "PaipanCaseFeedback_paipanRecordId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_paipan_case_feedback",
+          "kind": "index",
+          "table": "PaipanCaseFeedback",
+          "name": "PaipanCaseFeedback_userId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_paipan_case_feedback",
+          "kind": "index",
+          "table": "PaipanCaseFeedback",
+          "name": "PaipanCaseFeedback_status_outcomeAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_user_preferred_name",
+          "kind": "table",
+          "table": "UserPreferredName",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_add_voice_minutes_order_type",
+          "kind": "enumValue",
+          "type": "OrderType",
+          "value": "VOICE_MINUTES",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "ClassicSegment",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "TextDerivedAsset",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "AudioAsset",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "ReportDialogueTurn",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "VoiceAgentProfile",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "VoiceAgentProfileVersion",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "VoiceQuotaAccount",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "VoiceSession",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "VoiceQuotaLedger",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "PaipanReportKnowledge",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "table",
+          "table": "AiUsageRecord",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "column",
+          "table": "ClassicAnnotation",
+          "column": "segmentId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "column",
+          "table": "ClassicReadingNote",
+          "column": "segmentId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ClassicSegment",
+          "name": "ClassicSegment_chapterId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ClassicSegment",
+          "name": "ClassicSegment_contentHash_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ClassicSegment",
+          "name": "ClassicSegment_chapterId_versionTag_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ClassicSegment",
+          "name": "ClassicSegment_chapterId_sortOrder_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "TextDerivedAsset",
+          "name": "TextDerivedAsset_assetKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "TextDerivedAsset",
+          "name": "TextDerivedAsset_sourceType_sourceId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "TextDerivedAsset",
+          "name": "TextDerivedAsset_contentHash_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "TextDerivedAsset",
+          "name": "TextDerivedAsset_resultHash_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "TextDerivedAsset",
+          "name": "TextDerivedAsset_processingStatus_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "TextDerivedAsset",
+          "name": "TextDerivedAsset_qualityVersion_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_assetKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_sourceType_sourceId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_textVersion_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_storageKey_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_synthesisStatus_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_isPlayable_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AudioAsset",
+          "name": "AudioAsset_ttsProvider_voiceId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ReportDialogueTurn",
+          "name": "ReportDialogueTurn_reportId_userId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ReportDialogueTurn",
+          "name": "ReportDialogueTurn_userId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceAgentProfile",
+          "name": "VoiceAgentProfile_status_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceAgentProfile",
+          "name": "VoiceAgentProfile_ownerType_ownerId_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceAgentProfileVersion",
+          "name": "VoiceAgentProfileVersion_profileId_version_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceQuotaAccount",
+          "name": "VoiceQuotaAccount_ownerType_ownerId_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_userId_startedAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_accountId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_status_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceQuotaLedger",
+          "name": "VoiceQuotaLedger_idempotencyKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceQuotaLedger",
+          "name": "VoiceQuotaLedger_accountId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "VoiceQuotaLedger",
+          "name": "VoiceQuotaLedger_sessionId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "PaipanReportKnowledge",
+          "name": "PaipanReportKnowledge_paipanType_status_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "PaipanReportKnowledge",
+          "name": "PaipanReportKnowledge_paipanType_school_status_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "PaipanReportKnowledge",
+          "name": "PaipanReportKnowledge_topic_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AiUsageRecord",
+          "name": "AiUsageRecord_idempotencyKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AiUsageRecord",
+          "name": "AiUsageRecord_userId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AiUsageRecord",
+          "name": "AiUsageRecord_scene_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AiUsageRecord",
+          "name": "AiUsageRecord_provider_model_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AiUsageRecord",
+          "name": "AiUsageRecord_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "AiUsageRecord",
+          "name": "AiUsageRecord_relatedType_relatedId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ClassicAnnotation",
+          "name": "ClassicAnnotation_segmentId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_ai_assets",
+          "kind": "index",
+          "table": "ClassicReadingNote",
+          "name": "ClassicReadingNote_segmentId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_commerce_order_types",
+          "kind": "enumValue",
+          "type": "OrderType",
+          "value": "XIAOBU_REPORT",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_add_xiaobu_commerce_order_types",
+          "kind": "enumValue",
+          "type": "OrderType",
+          "value": "XIAOBU_MEMBER",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_01_knowledge_debate",
+          "kind": "column",
+          "table": "PaipanReportKnowledge",
+          "column": "debateKey",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_01_knowledge_debate",
+          "kind": "column",
+          "table": "PaipanReportKnowledge",
+          "column": "stance",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_01_knowledge_debate",
+          "kind": "index",
+          "table": "PaipanReportKnowledge",
+          "name": "PaipanReportKnowledge_debateKey_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_01_knowledge_debate",
+          "kind": "index",
+          "table": "PaipanReportKnowledge",
+          "name": "PaipanReportKnowledge_paipanType_stance_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_02_knowledge_source",
+          "kind": "column",
+          "table": "PaipanReportKnowledge",
+          "column": "sourceKind",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_02_knowledge_source",
+          "kind": "column",
+          "table": "PaipanReportKnowledge",
+          "column": "sourceRefs",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_02_knowledge_source",
+          "kind": "column",
+          "table": "PaipanReportKnowledge",
+          "column": "restated",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_02_knowledge_source",
+          "kind": "column",
+          "table": "PaipanReportKnowledge",
+          "column": "quotable",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_02_knowledge_source",
+          "kind": "index",
+          "table": "PaipanReportKnowledge",
+          "name": "PaipanReportKnowledge_sourceKind_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_03_owner_services",
+          "kind": "column",
+          "table": "VoiceAgentProfile",
+          "column": "ownerServices",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "table",
+          "table": "VoiceProviderAttempt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "table",
+          "table": "VoiceUsageEvent",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "table",
+          "table": "VoiceDevice",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "table",
+          "table": "VoiceDeviceBinding",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "table",
+          "table": "VoiceDeviceTransfer",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "table",
+          "table": "AudioListenProgress",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "provider",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "providerIsMock",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "agentId",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "requestId",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "startIdempotencyKey",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "usageState",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "technicalOutcome",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "answerCompleteness",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "userSatisfaction",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "contextVersion",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "contextDigest",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "deviceId",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "deviceBindingVersion",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "clientEstimatedSeconds",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "issuedAt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "lastEventAt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "TextDerivedAsset",
+          "column": "reviewStatus",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "TextDerivedAsset",
+          "column": "reviewedBy",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "column",
+          "table": "TextDerivedAsset",
+          "column": "reviewedAt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_requestId_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_startIdempotencyKey_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_provider_providerSessionId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceSession",
+          "name": "VoiceSession_deviceId_deviceBindingVersion_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceProviderAttempt",
+          "name": "VoiceProviderAttempt_idempotencyKey_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceProviderAttempt",
+          "name": "VoiceProviderAttempt_sessionId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceProviderAttempt",
+          "name": "VoiceProviderAttempt_provider_createdAt_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceUsageEvent",
+          "name": "VoiceUsageEvent_provider_eventId_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceUsageEvent",
+          "name": "VoiceUsageEvent_sessionId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDevice",
+          "name": "VoiceDevice_serialHash_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDevice",
+          "name": "VoiceDevice_bindCodeHash_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDevice",
+          "name": "VoiceDevice_currentUserId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDevice",
+          "name": "VoiceDevice_circleId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDevice",
+          "name": "VoiceDevice_status_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDeviceBinding",
+          "name": "VoiceDeviceBinding_deviceId_bindingVersion_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDeviceBinding",
+          "name": "VoiceDeviceBinding_userId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDeviceTransfer",
+          "name": "VoiceDeviceTransfer_tokenHash_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "VoiceDeviceTransfer",
+          "name": "VoiceDeviceTransfer_deviceId_status_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "AudioListenProgress",
+          "name": "AudioListenProgress_userId_chapterId_textType_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_04_voice_provider_boundary",
+          "kind": "index",
+          "table": "AudioListenProgress",
+          "name": "AudioListenProgress_userId_bookId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_05_voice_device_terminal_identity",
+          "kind": "column",
+          "table": "VoiceDevice",
+          "column": "terminalIdHash",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_05_voice_device_terminal_identity",
+          "kind": "column",
+          "table": "VoiceDevice",
+          "column": "terminalPinnedAt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_05_voice_device_terminal_identity",
+          "kind": "column",
+          "table": "VoiceDevice",
+          "column": "terminalPinSource",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_06_voice_firmware_release",
+          "kind": "table",
+          "table": "VoiceFirmwareRelease",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_06_voice_firmware_release",
+          "kind": "table",
+          "table": "VoiceFirmwareDeviceState",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_06_voice_firmware_release",
+          "kind": "index",
+          "table": "VoiceFirmwareRelease",
+          "name": "VoiceFirmwareRelease_boardName_status_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_06_voice_firmware_release",
+          "kind": "index",
+          "table": "VoiceFirmwareRelease",
+          "name": "VoiceFirmwareRelease_boardName_version_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_06_voice_firmware_release",
+          "kind": "index",
+          "table": "VoiceFirmwareDeviceState",
+          "name": "VoiceFirmwareDeviceState_deviceId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_06_voice_firmware_release",
+          "kind": "index",
+          "table": "VoiceFirmwareDeviceState",
+          "name": "VoiceFirmwareDeviceState_releaseId_deviceId_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_07_voice_session_idle",
+          "kind": "column",
+          "table": "VoiceSession",
+          "column": "lastInputAt",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_08_voice_trial_usage",
+          "kind": "table",
+          "table": "VoiceTrialUsage",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_08_voice_trial_usage",
+          "kind": "index",
+          "table": "VoiceTrialUsage",
+          "name": "VoiceTrialUsage_userId_agentId_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_08_voice_trial_usage",
+          "kind": "index",
+          "table": "VoiceTrialUsage",
+          "name": "VoiceTrialUsage_userId_idx",
+          "unique": false,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_09_bot_quota_reservation",
+          "kind": "table",
+          "table": "BotQuotaReservation",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_09_bot_quota_reservation",
+          "kind": "index",
+          "table": "BotQuotaReservation",
+          "name": "BotQuotaReservation_status_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_09_bot_quota_reservation",
+          "kind": "index",
+          "table": "BotQuotaReservation",
+          "name": "BotQuotaReservation_userId_botConfigId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_10_bot_quota_purchase_idempotency",
+          "kind": "table",
+          "table": "BotQuotaPurchase",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_10_bot_quota_purchase_idempotency",
+          "kind": "index",
+          "table": "BotQuotaPurchase",
+          "name": "BotQuotaPurchase_userId_botConfigId_requestId_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_10_bot_quota_purchase_idempotency",
+          "kind": "index",
+          "table": "BotQuotaPurchase",
+          "name": "BotQuotaPurchase_userId_createdAt_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_11_notification_idempotency_key",
+          "kind": "column",
+          "table": "Notification",
+          "column": "idempotencyKey",
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20260926_11_notification_idempotency_key",
+          "kind": "index",
+          "table": "Notification",
+          "name": "Notification_idempotencyKey_key",
+          "unique": true,
+          "ifNotExists": true,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_01_circle_post_reward_notice",
+          "kind": "table",
+          "table": "CirclePostRewardNotice",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_01_circle_post_reward_notice",
+          "kind": "index",
+          "table": "CirclePostRewardNotice",
+          "name": "CirclePostRewardNotice_createdAt_debitId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_02_circle_membership_expiry_notice",
+          "kind": "table",
+          "table": "CircleMembershipExpiryNotice",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_02_circle_membership_expiry_notice",
+          "kind": "index",
+          "table": "CircleMembershipExpiryNotice",
+          "name": "CircleMembershipExpiryNotice_removedAt_memberId_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_02_circle_membership_expiry_notice",
+          "kind": "index",
+          "table": "CircleMembershipExpiryNotice",
+          "name": "CircleMembershipExpiryNotice_cache_pending_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_03_circle_governance_notice",
+          "kind": "table",
+          "table": "CircleGovernanceNotice",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_03_circle_governance_notice",
+          "kind": "index",
+          "table": "CircleGovernanceNotice",
+          "name": "CircleGovernanceNotice_eventKey_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_03_circle_governance_notice",
+          "kind": "index",
+          "table": "CircleGovernanceNotice",
+          "name": "CircleGovernanceNotice_occurredAt_id_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_04_circle_membership_cache",
+          "kind": "table",
+          "table": "CircleMembershipCacheInvalidation",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_04_circle_membership_cache",
+          "kind": "index",
+          "table": "CircleMembershipCacheInvalidation",
+          "name": "CircleMembershipCacheInvalidation_pending_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_05_member_monthly_benefit_notice",
+          "kind": "table",
+          "table": "MemberMonthlyBenefitNotice",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_05_member_monthly_benefit_notice",
+          "kind": "index",
+          "table": "MemberMonthlyBenefitNotice",
+          "name": "MemberMonthlyBenefitNotice_userId_source_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_05_member_monthly_benefit_notice",
+          "kind": "index",
+          "table": "MemberMonthlyBenefitNotice",
+          "name": "MemberMonthlyBenefitNotice_couponRecordId_key",
+          "unique": true,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_05_member_monthly_benefit_notice",
+          "kind": "index",
+          "table": "MemberMonthlyBenefitNotice",
+          "name": "MemberMonthlyBenefitNotice_createdAt_id_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_06_free_course_enrollment_notice",
+          "kind": "table",
+          "table": "FreeCourseEnrollmentNotice",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_06_free_course_enrollment_notice",
+          "kind": "index",
+          "table": "FreeCourseEnrollmentNotice",
+          "name": "FreeCourseEnrollmentNotice_createdAt_id_idx",
+          "unique": false,
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_07_circle_post_reward_notice_snapshot",
+          "kind": "column",
+          "table": "CirclePostRewardNotice",
+          "column": "sourceVersion",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_07_circle_post_reward_notice_snapshot",
+          "kind": "column",
+          "table": "CirclePostRewardNotice",
+          "column": "sourcePostId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_07_circle_post_reward_notice_snapshot",
+          "kind": "column",
+          "table": "CirclePostRewardNotice",
+          "column": "sourceCircleId",
+          "ifNotExists": false,
+          "present": false
+        },
+        {
+          "migration": "manual_z_20261002_07_circle_post_reward_notice_snapshot",
+          "kind": "column",
+          "table": "CirclePostRewardNotice",
+          "column": "sourceRecipientId",
+          "ifNotExists": false,
+          "present": false
+        }
+      ],
+      "versionDuplicates": {
+        "checked": true,
+        "duplicateGroups": 0,
+        "scope": "候选迁移把既有行统一归rebu/legacy，新唯一索引按平台/版本/构建号且NULLS NOT DISTINCT；只输出重复组计数"
+      }
+    }
+  ],
+  "allRequiredDataPreconditionsChecked": false,
+  "fullSchemaDriftChecked": false,
+  "columnTypeOrDefaultEquivalenceProven": false,
+  "upgradeRehearsal103to136": false,
+  "productionDdl": false,
+  "productionDataChanged": false,
+  "releaseReady": false,
+  "scope": "33份候选SQL中明确提取的表/新增列/命名索引/枚举声明存在性及应用版本唯一索引一项重复组预检；不是完整SQL解析/定义等价/全部数据前提或迁移演练"
+}

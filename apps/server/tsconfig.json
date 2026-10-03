@@ -25,6 +25,11 @@
     "paths": {
       "@/*": [
         "src/*"
+      ],
+      // 排盘算法真源走 shared 的子路径导出。tsconfig 的 moduleResolution 是 node10，
+      // 不认 package.json 的 exports 字段，所以这里显式映射（指向 dist，与运行时 require 解析一致）。
+      "@guoxue/shared/paipan": [
+        "../../packages/shared/dist/paipan/index.d.ts"
       ]
     },
     "noImplicitAny": false,

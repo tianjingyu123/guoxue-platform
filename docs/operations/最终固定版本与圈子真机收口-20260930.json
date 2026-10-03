@@ -1,0 +1,360 @@
+{
+  "recordedAtUtc": "2026-09-30T21:03:40.414068+00:00",
+  "businessSource": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+  "sourceIdentity": {
+    "prNumber": 1,
+    "prState": "open",
+    "defaultHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "merged": false,
+    "prBase": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "repository": "tianjingyu123/guoxue-platform",
+    "readAtUtc": "2026-09-30T20:57:54.8268762Z",
+    "prHead": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+    "defaultBranch": "master",
+    "prDraft": true
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-09-30T20:50:04.629Z",
+    "archive": "gx-deploy-91-launch-20260930-43de59ac.tar.gz",
+    "sha256": "dfa73eb2b911f64e02595f19a468be0a339f2211052196feb93d10b779f29752",
+    "releaseId": "launch-20260930-43de59ac",
+    "commit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "expectedCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "fileCount": 4368,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "draftAsset": {
+    "draft": true,
+    "archiveSha256": "dfa73eb2b911f64e02595f19a468be0a339f2211052196feb93d10b779f29752",
+    "size": 15593572,
+    "assetId": 601777796,
+    "assetName": "gx-deploy-91-launch-20260930-43de59ac.tar.gz",
+    "releaseId": 400058667,
+    "digest": "sha256:dfa73eb2b911f64e02595f19a468be0a339f2211052196feb93d10b779f29752",
+    "sourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2"
+  },
+  "clientVerification": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-09-30T20:49:55.907Z",
+    "releaseId": "launch-20260930-43de59ac",
+    "sourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "auditFile": "artifacts/release-audit-20260927/client-artifacts-43de59ac.json",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5409,
+      "bytes": 53717305,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 503,
+        "bytes": 6449115,
+        "contentSha256": "2c6b870e22cc54bca52ad145247ea5ef829908ecaf1b5d7f8beb2ad5561281d7",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1178,
+        "bytes": 11064957,
+        "contentSha256": "aa67b5a521f76267b3e96be8dbc8e5acf7bad8bb67f2620bf967ac7d79eeb165",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2749,
+        "bytes": 11043224,
+        "contentSha256": "cfee3362768ea9c9a4a128921420b3e3966c6494adc2f9abb67f7b19128246d7",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 489,
+        "bytes": 12730690,
+        "contentSha256": "2761600a1d9fee189a177adbc8856cf889b25928de7c4890c0a1926a47f9a555",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12429319,
+        "contentSha256": "3a91318b570976b76d7a29b7f7e2af4b65c6ac92dc8c58798bcd056a48dc74b1",
+        "matches": true
+      }
+    ],
+    "errors": []
+  },
+  "publicConfigBinding": {
+    "schemaVersion": 1,
+    "kind": "guoxue-client-public-config-binding",
+    "generatedAt": "2026-09-30T20:49:53.869Z",
+    "releaseId": "launch-20260930-43de59ac",
+    "sourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "keys": [
+      "VITE_API_URL",
+      "VITE_PUBLIC_H5_URL",
+      "VITE_PUBLIC_ASSET_ORIGIN"
+    ],
+    "fingerprintAlgorithm": "sha256",
+    "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b"
+  },
+  "ci": {
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "TypeScript 类型检查",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36774682934/job/110090091617"
+      },
+      {
+        "name": "ESLint + Prettier",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36774682934/job/110090092012"
+      },
+      {
+        "name": "迁移与上线代码门禁",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36774682934/job/110090092409"
+      },
+      {
+        "name": "单元测试 (2/3)",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36774682934/job/110090756092"
+      },
+      {
+        "name": "单元测试 (1/3)",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36774682934/job/110090756148"
+      },
+      {
+        "name": "单元测试 (3/3)",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36774682934/job/110090756164"
+      },
+      {
+        "name": "构建产物",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36774682934/job/110096221289"
+      },
+      {
+        "name": "测试结果汇总",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36774682934/job/110096221389"
+      }
+    ],
+    "head": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "runId": 36774682934,
+    "readAtUtc": "2026-09-30T21:03:31.4054849Z"
+  },
+  "miniPreview": {
+    "sourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "actualPreviewSourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "snapshot": {
+      "sourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+      "files": 2749,
+      "copiedBytes": 11043224,
+      "allHashesEqual": true,
+      "appid": "wx06397e8ab26bed9e",
+      "scope": "official-preview-not-upload-or-release"
+    },
+    "mainBytes": 1890595,
+    "mainRemainingBytes": 206557,
+    "largestSubpackage": {
+      "name": "/pkg-paipan/",
+      "size": 1950310
+    },
+    "largestRemainingBytes": 146842,
+    "subpackageCount": 33,
+    "totalBytes": 12573545,
+    "scope": "official-cli-preview-not-phone-upload-review-release",
+    "newSimulatorPageLoadAtCurrentSource": false,
+    "passed": true,
+    "priorSimulatorEvidenceSource": "1843d1b0e8a041bf82943ae4fcfb5160bf765ad2"
+  },
+  "phoneInstall": {
+    "sourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "scope": "existing-253-native-shell-current-js-not-final-cloud-native",
+    "appResourceFiles": 489,
+    "resourceHashesMatch": true,
+    "certificateMatches247": true,
+    "v1AndV2Verified": true,
+    "apkBytes": 30784914,
+    "apkSha256": "36d19d1db2e9a520edccbbb1133ab27a7432dc12b74ba1567763a82163af1cde",
+    "previousApkSha256": "f3aeb1f490b2263019136eda0983fa3b07090ab92358438a41af4e15a0228fdb",
+    "installedReadbackMatches": true,
+    "deviceCount": 1,
+    "deviceModel": "OnePlus 9R LE2100",
+    "dataCleared": false,
+    "uninstalled": false,
+    "cloudPackagingCalls": 0,
+    "realPaymentOperations": 0,
+    "realMessagesSent": 0
+  },
+  "circlePhone": {
+    "sourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "clientScope": "existing253-native-shell-current489-resources",
+    "backendScope": "existing-online-old-service-not-current-candidate-backend",
+    "screenshots": [
+      {
+        "file": "android-43de59ac-circle-create-checked.png",
+        "bytes": 245537,
+        "sha256": "235997484ff82f527d44ad505c16e2864c781abb853940ef1487a0f15d84f162",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-create-entry.png",
+        "bytes": 191789,
+        "sha256": "389b3ed0790144125c8b2cf44b03b0ad4767b1bb54711b1817142ccd3a9836c5",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-create-reopen-unchecked.png",
+        "bytes": 245512,
+        "sha256": "5460da0382445024d084d32574c8286a0cf406b194bfec86e6c7a67aad1604bb",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-create-reopen.png",
+        "bytes": 192105,
+        "sha256": "91705a43ca33cdcaea0684d4195a0dfd70ee0aba915f9bd7838146dabd469ca9",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-create-return.png",
+        "bytes": 241780,
+        "sha256": "15df84876c8f788ea2f08794cc90fe8ec34dc58d7c3429449045064d52425b32",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-create-unchecked-again.png",
+        "bytes": 245042,
+        "sha256": "0464cf72f64677a3a4b21679df1a074bf1a32513bdee047702c08a5a1eca14e6",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-create-unchecked.png",
+        "bytes": 245400,
+        "sha256": "8fd5be3564ce11ff3a227d19226369a52f2e0b47d21048cf28d8960f790e8cfa",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-start.png",
+        "bytes": 933144,
+        "sha256": "a3c9121de188f05ce7964b6bd2ffb5517381901c048b0e321d9de7ec4ef9bd7d",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-tab.png",
+        "bytes": 241584,
+        "sha256": "db0e1c795505bb555f9416e65810a7847085d5e7750f40b7834ebc0c848ba959",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-guard-circle-tab.png",
+        "bytes": 241801,
+        "sha256": "db16a3dc5eb57d734c0ed3884bb3fcca04ebd7b8423380cadf498f5652dcb0be",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-guard-create.png",
+        "bytes": 192038,
+        "sha256": "3259995d7b3ebaab81a0f0e2a738c2b5ab086723310247c41290cc789af19a8a",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-guard-home.png",
+        "bytes": 929764,
+        "sha256": "88b1ff06e74220d902fd982917c8bbd7de243862935e53f2ac00de2a2b4e94d6",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-guard-toast.png",
+        "bytes": 207080,
+        "sha256": "2cd9ca41f302d9f156236fa4a3b16438f6c2c8f7deefa74406fb1dc8952fb159",
+        "visuallyInspected": true
+      }
+    ],
+    "observedPaths": [
+      "home-to-circle-tab",
+      "create-form-open",
+      "scroll-solid-bottom-bar",
+      "agreement-initially-unchecked",
+      "tap-agreement-checked",
+      "tap-agreement-unchecked",
+      "system-back-to-circles",
+      "reopen-form-agreement-unchecked",
+      "empty-form-submit-unagreed-consent-toast"
+    ],
+    "defaultAgreementSelectedObserved": false,
+    "toggleOnObserved": true,
+    "toggleOffObserved": true,
+    "freshPageDefaultUnselectedObserved": true,
+    "submitGuardSourceReviewed": true,
+    "submitGuardRuntimeExercised": true,
+    "submittedCircles": 0,
+    "joinedCircles": 0,
+    "uploads": 0,
+    "realPayments": 0,
+    "realMessages": 0,
+    "normalCandidateBackendAcceptance": false,
+    "passed": true,
+    "emptyFormConsentToastObserved": true,
+    "networkRequestCountMeasured": false
+  },
+  "currentImageBinding": {
+    "zipBytes": 28554,
+    "verificationCommit": "525152248aae4985ae08128857e05257cd85fab1",
+    "runId": 36776045322,
+    "artifactId": 11125434342,
+    "digestMatched": true,
+    "conclusion": "success",
+    "readAtUtc": "2026-09-30T21:02:29.8668074Z",
+    "zipSha256": "ef904b6dfd030deae8a21be40ab85b85fad4dd1b5fb9e3b001445a8c2a08c18e"
+  },
+  "backendEquivalentActualSource": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
+  "backendComparedPaths": [
+    "apps/server",
+    "packages",
+    "package.json",
+    "pnpm-lock.yaml",
+    "docker",
+    "scripts/release"
+  ],
+  "backendEquivalent": true,
+  "rehearsalActualSource": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+  "schemaEquivalent": true,
+  "migrationCount": 24,
+  "migrationBytes": 46614,
+  "statuses": [
+    "代码候选完成",
+    "隔离验证完成（注明范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "productionDeployment": false,
+  "productionMigration": false,
+  "realPaymentOperations": 0,
+  "realNotifications": 0,
+  "miniReviewSubmitted": false,
+  "historicalEvidenceSource": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+  "latestCandidateSource": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+  "currentCandidateReuseScope": "unchanged-frontends-only-not-complete-backend-tree"
+}

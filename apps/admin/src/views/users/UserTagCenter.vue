@@ -95,8 +95,19 @@
         <el-col :span="14">
           <el-card shadow="never">
             <template #header>
-              <span v-if="activeTag">「{{ tagLabel(activeTag) }}」用户列表（圈人）</span>
-              <span v-else>用户列表</span>
+              <div class="user-card-header">
+                <span v-if="activeTag">「{{ tagLabel(activeTag) }}」用户列表（圈人·{{ usersTotal }}人）</span>
+                <span v-else>用户列表</span>
+                <!-- 标签 → 触达闭环：带 tag 参数跳分群推送 -->
+                <el-button
+                  v-if="activeTag"
+                  type="primary"
+                  size="small"
+                  @click="goPush"
+                >
+                  对该标签发推送
+                </el-button>
+              </div>
             </template>
 
             <el-empty
@@ -130,11 +141,27 @@
                   </template>
                 </el-table-column>
                 <el-table-column
-                  prop="userId"
                   label="用户ID"
-                  min-width="220"
-                  show-overflow-tooltip
-                />
+                  width="150"
+                >
+                  <template #default="{ row }">
+                    <el-tooltip
+                      :content="row.userId"
+                      placement="top"
+                    >
+                      <span class="uid-cell">
+                        <el-link
+                          type="primary"
+                          @click="goDetail(row.userId)"
+                        >{{ row.userId?.slice(0, 8) }}...</el-link>
+                        <el-icon
+                          class="copy-icon"
+                          @click.stop="copyId(row.userId)"
+                        ><CopyDocument /></el-icon>
+                      </span>
+                    </el-tooltip>
+                  </template>
+                </el-table-column>
                 <el-table-column
                   label="类型"
                   width="90"
@@ -179,9 +206,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { CopyDocument } from "@element-plus/icons-vue";
 import PageHeader from "@/components/PageHeader.vue";
 import { userTagApi } from "@/api";
+
+const router = useRouter();
 
 interface TagCount { tag: string; count: number }
 interface TagUser { userId: string; nickname?: string | null; type: string; updatedAt?: string }
@@ -296,7 +327,25 @@ async function recompute() {
 }
 
 function fmtTime(t?: string): string {
-  return t ? t.slice(0, 16).replace("T", " ") : "";
+  return t ? t.slice(0, 16).replace("T", " ") : "—";
+}
+
+function goDetail(userId?: string) {
+  if (!userId) return;
+  router.push(`/users/${userId}`);
+}
+
+function copyId(userId?: string) {
+  if (!userId) return;
+  navigator.clipboard?.writeText(userId)
+    .then(() => ElMessage.success("已复制"))
+    .catch(() => ElMessage.error("复制失败"));
+}
+
+/** 标签 → 触达闭环：带 tag 参数跳分群推送页（UserPush 读取 query.tag 预选） */
+function goPush() {
+  if (!activeTag.value) return;
+  router.push({ path: "/users/push", query: { tag: activeTag.value } });
 }
 </script>
 
@@ -307,4 +356,8 @@ function fmtTime(t?: string): string {
 .hint { color: var(--el-text-color-secondary); font-size: 12px; }
 .tag-clickable { cursor: pointer; }
 .pagination { margin-top: var(--spacing-lg); display: flex; justify-content: flex-end; }
+.user-card-header { display: flex; justify-content: space-between; align-items: center; }
+.uid-cell { display: inline-flex; align-items: center; gap: 4px; }
+.copy-icon { font-size: 13px; color: var(--el-text-color-secondary); cursor: pointer; }
+.copy-icon:hover { color: #C41E3A; }
 </style>

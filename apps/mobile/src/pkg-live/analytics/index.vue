@@ -260,7 +260,7 @@
             </view>
             <view class="prod-stat">
               <text class="prod-stat-label">成交</text>
-              <text class="prod-stat-value prod-stat-primary">¥{{ p.amount }}</text>
+              <text class="prod-stat-value prod-stat-primary">¥{{ formatPrice(p.amount) }}</text>
             </view>
             <view class="prod-stat">
               <text class="prod-stat-label">转化率</text>
@@ -288,7 +288,7 @@
             <text class="replay-label">平均时长</text>
           </view>
           <view class="replay-stat">
-            <text class="replay-num">¥{{ replay.revenue }}</text>
+            <text class="replay-num">¥{{ formatPrice(replay.revenue) }}</text>
             <text class="replay-label">回放收益</text>
           </view>
         </view>
@@ -360,6 +360,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { liveApi } from '@/lib/live-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')
@@ -472,7 +473,7 @@ onLoad((options) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16rpx 24rpx;
+  padding: calc(var(--status-bar-height) + 16rpx) 24rpx 16rpx;
   background: rgba(250, 248, 245, 0.95);
   border-bottom: 1px solid #ece8e1;
   gap: 16rpx;

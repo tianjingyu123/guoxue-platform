@@ -12,7 +12,95 @@
       <view class="watch-error__retry" @tap="retry"><text class="watch-error__retry-txt">重试</text></view>
     </view>
 
-    <!-- 正常内容 -->
+    <!-- ===== 预约态（WAITING·V0 状态B：封面压暗 + 倒计时 + 预约提醒）===== -->
+    <scroll-view v-else-if="isWaiting" scroll-y class="pre">
+      <view class="pre__cover-wrap">
+        <image v-if="room.cover" lazy-load class="pre__cover" :src="room.cover" mode="aspectFill" />
+        <view v-else class="pre__cover pre__cover--ph" />
+        <view class="pre__overlay">
+          <text class="pre__label">距开播还有</text>
+          <text class="pre__time">{{ countdownText }}</text>
+          <!-- 预约人数：真实值（0 或拉取失败不显示该行） -->
+          <text v-if="bookingCount > 0" class="pre__count">已有 {{ bookingCount }} 人预约</text>
+        </view>
+        <view class="state-back" :style="{ top: (safeTop + 10) + 'px', left: (safeLeft + 10) + 'px' }" @tap="onClose">
+          <AppIcon name="chevron-left" :size="30" color="#fff" />
+        </view>
+      </view>
+      <!-- 标题 + 开播时间 + 预约按钮 -->
+      <view class="pre__reserve">
+        <view class="pre__reserve-main">
+          <text class="pre__reserve-title">{{ room.title }}</text>
+          <text v-if="startTimeText" class="pre__reserve-sub">{{ startTimeText }} 开播</text>
+        </view>
+        <view class="pre__btn" :class="{ 'pre__btn--booked': booked }" @tap="onToggleBook">
+          <text class="pre__btn-txt" :class="{ 'pre__btn-txt--booked': booked }">{{ bookingSubmitting ? '提交中…' : booked ? '已预约' : '预约提醒' }}</text>
+        </view>
+      </view>
+      <!-- 付费场说明（移动端无直播购票支付接线 → 只如实展示票价，不做假支付按钮） -->
+      <view v-if="isPaidRoom" class="pre__ticket">
+        <text class="pre__ticket-txt">本场为付费直播 <text class="pre__ticket-price">¥{{ room.chargePrice }}</text></text>
+      </view>
+    </scroll-view>
+
+    <!-- ===== 回放态（ENDED/REPLAY·V0 状态C：封面 + 回放徽章 + 点播）===== -->
+    <scroll-view v-else-if="isReplayState" scroll-y class="rp">
+      <view class="rp__cover-wrap">
+        <!-- 点击播放后原地渲染点播 video（回放是点播，不走 live-player 直播内核） -->
+        <video
+          v-if="replayPlaying && room.replayUrl"
+          id="replay-video"
+          class="rp__video"
+          :src="room.replayUrl"
+          :controls="true"
+          autoplay
+          object-fit="contain"
+          @play="onReplayPlay"
+          @timeupdate="onReplayTimeUpdate"
+          @pause="onReplayPause"
+          @ended="onReplayEnded"
+        />
+        <template v-else>
+          <image v-if="room.cover" lazy-load class="rp__cover" :src="room.cover" mode="aspectFill" />
+          <view v-else class="rp__cover rp__cover--ph" />
+          <view class="rp__badge"><text class="rp__badge-txt">回放</text></view>
+          <view v-if="room.replayUrl" class="rp__play" @tap="replayPlaying = true">
+            <AppIcon name="play" :size="40" color="#ffffff" :fill="true" />
+          </view>
+        </template>
+        <view class="state-back" :style="{ top: (safeTop + 10) + 'px', left: (safeLeft + 10) + 'px' }" @tap="onClose">
+          <AppIcon name="chevron-left" :size="30" color="#fff" />
+        </view>
+      </view>
+      <view class="rp__info">
+        <text class="rp__title">{{ room.title }}</text>
+        <view class="rp__host-row">
+          <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="rp__host-avatar" />
+          <text class="rp__host-name">{{ room.hostName }}</text>
+        </view>
+        <!-- #21 回放章节点（主播标注·点击 seek·无标注不渲染） -->
+        <template v-if="room.replayUrl && room.replayChapters?.length">
+          <text class="rp__chapter-label">回放章节</text>
+          <view class="rp__chapter-list">
+            <view
+              v-for="(c, i) in room.replayChapters" :key="i"
+              class="rp__chapter-row" @tap="seekToChapter(c.t)"
+            >
+              <text class="rp__chapter-time">{{ fmtChapterTime(c.t) }}</text>
+              <text class="rp__chapter-name">{{ c.title }}</text>
+            </view>
+          </view>
+        </template>
+        <!-- 续播提示（本地进度记忆·>30s 才显示） -->
+        <text v-if="!replayPlaying && savedReplayPos > 30" class="rp__resume-tip">上次看到 {{ fmtChapterTime(savedReplayPos) }}，点击播放自动续播</text>
+        <!-- 无回放：空态 -->
+        <view v-if="!room.replayUrl" class="rp__empty">
+          <text class="rp__empty-txt">直播已结束 · 暂无回放</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 正常内容（直播中 LIVING：既有全屏沉浸层原样保留） -->
     <template v-else>
     <!-- 直播画面背景（占位渐变，接入推流后替换） -->
     <view class="watch__stage">
@@ -23,6 +111,8 @@
         :hls-url="playUrl.hls"
         object-fit="contain"
         class="watch__stage-player"
+        @ready="onLivePlayerReady"
+        @error="onLivePlayerError"
       />
       <view class="watch__stage-mask" />
       <!-- 未直播/加载中占位 -->
@@ -35,18 +125,19 @@
     </view>
 
     <!-- 顶部信息栏 -->
-    <view class="watch__top" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="watch__top-inner">
+    <view class="watch__top">
+      <view class="watch__top-inner" :style="watchTopInnerStyle">
         <view class="watch__top-row">
           <!-- 主播信息胶囊 -->
           <view class="host-card">
             <view class="host-card__avatar-wrap">
-              <image lazy-load class="host-card__avatar" :src="room.hostAvatar" mode="aspectFill" />
+              <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="host-card__avatar" />
               <view class="host-card__live-dot" />
             </view>
             <view class="host-card__info">
               <text class="host-card__name">{{ room.hostName }}</text>
-              <text class="host-card__fans">{{ formatCount(room.followers) }} 粉丝</text>
+              <!-- 粉丝数：房间接口无该字段（null）时整行隐藏，不显示假「0 粉丝」 -->
+              <text v-if="room.followers != null" class="host-card__fans">{{ formatCount(room.followers) }} 粉丝</text>
             </view>
             <view class="host-card__follow" :class="{ 'host-card__follow--on': isFollowing }" @tap="onFollow">
               <text class="host-card__follow-txt">{{ isFollowing ? '已关注' : '关注' }}</text>
@@ -69,6 +160,15 @@
           <text class="watch__title">{{ room.title }}</text>
         </view>
 
+        <!-- 画质角标（V0 quality-badge·basic 不显示）+ 来源圈子（可点跳圈子详情） -->
+        <view v-if="qualityLabel || (room.circleName && room.circleId)" class="watch__meta-row">
+          <view v-if="qualityLabel" class="quality-badge"><text class="quality-badge__txt">{{ qualityLabel }}</text></view>
+          <view v-if="room.circleName && room.circleId" class="circle-link" @tap="goCircleDetail">
+            <text class="circle-link__txt">来自圈子 {{ room.circleName }}</text>
+            <AppIcon name="chevron-right" :size="22" color="rgba(232,220,196,0.8)" />
+          </view>
+        </view>
+
         <!-- 合规提示 -->
         <view class="watch__disclaimer">
           <Disclaimer variant="entertainment" tone="inline" />
@@ -76,24 +176,15 @@
       </view>
     </view>
 
-    <!-- 右上角榜单入口 -->
-    <view class="rank-entry-wrap">
-      <view class="rank-entry" @tap="showRank = true">
-        <AppIcon name="crown" :size="28" color="#fff" />
-        <text class="rank-entry__txt">榜单</text>
-        <AppIcon name="chevron-down" :size="24" color="#fff" />
-      </view>
-    </view>
-
     <!-- 商品讲解卡（电商直播） -->
-    <view v-if="room.type === 'commerce' && explainingProduct" class="explain-card" @tap="openQuickBuy(explainingProduct)">
+    <view v-if="room.type === 'commerce' && explainingProduct" class="explain-card" :style="explainCardSafeStyle" @tap="openQuickBuy(explainingProduct)">
       <image lazy-load class="explain-card__img" :src="explainingProduct.cover" mode="aspectFill" />
       <view class="explain-card__info">
         <view class="explain-card__tag"><text class="explain-card__tag-txt">讲解中</text></view>
         <text class="explain-card__name">{{ explainingProduct.name }}</text>
         <view class="explain-card__price-row">
-          <text class="explain-card__price">¥{{ explainingProduct.price }}</text>
-          <text class="explain-card__origin">¥{{ explainingProduct.originalPrice }}</text>
+          <text class="explain-card__price">¥{{ formatPrice(explainingProduct.price) }}</text>
+          <text class="explain-card__origin">¥{{ formatPrice(explainingProduct.originalPrice) }}</text>
         </view>
       </view>
       <view class="explain-card__buy"><text class="explain-card__buy-txt">抢购</text></view>
@@ -108,27 +199,51 @@
       </view>
     </view>
 
-    <!-- 飘屏礼物（大礼物横幅滑入） -->
-    <view class="gift-flyers">
-      <view v-for="g in giftFlyers" :key="g.id" class="gift-flyer">
-        <image lazy-load class="gift-flyer__avatar" :src="g.avatar" mode="aspectFill" />
-        <view class="gift-flyer__info">
-          <text class="gift-flyer__user">{{ g.user }}</text>
-          <text class="gift-flyer__desc">送出 {{ g.giftName }}</text>
+    <!-- 礼物反馈 L2 连击条：同房间同人同礼物窗口内合并，只改数量不重建 -->
+    <view class="gift-combos">
+      <view
+        v-for="item in giftCombos"
+        :key="item.key"
+        class="gift-combo"
+        :class="[`gift-combo--${item.level.toLowerCase()}`, { 'gift-combo--out': item.leaving }]"
+      >
+        <smart-avatar :src="item.avatar" :name="item.userName" class="gift-combo__avatar" />
+        <view class="gift-combo__info">
+          <text class="gift-combo__user">{{ item.userName }}</text>
+          <text class="gift-combo__desc">送出 {{ item.giftName }}</text>
         </view>
-        <text class="gift-flyer__icon">{{ g.giftIcon }}</text>
-        <text class="gift-flyer__count">x{{ g.count }}</text>
+        <image v-if="isGiftImageIcon(item.icon)" class="gift-combo__icon-img" :src="item.icon" mode="aspectFit" />
+        <text v-else class="gift-combo__icon">{{ item.icon || '礼' }}</text>
+        <text class="gift-combo__count" :class="{ 'gift-combo__count--bump': item.bump }">×{{ item.count }}</text>
       </view>
     </view>
 
+    <!-- 礼物反馈 L1 轻量气泡：短促、可识别发送者与数量，位置避开公屏 -->
+    <view class="gift-lights">
+      <view
+        v-for="item in giftLights"
+        :key="item.recordId"
+        class="gift-light"
+        :class="{ 'gift-light--out': item.leaving }"
+      >
+        <image v-if="isGiftImageIcon(item.icon)" class="gift-light__icon-img" :src="item.icon" mode="aspectFit" />
+        <text v-else class="gift-light__icon">{{ item.icon || '礼' }}</text>
+        <text class="gift-light__txt">{{ item.userName }} 送出 {{ item.giftName }} ×{{ item.quantity }}</text>
+      </view>
+    </view>
+
+    <view v-if="giftOverflow > 0" class="gift-overflow">
+      <text class="gift-overflow__txt">另有 {{ giftOverflow }} 份心意已合并</text>
+    </view>
+
     <!-- 电商实时已售通知 -->
-    <view v-if="room.type === 'commerce' && saleNotif" class="sale-notif">
+    <view v-if="room.type === 'commerce' && saleNotif" class="sale-notif" :style="saleNoticeSafeStyle">
       <AppIcon name="shopping-cart" :size="26" color="#C41E3A" />
       <text class="sale-notif__txt">{{ saleNotif }}</text>
     </view>
 
     <!-- 左侧弹幕区 -->
-    <scroll-view scroll-y class="danmaku" :scroll-top="danmakuScrollTop" :scroll-with-animation="true">
+    <scroll-view scroll-y class="danmaku" :style="danmakuSafeStyle" :scroll-top="danmakuScrollTop" :scroll-with-animation="true">
       <view class="danmaku__inner">
         <view v-for="c in comments" :key="c.id" class="danmaku__item">
           <view class="danmaku__row">
@@ -140,7 +255,7 @@
     </scroll-view>
 
     <!-- 飘心 -->
-    <view class="hearts">
+    <view class="hearts" :style="heartsSafeStyle">
       <view
         v-for="h in floatingHearts"
         :key="h.id"
@@ -152,10 +267,10 @@
     </view>
 
     <!-- 底部互动栏 -->
-    <view class="watch__bottom" :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12rpx)' }">
-      <view class="watch__bottom-row">
+    <view class="watch__bottom" :style="watchBottomSafeStyle">
+      <view class="watch__bottom-row" :style="watchBottomRowStyle">
         <!-- 输入框 -->
-        <view class="input-box" @tap="showCommentInput = true">
+        <view class="input-box" @tap="openCommentInput">
           <text class="input-box__ph">说点什么...</text>
           <view class="input-box__send"><AppIcon name="send" :size="24" color="#fff" /></view>
         </view>
@@ -169,11 +284,10 @@
           <AppIcon name="heart" :size="40" color="#ef4444" :fill="true" />
         </view>
         <!-- 礼物 -->
-        <view class="act-btn act-btn--gift" @tap="showGiftPanel = true">
+        <view class="act-btn act-btn--gift" @tap="openGiftPanel">
           <AppIcon name="gift" :size="40" color="#fbbf24" />
         </view>
-        <!-- 连麦 -->
-        <view class="act-btn act-btn--mic" @tap="showMicSheet = true">
+        <view v-if="canUseLiveMic" class="act-btn act-btn--mic" @tap="showMicSheet = true">
           <AppIcon name="phone" :size="40" color="#60a5fa" />
         </view>
         <!-- 分享 -->
@@ -190,8 +304,8 @@
     <!-- ===== 弹窗层 ===== -->
 
     <!-- 弹幕输入 -->
-    <view v-if="showCommentInput" class="modal-mask modal-mask--bottom" @tap="showCommentInput = false">
-      <view class="comment-input" @tap.stop>
+    <view v-if="showCommentInput" class="modal-mask modal-mask--bottom" @tap="showCommentInput = false" @touchmove.self.prevent>
+      <view class="comment-input" :style="commentSheetStyle" @tap.stop @touchmove.stop>
         <input
           class="comment-input__field"
           v-model="commentText"
@@ -207,29 +321,9 @@
       </view>
     </view>
 
-    <!-- 榜单 -->
-    <view v-if="showRank" class="modal-mask modal-mask--bottom" @tap="showRank = false">
-      <view class="rank-sheet" @tap.stop>
-        <view class="rank-sheet__head">
-          <text class="rank-sheet__title">打赏榜</text>
-          <view @tap="showRank = false"><AppIcon name="x" :size="40" color="#999" /></view>
-        </view>
-        <view class="rank-sheet__list">
-          <view v-for="item in rankList" :key="item.rank" class="rank-row">
-            <text class="rank-row__no" :class="`rank-row__no--${item.rank}`">{{ item.rank }}</text>
-            <text class="rank-row__user">{{ item.user }}</text>
-            <view class="rank-row__amount">
-              <AppIcon name="coins" :size="26" color="#C9A96E" />
-              <text class="rank-row__amount-txt">{{ formatCount(item.amount) }}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
-
     <!-- 商品列表 -->
-    <view v-if="showProductList" class="modal-mask modal-mask--bottom" @tap="showProductList = false">
-      <view class="product-sheet" @tap.stop>
+    <view v-if="showProductList" class="modal-mask modal-mask--bottom" @tap="showProductList = false" @touchmove.self.prevent>
+      <view class="product-sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
         <view class="product-sheet__head">
           <text class="product-sheet__title">全部商品（{{ products.length }}）</text>
           <view @tap="showProductList = false"><AppIcon name="x" :size="40" color="#999" /></view>
@@ -242,8 +336,8 @@
               <text class="product-row__name">{{ p.name }}</text>
               <view v-if="p.isExplaining" class="product-row__tag"><text class="product-row__tag-txt">讲解中</text></view>
               <view class="product-row__price-row">
-                <text class="product-row__price">¥{{ p.price }}</text>
-                <text class="product-row__origin">¥{{ p.originalPrice }}</text>
+                <text class="product-row__price">¥{{ formatPrice(p.price) }}</text>
+                <text class="product-row__origin">¥{{ formatPrice(p.originalPrice) }}</text>
                 <text class="product-row__sold">已售{{ p.sold }}</text>
               </view>
             </view>
@@ -253,60 +347,175 @@
       </view>
     </view>
 
-    <!-- 礼物面板 -->
-    <GiftPanel :open="showGiftPanel" :balance="coinBalance" @close="showGiftPanel = false" @send="onSendGift" />
+    <!-- 礼物面板（真连：真实礼物清单直传·送礼直接用礼物 uuid 扣费） -->
+    <GiftPanel :open="showGiftPanel" :balance="coinBalance" :gifts="gifts" @close="showGiftPanel = false" @send="onSendGift" />
 
-    <!-- 连麦 -->
-    <MicConnectSheet :open="showMicSheet" :host-name="room.hostName" @close="showMicSheet = false" />
+    <MicConnectSheet
+      :open="showMicSheet"
+      :host-name="room.hostName"
+      :room-id="room.id"
+      @close="showMicSheet = false"
+    />
 
-    <!-- 分享 -->
-    <view v-if="showShare" class="modal-mask modal-mask--bottom" @tap="showShare = false">
-      <view class="share-sheet" @tap.stop>
-        <text class="share-sheet__title">分享直播间</text>
-        <view class="share-sheet__grid">
-          <view v-for="s in shareChannels" :key="s.key" class="share-item" @tap="onShare(s.key)">
-            <view class="share-item__icon"><AppIcon :name="s.icon" :size="52" color="#666" /></view>
-            <text class="share-item__label">{{ s.label }}</text>
-          </view>
+    <content-share-sheet
+      :visible="showShare"
+      kind="live"
+      :title="liveShareTitle"
+      :summary="liveShareSummary"
+      :meta="liveShareMeta"
+      :cover="room.cover || ''"
+      :url="buildShareUrl()"
+      @close="showShare = false"
+      @poster="openLivePoster"
+    />
+    </template>
+
+    <view v-if="endingLiveSession" class="live-ended-mask">
+      <view class="live-ended-card">
+        <text class="live-ended-kicker">本场直播已结束</text>
+        <text class="live-ended-title">{{ endCountdown }} 秒后{{ hasNextLive ? '进入下一场直播' : '返回上一页' }}</text>
+        <view class="live-ended-action" @tap="advanceAfterEnd">
+          <text class="live-ended-action-text">{{ hasNextLive ? '立即进入下一场' : '立即返回' }}</text>
         </view>
-        <view class="share-sheet__cancel" @tap="showShare = false"><text class="share-sheet__cancel-txt">取消</text></view>
       </view>
     </view>
-    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed, onMounted, onUnmounted, watch, getCurrentInstance } from 'vue'
+import { onHide, onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GiftPanel from '@/components/live/gift-panel.vue'
-import MicConnectSheet from '@/components/live/mic-connect-sheet.vue'
+import MicConnectSheet from '@/pkg-live/mic-connect-sheet.vue'
 import LivePlayer from '@/components/live/live-player.vue'
-import { type LiveGift } from '@/lib/live-gifts'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
+import { useShare } from '@/composables/useShare'
+import { isLiveTrtcSupported } from '@/pkg-live/live-trtc-client'
 import { goBack, navigateTo } from '@/utils/router'
-import { getToken } from '@/utils/storage'
+import { gotoReport } from '@/lib/report-data'
+import { getToken, getUserInfo } from '@/utils/storage'
+import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { useTim, type TimMessage } from '@/composables/useTim'
+import { formatPrice } from '@/utils/format'
 import {
-  liveWatchRoom,
   liveApi,
+  type LiveGift,
   type VerticalLiveComment,
   type VerticalLiveProduct,
-  type LiveWatchRankItem,
 } from '@/lib/live-data'
+import { likeLiveRoom, sendLiveGift } from '@/pkg-live/live-interaction-api'
+import {
+  GiftFeed,
+  normalizeFromSendResponse,
+  normalizeFromTimMessage,
+  normalizeLevel,
+  tierOfLevel,
+  type GiftFeedRenderer,
+  type NormalizedGiftEvent,
+} from '@/pkg-live/gift-feed'
+import {
+  subscribeLiveRealtime,
+  type LiveRealtimeSubscription,
+} from '@/pkg-live/live-realtime'
+import { getLiveFeed } from './presence-api'
+import { useLiveWatchPresence } from './use-live-watch-presence'
 
-// ===== 系统信息（状态栏） =====
-const statusBarHeight = ref(0)
+// ===== 系统安全区（状态栏、挖孔与底部手势区） =====
+const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
+const watchTopInnerStyle = computed(() => ({
+  paddingTop: `${safeTop.value + uni.upx2px(24)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(32)}px`,
+  paddingBottom: `${uni.upx2px(24)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(32)}px`,
+}))
+const watchBottomRowStyle = computed(() => ({
+  paddingRight: `${safeRight.value + uni.upx2px(24)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(24)}px`,
+}))
+const commentSheetStyle = computed(() => ({
+  paddingTop: `${uni.upx2px(20)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(24)}px`,
+  paddingBottom: `${safeBottom.value + uni.upx2px(20)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(24)}px`,
+}))
+const sheetSafeStyle = computed(() => ({
+  paddingRight: `${safeRight.value + uni.upx2px(32)}px`,
+  paddingBottom: `${safeBottom.value + uni.upx2px(32)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(32)}px`,
+}))
+const explainCardSafeStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(300)}px`,
+  left: `${safeLeft.value + uni.upx2px(24)}px`,
+}))
+const saleNoticeSafeStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(640)}px`,
+  left: `${safeLeft.value + uni.upx2px(24)}px`,
+}))
+const danmakuSafeStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(176)}px`,
+  left: `${safeLeft.value + uni.upx2px(24)}px`,
+  right: `${safeRight.value + uni.upx2px(192)}px`,
+}))
+const heartsSafeStyle = computed(() => ({
+  right: `${safeRight.value + uni.upx2px(40)}px`,
+  bottom: `${safeBottom.value + uni.upx2px(200)}px`,
+}))
+const watchBottomSafeStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value + uni.upx2px(12)}px`,
+}))
+// 组件实例（uni.createVideoContext 在组件内需传 this·回放章节 seek 用）
+const instance = getCurrentInstance()
 
 // ===== 直播间数据 =====
 const loading = ref(true)
 const error = ref('')
+// 路由带入的 roomId（onLoad 时存下·重试/分享统一用它，避免首载失败时 room.value.id 恒空串导致重试必败）
+const loadedRoomId = ref('')
+const returnRoute = ref('')
+// 页面后台、重试或路由切换后的旧响应不允许再改写当前直播会话。
+const pageVisible = ref(true)
+let roomLoadVersion = 0
+// 房间默认值（本地空对象·真实数据由 fetchRoomData 填充；原 mock 常量 liveWatchRoom 已按数据流铁律移除）
+const defaultWatchRoom = {
+  id: '',
+  type: 'knowledge' as 'knowledge' | 'commerce',
+  title: '',
+  hostName: '',
+  hostAvatar: '',
+  hostId: '',
+  followers: null as number | null, // 无真实粉丝数 → null（页面隐藏该行）
+  viewerCount: 0,
+  likeCount: 0,
+  isFollowing: false,
+  onlineAvatars: [] as string[],
+  imGroupId: '',
+  circleId: '',
+  status: '',
+  cover: '',
+  startTime: '',
+  chargeType: 'FREE',
+  chargePrice: 0,
+  quality: '',
+  replayUrl: '',
+  replayChapters: [] as { t: number; title: string }[], // #21 回放章节点
+  circleName: '',
+  allowComment: false,
+  allowLike: false,
+  allowGift: false,
+  canComment: false,
+  canLike: false,
+  canGift: false,
+}
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
-const room = ref<any>({ ...liveWatchRoom })
+const room = ref<any>({ ...defaultWatchRoom })
 const comments = ref<VerticalLiveComment[]>([])
 const products = ref<VerticalLiveProduct[]>([])
-const rankList = ref<LiveWatchRankItem[]>([])
 const coinBalance = ref(0)
 const isFollowing = ref(false)
 
@@ -314,27 +523,161 @@ const isFollowing = ref(false)
 const tim = useTim()
 let danmakuGroupId = ''
 let offTimMessage: (() => void) | null = null
+let realtimeSubscription: LiveRealtimeSubscription | null = null
+let realtimeAvailable = false
+
+async function leaveDanmaku() {
+  if (offTimMessage) { offTimMessage(); offTimMessage = null }
+  const groupId = danmakuGroupId
+  danmakuGroupId = ''
+  if (groupId) await tim.quitGroup(groupId).catch(() => undefined)
+}
 
 /** 加入弹幕群 + 订阅群消息上屏（仅直播中且有 imGroupId 时） */
-async function joinDanmaku(groupId: string) {
-  if (!groupId) return
-  danmakuGroupId = groupId
+async function joinDanmaku(groupId: string, targetRoomId: string, requestVersion: number) {
+  if (!groupId || !isCurrentRoomRequest(targetRoomId, requestVersion) || groupId === danmakuGroupId) return
+  await leaveDanmaku()
+  if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
   try {
     await tim.joinGroup(groupId)
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) {
+      await tim.quitGroup(groupId).catch(() => undefined)
+      return
+    }
+    danmakuGroupId = groupId
     offTimMessage = tim.onMessage((msgs: TimMessage[]) => {
-      const fresh = msgs.filter((m) => m.conversationType === 'GROUP' && m.to === danmakuGroupId && m.payload?.text)
-      if (!fresh.length) return
-      fresh.forEach((m) => {
+      const inRoom = msgs.filter((m) => danmakuGroupId === groupId && m.conversationType === 'GROUP' && m.to === groupId)
+      if (!inRoom.length) return
+      const ctx = giftNormalizeContext()
+      let touched = false
+      inRoom.forEach((m) => {
+        // 礼物事件承载在 payload.data（TIMCustomElem），原来的 payload.text 过滤会整条漏掉
+        const giftEvent = normalizeFromTimMessage(m, ctx)
+        if (giftEvent) {
+          giftFeed.push(giftEvent)
+          // 自己送礼的公屏条目在 onSendGift 里已本地写入，这里只补别人的，避免重复两行
+          if (!ctx.selfUserId || giftEvent.userId !== ctx.selfUserId) {
+            comments.value.push({
+              id: m.ID,
+              userName: giftEvent.userName,
+              content: `送出 ${giftEvent.giftName} x${giftEvent.quantity}`,
+              type: 'gift',
+              giftInfo: { name: giftEvent.giftName, icon: giftEvent.icon, count: giftEvent.quantity },
+            })
+            touched = true
+          }
+          return
+        }
+        if (!m.payload?.text) return
         comments.value.push({ id: m.ID, userName: m.nick || '观众', content: m.payload.text || '', type: 'text' })
+        touched = true
       })
+      if (!touched) return
       if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
       scrollDanmakuToBottom()
     })
   } catch { /* TIM 未就绪 → 弹幕降级只读空态，不阻断观看 */ }
 }
 
+function stopRealtime() {
+  realtimeSubscription?.stop()
+  realtimeSubscription = null
+  realtimeAvailable = false
+}
+
+/** Socket.IO 为主通道；断线或未登录时自动启用保留的 TIM，历史接口轮询继续兜底。 */
+function startRealtime(targetRoomId: string, requestVersion: number) {
+  stopRealtime()
+  realtimeSubscription = subscribeLiveRealtime(targetRoomId, {
+    onAvailability: (available) => {
+      if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+      realtimeAvailable = available
+      if (available) void leaveDanmaku()
+      else if (room.value.imGroupId) void joinDanmaku(room.value.imGroupId, targetRoomId, requestVersion)
+    },
+    onComment: (event) => {
+      if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+      if (comments.value.some((item) => String(item.id) === String(event.id))) return
+      const selfUserId = giftNormalizeContext().selfUserId
+      if (selfUserId && event.userId === selfUserId) {
+        const optimisticIndex = comments.value.findIndex((item) => String(item.id).startsWith('local-') && item.content === event.content)
+        if (optimisticIndex >= 0) comments.value.splice(optimisticIndex, 1)
+      }
+      comments.value.push({
+        id: event.id,
+        userName: event.userName || '观众',
+        content: event.content,
+        type: 'text',
+      })
+      if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
+      scrollDanmakuToBottom()
+    },
+    onGift: (event) => {
+      if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+      const catalog = lookupGift(event.giftId)
+      const level = normalizeLevel(catalog?.level)
+      const giftEvent: NormalizedGiftEvent = {
+        recordId: event.recordId,
+        roomId: targetRoomId,
+        userId: event.userId,
+        userName: event.userName || '观众',
+        avatar: '',
+        giftId: event.giftId,
+        giftName: event.giftName || catalog?.name || '心意',
+        icon: event.giftIcon || catalog?.icon || '',
+        level,
+        tier: tierOfLevel(level),
+        quantity: event.quantity,
+        at: event.createdAt ? Date.parse(event.createdAt) || Date.now() : Date.now(),
+        source: 'broadcast',
+      }
+      giftFeed.push(giftEvent)
+      const selfUserId = giftNormalizeContext().selfUserId
+      if (!selfUserId || event.userId !== selfUserId) {
+        comments.value.push({
+          id: `gift-${event.recordId}`,
+          userName: giftEvent.userName,
+          content: `送出 ${giftEvent.giftName} x${giftEvent.quantity}`,
+          type: 'gift',
+          giftInfo: { name: giftEvent.giftName, icon: giftEvent.icon, count: giftEvent.quantity },
+        })
+        if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
+        scrollDanmakuToBottom()
+      }
+    },
+    onLike: (event) => {
+      if (isCurrentRoomRequest(targetRoomId, requestVersion) && Number.isFinite(event.likeCount)) {
+        room.value.likeCount = Math.max(0, event.likeCount)
+      }
+    },
+  })
+}
+
 // ===== 低延时播放地址（C1）=====
 const playUrl = ref<{ flv: string; hls: string } | null>(null)
+const liveSessionActive = ref(false)
+const endingLiveSession = ref(false)
+const endCountdown = ref(3)
+const liveFeed = ref<Array<{ id: string; title: string; cover: string; hostName: string; hostAvatar: string }>>([])
+const hasNextLive = computed(() => liveFeed.value.some((item) => item.id && item.id !== loadedRoomId.value))
+let roomPollTimer: ReturnType<typeof setInterval> | null = null
+let roomPolling = false
+let endAdvanceTimer: ReturnType<typeof setInterval> | null = null
+let resumeAfterHide = false
+
+const { leavePresence, touchPresence } = useLiveWatchPresence({
+  roomId: () => loadedRoomId.value,
+  isEnded: () => !liveSessionActive.value || endingLiveSession.value,
+  isActive: () => pageVisible.value,
+  onOnlineCount: (onlineCount) => { room.value.viewerCount = onlineCount },
+  onFailure: ({ roomId, retryInMs, status, code }) => {
+    console.warn('[live] presence heartbeat retry', { roomId, retryInMs, status, code })
+  },
+})
+
+function isCurrentRoomRequest(targetRoomId: string, requestVersion: number) {
+  return pageVisible.value && loadedRoomId.value === targetRoomId && roomLoadVersion === requestVersion
+}
 
 // 未开播占位文案：由房间真实状态判定（后端 play-url 错误信息「直播未开始或已结束」两态同文，
 // 不能用字符串包含'结束'来区分，否则 WAITING 预告房会被误标为「已结束」）。
@@ -346,11 +689,15 @@ const playHint = computed(() => {
 })
 
 // 拉取观众播放地址：仅直播中后端才返回；未开播/已结束抛错→保持占位（文案走 playHint 按房间状态判定）
-async function fetchPlayUrl(roomId: string) {
+async function fetchPlayUrl(roomId: string, requestVersion = roomLoadVersion) {
   try {
-    playUrl.value = await liveApi.getPlayUrl(roomId)
+    const nextPlayUrl = await liveApi.getPlayUrl(roomId)
+    if (!isCurrentRoomRequest(roomId, requestVersion)) return null
+    playUrl.value = nextPlayUrl
+    return nextPlayUrl
   } catch {
-    playUrl.value = null
+    if (isCurrentRoomRequest(roomId, requestVersion)) playUrl.value = null
+    return null
   }
 }
 
@@ -358,70 +705,579 @@ async function fetchPlayUrl(roomId: string) {
 const explainingProduct = computed(() => products.value.find((p) => p.isExplaining) || null)
 
 async function fetchRoomData(roomId: string) {
+  // 切房：清空上一房间的礼物反馈与去重记录，之后到达的旧房间事件一律拒绝
+  giftFeed.enterRoom(roomId)
+  const requestVersion = ++roomLoadVersion
   loading.value = true
   error.value = ''
   try {
     const data = await liveApi.getWatchRoom(roomId)
-    room.value = { ...liveWatchRoom, ...data.room }
+    if (!isCurrentRoomRequest(roomId, requestVersion)) return
+    room.value = { ...defaultWatchRoom, ...data.room }
     comments.value = data.comments
     products.value = data.products
-    // 直播中且有弹幕群 → 加入 TIM 群实时弹幕
-    if (room.value.imGroupId) joinDanmaku(room.value.imGroupId)
+    // H5/小程序与 App 共用同一安全契约：互动上下文异步增强，绝不阻塞自动起播。
+    // 新旧服务端滚动或接口异常时保留默认的“只看不可互动”状态。
+    void refreshWatchContext(roomId, requestVersion)
+    // Socket.IO 为主；不可用时内部回退 TIM，轮询仍提供最终一致性。
+    startRealtime(roomId, requestVersion)
+    // 关注态初始化（未登录/失败降级为未关注，不阻断）
+    if (room.value.hostId) {
+      void liveApi.isFollowingHost(room.value.hostId).then((v) => {
+        if (isCurrentRoomRequest(roomId, requestVersion)) isFollowing.value = v
+      }).catch(() => {})
+    }
     // 佣-V2-P3：进直播间视同该圈子全店渠道点击（仅已登录且直播间关联圈子才上报·失败静默不扰观看）
     if (getToken() && room.value.circleId) liveApi.reportCircleChannelClick(room.value.circleId)
+    // 预约态 → 拉取真实预约人数（失败归零则该行不显示）
+    if (isWaiting.value) fetchBookingCount(room.value.id)
+    // 回放态 → 合并本地离线缓存和服务端跨设备进度（#21 续播记忆）
+    if (isReplayState.value) await loadReplayPos(room.value.id || roomId)
+    if (!isCurrentRoomRequest(roomId, requestVersion)) return
+    // 播放地址只在直播中才拉（预告/回放态请求必被后端 400 拒，白耗一次请求+控制台报错）。
+    // 观看会话不依赖播放器 ready：H5/小程序的首帧与原生事件时机不同，先登记才不会漏在线。
+    if (roomStatus.value === 'LIVING') {
+      liveSessionActive.value = true
+      await fetchPlayUrl(room.value.id || roomId, requestVersion)
+      if (!isCurrentRoomRequest(roomId, requestVersion)) return
+      startRoomPolling()
+      if (playUrl.value) {
+        void touchPresence()
+        void refreshLiveFeed(roomId, requestVersion)
+      }
+    } else {
+      liveSessionActive.value = false
+      stopRoomPolling()
+    }
   } catch (e) {
+    if (!isCurrentRoomRequest(roomId, requestVersion)) return
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
-    loading.value = false
+    if (isCurrentRoomRequest(roomId, requestVersion)) loading.value = false
   }
 }
 
-// 后端礼物清单（用于把 GiftPanel 的展示礼物按名映射到真实 uuid，供 sendGift 真扣费）
-const backendGifts = ref<{ id: string; name: string; price: number }[]>([])
+function mergeWatchComments(history: VerticalLiveComment[]) {
+  const byId = new Map<string, VerticalLiveComment>()
+  for (const item of history) byId.set(String(item.id), item)
+  for (const item of comments.value) byId.set(String(item.id), item)
+  comments.value = Array.from(byId.values()).slice(-80)
+}
+
+async function refreshWatchContext(targetRoomId: string, requestVersion: number) {
+  const context = await liveApi.getWatchContext(targetRoomId)
+  if (!context || !isCurrentRoomRequest(targetRoomId, requestVersion)) return
+
+  room.value = {
+    ...room.value,
+    status: context.room.status || room.value.status,
+    visibility: context.room.visibility || room.value.visibility,
+    allowComment: context.interaction.allowComment,
+    allowLike: context.interaction.allowLike,
+    allowGift: context.interaction.allowGift && context.room.allowGift,
+    canComment: context.viewer.canComment,
+    canLike: context.viewer.canLike,
+    canGift: context.viewer.canGift,
+    onlineAvatars: [],
+  }
+  if (Number.isFinite(context.online.count)) room.value.viewerCount = Math.max(0, context.online.count)
+
+  const history = await liveApi.getWatchComments(targetRoomId, room.value.hostId)
+  if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+  mergeWatchComments(history)
+  scrollDanmakuToBottom()
+}
+
+// ===== 房间状态三分支（WAITING 预约态 / ENDED·REPLAY 回放态 / 其余走既有沉浸层） =====
+const roomStatus = computed(() => String(room.value?.status || '').toUpperCase())
+const isWaiting = computed(() => roomStatus.value === 'WAITING')
+const isReplayState = computed(() => roomStatus.value === 'ENDED' || roomStatus.value === 'REPLAY')
+
+function stopRoomPolling() {
+  if (!roomPollTimer) return
+  clearInterval(roomPollTimer)
+  roomPollTimer = null
+}
+
+function startRoomPolling() {
+  if (roomPollTimer || !liveSessionActive.value || endingLiveSession.value || !pageVisible.value) return
+  roomPollTimer = setInterval(() => { void pollRoomStatus() }, 5_000)
+}
+
+async function refreshLiveFeed(targetRoomId = loadedRoomId.value, requestVersion = roomLoadVersion) {
+  if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+  try {
+    const circleId = room.value.visibility === 'CIRCLE_ONLY' ? room.value.circleId : undefined
+    const items = await getLiveFeed(circleId)
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+    liveFeed.value = items.filter((item) => Boolean(item.id))
+  } catch {
+    // 推荐流暂时不可用时保留上一份快照；下播时仍会重新拉取一次再决定回退。
+  }
+}
+
+function clearEndAdvance() {
+  if (endAdvanceTimer) {
+    clearInterval(endAdvanceTimer)
+    endAdvanceTimer = null
+  }
+  endCountdown.value = 3
+}
+
+function normalizeReturnRoute(value: unknown) {
+  const source = String(value || '').trim()
+  if (!source) return ''
+  try {
+    const route = decodeURIComponent(source)
+    return route.startsWith('/') && !route.startsWith('//') && !route.includes('\\') ? route : ''
+  } catch {
+    return ''
+  }
+}
+
+function returnToLiveEntrance() {
+  if (returnRoute.value) {
+    uni.reLaunch({ url: returnRoute.value })
+    return
+  }
+  if (getCurrentPages().length > 1) {
+    goBack()
+    return
+  }
+  // 深链或冷启动没有历史栈时，明确回到直播入口，不能落到与直播无关的首页。
+  uni.reLaunch({ url: '/pkg-live/plaza/index' })
+}
+
+async function advanceAfterEnd() {
+  const previousRoomId = loadedRoomId.value
+  const requestVersion = roomLoadVersion
+  if (!endingLiveSession.value || !isCurrentRoomRequest(previousRoomId, requestVersion)) return
+  clearEndAdvance()
+  await refreshLiveFeed(previousRoomId, requestVersion)
+  if (!isCurrentRoomRequest(previousRoomId, requestVersion)) return
+  const next = liveFeed.value.find((item) => item.id && item.id !== previousRoomId)
+  // 自动跳转不等待统计离场；弱网时该请求可能超时 15 秒，不能破坏“三秒后进入下一场”。
+  void leavePresence(previousRoomId)
+  if (next) {
+    const returnRouteQuery = returnRoute.value ? `&returnRoute=${encodeURIComponent(returnRoute.value)}` : ''
+    uni.redirectTo({ url: `/pkg-live/watch/index?id=${encodeURIComponent(next.id)}${returnRouteQuery}` })
+    return
+  }
+  returnToLiveEntrance()
+}
+
+function scheduleEndAdvance() {
+  if (!pageVisible.value || endAdvanceTimer) return
+  const firstEnd = !endingLiveSession.value
+  endingLiveSession.value = true
+  liveSessionActive.value = false
+  playUrl.value = null
+  stopRoomPolling()
+  if (firstEnd) {
+    void leavePresence()
+    void refreshLiveFeed()
+  }
+  endCountdown.value = 3
+  endAdvanceTimer = setInterval(() => {
+    endCountdown.value -= 1
+    if (endCountdown.value > 0) return
+    void advanceAfterEnd()
+  }, 1_000)
+}
+
+async function pollRoomStatus() {
+  const targetRoomId = loadedRoomId.value
+  const requestVersion = roomLoadVersion
+  if (!targetRoomId || !liveSessionActive.value || roomPolling || !pageVisible.value) return
+  roomPolling = true
+  try {
+    const data = await liveApi.getWatchRoom(targetRoomId)
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+    room.value = { ...defaultWatchRoom, ...data.room }
+    products.value = data.products
+    if (!realtimeAvailable) mergeWatchComments(data.comments)
+    if (String(data.room.status || '').toUpperCase() === 'LIVING') {
+      // 首次签名地址偶发失败时，状态轮询继续尝试恢复，不能让观众永久停在占位页。
+      if (!playUrl.value) await fetchPlayUrl(targetRoomId, requestVersion)
+      if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+      if (playUrl.value) void touchPresence()
+      return
+    }
+    scheduleEndAdvance()
+  } catch {
+    // 房间状态短暂失败不能打断当前画面；下一轮轮询会继续确认。
+  } finally {
+    roomPolling = false
+  }
+}
+
+function onLivePlayerReady() {
+  void touchPresence()
+}
+
+function onLivePlayerError() {
+  // 下播时播放器常比轮询更早感知断流，立即确认可避免额外等待一轮。
+  void pollRoomStatus()
+}
+
+/** 付费场：只如实展示票价（移动端无 LIVESTREAM 支付接线 → 不做购票按钮） */
+const isPaidRoom = computed(() => room.value?.chargeType && room.value.chargeType !== 'FREE' && Number(room.value.chargePrice) > 0)
+
+// ===== 画质角标（V0 quality-badge·观众侧只见结果不见计费；basic 不显示） =====
+const qualityLabel = computed(() => {
+  const q = String(room.value?.quality || '').toLowerCase()
+  if (q === 'hd') return '高清 720P'
+  if (q === 'uhd') return '超清 1080P'
+  return ''
+})
+
+// ===== 来源圈子 → 圈子详情 =====
+function goCircleDetail() {
+  if (room.value?.circleId) navigateTo(`/pkg-circle/circles/detail?id=${room.value.circleId}`)
+}
+
+// ===== 预约态：倒计时（每分钟刷新·onUnmounted 清理） =====
+const nowTs = ref(Date.now())
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+const countdownText = computed(() => {
+  const raw = room.value?.startTime
+  const st = raw ? new Date(raw).getTime() : NaN
+  if (!Number.isFinite(st)) return '即将开播' // 无 startTime → 兜底文案
+  const diff = st - nowTs.value
+  if (diff <= 0) return '即将开播'
+  const days = Math.floor(diff / 86400000)
+  const hours = Math.floor((diff % 86400000) / 3600000)
+  const mins = Math.floor((diff % 3600000) / 60000)
+  return days > 0 ? `${days} 天 ${hours} 小时` : `${hours} 小时 ${mins} 分`
+})
+/** 开播时间行「M月D日 HH:mm」 */
+const startTimeText = computed(() => {
+  const raw = room.value?.startTime
+  if (!raw) return ''
+  const d = new Date(raw)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+})
+
+// ===== 预约（POST/DELETE /live/rooms/:id/book·后端无「我是否已预约」查询 → 本次会话乐观维护） =====
+const bookingCount = ref(0)
+const booked = ref(false)
+const bookingSubmitting = ref(false)
+async function fetchBookingCount(roomId: string) {
+  try { bookingCount.value = await liveApi.getBookingCount(roomId) } catch { bookingCount.value = 0 }
+}
+async function onToggleBook() {
+  if (bookingSubmitting.value) return
+  bookingSubmitting.value = true
+  try {
+    if (!booked.value) {
+      const res = await liveApi.bookRoom(room.value.id)
+      booked.value = true
+      bookingCount.value = res.bookingCount || bookingCount.value + 1
+      uni.showToast({ title: '预约成功', icon: 'none' })
+    } else {
+      await liveApi.unbookRoom(room.value.id)
+      booked.value = false
+      bookingCount.value = Math.max(0, bookingCount.value - 1)
+      uni.showToast({ title: '已取消预约', icon: 'none' })
+    }
+  } catch (e) {
+    // 未登录/非 WAITING 等 → 透传后端错误信息
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    bookingSubmitting.value = false
+  }
+}
+
+// ===== 回放态：点击封面播放钮后原地渲染点播 video =====
+const replayPlaying = ref(false)
+
+// ===== #21 回放章节点 + 观看进度记忆（本地离线兜底 + 服务端跨设备同步） =====
+const REPLAY_POS_PREFIX = 'live_replay_pos_'
+const savedReplayPos = ref(0)
+let replayCtx: UniApp.VideoContext | null = null
+let lastPosSaveAt = 0
+let lastRemoteSaveAt = 0
+let resumeDone = false
+let currentReplayPos = 0
+let replayDuration = 0
+let replaySequence = 0
+const replaySessionId = `replay-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+
+function getReplayCtx(): UniApp.VideoContext | null {
+  if (!replayCtx) replayCtx = uni.createVideoContext('replay-video', instance?.proxy || undefined)
+  return replayCtx
+}
+/** 秒 → mm:ss / h:mm:ss（章节时间点展示） */
+function fmtChapterTime(sec: number): string {
+  const s = Math.max(0, Math.floor(sec))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const ss = String(s % 60).padStart(2, '0')
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`
+}
+/** 章节点击：未播则先起播（video v-if 渲染后再 seek），已播直接 seek */
+function seekToChapter(t: number) {
+  resumeDone = true // 手动选章节 → 不再自动续播覆盖
+  if (!replayPlaying.value) {
+    replayPlaying.value = true
+    setTimeout(() => getReplayCtx()?.seek(t), 600) // 等 video 挂载完成
+  } else {
+    getReplayCtx()?.seek(t)
+  }
+}
+/** 起播回调：首次播放时按本地记忆续播（>30s 才续，避免开头几秒也跳） */
+function onReplayPlay() {
+  if (resumeDone) return
+  resumeDone = true
+  if (savedReplayPos.value > 30) {
+    getReplayCtx()?.seek(savedReplayPos.value)
+    uni.showToast({ title: `已为你续播至 ${fmtChapterTime(savedReplayPos.value)}`, icon: 'none' })
+  }
+}
+/** 播放进度本地记忆（5 秒节流写 storage）·uni video timeupdate 事件 detail.currentTime */
+function onReplayTimeUpdate(e: Event) {
+  const detail = (e as unknown as { detail?: { currentTime?: number; duration?: number } })?.detail
+  const cur = Number(detail?.currentTime) || 0
+  const duration = Number(detail?.duration) || 0
+  const now = Date.now()
+  currentReplayPos = cur
+  replayDuration = Math.max(replayDuration, duration)
+  if (cur > 5 && now - lastPosSaveAt > 5000) {
+    lastPosSaveAt = now
+    try { uni.setStorageSync(REPLAY_POS_PREFIX + room.value.id, Math.floor(cur)) } catch { /* storage 满/不可用 → 忽略 */ }
+  }
+  if (cur > 5 && now - lastRemoteSaveAt > 15000) {
+    lastRemoteSaveAt = now
+    void reportReplayProgress()
+  }
+}
+
+/** 登录用户上报服务端；失败静默保留本地进度，不干扰播放。 */
+async function reportReplayProgress() {
+  const roomId = room.value.id || loadedRoomId.value
+  if (!roomId || !getToken() || currentReplayPos <= 0) return
+  replaySequence += 1
+  try {
+    await liveApi.saveWatchProgress(roomId, {
+      positionSeconds: Math.max(0, Math.floor(currentReplayPos)),
+      durationSeconds: Math.max(0, Math.floor(replayDuration)),
+      clientSessionId: replaySessionId,
+      clientSequence: replaySequence,
+    })
+  } catch { /* 网络异常时继续依赖本地缓存，下一次播放事件会重试 */ }
+}
+
+function onReplayPause() {
+  void reportReplayProgress()
+}
+
+function onReplayEnded() {
+  currentReplayPos = replayDuration
+  savedReplayPos.value = 0
+  try { uni.removeStorageSync(REPLAY_POS_PREFIX + room.value.id) } catch { /* 忽略 */ }
+  void reportReplayProgress()
+}
+
+/** 先读本地离线进度，再以服务端状态校准跨设备续播位置。 */
+async function loadReplayPos(roomId: string) {
+  let localPos = 0
+  try { localPos = Number(uni.getStorageSync(REPLAY_POS_PREFIX + roomId)) || 0 } catch { localPos = 0 }
+  savedReplayPos.value = localPos
+  currentReplayPos = localPos
+  if (!getToken()) return
+  try {
+    const remote = await liveApi.getWatchProgress(roomId)
+    if (remote.completed) {
+      savedReplayPos.value = 0
+      currentReplayPos = 0
+      try { uni.removeStorageSync(REPLAY_POS_PREFIX + roomId) } catch { /* 忽略 */ }
+      return
+    }
+    const remotePos = Math.max(0, Number(remote.positionSeconds) || 0)
+    savedReplayPos.value = Math.max(localPos, remotePos)
+    currentReplayPos = savedReplayPos.value
+    replayDuration = Math.max(0, Number(remote.durationSeconds) || 0)
+  } catch { /* 未登录态切换或网络异常：保留本地续播 */ }
+}
+
+// 后端礼物清单（真连：完整礼物对象直传 GiftPanel·送礼直接用礼物 uuid，无需再按名映射）
+const gifts = ref<LiveGift[]>([])
 async function fetchGifts() {
   try {
     const data = await liveApi.getGifts()
     coinBalance.value = data.balance
-    backendGifts.value = data.gifts.map((g) => ({ id: g.id, name: g.name, price: g.price }))
+    gifts.value = data.gifts
   } catch {}
 }
 
-/** 打赏榜真连 — GET /live/rooms/:id/gift-ranking（无打赏则空列表） */
-async function fetchRanking(roomId: string) {
-  try {
-    rankList.value = await liveApi.getGiftRanking(roomId)
-  } catch { rankList.value = [] }
-}
-
 function retry() {
-  fetchRoomData(room.value.id)
+  // 🔴修重试死循环：首载失败时 room.value.id 恒为空串（默认对象没被真实数据填充），
+  // 用 room.value.id 重试必然再 404 → 统一改用 onLoad 存下的路由 roomId
+  const rid = loadedRoomId.value || room.value.id
+  fetchRoomData(rid)
   fetchGifts()
-  fetchRanking(room.value.id)
 }
 
 // ===== UI 状态（弹窗开关、临时输入，仅 UI 层） =====
 const showCommentInput = ref(false)
 const commentText = ref('')
-const showRank = ref(false)
 const showProductList = ref(false)
 const showGiftPanel = ref(false)
 const showMicSheet = ref(false)
+const canUseLiveMic = isLiveTrtcSupported()
 const showShare = ref(false)
+useOverlayScrollLock(() =>
+  showCommentInput.value ||
+  showProductList.value ||
+  showGiftPanel.value ||
+  showMicSheet.value ||
+  showShare.value,
+)
 
 const danmakuScrollTop = ref(0)
 const floatingHearts = ref<Array<{ id: number; left: number; duration: number }>>([])
-const giftFlyers = ref<Array<{ id: number; user: string; avatar: string; giftName: string; giftIcon: string; count: number }>>([])
+// ───────── 礼物反馈 L1/L2（编排在 pkg-live/gift-feed.ts，这里只做 H5/小程序展示）─────────
+// 原先只有"自己送礼"时的本地飘屏，现在统一由编排层驱动：
+// 自己的响应和房间广播走同一条展示链路，按 recordId 去重，不会出现两套动效。
+type GiftLightItem = { recordId: string; userName: string; giftName: string; icon: string; quantity: number; leaving: boolean }
+type GiftComboItem = { key: string; userName: string; avatar: string; giftName: string; icon: string; level: string; count: number; bump: boolean; leaving: boolean }
+const giftLights = ref<GiftLightItem[]>([])
+const giftCombos = ref<GiftComboItem[]>([])
+const giftOverflow = ref(0)
+const giftExitTimers = new Set<ReturnType<typeof setTimeout>>()
+
+function isGiftImageIcon(icon: string) {
+  return /^https?:\/\//.test(String(icon || ''))
+}
+
+/** 退场动画结束后再移除节点；所有定时器集中登记，页面卸载时一次清干净。 */
+function scheduleGiftExit(fn: () => void, ms: number) {
+  const timer = setTimeout(() => { giftExitTimers.delete(timer); fn() }, ms)
+  giftExitTimers.add(timer)
+}
+
+function clearGiftExitTimers() {
+  giftExitTimers.forEach((timer) => clearTimeout(timer))
+  giftExitTimers.clear()
+}
+
+const giftRenderer: GiftFeedRenderer = {
+  showLight(event: NormalizedGiftEvent) {
+    giftLights.value.push({
+      recordId: event.recordId,
+      userName: event.userName,
+      giftName: event.giftName,
+      icon: event.icon,
+      quantity: event.quantity,
+      leaving: false,
+    })
+  },
+  hideLight(recordId: string) {
+    const item = giftLights.value.find((x) => x.recordId === recordId)
+    if (!item) return
+    item.leaving = true
+    scheduleGiftExit(() => {
+      giftLights.value = giftLights.value.filter((x) => x.recordId !== recordId)
+    }, 320)
+  },
+  showCombo(key: string, event: NormalizedGiftEvent, count: number) {
+    giftCombos.value.push({
+      key,
+      userName: event.userName,
+      avatar: event.avatar,
+      giftName: event.giftName,
+      icon: event.icon,
+      level: event.level,
+      count,
+      bump: false,
+      leaving: false,
+    })
+  },
+  updateCombo(key: string, count: number) {
+    const item = giftCombos.value.find((x) => x.key === key)
+    if (!item) return
+    item.count = count
+    // 重放数量脉冲：先摘再加，连续连击时动画才会重新触发
+    item.bump = false
+    scheduleGiftExit(() => { const live = giftCombos.value.find((x) => x.key === key); if (live) live.bump = true }, 16)
+  },
+  hideCombo(key: string) {
+    const item = giftCombos.value.find((x) => x.key === key)
+    if (!item) return
+    item.leaving = true
+    scheduleGiftExit(() => {
+      giftCombos.value = giftCombos.value.filter((x) => x.key !== key)
+    }, 280)
+  },
+  showOverflow(dropped: number) {
+    giftOverflow.value = dropped
+  },
+  clearAll() {
+    clearGiftExitTimers()
+    giftLights.value = []
+    giftCombos.value = []
+    giftOverflow.value = 0
+  },
+}
+
+const giftFeed = new GiftFeed({ renderer: giftRenderer })
+
+// 同 nvue：只有确定终态才清礼物展示。
+// - endingLiveSession：已进入下播流程；
+// - error：房间加载失败，页面已给出返回/重试出口。
+// 加载中（loading）与画面波动都不算终态，不在这里取。公屏与交易记录始终不动。
+watch(
+  () => ({ ended: endingLiveSession.value, failed: Boolean(error.value) }),
+  ({ ended, failed }) => {
+    if (ended || failed) giftFeed.closeRoom(ended ? 'ended' : 'unavailable')
+    else giftFeed.reopenRoom()
+  },
+)
+
+// H5 能读系统"减少动态效果"偏好；小程序没有该能力，这里不假装支持，保持默认关闭。
+// #ifdef H5
+try {
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+  giftFeed.setReducedMotion(mq.matches)
+  if (typeof mq.addEventListener === 'function') {
+    mq.addEventListener('change', (e) => giftFeed.setReducedMotion(e.matches))
+  }
+} catch { /* 无 matchMedia 时按默认（不减少）处理 */ }
+// #endif
+
+/** 按 giftId 回查已拉取的礼物清单，补齐广播里没有的图标与层级；查不到不猜。 */
+function lookupGift(giftId: string) {
+  const hit = gifts.value.find((g) => g.id === giftId)
+  return hit ? { id: hit.id, name: hit.name, icon: hit.icon, level: hit.level } : undefined
+}
+
+function giftNormalizeContext() {
+  const profile = getUserInfo<{ id?: string; userId?: string }>()
+  return {
+    roomId: room.value.id || loadedRoomId.value,
+    lookupGift,
+    selfUserId: String(profile?.id || profile?.userId || ''),
+  }
+}
 const systemBanners = ref<Array<{ id: number; type: string; user: string; content: string; giftIcon?: string }>>([])
 const saleNotif = ref('')
 
-const shareChannels = [
-  { key: 'wechat', label: '微信', icon: 'message-circle' },
-  { key: 'moments', label: '朋友圈', icon: 'users' },
-  { key: 'copy', label: '复制链接', icon: 'file-text' },
-]
+const { toAppMessage, toTimeline, openPoster } = useShare()
+const liveShareTitle = computed(() => `${room.value?.hostName ? `${room.value.hostName} 的` : ''}${room.value?.title || '国学直播'}`)
+const liveShareSummary = computed(() => {
+  if (isReplayState.value) return '精彩内容已经生成回放，点击即可观看。'
+  if (isWaiting.value) return `${startTimeText.value || '即将'}开播，预约后及时收到提醒。`
+  return '正在直播，进入直播间一起交流学习。'
+})
+const liveShareMeta = computed(() => {
+  const parts = []
+  if (room.value?.hostName) parts.push(`主播 ${room.value.hostName}`)
+  if (Number(room.value?.viewerCount) > 0) parts.push(`${formatCount(room.value.viewerCount)} 人观看`)
+  return parts.join(' · ')
+})
 
 let heartId = 0
-let flyerId = 0
 
 function formatCount(n: number): string {
   if (n >= 10000) return (n / 10000).toFixed(1) + '万'
@@ -430,76 +1286,135 @@ function formatCount(n: number): string {
 
 // ===== 交互函数（UI 状态切换由前端负责；关注/送礼/下单等业务交 Claude 接入） =====
 function onClose() {
-  goBack()
+  // 直播中（沉浸层）误触关闭很常见 → 弹确认；预约/回放/加载/错误态直接返回不打扰
+  if (loading.value || error.value || isWaiting.value || isReplayState.value) { returnToLiveEntrance(); return }
+  uni.showModal({
+    content: '确认退出直播间？',
+    confirmText: '退出',
+    cancelText: '继续观看',
+    success: (res) => { if (res.confirm) returnToLiveEntrance() },
+  })
 }
 
-function onFollow() {
-  isFollowing.value = !isFollowing.value
-  // @data-needs: 关注/取关接口, POST /api/live/{id}/follow
+// 关注/取关主播 — 复用平台用户关注端点 POST/DELETE /users/:id/follow（与短视频批同一套）
+let followSubmitting = false
+async function onFollow() {
+  const hostId = room.value.hostId
+  if (!hostId) {
+    uni.showToast({ title: '暂无法关注该主播', icon: 'none' })
+    return
+  }
+  if (followSubmitting) return
+  followSubmitting = true
+  const prev = isFollowing.value
+  isFollowing.value = !prev // 乐观切换，失败回滚
+  try {
+    if (prev) await liveApi.unfollowHost(hostId)
+    else await liveApi.followHost(hostId)
+  } catch (e) {
+    isFollowing.value = prev
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    followSubmitting = false
+  }
 }
 
 let sendingComment = false
+function openCommentInput() {
+  if (!room.value.canComment) {
+    uni.showToast({ title: room.value.allowComment ? '当前账号暂不能评论' : '本场暂未开放评论', icon: 'none' })
+    return
+  }
+  showCommentInput.value = true
+}
+
 async function onSendComment() {
   const text = commentText.value.trim()
-  if (!text || sendingComment) { showCommentInput.value = false; return }
+  if (!text || sendingComment) return
+  if (!room.value.canComment) {
+    showCommentInput.value = false
+    uni.showToast({ title: room.value.allowComment ? '当前账号暂不能评论' : '本场暂未开放评论', icon: 'none' })
+    return
+  }
   sendingComment = true
-  // 乐观上屏 + 清空
-  comments.value.push({ id: 'local-' + Date.now(), userName: '我', content: text, type: 'text' })
+  const localId = `local-${Date.now()}`
+  comments.value.push({ id: localId, userName: '我', content: text, type: 'text' })
   commentText.value = ''
   scrollDanmakuToBottom()
   showCommentInput.value = false
   try {
-    // 弹幕走 TIM 群实时下发给其他观众；同时后端持久化（并行，互不阻塞）
-    if (danmakuGroupId) await tim.sendGroupText(danmakuGroupId, text)
-    liveApi.sendComment(room.value.id, text).catch(() => {})
-  } catch { /* TIM 发送失败 → 已本地上屏，静默降级 */ }
-  finally { sendingComment = false }
+    await liveApi.sendComment(room.value.id, text)
+  } catch (e) {
+    comments.value = comments.value.filter((comment) => comment.id !== localId)
+    commentText.value = text
+    showCommentInput.value = true
+    scrollDanmakuToBottom()
+    uni.showToast({ title: (e as Error)?.message || '评论发送失败，请重试', icon: 'none' })
+  } finally {
+    sendingComment = false
+  }
 }
 
-function onTapLike() {
-  spawnHeart()
-  // 点赞计数上报（fire-and-forget，失败不影响飘心动画）
-  liveApi.likeRoom(room.value.id).catch(() => {})
+async function onTapLike() {
+  if (!room.value.canLike) {
+    uni.showToast({ title: room.value.allowLike ? '当前账号暂不能点赞' : '本场暂未开放点赞', icon: 'none' })
+    return
+  }
+  const id = spawnHeart()
+  try {
+    await likeLiveRoom(room.value.id)
+  } catch (e) {
+    floatingHearts.value = floatingHearts.value.filter((heart) => heart.id !== id)
+    uni.showToast({ title: (e as Error)?.message || '点赞失败，请重试', icon: 'none' })
+  }
 }
 
-function spawnHeart() {
+function spawnHeart(): number {
   const id = ++heartId
   floatingHearts.value.push({ id, left: 40 + Math.random() * 80, duration: 2 + Math.random() })
   setTimeout(() => {
     floatingHearts.value = floatingHearts.value.filter((h) => h.id !== id)
   }, 3000)
+  return id
 }
 
 let sendingGift = false
-async function onSendGift(gift: LiveGift) {
-  if (sendingGift) return
-  const count = 1
-  // 送礼前余额校验（后端事务也会校验，这里做即时反馈）
-  if (coinBalance.value < gift.price * count) {
-    uni.showToast({ title: '国学币余额不足', icon: 'none' })
+function openGiftPanel() {
+  if (!room.value.canGift) {
+    uni.showToast({ title: room.value.allowGift ? '当前账号暂不能表达心意' : '本场暂未开放心意互动', icon: 'none' })
     return
   }
-  // 按名映射到后端礼物取真实 uuid（后端未配同名礼物则无法真扣费）
-  const backendGift = backendGifts.value.find((g) => g.name === gift.name)
-  if (!backendGift) {
-    uni.showToast({ title: '该礼物暂不可用', icon: 'none' })
+  showGiftPanel.value = true
+}
+
+async function onSendGift(gift: LiveGift, quantity: number) {
+  if (sendingGift) return
+  if (!room.value.canGift) {
+    showGiftPanel.value = false
+    uni.showToast({ title: room.value.allowGift ? '当前账号暂不能表达心意' : '本场暂未开放心意互动', icon: 'none' })
+    return
+  }
+  const count = Math.min(99, Math.max(1, Math.floor(quantity) || 1))
+  // 送礼前余额校验（面板已禁用不足态·此处为后端事务前的最后即时反馈）
+  if (coinBalance.value < gift.price * count) {
+    uni.showToast({ title: '金币余额不足', icon: 'none' })
     return
   }
   sendingGift = true
   showGiftPanel.value = false
   try {
-    // 真实送礼：后端事务扣国学币 + 记打赏
-    await liveApi.sendGift(room.value.id, backendGift.id, count)
-    // 成功后飘屏 + 弹幕 + 扣余额
-    const fid = ++flyerId
-    giftFlyers.value.push({ id: fid, user: '我', avatar: room.value.hostAvatar, giftName: gift.name, giftIcon: gift.icon, count })
-    setTimeout(() => { giftFlyers.value = giftFlyers.value.filter((g) => g.id !== fid) }, 4000)
-    comments.value.push({ id: 'gift-' + Date.now(), userName: '我', content: `送出 ${gift.name}`, type: 'gift', giftInfo: { name: gift.name, icon: gift.icon, count } })
+    // 真实送礼：直接用后端礼物 uuid（后端事务扣国学币 + 记打赏）
+    const sent = await sendLiveGift(room.value.id, gift.id, count)
+    // 拿到 giftRecord 即代表扣币、建记录、主播分账已在同一事务提交成功；
+    // 反馈动效只是这件事的表现，播不出来也不改变交易结果。
+    const myAvatar = getUserInfo<{ avatar?: string }>()?.avatar || ''
+    const own = normalizeFromSendResponse(sent.record, giftNormalizeContext())
+    giftFeed.push(own ? { ...own, avatar: own.avatar || myAvatar } : null)
+    const flyIcon = gift.icon && !/^https?:\/\//.test(gift.icon) ? gift.icon : ''
+    comments.value.push({ id: 'gift-' + Date.now(), userName: '我', content: `送出 ${gift.name} x${count}`, type: 'gift', giftInfo: { name: gift.name, icon: flyIcon, count } })
     scrollDanmakuToBottom()
     coinBalance.value = Math.max(0, coinBalance.value - gift.price * count)
-    // 送礼后刷新打赏榜 + 通过 TIM 群广播（让其他观众看到）
-    fetchRanking(room.value.id)
-    if (danmakuGroupId) tim.sendGroupText(danmakuGroupId, `送出 ${gift.name} x${count}`).catch(() => {})
+    // 实时广播由服务端在扣款事务成功后统一中继，客户端不能伪造礼物事件。
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '送礼失败', icon: 'none' })
   } finally {
@@ -516,15 +1431,33 @@ function openQuickBuy(p: VerticalLiveProduct) {
   navigateTo(`/pkg-shop/checkout/index?productId=${p.id}&quantity=1&sourceContentType=LIVE&sourceContentId=${room.value.id}`)
 }
 
-function onShare(_key: string) {
-  // @data-needs: 分享渠道调用（uni.share），此处仅关闭面板
-  showShare.value = false
+/** 分享链接构造（照抄短视频页 buildShareUrl 范式·适配直播观看页路由·withRef 追加分享者 ref 归因） */
+function buildShareUrl(): string {
+  const rid = loadedRoomId.value || room.value.id || ''
+  return withRef(buildH5Url('pkg-live/watch/index', { id: rid }))
 }
+function openLivePoster() {
+  openPoster('live', loadedRoomId.value || room.value.id)
+}
+onShareAppMessage(() => toAppMessage({
+  title: liveShareTitle.value,
+  path: `/pkg-live/watch/index?id=${loadedRoomId.value || room.value.id}`,
+  cover: room.value.cover,
+}))
+onShareTimeline(() => toTimeline({
+  title: liveShareTitle.value,
+  path: `/pkg-live/watch/index?id=${loadedRoomId.value || room.value.id}`,
+  cover: room.value.cover,
+}))
 
+/**
+ * 举报直播间
+ * 🔴 原实现是假 toast「举报已提交，感谢反馈」—— 什么都没提交。
+ *    举报页（pkg-report）其实早就迁移好了，后端端点也一直在。
+ */
 function onReport() {
-  // 举报直播间。举报页尚未迁移，先以 toast 占位。
-  // @data-needs: 举报页路由 /pkg-mine/report/index?type=live&targetId={room.id}（待迁移后改为 navigateTo）
-  uni.showToast({ title: '举报已提交，感谢反馈', icon: 'none' })
+  showShare.value = false
+  gotoReport('LIVE', String(room.value?.id || ''), room.value?.title, room.value?.hostName)
 }
 
 function scrollDanmakuToBottom() {
@@ -532,25 +1465,73 @@ function scrollDanmakuToBottom() {
 }
 
 onLoad((opts) => {
-  const roomId = opts?.id || '1'
+  pageVisible.value = true
+  loadedRoomId.value = String(opts?.id || '') // 路由 roomId 独立保存（重试/分享用·不依赖 room.value.id 是否已填充）
+  returnRoute.value = normalizeReturnRoute(opts?.returnRoute)
+  if (!loadedRoomId.value) {
+    loading.value = false
+    error.value = '缺少直播间信息，请返回后重新进入'
+    return
+  }
+  const roomId = loadedRoomId.value
   if (opts?.type === 'commerce') room.value.type = 'commerce'
-  fetchRoomData(roomId)
-  fetchPlayUrl(roomId)
+  fetchRoomData(roomId) // 播放地址在 fetchRoomData 内按 LIVING 态条件拉取
   fetchGifts()
-  fetchRanking(roomId)
+})
+
+onShow(() => {
+  pageVisible.value = true
+  // 回到前台：后台过久的积压礼物效果不集中补播（阈值见 gift-feed.ts）
+  giftFeed.resume()
+  const shouldResume = resumeAfterHide
+  resumeAfterHide = false
+  if (endingLiveSession.value) {
+    scheduleEndAdvance()
+    return
+  }
+  if (loadedRoomId.value && (!liveSessionActive.value || !playUrl.value) && (shouldResume || !loading.value)) {
+    // 后台阶段的旧读取已取消，回到前台后用新的代次恢复房间数据和观看会话。
+    void fetchRoomData(loadedRoomId.value)
+    return
+  }
+  if (!liveSessionActive.value) return
+  void touchPresence()
+  startRoomPolling()
+})
+
+onHide(() => {
+  giftFeed.pause()
+  pageVisible.value = false
+  resumeAfterHide = true
+  roomLoadVersion += 1
+  stopRoomPolling()
+  stopRealtime()
+  void leaveDanmaku()
+  clearEndAdvance()
+  void leavePresence()
 })
 
 onMounted(() => {
-  try {
-    const sys = uni.getSystemInfoSync()
-    statusBarHeight.value = sys.statusBarHeight || 0
-  } catch (e) {}
+  // 预约态倒计时每分钟刷新（常驻轻量 ticker·非 WAITING 态无副作用）
+  countdownTimer = setInterval(() => { nowTs.value = Date.now() }, 60000)
 })
 
 onUnmounted(() => {
+  pageVisible.value = false
+  roomLoadVersion += 1
+  // 离开页面前尽力保存最后位置；请求失败仍有本地缓存兜底。
+  void reportReplayProgress()
   // 退订 TIM 群消息 + 退出弹幕群
-  if (offTimMessage) offTimMessage()
-  if (danmakuGroupId) tim.quitGroup(danmakuGroupId)
+  stopRealtime()
+  void leaveDanmaku()
+  // 礼物反馈：清编排层定时器 + 清退场定时器，避免卸载后仍有回调改已销毁的状态
+  giftFeed.destroy()
+  clearGiftExitTimers()
+  // 清理倒计时定时器
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
+  stopRoomPolling()
+  clearEndAdvance()
+  void leavePresence()
 })
 </script>
 
@@ -562,6 +1543,39 @@ onUnmounted(() => {
   overflow: hidden;
   background: #000;
 }
+
+.live-ended-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 180;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  background: rgba(10, 9, 11, 0.74);
+}
+.live-ended-card {
+  width: 100%;
+  max-width: 560rpx;
+  padding: 46rpx 40rpx;
+  border: 1rpx solid rgba(201, 169, 110, 0.46);
+  border-radius: 28rpx;
+  background: rgba(29, 25, 24, 0.96);
+  box-shadow: 0 24rpx 64rpx rgba(0, 0, 0, 0.38);
+  text-align: center;
+}
+.live-ended-kicker { display: block; color: #c9a96e; font-size: 25rpx; letter-spacing: 2rpx; }
+.live-ended-title { display: block; margin-top: 18rpx; color: #fffaf1; font-size: 32rpx; font-weight: 700; }
+.live-ended-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80rpx;
+  margin-top: 34rpx;
+  border-radius: 40rpx;
+  background: #c41e3a;
+}
+.live-ended-action-text { color: #fff; font-size: 27rpx; font-weight: 700; }
 
 /* 加载/错误覆盖层 */
 .watch-loading, .watch-error { position: absolute; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; }
@@ -672,15 +1686,100 @@ onUnmounted(() => {
 }
 .watch__disclaimer { margin-top: 16rpx; }
 
-/* 右上角榜单入口 */
-.rank-entry-wrap { position: absolute; top: 220rpx; right: 24rpx; z-index: 20; }
-.rank-entry {
-  display: flex; align-items: center; gap: 8rpx;
-  padding: 8rpx 16rpx;
-  background: linear-gradient(to right, rgba(245,158,11,0.8), rgba(249,115,22,0.8));
-  border-radius: 999rpx;
+/* 画质角标 + 来源圈子（V0 quality-badge：深底毛玻璃 + 暖金字） */
+.watch__meta-row { display: flex; align-items: center; gap: 16rpx; margin-top: 16rpx; }
+.quality-badge {
+  height: 40rpx; padding: 0 16rpx; border-radius: 20rpx;
+  background: rgba(0,0,0,0.5);
+  display: inline-flex; align-items: center;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
-.rank-entry__txt { font-size: 20rpx; font-weight: 500; color: #fff; white-space: nowrap; }
+.quality-badge__txt { font-size: 21rpx; font-weight: 600; color: #E8DCC4; }
+.circle-link { display: inline-flex; align-items: center; gap: 4rpx; }
+.circle-link__txt { font-size: 21rpx; color: rgba(232,220,196,0.8); }
+
+/* ===== 三态共用：状态页返回钮（深底毛玻璃圆钮） ===== */
+.state-back {
+  position: absolute; left: 24rpx;
+  width: 60rpx; height: 60rpx; border-radius: 50%;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  z-index: 5;
+}
+
+/* ===== 预约态（V0 状态B·深色 --bg-page:#141210 系） ===== */
+.pre { position: absolute; inset: 0; background: #141210; }
+.pre__cover-wrap { position: relative; }
+/* 16:9 封面压暗（brightness 0.45） */
+.pre__cover { display: block; width: 100%; height: 422rpx; filter: brightness(0.45); }
+.pre__cover--ph { background: linear-gradient(180deg, #2A2620, #141210); filter: none; }
+.pre__overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx;
+}
+.pre__label { font-size: 24rpx; color: #E8DCC4; letter-spacing: 4rpx; }
+.pre__time { font-size: 44rpx; font-weight: 700; color: #FFFFFF; }
+.pre__count { font-size: 23rpx; color: rgba(255,255,255,0.75); }
+.pre__reserve { padding: 28rpx 32rpx; display: flex; align-items: center; gap: 24rpx; }
+.pre__reserve-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.pre__reserve-title { font-size: 29rpx; font-weight: 600; color: #F5F2ED; line-height: 1.4; }
+.pre__reserve-sub { font-size: 23rpx; color: #7A7468; }
+.pre__btn {
+  height: 76rpx; padding: 0 44rpx; border-radius: 38rpx; flex-shrink: 0;
+  background: #C41E3A; /* --brand */
+  display: flex; align-items: center; justify-content: center;
+}
+/* 已预约：灰态（可再点取消） */
+.pre__btn--booked { background: rgba(255,255,255,0.12); }
+.pre__btn-txt { font-size: 27rpx; font-weight: 600; color: #FFFFFF; white-space: nowrap; }
+.pre__btn-txt--booked { color: #B8B2A8; }
+.pre__ticket {
+  margin: 0 32rpx; padding: 20rpx 28rpx;
+  background: #2A2620; /* --bg-warm */ border-radius: 16rpx;
+}
+.pre__ticket-txt { font-size: 23rpx; color: #B8B2A8; line-height: 1.65; }
+.pre__ticket-price { color: #C9A96E; font-weight: 600; }
+
+/* ===== 回放态（V0 状态C·点播） ===== */
+.rp { position: absolute; inset: 0; background: #141210; }
+.rp__cover-wrap { position: relative; background: #000; }
+.rp__cover { display: block; width: 100%; height: 422rpx; }
+.rp__cover--ph { background: linear-gradient(180deg, #2A2620, #141210); }
+.rp__video { display: block; width: 100%; height: 422rpx; }
+.rp__badge {
+  /* 移到右上角：左上角已被返回按钮(.state-back)占用，同处会露出「放」字碎片 */
+  position: absolute; top: 20rpx; right: 20rpx;
+  height: 44rpx; padding: 0 18rpx; border-radius: 22rpx;
+  background: rgba(0,0,0,0.55);
+  display: inline-flex; align-items: center;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.rp__badge-txt { font-size: 22rpx; font-weight: 600; color: #E8DCC4; }
+.rp__play {
+  position: absolute; inset: 0; margin: auto;
+  width: 108rpx; height: 108rpx; border-radius: 50%;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.rp__info { padding: 24rpx 32rpx 0; }
+.rp__title { font-size: 32rpx; font-weight: 700; color: #F5F2ED; line-height: 1.4; }
+.rp__host-row { display: flex; align-items: center; gap: 16rpx; margin-top: 24rpx; }
+.rp__host-avatar { width: 76rpx; height: 76rpx; border-radius: 50%; border: 3rpx solid #C9A96E; background: #2A2620; }
+.rp__host-name { font-size: 28rpx; font-weight: 600; color: #F5F2ED; }
+.rp__empty { margin-top: 48rpx; padding: 64rpx 0; display: flex; justify-content: center; background: #211E1A; border-radius: 36rpx; }
+.rp__empty-txt { font-size: 26rpx; color: #7A7468; }
+
+/* #21 回放章节点（V0 circle-live-viewer chapter-list·深色卡+金色时间点） */
+.rp__chapter-label { display: block; margin: 40rpx 4rpx 16rpx; font-size: 24rpx; color: #7A7468; }
+.rp__chapter-list { background: #211E1A; border-radius: 36rpx; padding: 8rpx 0; }
+.rp__chapter-row { display: flex; align-items: center; gap: 24rpx; padding: 24rpx 32rpx; }
+.rp__chapter-row + .rp__chapter-row { border-top: 1rpx solid rgba(255, 255, 255, 0.08); }
+.rp__chapter-row:active { background: rgba(255, 255, 255, 0.04); }
+.rp__chapter-time { flex-shrink: 0; font-size: 24rpx; font-weight: 600; color: #C9A96E; font-variant-numeric: tabular-nums; }
+.rp__chapter-name { flex: 1; min-width: 0; font-size: 26rpx; color: #B8B2A8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp__resume-tip { display: block; margin: 20rpx 4rpx 0; font-size: 22rpx; color: #7A7468; }
 
 /* 商品讲解卡 */
 .explain-card {
@@ -721,22 +1820,93 @@ onUnmounted(() => {
 .sys-banner__user { font-size: 24rpx; color: inherit; font-weight: 500; white-space: nowrap; }
 .sys-banner__content { font-size: 24rpx; color: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 飘屏礼物 */
-.gift-flyers { position: absolute; left: 0; top: 380rpx; z-index: 16; display: flex; flex-direction: column; gap: 12rpx; }
-.gift-flyer {
+/* ───────── 礼物反馈 L1/L2 ─────────
+   位置沿用原飘屏的左上区域；整层 pointer-events:none，
+   不遮挡右上退出、底部输入/点赞/送礼/分享/举报这些关键操作。 */
+.gift-combos {
+  position: absolute; left: 0; top: 380rpx; right: 0; z-index: 16;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 12rpx;
+  pointer-events: none;
+}
+.gift-combo {
   display: flex; align-items: center; gap: 12rpx;
+  max-width: 78%;
   background: linear-gradient(to right, rgba(196,30,58,0.85), rgba(201,169,110,0.6));
   border-radius: 0 40rpx 40rpx 0;
   padding: 10rpx 24rpx 10rpx 10rpx;
-  animation: flyer-in 0.4s ease;
+  border: 1rpx solid transparent;
+  animation: gift-combo-in 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-@keyframes flyer-in { 0% { transform: translateX(-100%); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
-.gift-flyer__avatar { width: 56rpx; height: 56rpx; border-radius: 50%; flex-shrink: 0; }
-.gift-flyer__info { display: flex; flex-direction: column; }
-.gift-flyer__user { font-size: 20rpx; color: #FFD700; white-space: nowrap; }
-.gift-flyer__desc { font-size: 18rpx; color: #fff; white-space: nowrap; }
-.gift-flyer__icon { font-size: 40rpx; }
-.gift-flyer__count { font-size: 28rpx; color: #FFD700; font-weight: 700; font-style: italic; }
+/* 层级越高描边越实，但不做独占特效——L3 未接入 */
+.gift-combo--mid { border-color: rgba(212,184,125,0.55); }
+.gift-combo--high { border-color: #D4B87D; }
+.gift-combo--top { border-color: #FFD700; }
+.gift-combo--out { animation: gift-combo-out 0.26s ease-in both; }
+@keyframes gift-combo-in { from { transform: translateX(-100%); opacity: 0; } }
+@keyframes gift-combo-out { to { transform: translateX(-40rpx); opacity: 0; } }
+.gift-combo__avatar { width: 56rpx; height: 56rpx; border-radius: 50%; flex-shrink: 0; }
+.gift-combo__info { display: flex; flex-direction: column; min-width: 0; }
+.gift-combo__user {
+  font-size: 20rpx; color: #FFD700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220rpx;
+}
+.gift-combo__desc {
+  font-size: 18rpx; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220rpx;
+}
+.gift-combo__icon { font-size: 40rpx; flex-shrink: 0; }
+.gift-combo__icon-img { width: 44rpx; height: 44rpx; flex-shrink: 0; }
+.gift-combo__count {
+  font-size: 32rpx; color: #FFD700; font-weight: 700; font-style: italic;
+  flex-shrink: 0; min-width: 64rpx;
+}
+/* 数量变化只做一次脉冲，条目本身不重建 */
+.gift-combo__count--bump { animation: gift-count-bump 0.38s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes gift-count-bump {
+  0% { transform: scale(1); }
+  32% { transform: scale(1.46); color: #fff; }
+  100% { transform: scale(1); }
+}
+
+.gift-lights {
+  position: absolute; right: 24rpx; top: 700rpx; z-index: 16;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 10rpx;
+  max-width: 44%;
+  pointer-events: none;
+}
+.gift-light {
+  display: flex; align-items: center; gap: 10rpx;
+  max-width: 100%;
+  padding: 8rpx 20rpx 8rpx 8rpx;
+  border-radius: 999rpx;
+  background: rgba(12,11,14,0.58);
+  border: 1rpx solid rgba(201,169,110,0.30);
+  animation: gift-light-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.gift-light--out { animation: gift-light-out 0.3s ease-in both; }
+@keyframes gift-light-in { from { transform: translateY(24rpx) scale(0.9); opacity: 0; } }
+@keyframes gift-light-out { to { transform: translateY(-18rpx); opacity: 0; } }
+.gift-light__icon { font-size: 30rpx; flex-shrink: 0; }
+.gift-light__icon-img { width: 36rpx; height: 36rpx; flex-shrink: 0; }
+.gift-light__txt {
+  font-size: 20rpx; color: #E8DCC4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.gift-overflow {
+  position: absolute; left: 24rpx; top: 660rpx; z-index: 16;
+  padding: 6rpx 16rpx; border-radius: 999rpx;
+  background: rgba(12,11,14,0.52);
+  pointer-events: none;
+}
+.gift-overflow__txt { font-size: 18rpx; color: rgba(232,220,196,0.72); }
+
+/* 系统"减少动态效果"：只去掉位移与缩放，信息本身照常显示 */
+@media (prefers-reduced-motion: reduce) {
+  .gift-combo, .gift-combo--out, .gift-light, .gift-light--out, .gift-combo__count--bump {
+    animation: none;
+  }
+}
 
 /* 电商已售通知 */
 .sale-notif {
@@ -821,7 +1991,7 @@ onUnmounted(() => {
 .comment-input {
   display: flex; align-items: center; gap: 16rpx;
   background-color: #1c1c1e;
-  padding: 20rpx 24rpx calc(env(safe-area-inset-bottom) + 20rpx);
+  padding: 20rpx 24rpx;
 }
 .comment-input__field {
   flex: 1;
@@ -833,20 +2003,6 @@ onUnmounted(() => {
 .comment-input__send { flex-shrink: 0; background-color: rgba(255,255,255,0.18); border-radius: 36rpx; padding: 16rpx 32rpx; }
 .comment-input__send--on { background-color: var(--brand); }
 .comment-input__send-txt { font-size: 26rpx; color: #fff; }
-
-/* 榜单 sheet */
-.rank-sheet { background-color: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx; max-height: 70vh; }
-.rank-sheet__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
-.rank-sheet__title { font-size: 32rpx; font-weight: 700; color: #1c1c1e; }
-.rank-sheet__list { display: flex; flex-direction: column; gap: 8rpx; }
-.rank-row { display: flex; align-items: center; gap: 20rpx; padding: 18rpx 8rpx; }
-.rank-row__no { width: 44rpx; text-align: center; font-size: 28rpx; font-weight: 700; color: #999; flex-shrink: 0; }
-.rank-row__no--1 { color: var(--brand); }
-.rank-row__no--2 { color: #C9A96E; }
-.rank-row__no--3 { color: #E0A458; }
-.rank-row__user { flex: 1; font-size: 26rpx; color: #1c1c1e; }
-.rank-row__amount { display: flex; align-items: center; gap: 6rpx; }
-.rank-row__amount-txt { font-size: 24rpx; color: #C9A96E; font-weight: 600; }
 
 /* 商品 sheet */
 .product-sheet { background-color: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx 32rpx 0; max-height: 70vh; display: flex; flex-direction: column; }
@@ -868,7 +2024,7 @@ onUnmounted(() => {
 .product-row__buy-txt { font-size: 24rpx; color: #fff; font-weight: 600; white-space: nowrap; }
 
 /* 分享 sheet */
-.share-sheet { background-color: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx 32rpx calc(env(safe-area-inset-bottom) + 32rpx); }
+.share-sheet { background-color: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx; }
 .share-sheet__title { font-size: 28rpx; font-weight: 600; color: #1c1c1e; text-align: center; display: block; margin-bottom: 32rpx; }
 .share-sheet__grid { display: flex; gap: 48rpx; padding: 0 16rpx; }
 .share-item { display: flex; flex-direction: column; align-items: center; gap: 12rpx; }

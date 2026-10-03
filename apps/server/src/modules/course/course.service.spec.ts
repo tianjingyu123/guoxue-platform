@@ -12,7 +12,10 @@ import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { AuditService } from "../audit/audit.service";
+import { ShopAttributionService } from "../shop/shop-attribution.service";
 import { BusinessException } from "../../common/business.exception";
+import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
+import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
 
 const mockPrisma = {
   course: {
@@ -60,6 +63,12 @@ const mockPrisma = {
   userBehavior: {
     create: jest.fn().mockResolvedValue({}),
   },
+  configSystem: {
+    findUnique: jest.fn().mockResolvedValue(null), // 官方圈未配置：circleId 缺省保持 undefined
+  },
+  userRole: {
+    findFirst: jest.fn().mockResolvedValue(null), // 默认非平台管理员：非本人编辑仍 403（管理员放行逻辑见 isPlatformAdmin）
+  },
 };
 
 const mockRedis = {
@@ -99,9 +108,24 @@ describe("CourseService", () => {
         CourseReviewQaService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
+        { provide: CirclePublishGrantService, useValue: { assertCanPublish: jest.fn() } },
         { provide: AiGatewayService, useValue: mockAiGateway },
         { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
-        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
+        { provide: ShopAttributionService, useValue: {
+          resolveReferrerUserId: jest.fn().mockResolvedValue(null),
+          isChannelAttributionEnabled: jest.fn().mockResolvedValue(false),
+          findLatestChannelClick: jest.fn().mockResolvedValue(null),
+        } },
+        {
+          provide: AuditService,
+          useValue: {
+            moderateTextOrThrow: jest.fn().mockResolvedValue(undefined),
+            // 默认按 CIRCLE_ONLY 直生效；分流逻辑本体在 audit.service.spec 覆盖
+            resolveContentVisibility: jest.fn().mockResolvedValue({ visibility: "CIRCLE_ONLY", auditStatus: "APPROVED" }),
+            openContentAudit: jest.fn().mockResolvedValue(undefined),
+            queueContentModeration: jest.fn(),
+          },
+        },
       ],
     }).compile();
     svc = mod.get(CourseService);
@@ -211,6 +235,8 @@ describe("CourseService", () => {
       expect(result).toHaveProperty("courses");
       expect(result.total).toBe(0);
       expect(mockRedis.setJson).toHaveBeenCalled();
+      const where = mockPrisma.course.findMany.mock.calls.at(-1)![0].where;
+      expect(where.id).toEqual({ notIn: [...PUBLIC_QUARANTINED_IDS.course] });
     });
 
     it("有缓存时直接返回", async () => {
@@ -218,6 +244,23 @@ describe("CourseService", () => {
       mockRedis.getJson.mockResolvedValue(cached);
       const result = await svc.listCourses({ page: 1, pageSize: 20 });
       expect(result).toEqual(cached);
+    });
+
+    it("不同分站的课程列表不共用缓存键", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.course.findMany.mockResolvedValue([]);
+      mockPrisma.course.count.mockResolvedValue(0);
+      await svc.listCourses({ page: 1, pageSize: 20, stationId: "station-a" });
+      await svc.listCourses({ page: 1, pageSize: 20, stationId: "station-b" });
+      expect(mockRedis.getJson.mock.calls[0][0]).not.toBe(mockRedis.getJson.mock.calls[1][0]);
+    });
+
+    it("管理端 ALL 保留隔离记录用于审核", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.course.findMany.mockResolvedValue([]);
+      mockPrisma.course.count.mockResolvedValue(0);
+      await svc.listCourses({ page: 1, pageSize: 20, status: "ALL" });
+      expect(mockPrisma.course.findMany.mock.calls.at(-1)![0].where.id).toBeUndefined();
     });
 
     // 分类/排序/免费 下沉：作用于 where/orderBy，且筛选态绕过缓存
@@ -233,6 +276,16 @@ describe("CourseService", () => {
         const arg = mockPrisma.course.findMany.mock.calls.at(-1)![0];
         expect(arg.where.categoryLevel1).toBe("国学经典");
         expect(arg.where.auditStatus).toBe("APPROVED"); // 默认只看已审核
+      });
+
+      it("讲师课程仅筛选其已审核且公开的作品", async () => {
+        await svc.listCourses({ page: 1, pageSize: 6, instructorId: "teacher-1" });
+        const where = mockPrisma.course.findMany.mock.calls.at(-1)![0].where;
+        expect(where.userId).toBe("teacher-1");
+        expect(where.auditStatus).toBe("APPROVED");
+        expect(where.visibility).toBe("PLATFORM");
+        expect(where.deletedAt).toBeNull();
+        expect(mockRedis.getJson).not.toHaveBeenCalled();
       });
 
       it("free=true → where.price=0", async () => {
@@ -376,6 +429,7 @@ describe("CourseService", () => {
   describe("updateProgress", () => {
     it("更新进度未完成", async () => {
       mockPrisma.courseChapter.findUnique.mockResolvedValue({ id: "ch1", courseId: "co1" });
+      mockPrisma.course.findUnique.mockResolvedValue({ price: 0, userId: "u2" });
       mockPrisma.courseProgress.upsert.mockResolvedValue({ progress: 50, completed: false });
       const result = await svc.updateProgress("u1", "ch1", { progress: 50 });
       expect(result.progress).toBe(50);
@@ -384,6 +438,7 @@ describe("CourseService", () => {
 
     it("进度 100 标记完成", async () => {
       mockPrisma.courseChapter.findUnique.mockResolvedValue({ id: "ch1", courseId: "co1" });
+      mockPrisma.course.findUnique.mockResolvedValue({ price: 0, userId: "u2" });
       mockPrisma.courseProgress.upsert.mockResolvedValue({ progress: 100, completed: true });
       const result = await svc.updateProgress("u1", "ch1", { progress: 100 });
       expect(result.completed).toBe(true);
@@ -392,6 +447,14 @@ describe("CourseService", () => {
     it("章节不存在抛出 NotFoundException", async () => {
       mockPrisma.courseChapter.findUnique.mockResolvedValue(null);
       await expect(svc.updateProgress("u1", "invalid", { progress: 50 })).rejects.toThrow(BusinessException);
+    });
+
+    it("未开通付费课程不能写入进度", async () => {
+      mockPrisma.courseChapter.findUnique.mockResolvedValue({ id: "ch1", courseId: "co1" });
+      mockPrisma.course.findUnique.mockResolvedValue({ price: 99, userId: "u2" });
+      mockPrisma.order.findFirst.mockResolvedValue(null);
+      await expect(svc.updateProgress("u1", "ch1", { progress: 100 })).rejects.toThrow("当前无课程学习权限");
+      expect(mockPrisma.courseProgress.upsert).not.toHaveBeenCalled();
     });
   });
 
@@ -522,6 +585,19 @@ describe("CourseService", () => {
       const result = await svc.getMyCourses("u1");
       expect(result.total).toBe(1);
       expect(result.courses[0].course?.title).toBe("论语精讲");
+    });
+
+    it("按当前用户与课程 ID 核对已支付订阅，不混入其他课程", async () => {
+      mockPrisma.order.findMany.mockResolvedValue([]);
+      mockPrisma.order.count.mockResolvedValue(0);
+      const result = await svc.getMyCourses("u1", 1, 1, "free-course");
+      expect(result.total).toBe(0);
+      expect(mockPrisma.order.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          userId: "u1", targetId: "free-course", type: "COURSE",
+          status: { in: ["PAID", "COMPLETED"] },
+        }),
+      }));
     });
   });
 

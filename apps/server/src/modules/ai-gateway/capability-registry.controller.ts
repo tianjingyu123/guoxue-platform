@@ -5,6 +5,7 @@ import { RegisterCapabilityDto, SetCapabilityStatusDto } from "./dto/ai-infra.dt
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("🤖 AI能力注册中心")
 @Controller("ai/capabilities")
@@ -15,6 +16,8 @@ export class CapabilityRegistryController {
   constructor(private readonly registry: CapabilityRegistryService) {}
 
   @Post()
+  @RedLineGate(RedLine.COMPLIANCE)
+  @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "注册AI能力" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -61,6 +64,8 @@ export class CapabilityRegistryController {
   }
 
   @Put(":name/status")
+  @RedLineGate(RedLine.COMPLIANCE)
+  @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "设置能力状态" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -73,6 +78,7 @@ export class CapabilityRegistryController {
   }
 
   @Post("recalculate-rates")
+  @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "重新计算能力成功率" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

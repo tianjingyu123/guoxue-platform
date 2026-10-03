@@ -1,9 +1,16 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { refreshPaipanMode } from "@/lib/paipan-runtime";
+import { useAuthStore } from "@/store/auth";
+import { clearAdminSession, rememberAdminRedirect } from "@/utils/auth-session";
 
 // 所有管理角色
 const ALL_ADMIN = [
-  "SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR",
-  "FINANCE_ADMIN", "CUSTOMER_SERVICE", "GOODS_AUDITOR",
+  "SUPER_ADMIN",
+  "OPERATION_ADMIN",
+  "CONTENT_AUDITOR",
+  "FINANCE_ADMIN",
+  "CUSTOMER_SERVICE",
+  "GOODS_AUDITOR",
 ];
 
 const routes = [
@@ -68,25 +75,36 @@ const routes = [
         path: "contents",
         name: "ContentList",
         component: () => import("@/views/ContentList.vue"),
-        meta: { title: "内容管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          title: "内容库（旧CMS）",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "contents/create",
         name: "ContentCreate",
         component: () => import("@/views/ContentEdit.vue"),
-        meta: { hidden: true, title: "新建内容", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          hidden: true,
+          title: "新建内容",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "contents/:id/edit",
         name: "ContentEdit",
         component: () => import("@/views/ContentEdit.vue"),
-        meta: { hidden: true, title: "编辑内容", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          hidden: true,
+          title: "编辑内容",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "contents/audit",
         name: "ContentAudit",
         component: () => import("@/views/content/ContentAudit.vue"),
-        meta: { title: "内容审核", roles: ["SUPER_ADMIN", "CONTENT_AUDITOR"] },
+        meta: { title: "内容审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
       {
         path: "contents/recommend",
@@ -107,24 +125,12 @@ const routes = [
         component: () => import("@/views/classics/ClassicCommentaryManage.vue"),
         meta: { title: "古籍注解", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
-      // === 诗词雅集 ===
+      // === 小卜 · 白话译文人工复核 ===
       {
-        path: "poetry",
-        name: "PoetryList",
-        component: () => import("@/views/poetry/PoetryList.vue"),
-        meta: { title: "诗词管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
-      },
-      {
-        path: "poetry/categories",
-        name: "PoetryCategoryManage",
-        component: () => import("@/views/poetry/PoetryCategoryManage.vue"),
-        meta: { title: "诗词分类", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
-      },
-      {
-        path: "poetry/collections",
-        name: "PoetryCollectionManage",
-        component: () => import("@/views/poetry/PoetryCollectionManage.vue"),
-        meta: { title: "诗单管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        path: "classics/translations",
+        name: "ClassicTranslationReview",
+        component: () => import("@/views/classics/ClassicTranslationReview.vue"),
+        meta: { title: "白话译文复核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 社区 ===
       {
@@ -140,16 +146,32 @@ const routes = [
         meta: { title: "圈子退款审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
+        path: "circle-appeals",
+        name: "CircleAppealArbitration",
+        component: () => import("@/views/circles/CircleAppealArbitration.vue"),
+        meta: { title: "圈子申诉仲裁", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "call-disputes",
+        name: "CallDisputeArbitration",
+        component: () => import("@/views/circles/CallDisputeArbitration.vue"),
+        meta: { title: "通话账单申诉", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
         path: "circles/:id",
         name: "CircleDetail",
         component: () => import("@/views/circles/CircleDetail.vue"),
-        meta: { hidden: true, title: "圈子详情", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          hidden: true,
+          title: "圈子详情",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "videos",
         name: "VideoList",
         component: () => import("@/views/videos/VideoList.vue"),
-        meta: { title: "视频管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: { title: "短视频管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
       {
         path: "lives",
@@ -167,44 +189,44 @@ const routes = [
         path: "questions",
         name: "QuestionList",
         component: () => import("@/views/qa/QuestionList.vue"),
-        meta: { title: "付费问答", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        meta: { title: "付费问答（达人咨询）", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 排盘工具 ===
       {
         path: "bazi",
         name: "BaziPan",
         component: () => import("@/views/bazi/BaziPan.vue"),
-        meta: { title: "八字排盘", roles: ALL_ADMIN },
+        meta: { title: "八字排盘", roles: ALL_ADMIN, nativePaipan: true },
       },
       {
         path: "ziwei",
         name: "ZiweiPan",
         component: () => import("@/views/bazi/ZiweiPan.vue"),
-        meta: { title: "紫微排盘", roles: ALL_ADMIN },
+        meta: { title: "紫微排盘", roles: ALL_ADMIN, nativePaipan: true },
       },
       {
         path: "qimen",
         name: "QimenPan",
         component: () => import("@/views/qimen/QimenPan.vue"),
-        meta: { title: "奇门排盘", roles: ALL_ADMIN },
+        meta: { title: "奇门排盘", roles: ALL_ADMIN, nativePaipan: true },
       },
       {
         path: "liuyao",
         name: "LiuYaoPan",
         component: () => import("@/views/liuyao/LiuYaoPan.vue"),
-        meta: { title: "六爻排盘", roles: ALL_ADMIN },
+        meta: { title: "六爻排盘", roles: ALL_ADMIN, nativePaipan: true },
       },
       {
         path: "daliuren",
         name: "DaLiuRenPan",
         component: () => import("@/views/daliuren/DaLiuRenPan.vue"),
-        meta: { title: "大六壬排盘", roles: ALL_ADMIN },
+        meta: { title: "大六壬排盘", roles: ALL_ADMIN, nativePaipan: true },
       },
       {
         path: "paipan-records",
         name: "PaipanRecords",
         component: () => import("@/views/PaipanRecords.vue"),
-        meta: { title: "排盘记录", roles: ALL_ADMIN },
+        meta: { title: "排盘记录", roles: ALL_ADMIN, nativePaipan: true },
       },
       {
         path: "bots",
@@ -222,14 +244,34 @@ const routes = [
       {
         path: "courses/create",
         name: "CourseCreate",
-        component: () => import("@/views/courses/CourseEdit.vue"),
-        meta: { hidden: true, title: "新建课程", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        // 2026-07-11 课程编辑器重做：新建/编辑走可视化分区块编辑器（CourseEditor·无富文本）
+        component: () => import("@/views/courses/CourseEditor.vue"),
+        meta: {
+          hidden: true,
+          title: "发布课程",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "courses/:id/edit",
         name: "CourseEdit",
+        component: () => import("@/views/courses/CourseEditor.vue"),
+        meta: {
+          hidden: true,
+          title: "编辑课程",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
+      },
+      {
+        path: "courses/:id/manage",
+        name: "CourseManage",
+        // 课程运营（学员/作业/评价/问答/统计）：原 CourseEdit 页下线编辑器后保留的运营部分
         component: () => import("@/views/courses/CourseEdit.vue"),
-        meta: { hidden: true, title: "编辑课程", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          hidden: true,
+          title: "课程运营",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "courses/categories",
@@ -241,14 +283,10 @@ const routes = [
         path: "teacher/certifications",
         name: "TeacherCertificationAudit",
         component: () => import("@/views/teacher/TeacherCertificationAudit.vue"),
-        meta: { title: "讲师认证审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
-      },
-      // === 电子书 ===
-      {
-        path: "ebooks",
-        name: "EbookList",
-        component: () => import("@/views/ebook/EbookList.vue"),
-        meta: { title: "电子书管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          title: "讲师认证审核",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       // === 用户管理 ===
       {
@@ -264,12 +302,6 @@ const routes = [
         meta: { title: "实名审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
-        path: "users/capabilities",
-        name: "CapabilityAudit",
-        component: () => import("@/views/user/CapabilityAudit.vue"),
-        meta: { title: "功能权限审批", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
         path: "users/push",
         name: "UserPush",
         component: () => import("@/views/users/UserPush.vue"),
@@ -279,7 +311,7 @@ const routes = [
         path: "users/whitelist",
         name: "WhitelistManage",
         component: () => import("@/views/users/WhitelistManage.vue"),
-        meta: { title: "IP白名单", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        meta: { title: "用户限流白名单", roles: ["SUPER_ADMIN"] },
       },
       {
         path: "users/interests",
@@ -291,7 +323,11 @@ const routes = [
         path: "users/:id",
         name: "UserDetail",
         component: () => import("@/views/users/UserDetail.vue"),
-        meta: { hidden: true, title: "用户详情", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
+        meta: {
+          hidden: true,
+          title: "用户详情",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"],
+        },
       },
       // === 课程组合包 ===
       {
@@ -339,7 +375,7 @@ const routes = [
         path: "shop/product-audit",
         name: "ProductAudit",
         component: () => import("@/views/shop/ProductAudit.vue"),
-        meta: { title: "商品品控", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR"] },
+        meta: { title: "商品审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR"] },
       },
       {
         path: "creator/list",
@@ -357,7 +393,10 @@ const routes = [
         path: "orders",
         name: "OrderList",
         component: () => import("@/views/shop/OrderList.vue"),
-        meta: { title: "订单管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "GOODS_AUDITOR"] },
+        meta: {
+          title: "订单管理",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "GOODS_AUDITOR"],
+        },
       },
       {
         path: "orders/gift-card-print",
@@ -445,47 +484,29 @@ const routes = [
         meta: { title: "微页面管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
+        path: "platform-layout",
+        name: "PlatformLayout",
+        component: () => import("@/views/marketing/PlatformLayout.vue"),
+        meta: { title: "平台页面布局", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
         path: "marketing/full-reductions",
         name: "FullReductionList",
         component: () => import("@/views/marketing/FullReductionList.vue"),
         meta: { title: "满减送管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "marketing/poster-templates",
-        name: "SharePosterTemplate",
-        component: () => import("@/views/marketing/SharePosterTemplate.vue"),
-        meta: { title: "分享海报模板", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "marketing/share-data",
-        name: "ShareDataDashboard",
-        component: () => import("@/views/marketing/ShareDataDashboard.vue"),
-        meta: { title: "分享数据看板", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "marketing/invite-rewards",
-        name: "InviteRewardConfig",
-        component: () => import("@/views/marketing/InviteRewardConfig.vue"),
-        meta: { title: "邀请福利配置", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "marketing/spread-power",
-        name: "SpreadPowerConfig",
-        component: () => import("@/views/marketing/SpreadPowerConfig.vue"),
-        meta: { title: "传播力体系配置", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 定价管理 ===
       {
         path: "pricing/rules",
         name: "PricingRuleList",
         component: () => import("@/views/pricing/RuleList.vue"),
-        meta: { title: "定价规则", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        meta: { title: "价格与促销", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "pricing/rules/:id",
         name: "PricingRuleEdit",
-        component: () => import("@/views/pricing/RuleEdit.vue"),
-        meta: { hidden: true, title: "定价规则编辑", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        redirect: "/pricing/rules",
+        meta: { hidden: true, title: "价格与促销", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "pricing/demand",
@@ -529,7 +550,10 @@ const routes = [
         path: "coin-transactions",
         name: "CoinTransactionList",
         component: () => import("@/views/coin/TransactionList.vue"),
-        meta: { title: "虚拟币流水", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE"] },
+        meta: {
+          title: "虚拟币流水",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE"],
+        },
       },
       // === 财务 ===
       {
@@ -643,12 +667,15 @@ const routes = [
         meta: { title: "挽回动作", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 管理驾驶舱 ===
+      // 原 path "admin/cockpit"：应用本身部署在 /admin/ 子路径下，再叠一层 admin 前缀
+      // 导致浏览器 URL 变成 /admin/admin/cockpit（2026-07-18 双前缀修复·旧路径保留 redirect 兼容收藏夹）
       {
-        path: "admin/cockpit",
+        path: "cockpit",
         name: "Cockpit",
         component: () => import("@/views/dashboard/Cockpit.vue"),
         meta: { title: "管理驾驶舱", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
+      { path: "admin/cockpit", redirect: "/cockpit" },
       // === 对外大屏 ===
       {
         path: "bigscreen/platform",
@@ -680,18 +707,33 @@ const routes = [
         component: () => import("@/views/dashboard/OfflineBigscreen.vue"),
         meta: { title: "线下驿站大屏", roles: ALL_ADMIN },
       },
+      // 原 path "admin/bigscreen-tokens" 同上双前缀问题（2026-07-18 修复·旧路径 redirect 兼容）
       {
-        path: "admin/bigscreen-tokens",
+        path: "bigscreen-tokens",
         name: "BigscreenTokenManage",
         component: () => import("@/views/dashboard/BigscreenTokenManage.vue"),
         meta: { title: "大屏Token管理", roles: ["SUPER_ADMIN"] },
       },
+      { path: "admin/bigscreen-tokens", redirect: "/bigscreen-tokens" },
       // === AI 管理 ===
+      // AI 工作区首页（数字员工驾驶舱·体验标准第三节·2026-07-18）
+      {
+        path: "ai/overview",
+        name: "AiWorkspaceOverview",
+        component: () => import("@/views/ai/AiWorkspaceOverview.vue"),
+        meta: { title: "AI工作总览", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       {
         path: "ai/usage",
         name: "AiUsageStats",
         component: () => import("@/views/ai/AiUsageStats.vue"),
         meta: { title: "AI用量统计", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "ai/decisions",
+        name: "AiDecisionLedger",
+        component: () => import("@/views/ai/DecisionLedger.vue"),
+        meta: { title: "AI决策账本", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "ai/chat-logs",
@@ -715,7 +757,10 @@ const routes = [
         path: "ai/customer-service",
         name: "CustomerServiceAdmin",
         component: () => import("@/views/ai/CustomerServiceAdmin.vue"),
-        meta: { title: "智能客服管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
+        meta: {
+          title: "智能客服管理",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"],
+        },
       },
       {
         path: "ai/agent-marketplace",
@@ -740,12 +785,6 @@ const routes = [
         name: "RagTemplateManage",
         component: () => import("@/views/ai/RagTemplateManage.vue"),
         meta: { title: "RAG模板管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "ai/prompt-scenes",
-        name: "PromptSceneManage",
-        component: () => import("@/views/ai/PromptSceneManage.vue"),
-        meta: { title: "AI Prompt场景化", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "ai/data-explorer",
@@ -814,25 +853,37 @@ const routes = [
         path: "dashboard/overview",
         name: "OpsDashboardOverview",
         component: () => import("@/views/dashboard/Overview.vue"),
-        meta: { title: "运营看板·总览", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+        meta: {
+          title: "运营看板·总览",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"],
+        },
       },
       {
         path: "dashboard/growth",
         name: "OpsDashboardGrowth",
         component: () => import("@/views/dashboard/Growth.vue"),
-        meta: { title: "运营看板·增长", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+        meta: {
+          title: "运营看板·增长",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"],
+        },
       },
       {
         path: "dashboard/revenue",
         name: "OpsDashboardRevenue",
         component: () => import("@/views/dashboard/Revenue.vue"),
-        meta: { title: "运营看板·收入", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+        meta: {
+          title: "运营看板·收入",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"],
+        },
       },
       {
         path: "dashboard/health",
         name: "OpsDashboardHealth",
         component: () => import("@/views/dashboard/Health.vue"),
-        meta: { title: "运营看板·健康", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+        meta: {
+          title: "运营看板·健康",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"],
+        },
       },
       // === 数据运营引擎（D-T1 漏斗 / D-T2 标签）+ 业务哨兵（O-T1） ===
       {
@@ -879,6 +930,20 @@ const routes = [
         meta: { title: "数据库备份", roles: ["SUPER_ADMIN"] },
       },
       {
+        path: "system/feedback",
+        name: "AdminFeedback",
+        component: () => import("@/views/system/AdminFeedback.vue"),
+        meta: { title: "运营反馈", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        // 与上面的「运营反馈」是两套数据：这里是 C 端用户提交的意见反馈与投诉。
+        // 客服角色也要能处理，故 roles 比运营反馈多一个 CUSTOMER_SERVICE。
+        path: "system/user-feedback",
+        name: "UserFeedback",
+        component: () => import("@/views/system/UserFeedback.vue"),
+        meta: { title: "用户反馈", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
+      },
+      {
         path: "system/sensitive-words",
         name: "SensitiveWordList",
         component: () => import("@/views/system/SensitiveWordList.vue"),
@@ -912,7 +977,7 @@ const routes = [
         path: "system/export",
         name: "DataExport",
         component: () => import("@/views/system/DataExport.vue"),
-        meta: { title: "数据导出", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+        meta: { title: "数据导出", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "system/cron",
@@ -1030,42 +1095,6 @@ const routes = [
         meta: { title: "评论管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
       {
-        path: "social/comment-center",
-        name: "CommentCenter",
-        component: () => import("@/views/social/CommentCenter.vue"),
-        meta: { title: "统一评论管理台", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
-      },
-      {
-        path: "social/certifications",
-        name: "CertificationManage",
-        component: () => import("@/views/social/CertificationManage.vue"),
-        meta: { title: "认证标识管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "social/achievements",
-        name: "AchievementManage",
-        component: () => import("@/views/social/AchievementManage.vue"),
-        meta: { title: "成就系统管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "social/notes-audit",
-        name: "PublicNoteAudit",
-        component: () => import("@/views/social/PublicNoteAudit.vue"),
-        meta: { title: "公开笔记审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
-      },
-      {
-        path: "social/emojis",
-        name: "EmojiLibrary",
-        component: () => import("@/views/social/EmojiLibrary.vue"),
-        meta: { title: "国风表情管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "content/ritual",
-        name: "RitualContentManage",
-        component: () => import("@/views/content/RitualContentManage.vue"),
-        meta: { title: "文化仪式感内容", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
         path: "marketing/landing-pages",
         name: "LandingPageManage",
         component: () => import("@/views/marketing/LandingPageManage.vue"),
@@ -1082,32 +1111,19 @@ const routes = [
         path: "bounty/questions",
         name: "BountyQuestionList",
         component: () => import("@/views/bounty/QuestionList.vue"),
-        meta: { title: "赏金问题", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        meta: { title: "悬赏问题", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "bounty/reviews",
         name: "BountyReviewList",
         component: () => import("@/views/bounty/ReviewList.vue"),
-        meta: { title: "赏金审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        meta: { title: "悬赏审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "bounty/experts",
         name: "ExpertManage",
         component: () => import("@/views/bounty/ExpertManage.vue"),
-        meta: { title: "专家管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      // === 运势管理 ===
-      {
-        path: "fortune/config",
-        name: "FortuneConfig",
-        component: () => import("@/views/fortune/FortuneConfig.vue"),
-        meta: { title: "运势推送配置", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "fortune/history",
-        name: "FortuneHistory",
-        component: () => import("@/views/fortune/FortuneHistory.vue"),
-        meta: { title: "运势推送历史", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        meta: { title: "悬赏专家", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 通知 ===
       {
@@ -1224,10 +1240,16 @@ const routes = [
       },
       // === 租户管理 ===
       {
+        path: "managed-customers",
+        name: "ManagedCustomerList",
+        component: () => import("@/views/tenant/ManagedCustomerList.vue"),
+        meta: { title: "托管客户与品牌应用", roles: ["SUPER_ADMIN"] },
+      },
+      {
         path: "tenants",
         name: "TenantList",
         component: () => import("@/views/tenant/TenantList.vue"),
-        meta: { title: "租户管理", roles: ["SUPER_ADMIN"] },
+        meta: { title: "API配额租户", roles: ["SUPER_ADMIN"] },
       },
       {
         path: "tenants/:id",
@@ -1274,19 +1296,40 @@ const routes = [
         component: () => import("@/views/ai/KnowledgeManage.vue"),
         meta: { title: "知识库管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
+      // === 小卜 · 排盘报告知识库（人工审核的门派理论与古籍出处）===
+      {
+        path: "paipan-report-knowledge",
+        name: "PaipanReportKnowledge",
+        component: () => import("@/views/ai/PaipanReportKnowledge.vue"),
+        meta: { title: "排盘报告知识库", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      // === 小卜 · 语音角色审核 ===
+      {
+        path: "voice-agent-review",
+        name: "VoiceAgentReview",
+        component: () => import("@/views/ai/VoiceAgentReview.vue"),
+        meta: { title: "小卜语音角色审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      // === 小卜 · 硬件台账（登记、绑定码、停用；客服只读）===
+      {
+        path: "xiaobu-devices",
+        name: "XiaobuDevices",
+        component: () => import("@/views/ai/XiaobuDevices.vue"),
+        meta: { title: "小卜硬件台账", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
+      },
+      // === 小卜 · 运营（用量、成本、语音额度）===
+      {
+        path: "xiaobu-ops",
+        name: "XiaobuOps",
+        component: () => import("@/views/ai/XiaobuOps.vue"),
+        meta: { title: "小卜运营", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+      },
       // === AI内容生成 ===
       {
         path: "content-generation",
         name: "ContentGeneration",
         component: () => import("@/views/ai/ContentGeneration.vue"),
         meta: { title: "AI内容生成", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      // === AI运营效果追踪 ===
-      {
-        path: "ai/operation-dashboard",
-        name: "AIOperationDashboard",
-        component: () => import("@/views/ai/AIOperationDashboard.vue"),
-        meta: { title: "AI运营效果追踪", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 赛事管理 ===
       {
@@ -1346,7 +1389,10 @@ const routes = [
         path: "interactions",
         name: "InteractionDashboard",
         component: () => import("@/views/interaction/InteractionDashboard.vue"),
-        meta: { title: "互动数据看板", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          title: "互动数据看板",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       // === 自动化运营 ===
       {
@@ -1354,18 +1400,6 @@ const routes = [
         name: "TaskPool",
         component: () => import("@/views/task/TaskPool.vue"),
         meta: { title: "任务池", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "operation/engine",
-        name: "OperationEngine",
-        component: () => import("@/views/operation/OperationEngine.vue"),
-        meta: { title: "运营引擎", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
-      },
-      {
-        path: "operation/robots",
-        name: "OperationRobot",
-        component: () => import("@/views/operation/OperationRobot.vue"),
-        meta: { title: "运营机器人", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "advisor/rules",
@@ -1404,61 +1438,67 @@ const routes = [
         path: "merchant-backend/dashboard",
         name: "MerchantDashboard",
         component: () => import("@/views/merchant-backend/MerchantDashboard.vue"),
-        meta: { title: "商家数据概览" },
+        meta: { title: "商家数据概览", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/products",
         name: "MerchantProducts",
         component: () => import("@/views/merchant-backend/MerchantProducts.vue"),
-        meta: { title: "商品管理" },
+        meta: { title: "商品管理", roles: ["MERCHANT"] },
+      },
+      {
+        path: "merchant-backend/inventory",
+        name: "MerchantInventory",
+        component: () => import("@/views/merchant-backend/MerchantInventory.vue"),
+        meta: { title: "库存与采购", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/orders",
         name: "MerchantOrders",
         component: () => import("@/views/merchant-backend/MerchantOrders.vue"),
-        meta: { title: "订单管理" },
+        meta: { title: "订单管理", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/shipping",
         name: "MerchantShipping",
         component: () => import("@/views/merchant-backend/MerchantShipping.vue"),
-        meta: { title: "发货管理" },
+        meta: { title: "发货管理", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/after-sales",
         name: "MerchantAfterSales",
         component: () => import("@/views/merchant-backend/MerchantAfterSales.vue"),
-        meta: { title: "售后管理" },
+        meta: { title: "售后管理", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/customers",
         name: "MerchantCustomers",
         component: () => import("@/views/merchant-backend/MerchantCustomers.vue"),
-        meta: { title: "客户管理" },
+        meta: { title: "客户管理", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/reviews",
         name: "MerchantReviews",
         component: () => import("@/views/merchant-backend/MerchantReviews.vue"),
-        meta: { title: "评价管理" },
+        meta: { title: "评价管理", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/revenue",
         name: "MerchantRevenue",
         component: () => import("@/views/merchant-backend/MerchantRevenue.vue"),
-        meta: { title: "收入结算" },
+        meta: { title: "收入结算", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/violations",
         name: "MerchantViolations",
         component: () => import("@/views/merchant-backend/MerchantViolations.vue"),
-        meta: { title: "违规记录" },
+        meta: { title: "违规记录", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/profile",
         name: "MerchantProfile",
         component: () => import("@/views/merchant-backend/MerchantProfile.vue"),
-        meta: { title: "店铺设置" },
+        meta: { title: "店铺设置", roles: ["MERCHANT"] },
       },
       // === 分站后台（站长自管理）===
       {
@@ -1483,6 +1523,89 @@ const routes = [
       },
     ],
   },
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: "/__qa/admin-shell",
+          component: () => import("@/views/Layout.vue"),
+          meta: { hidden: true, title: "后台工作台视觉验收", devPreview: true },
+          children: [
+            {
+              path: "",
+              name: "AdminShellPreview",
+              component: () => import("@/views/qa/AdminShellPreview.vue"),
+              meta: { hidden: true, title: "后台工作台视觉验收", devPreview: true },
+            },
+            {
+              path: "workflow/:kind",
+              name: "AdminWorkflowPreview",
+              component: () => import("@/views/qa/WorkflowPreview.vue"),
+              meta: { hidden: true, title: "后台工作流视觉验收", devPreview: true },
+            },
+          ],
+        },
+        {
+          path: "/__qa/merchant-dashboard",
+          name: "MerchantDashboardPreview",
+          component: () => import("@/views/merchant-backend/MerchantDashboard.vue"),
+          meta: { hidden: true, title: "经营驾驶舱视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/merchant-inventory",
+          name: "MerchantInventoryPreview",
+          component: () => import("@/views/merchant-backend/MerchantInventory.vue"),
+          meta: { hidden: true, title: "库存与履约视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/merchant-shipping",
+          name: "MerchantShippingPreview",
+          component: () => import("@/views/merchant-backend/MerchantShipping.vue"),
+          meta: { hidden: true, title: "发货履约视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/merchant-orders",
+          name: "MerchantOrdersPreview",
+          component: () => import("@/views/merchant-backend/MerchantOrders.vue"),
+          meta: { hidden: true, title: "订单中枢视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/merchant-customers",
+          name: "MerchantCustomersPreview",
+          component: () => import("@/views/merchant-backend/MerchantCustomers.vue"),
+          meta: { hidden: true, title: "客户关系视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/merchant-after-sales",
+          name: "MerchantAfterSalesPreview",
+          component: () => import("@/views/merchant-backend/MerchantAfterSales.vue"),
+          meta: { hidden: true, title: "售后质检视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/merchant-revenue",
+          name: "MerchantRevenuePreview",
+          component: () => import("@/views/merchant-backend/MerchantRevenue.vue"),
+          meta: { hidden: true, title: "资金对账视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/admin-command-palette",
+          name: "AdminCommandPalettePreview",
+          component: () => import("@/views/qa/AdminCommandPalettePreview.vue"),
+          meta: { hidden: true, title: "运营目录索引视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/platform-bigscreen",
+          name: "PlatformBigscreenPreview",
+          component: () => import("@/views/dashboard/PlatformBigscreen.vue"),
+          meta: { hidden: true, title: "平台综合大屏视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/cockpit",
+          name: "CockpitPreview",
+          component: () => import("@/views/dashboard/Cockpit.vue"),
+          meta: { hidden: true, title: "管理驾驶舱视觉验收", devPreview: true },
+        },
+      ]
+    : []),
   // === 404 ===
   {
     path: "/:pathMatch(.*)*",
@@ -1497,45 +1620,91 @@ const router = createRouter({
   routes,
 });
 
-// 全局路由守卫
-router.beforeEach((to, _from, next) => {
+interface VerifiedAccess {
+  roles: string[];
+}
+
+let verifiedToken = "";
+let verifiedAccess: VerifiedAccess | null = null;
+let accessPromise: Promise<VerifiedAccess | null> | null = null;
+
+/**
+ * 每次整页启动至少向服务端核验一次身份；同一 token 后续路由复用结果。
+ * 不再把可被用户修改、可能过期的 localStorage 角色缓存当作授权依据。
+ */
+async function getVerifiedAccess(token: string): Promise<VerifiedAccess | null> {
+  if (verifiedToken === token && verifiedAccess) return verifiedAccess;
+  if (accessPromise) return accessPromise;
+
+  accessPromise = (async () => {
+    try {
+      const auth = useAuthStore();
+      await auth.fetchProfile();
+      const roles = Array.from(new Set(auth.roles));
+      verifiedToken = localStorage.getItem("token") || token;
+      verifiedAccess = { roles };
+      return verifiedAccess;
+    } catch {
+      verifiedToken = "";
+      verifiedAccess = null;
+      clearAdminSession({ preserveRedirect: true });
+      return null;
+    } finally {
+      accessPromise = null;
+    }
+  })();
+  return accessPromise;
+}
+
+function defaultEntry(roles: string[]): string {
+  const adminRoles = new Set(ALL_ADMIN);
+  if (roles.some((role) => adminRoles.has(role))) return "/dashboard";
+  if (roles.includes("MERCHANT")) return "/merchant-backend/dashboard";
+  if (roles.includes("STATION_MASTER")) return "/station-backend";
+  if (roles.includes("OPERATOR")) return "/operator-backend";
+  return "/403";
+}
+
+function rememberTarget(path: string): void {
+  if (!path || path === "/login" || path === "/403") return;
+  const base = import.meta.env.BASE_URL;
+  const browserPath = base === "/"
+    ? path
+    : `${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+  rememberAdminRedirect(browserPath);
+}
+
+// 全局路由守卫：身份与角色均默认拒绝，服务端仍会对每个 API 做最终资源级鉴权。
+router.beforeEach(async (to) => {
+  // 仅开发环境的真实数据态视觉验收页，不进入生产路由表。
+  if (import.meta.env.DEV && to.meta?.devPreview === true) return true;
+
   const token = localStorage.getItem("token");
-
-  // 登录页：已登录则跳转首页
-  if (to.name === "Login") {
-    if (token) return next("/dashboard");
-    return next();
+  if (!token) {
+    if (to.name === "Login") return true;
+    rememberTarget(to.fullPath);
+    return "/login";
   }
 
-  // 无 token → 登录页
-  if (!token) return next("/login");
-
-  // 403/404 页面直接放行
-  if (to.name === "Forbidden" || to.name === "NotFound") return next();
-
-  // 角色检查：从 localStorage 读取缓存的角色
-  try {
-    const cached = localStorage.getItem("user_roles");
-    const userRoles: string[] = cached ? JSON.parse(cached) : [];
-    const requiredRoles = (to.meta?.roles as string[]) || [];
-
-    // 如果没有配置角色限制，允许所有已登录用户
-    if (requiredRoles.length === 0) return next();
-
-    // 角色缓存为空时放行（Layout.onMounted 会 fetchProfile 补充缓存）
-    if (userRoles.length === 0) return next();
-
-    // 超管全部放行
-    if (userRoles.includes("SUPER_ADMIN")) return next();
-
-    // 检查交集
-    const hasAccess = requiredRoles.some((r) => userRoles.includes(r));
-    if (!hasAccess) return next("/403");
-  } catch {
-    // 解析失败不阻塞
+  const access = await getVerifiedAccess(token);
+  if (!access) {
+    rememberTarget(to.fullPath);
+    return to.name === "Login" ? true : "/login";
   }
 
-  next();
+  if (to.name === "Login") return defaultEntry(access.roles);
+  if (to.name === "Forbidden" || to.name === "NotFound") return true;
+
+  // 菜单隐藏之外再做直达路由门禁；配置读取失败按 legacy 返回 404。
+  if (to.meta?.nativePaipan === true && (await refreshPaipanMode()) !== "native") {
+    return { name: "NotFound", params: { pathMatch: ["page-not-found"] } };
+  }
+
+  const requiredRoles = (to.meta?.roles as string[] | undefined) || [];
+  // 管理后台受保护页面必须显式声明角色；遗漏配置时不再默认放行。
+  if (requiredRoles.length === 0) return "/403";
+  // 不做“超管天然拥有全部身份”的隐式绕过；商家等外部经营身份必须在路由上明确授权。
+  return requiredRoles.some((role) => access.roles.includes(role)) ? true : "/403";
 });
 
 export default router;

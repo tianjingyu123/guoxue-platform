@@ -1,0 +1,46 @@
+const assert = require('node:assert/strict')
+const path = require('node:path')
+const puppeteer = require('puppeteer')
+
+async function run() {
+  await fetch('http://127.0.0.1:3989/__certificate_available?enabled=0')
+  const browser = await puppeteer.launch({ headless: true, executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' })
+  try {
+    const page = await browser.newPage()
+    await page.setViewport({ width: 320, height: 760 })
+    await page.setRequestInterception(true)
+    page.on('request', (request) => {
+      if (request.url().startsWith('http://127.0.0.1:') || /^(data:|blob:|about:)/.test(request.url())) request.continue()
+      else request.abort()
+    })
+    await page.goto('http://127.0.0.1:5178/h5/', { waitUntil: 'domcontentloaded' })
+    await page.waitForFunction(() => Boolean(window.uni))
+    await page.evaluate(() => {
+      window.uni.setStorageSync('auth_token', 'synthetic-token')
+      window.uni.navigateTo({ url: '/pkg-course/certificate/index?id=free-1' })
+    })
+    await page.waitForFunction(() => document.body.innerText.includes('重试'), { timeout: 30000 })
+    const failed = await page.evaluate(() => document.body.innerText)
+    assert(failed.includes('返回'))
+    assert(!failed.includes('结课证书'))
+    await fetch('http://127.0.0.1:3989/__certificate_available?enabled=1')
+    await page.evaluate(() => [...document.querySelectorAll('*')].find((e) => e.textContent?.trim() === '重试')?.click())
+    await page.waitForFunction(() => document.body.innerText.includes('TEST-001'), { timeout: 30000 })
+    const loaded = await page.evaluate(() => ({ text: document.body.innerText, width: document.documentElement.scrollWidth, viewport: innerWidth }))
+    assert(loaded.text.includes('合成学员'))
+    assert(loaded.text.includes('2026/9/22'))
+    assert(loaded.width <= loaded.viewport + 2)
+    const screenshot = path.join(process.env.TEMP || '/tmp', 'rebu-certificate-320.png')
+    await page.screenshot({ path: screenshot, fullPage: true })
+    await fetch('http://127.0.0.1:3989/__certificate_available?enabled=0')
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.waitForFunction(() => document.body.innerText.includes('重试'), { timeout: 30000 })
+    const expired = await page.evaluate(() => document.body.innerText)
+    assert(!expired.includes('合成学员'))
+    assert(!expired.includes('TEST-001'))
+    process.stdout.write(`certificate synthetic HTTP: unavailable, retry to eligible, then unavailable; stale certificate hidden; date-only preserved; 320px fits; screenshot=${screenshot}\n`)
+  } finally {
+    await browser.close()
+  }
+}
+run().catch((error) => { console.error(error); process.exitCode = 1 })

@@ -5,6 +5,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { SplitDef } from "./settlement.service";
 import { CreateSettlementRuleDto, UpdateSettlementRuleDto } from "./settlement-rule.dto";
+import { FundApprovalService } from "../fund-approval/fund-approval.service";
 
 const VALID_BASIS = ["GROSS", "PARENT_SPLIT"];
 const VALID_CATEGORY = ["COMMISSION", "SERVICE", "PLATFORM"];
@@ -22,7 +23,10 @@ const EPSILON = 1e-9;
 export class SettlementRuleAdminService {
   private readonly logger = new Logger(SettlementRuleAdminService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private approvals: FundApprovalService,
+  ) {}
 
   /** 规则列表（约12条场景，全量按 scene 排序，无需分页） */
   async listRules() {
@@ -30,20 +34,77 @@ export class SettlementRuleAdminService {
     return { items };
   }
 
+  /** 创建申请：先做完整资金校验，只建审批单，审批通过前绝不改真实规则。 */
+  async requestCreateRule(dto: CreateSettlementRuleDto, adminId: string) {
+    const splits = this.validateSplits(dto.splits);
+    const scene = dto.scene.trim();
+    if (!scene) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "scene 不能为空");
+    }
+    const existing = await this.prisma.settlementRule.findUnique({ where: { scene } });
+    if (existing) {
+      throw new BusinessException(ErrorCode.CONFLICT, `场景 ${scene} 已存在结算规则，请编辑现有规则`);
+    }
+
+    const normalizedDto: Record<string, unknown> = {
+      scene,
+      splits,
+      bufferDays: dto.bufferDays ?? 7,
+      requireApproval: dto.requireApproval ?? false,
+      enabled: dto.enabled ?? true,
+    };
+    if (dto.approvalThreshold !== undefined) normalizedDto.approvalThreshold = dto.approvalThreshold;
+    if (dto.remark !== undefined) normalizedDto.remark = dto.remark;
+
+    return this.approvals.create({
+      type: "COMMISSION_CONFIG",
+      payload: { method: "createSettlementRule", scene, dto: normalizedDto },
+      summary: `创建结算规则：${scene}`,
+      requestedBy: adminId,
+    });
+  }
+
+  /** 修改/启停申请：校验目标与分账比例，只建审批单；审批执行时再次校验并落库。 */
+  async requestUpdateRule(id: string, dto: UpdateSettlementRuleDto, adminId: string) {
+    if ("scene" in (dto as Record<string, unknown>)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "scene 是结算引擎查找键，禁止修改");
+    }
+    const existing = await this.prisma.settlementRule.findUnique({ where: { id } });
+    if (!existing) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "结算规则不存在");
+    }
+    if (dto.splits !== undefined) this.validateSplits(dto.splits);
+
+    const normalizedDto = Object.fromEntries(
+      Object.entries(dto).filter(([, value]) => value !== undefined),
+    );
+    if (Object.keys(normalizedDto).length === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "未提交任何结算规则变更");
+    }
+
+    return this.approvals.create({
+      type: "COMMISSION_CONFIG",
+      payload: { method: "updateSettlementRule", id, scene: existing.scene, dto: normalizedDto },
+      summary: `变更结算规则：${existing.scene}`,
+      requestedBy: adminId,
+    });
+  }
+
   /** 创建规则（scene 唯一；updatedBy 写管理员 userId，种子据此不覆盖人工配置） */
-  async createRule(dto: CreateSettlementRuleDto, adminId: string) {
+  async createRule(dto: CreateSettlementRuleDto, adminId: string, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
     const splits = this.validateSplits(dto.splits);
     const scene = dto.scene.trim();
     if (!scene) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "scene 不能为空");
     }
 
-    const existing = await this.prisma.settlementRule.findUnique({ where: { scene } });
+    const existing = await db.settlementRule.findUnique({ where: { scene } });
     if (existing) {
       throw new BusinessException(ErrorCode.CONFLICT, `场景 ${scene} 已存在结算规则，请编辑现有规则`);
     }
 
-    const rule = await this.prisma.settlementRule.create({
+    const rule = await db.settlementRule.create({
       data: {
         scene,
         splits: splits as unknown as Prisma.InputJsonValue,
@@ -60,13 +121,14 @@ export class SettlementRuleAdminService {
   }
 
   /** 更新规则（禁止改 scene —— scene 是引擎查找键；updatedBy 写管理员 userId） */
-  async updateRule(id: string, dto: UpdateSettlementRuleDto, adminId: string) {
+  async updateRule(id: string, dto: UpdateSettlementRuleDto, adminId: string, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
     // 防御性拒绝：DTO 层已不收 scene（forbidNonWhitelisted 400），此处再拦一道防止服务被绕过调用
     if ("scene" in (dto as Record<string, unknown>)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "scene 是结算引擎查找键，禁止修改");
     }
 
-    const existing = await this.prisma.settlementRule.findUnique({ where: { id } });
+    const existing = await db.settlementRule.findUnique({ where: { id } });
     if (!existing) {
       throw new BusinessException(ErrorCode.NOT_FOUND, "结算规则不存在");
     }
@@ -81,7 +143,7 @@ export class SettlementRuleAdminService {
     if (dto.enabled !== undefined) data.enabled = dto.enabled;
     if (dto.remark !== undefined) data.remark = dto.remark;
 
-    const rule = await this.prisma.settlementRule.update({ where: { id }, data });
+    const rule = await db.settlementRule.update({ where: { id }, data });
     this.logger.log(
       `[规则管理] 管理员 ${adminId} 更新结算规则 scene=${existing.scene} 变更=${JSON.stringify(dto)}`,
     );

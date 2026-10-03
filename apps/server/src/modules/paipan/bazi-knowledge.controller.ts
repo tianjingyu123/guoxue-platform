@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { BaziKnowledgeService } from "./bazi-knowledge.service";
 import { BaziKnowledgeSeeder } from "./bazi-knowledge-seeder.service";
@@ -6,9 +7,12 @@ import { CreateBaziKnowledgeDto, UpdateBaziKnowledgeDto } from "./bazi-knowledge
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { NativePaipanGuard } from "../../common/paipan-runtime.service";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("八字·知识库")
 @Controller("bazi/knowledge")
+@UseGuards(NativePaipanGuard)
 export class BaziKnowledgeController {
   constructor(
     private readonly svc: BaziKnowledgeService,
@@ -29,6 +33,33 @@ export class BaziKnowledgeController {
   @ApiQuery({ name: "category", required: false })
   search(@Query("keyword") keyword: string, @Query("category") category?: string) {
     return this.svc.search(keyword, category);
+  }
+
+  /**
+   * 按当前八字检索古籍 —— 八字结果页「古籍参考」用（公开：看盘不必登录）。
+   * 每条返回 matchedOn，说得出为什么推它；一条都命中不了就返回空数组
+   * （宁可不显示，也不塞一段不相干的原文冒充「参考」）。
+   */
+  @Post("for-bazi")
+  // 公开可用（看盘不必登录）是产品设计，但它下发的是知识库内容——
+  // 不限流就能被批量调用爬走整个古籍参考库，所以公开归公开，必须限流
+  @UseGuards(StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "按当前八字检索相关古籍（格局/用神/日主/月令/神煞打分排序）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  forBazi(
+    @Body()
+    dto: {
+      dayGan?: string;
+      dayZhi?: string;
+      monthZhi?: string;
+      geju?: string;
+      yongshen?: string;
+      shenSha?: string[];
+      wuxing?: string;
+      limit?: number;
+    },
+  ) {
+    return this.svc.forBazi(dto ?? {});
   }
 
   @Get("category/:category")
@@ -80,6 +111,7 @@ export class BaziKnowledgeController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")

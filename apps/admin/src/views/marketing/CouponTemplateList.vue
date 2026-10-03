@@ -5,15 +5,10 @@
       :closable="false"
       show-icon
       style="margin-bottom:12px"
-      title="本模板体系发放的券不与商城下单核销打通（历史体系保留查看）。新建/发放优惠券请使用「商城 → 优惠券管理」，该处发放的券可直接下单抵扣。"
+      title="历史体系（只读归档）：本模板体系发放的券不与商城下单核销打通，已停止新建与发放，仅保留查询。发券请到「商城 → 优惠券管理」，该处发放的券可直接下单抵扣。"
     />
     <div class="toolbar">
-      <h3>优惠券模板</h3><el-button
-        type="primary"
-        @click="openCreate"
-      >
-        创建模板
-      </el-button>
+      <h3>优惠券模板（历史归档）</h3>
     </div>
     <el-alert
       v-if="error"
@@ -83,35 +78,15 @@
       </el-table-column>
       <el-table-column
         label="操作"
-        width="300"
+        width="120"
         fixed="right"
       >
         <template #default="{ row }">
           <el-button
             size="small"
-            @click="openEdit(row)"
-          >
-            编辑
-          </el-button>
-          <el-button
-            size="small"
-            type="success"
-            @click="openGrant(row)"
-          >
-            发放
-          </el-button>
-          <el-button
-            size="small"
             @click="openRecords(row)"
           >
-            记录
-          </el-button>
-          <el-button
-            size="small"
-            type="danger"
-            @click="del(row.id)"
-          >
-            删除
+            发放记录
           </el-button>
         </template>
       </el-table-column>
@@ -132,195 +107,6 @@
         @current-change="fetchList"
       />
     </div>
-
-    <!-- 创建/编辑弹窗 -->
-    <el-dialog
-      v-model="vis"
-      :title="editingId ? '编辑模板' : '创建模板'"
-      width="550px"
-    >
-      <el-form
-        :model="form"
-        label-width="90px"
-      >
-        <el-form-item
-          label="名称"
-          required
-        >
-          <el-input v-model="form.name" />
-        </el-form-item>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="类型">
-              <el-select
-                v-model="form.type"
-                style="width:100%"
-              >
-                <el-option
-                  label="满减券"
-                  value="FIXED"
-                />
-                <el-option
-                  label="折扣券"
-                  value="PERCENT"
-                />
-                <el-option
-                  label="免邮券"
-                  value="SHIPPING"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="面额/折扣">
-              <el-input-number
-                v-model="form.faceValue"
-                :min="0.01"
-                :precision="2"
-                style="width:100%"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="门槛金额">
-              <el-input-number
-                v-model="form.threshold"
-                :min="0"
-                :precision="2"
-                style="width:100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="发放总量">
-              <el-input-number
-                v-model="form.totalCount"
-                :min="0"
-                :step="100"
-                style="width:100%"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="开始时间">
-              <el-date-picker
-                v-model="form.startTime"
-                type="datetime"
-                value-format="YYYY-MM-DD HH:mm:ss"
-                style="width:100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="结束时间">
-              <el-date-picker
-                v-model="form.endTime"
-                type="datetime"
-                value-format="YYYY-MM-DD HH:mm:ss"
-                style="width:100%"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="展示范围">
-          <el-radio-group v-model="form.scope">
-            <el-radio value="GLOBAL">
-              全平台
-            </el-radio><el-radio value="PAGE_ONLY">
-              仅指定微页面
-            </el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item
-          v-if="form.scope === 'PAGE_ONLY'"
-          label="关联微页面"
-        >
-          <el-select
-            v-model="form.scopePageId"
-            placeholder="选择微页面"
-            clearable
-            style="width:100%"
-          >
-            <el-option
-              v-for="p in pages"
-              :key="p.id"
-              :label="p.name"
-              :value="p.id"
-            />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="vis = false">
-          取消
-        </el-button><el-button
-          type="primary"
-          :loading="saving"
-          @click="save"
-        >
-          保存
-        </el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 发放弹窗 -->
-    <el-dialog
-      v-model="grantVis"
-      title="发放优惠券"
-      width="480px"
-    >
-      <div v-if="grantTarget">
-        <p><b>模板：</b>{{ grantTarget.name }}</p>
-        <el-form label-width="90px">
-          <el-form-item label="发放方式">
-            <el-radio-group v-model="grantMode">
-              <el-radio value="single">
-                单个用户
-              </el-radio>
-              <el-radio value="batch">
-                批量用户
-              </el-radio>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item
-            v-if="grantMode === 'single'"
-            label="用户ID"
-          >
-            <el-input
-              v-model="grantUserId"
-              placeholder="输入用户ID"
-            />
-          </el-form-item>
-          <el-form-item
-            v-if="grantMode === 'batch'"
-            label="用户ID列表"
-          >
-            <el-input
-              v-model="grantUserIds"
-              type="textarea"
-              :rows="4"
-              placeholder="每行一个用户ID"
-            />
-          </el-form-item>
-        </el-form>
-      </div>
-      <template #footer>
-        <el-button @click="grantVis = false">
-          取消
-        </el-button>
-        <el-button
-          type="primary"
-          :loading="granting"
-          @click="doGrant"
-        >
-          确认发放
-        </el-button>
-      </template>
-    </el-dialog>
 
     <!-- 发放记录弹窗 -->
     <el-dialog
@@ -374,13 +160,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+// 历史优惠券模板体系：只读归档（不再提供新建/编辑/发放/删除·发券走「商城 → 优惠券管理」）
+import { ref, onMounted } from 'vue'
 import { marketingApi } from '@/api'
 
-// 微页面下拉选项
-interface PageOption { id: string; name?: string }
-// 优惠券模板行：依据表格列与编辑表单访问字段声明
+// 优惠券模板行：依据表格列访问字段声明
 interface CouponRow {
   id: string
   name?: string
@@ -391,8 +175,6 @@ interface CouponRow {
   totalCount?: number
   startTime?: string
   endTime?: string
-  scope?: string
-  scopePageId?: string
 }
 // 发放记录行
 interface CouponRecordRow {
@@ -402,12 +184,7 @@ interface CouponRecordRow {
   createdAt?: string
 }
 
-const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<CouponRow[]>([]); const total = ref(0); const page = ref(1); const pages = ref<PageOption[]>([])
-const vis = ref(false); const editingId = ref('')
-const form = reactive({ name: '', type: 'FIXED', faceValue: 10, threshold: 100, totalCount: 0, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
-
-const grantVis = ref(false); const granting = ref(false); const grantTarget = ref<CouponRow | null>(null)
-const grantMode = ref('single'); const grantUserId = ref(''); const grantUserIds = ref('')
+const loading = ref(false); const error = ref(false); const list = ref<CouponRow[]>([]); const total = ref(0); const page = ref(1)
 
 const recordsVis = ref(false); const records = ref<CouponRecordRow[]>([]); const recordsLoading = ref(false)
 const recordStatusMap: Record<string, string> = { USED: '已使用', UNUSED: '未使用', EXPIRED: '已过期' }
@@ -417,64 +194,12 @@ function typeLabel(t: string) {
   return m[t] || t
 }
 
-onMounted(() => { fetchList(); loadPages() })
-async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.items || data.pages || data.data || [] } catch { /* 忽略 */ } }
+onMounted(() => { fetchList() })
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true; error.value = false
   try { const { data } = await marketingApi.listCoupons({ page: page.value, pageSize: 20 }); list.value = data.items || data.coupons || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
-}
-
-function openCreate() { editingId.value = ''; Object.assign(form, { name: '', type: 'FIXED', faceValue: 10, threshold: 100, totalCount: 0, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
-
-function openEdit(row: CouponRow) {
-  editingId.value = row.id
-  Object.assign(form, {
-    name: row.name, type: row.type,
-    faceValue: Number(row.faceValue || 0),
-    threshold: Number(row.threshold || 0),
-    totalCount: row.totalCount ?? 0,
-    startTime: row.startTime || '', endTime: row.endTime || '',
-    scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '',
-  })
-  vis.value = true
-}
-
-async function save() {
-  saving.value = true
-  try {
-    const payload = {
-      name: form.name, type: form.type,
-      faceValue: form.faceValue, threshold: form.threshold || undefined,
-      totalCount: form.totalCount,
-      startTime: form.startTime ? new Date(form.startTime).toISOString() : undefined,
-      endTime: form.endTime ? new Date(form.endTime).toISOString() : undefined,
-      scope: form.scope, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined,
-    }
-    if (editingId.value) { await marketingApi.updateCoupon(editingId.value, payload) }
-    else { await marketingApi.createCoupon(payload) }
-    ElMessage.success('已保存'); vis.value = false; fetchList()
-  } catch { } finally { saving.value = false }
-}
-
-async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteCoupon(id); ElMessage.success('已删除'); fetchList() } catch {} }
-
-function openGrant(row: CouponRow) { grantTarget.value = row; grantMode.value = 'single'; grantUserId.value = ''; grantUserIds.value = ''; grantVis.value = true }
-
-async function doGrant() {
-  granting.value = true
-  try {
-    // 发放弹窗仅经 openGrant 打开，此时 grantTarget 必有值
-    const templateId = grantTarget.value!.id
-    if (grantMode.value === 'single') {
-      await marketingApi.grantCoupon(templateId, { userId: grantUserId.value })
-    } else {
-      const ids = grantUserIds.value.split('\n').map((s: string) => s.trim()).filter(Boolean)
-      await marketingApi.batchGrantCoupon(templateId, { userIds: ids })
-    }
-    ElMessage.success('发放成功'); grantVis.value = false
-  } catch { } finally { granting.value = false }
 }
 
 async function openRecords(row: CouponRow) {

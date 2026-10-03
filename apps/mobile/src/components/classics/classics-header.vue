@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { ref, useAttrs } from 'vue'
+import { goBack as platformGoBack } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
+
 withDefaults(defineProps<{
   title: string
   /** 是否显示右侧搜索入口，默认 true */
@@ -14,16 +18,25 @@ const emit = defineEmits<{
   (e: 'back'): void
   (e: 'right'): void
 }>()
+const attrs = useAttrs()
+const menuSafeRight = getMiniProgramMenuSafeRight()
+const safeTop = ref(0)
+try {
+  const info = uni.getSystemInfoSync()
+  safeTop.value = Math.max(0, info.statusBarHeight || 0, info.safeAreaInsets?.top || 0, info.safeArea?.top || 0)
+} catch {
+  safeTop.value = 0
+}
 
 // AppIcon 把颜色嵌入 SVG data URI，CSS 变量在隔离 SVG 中无效，必须用具体色值。
 const iconColor = '#2c2c2c'
 
 function onBack() {
-  emit('back')
-  // 默认返回行为
-  const pages = getCurrentPages()
-  if (pages.length > 1) uni.navigateBack()
-  else uni.switchTab?.({ url: '/pages/home/index' }).catch?.(() => {})
+  if (attrs.onBack) {
+    emit('back')
+    return
+  }
+  platformGoBack()
 }
 
 function goSearch() {
@@ -34,9 +47,9 @@ function goSearch() {
 <template>
   <view class="ch-header">
     <!-- 状态栏占位 -->
-    <view class="ch-statusbar" />
-    <view class="ch-bar">
-      <view class="ch-btn" @tap="onBack">
+    <view class="ch-statusbar" :style="{ height: safeTop + 'px' }" />
+    <view class="ch-bar" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
+      <view class="ch-btn" role="button" aria-label="返回上一页" tabindex="0" @tap="onBack" @keydown.enter="onBack" @keydown.space.prevent="onBack">
         <app-icon name="arrow-left" :size="44" :color="iconColor" />
       </view>
       <text class="ch-title">{{ title }}</text>
@@ -44,10 +57,10 @@ function goSearch() {
       <view v-if="$slots.right" class="ch-right">
         <slot name="right" />
       </view>
-      <view v-else-if="rightType === 'share'" class="ch-btn" @tap="emit('right')">
+      <view v-else-if="rightType === 'share'" class="ch-btn" role="button" aria-label="分享当前古籍" tabindex="0" @tap="emit('right')" @keydown.enter="emit('right')" @keydown.space.prevent="emit('right')">
         <app-icon name="share-2" :size="40" :color="iconColor" />
       </view>
-      <view v-else-if="rightType === 'search' && showSearch" class="ch-btn" @tap="goSearch">
+      <view v-else-if="rightType === 'search' && showSearch" class="ch-btn" role="button" aria-label="搜索古籍" tabindex="0" @tap="goSearch" @keydown.enter="goSearch" @keydown.space.prevent="goSearch">
         <app-icon name="search" :size="44" :color="iconColor" />
       </view>
       <view v-else class="ch-btn ch-btn--placeholder" />
@@ -73,10 +86,14 @@ function goSearch() {
   justify-content: space-between;
   padding: 0 12rpx;
   height: 96rpx;
+  min-height: 44px;
 }
 .ch-btn {
-  width: 72rpx;
-  height: 72rpx;
+  width: 88rpx;
+  height: 88rpx;
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -95,9 +112,12 @@ function goSearch() {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-width: 72rpx;
+  min-width: 88rpx;
 }
 .ch-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
   font-size: 34rpx;
   font-weight: 600;
   letter-spacing: -0.5rpx;

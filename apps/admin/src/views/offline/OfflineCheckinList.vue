@@ -2,20 +2,23 @@
   <div class="page">
     <div class="toolbar">
       <h3>驿站核销记录</h3>
-      <el-input
+      <!-- 驿站下拉筛选（原为手输裸 UUID） -->
+      <el-select
         v-model="stationId"
-        placeholder="按驿站ID筛选（可选）"
+        placeholder="按驿站筛选（可选）"
         clearable
+        filterable
         style="width: 280px"
-        @keyup.enter="onSearch"
-        @clear="onSearch"
+        :loading="stationsLoading"
+        @change="onSearch"
       >
-        <template #append>
-          <el-button @click="onSearch">
-            查询
-          </el-button>
-        </template>
-      </el-input>
+        <el-option
+          v-for="s in stationOptions"
+          :key="s.id"
+          :label="s.name + (s.city ? '（' + s.city + '）' : '')"
+          :value="s.id"
+        />
+      </el-select>
     </div>
 
     <el-table
@@ -135,7 +138,23 @@ const total = ref(0)
 const page = ref(1)
 const stationId = ref('')
 
-onMounted(() => fetchList())
+// 驿站下拉数据源（GET /offline/stations 返回 stations 键）
+interface StationOption { id: string; name?: string; city?: string }
+const stationOptions = ref<StationOption[]>([])
+const stationsLoading = ref(false)
+async function fetchStations() {
+  stationsLoading.value = true
+  try {
+    const { data } = await api.get('/offline/stations', { params: { page: 1, pageSize: 100 } })
+    stationOptions.value = data.stations || []
+  } catch {
+    stationOptions.value = []
+  } finally {
+    stationsLoading.value = false
+  }
+}
+
+onMounted(() => { fetchList(); fetchStations() })
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {

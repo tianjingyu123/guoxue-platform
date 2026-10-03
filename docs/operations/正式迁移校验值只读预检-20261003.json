@@ -1,0 +1,1881 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-03T05:28:07.688Z",
+  "reviewParent": "ffac7814c47227889452e318de828785749940cd",
+  "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+  "candidateMigrations": 136,
+  "candidatePrisma": {
+    "client": "6.19.3",
+    "engine": "c2990dca591cba766e3b7ef5d9e8a84796e47ab7"
+  },
+  "officialChecksumRule": {
+    "url": "https://raw.githubusercontent.com/prisma/prisma-engines/c2990dca591cba766e3b7ef5d9e8a84796e47ab7/schema-engine/connectors/schema-connector/src/checksum.rs",
+    "lines": [
+      18,
+      19,
+      20
+    ],
+    "rule": "script_matches_checksum检查原始、CRLF转LF和LF转CRLF的SHA256；当前候选Git文件LF，85个正式值匹配对应CRLF字节",
+    "checkedAt": "2026-10-03T05:28:07.721Z"
+  },
+  "allCompletedCompatibleWithCandidatePrisma": true,
+  "allCompletedRawBytesEqual": false,
+  "completedSqlOtherChecksumDifferences": 0,
+  "sameCompletedLedgerAcrossNodes": true,
+  "scriptSha256": "161cf55c99af4c43ae7a91b375010afb0e1c63559d468550d4ba5e9c2efa0c69",
+  "nodes": [
+    {
+      "node": "guoxue2",
+      "instanceId": "ins-0sen8yvf",
+      "taskId": "invt-d9ei2ggv70",
+      "checkedAt": "2026-10-03T05:22:41Z",
+      "image": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484",
+      "sourceRawSha256": "fd88b8cd3e2158f30ae9b2bcd77f180e8880e2e425298618008bbcd27d58316d",
+      "completed": 103,
+      "unfinished": 0,
+      "rolledBack": 1,
+      "counts": {
+        "raw_exact_match": 18,
+        "line_ending_variant_only": 85,
+        "different_checksum": 0,
+        "outside_candidate": 0
+      },
+      "comparisons": [
+        {
+          "name": "20260507053959_init_full_schema",
+          "ledgerChecksum": "07b5d9566a6f5b499c8af60d0a32921188b0959e452f559a4b24b704a20ba27e",
+          "candidateChecksum": "8e503c36648e8e3d3c34f40d33c431f8ff0a251be3806d0c8a8b21b5eb10416b",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260507094349_add_classic_books",
+          "ledgerChecksum": "b1c2191e7e1f68cece1487450579ada6c783aded471a623a4e9520a56c49323f",
+          "candidateChecksum": "a24135e33638df428bd094f26ad0b191270d09ef4040844789d6fb3dd17dcc83",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509000000_add_missing_models",
+          "ledgerChecksum": "8dd703e90c75768a56ab3522eaafc6d593bfa6b82ef439afb7e59e0ceef9ed0b",
+          "candidateChecksum": "126f8dbb8df6ca95c17231d9a249b0f1b5acfb314559277c400d3a30c50b96ac",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509222741_add_paid_question_fields_and_call_billing",
+          "ledgerChecksum": "c36e32e2e2398f995dfe72e6ba2616adc9c45da236639dbe836984ace2aec862",
+          "candidateChecksum": "628d882a601d788e7e4dbe11f1b0aabdad8b931ec192e761931b7b73d7cfa9be",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509224842_add_live_mic_slide_mute_flash_audit",
+          "ledgerChecksum": "94846e3d0eda58653120114dddbb3479e34ef2efac77186986a82bd31e896391",
+          "candidateChecksum": "6d1dd4c3baf9a2d92bdcadcc07cf57347f2e33ca26afc77ff1fee816c82866f1",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509225200_add_video_counts",
+          "ledgerChecksum": "fa5de108db96f498cc0fba48b6a87a84ee9a8004ad8e8268685ca11d26988b12",
+          "candidateChecksum": "ee1303c18f627a70c0654007d21505ccf6e43544dd42ab272eb910a69a73c5e9",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509230000_add_course_review",
+          "ledgerChecksum": "e6e2762627a8574da26866f0032afe6718b2aa7bd23db55cd1882714e115ca4b",
+          "candidateChecksum": "092d69c6fdd63c436d19f1cce9282c51076c9f043703c8e7f19cc466d00ad3c4",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509230000_add_institute_task_event",
+          "ledgerChecksum": "682f8230b8490e7d188c394d45c5deda2c84bf6d5771a7fa7471417312f51d52",
+          "candidateChecksum": "7c4b9a8f33012c3432e1fb83c23e8bd0eb0c7a2334fde640abc30317fbf10d2b",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_fulltext_search_indices",
+          "ledgerChecksum": "211103d058b45b7ff0f92f998c710f353c09ecb4c359d266ba007dbaea1c024a",
+          "candidateChecksum": "27cf2b76e2e3d5ff1c4589b8f940170ed0c2dc2186dec849cc86a89dfd990839",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_performance_indices",
+          "ledgerChecksum": "80a1310cbe6f037caeabe75c1e43a00fea41ba8913b365076d462545cb98d58b",
+          "candidateChecksum": "278e3c2261de423297b88c6ab2e0a34ed33ba9248473599397c5a8dc9fcb5a0f",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_recommend_system",
+          "ledgerChecksum": "6e31597f1f18ef3554f168ae3409913e873c658994b7764fb9774c9eed412f83",
+          "candidateChecksum": "88ab404b9a6df5bcabb73f9ecfe4f830ebf6e1626568a7ef610d08064f46a786",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_station_miniapp_config",
+          "ledgerChecksum": "1438fdfb7294ec24e796b6ff4d127732b18f0857e67ccb6136f0d50b85b191d9",
+          "candidateChecksum": "f85f038a14f1719a61a52c24b875d6f2ff201820858717a66da0a97bcf874519",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_stationid_to_article_course_video_circle",
+          "ledgerChecksum": "502b8a5bd00c5861ccc84d5f69f418cec9c654239ac089cd2481ec3182035e56",
+          "candidateChecksum": "0608ceece8aeceb8ed46b184a7e71cadea5851a9957b04e0644631265dda98f5",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_stationid_to_content_product",
+          "ledgerChecksum": "2e965b769c6661c05aa8f3ddbbe092b655d9ba4d68bd251b63c07290719f6f9a",
+          "candidateChecksum": "ec7919c842309b31ac7f0632427a11beacce20c0b301f1f706bfc255227df295",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_type_createdat_index",
+          "ledgerChecksum": "750b9e2497db09140fa97fa4e9b16723be757742fd2987f11e71efc4168cf901",
+          "candidateChecksum": "cfa03ff57100cdf67e597ee183c2a6d4de858d893c731134975ab2efbfa30519",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_webhook_system",
+          "ledgerChecksum": "1d9511570be36c75ba236cc8da27696fbda90ab4b8b78dea37a5bfda3dd43e97",
+          "candidateChecksum": "bce489791f0151c62fec74de17b90a8a42029f52e2cbc7873751d4e249ef9f32",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260510000000_add_marketing_risk_finance",
+          "ledgerChecksum": "1bd667bfcdee21e4bfc0936db5ff1d5ab611e5e701d5988c718d818d4f0af71d",
+          "candidateChecksum": "f66532db9367e7f2bd41a6bc5e427cb34a1b1e3b634a81185e9409e40dbfd1eb",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260510000000_course_live_linkage",
+          "ledgerChecksum": "510db71313fb2ea1fe73f45354db8222f212e517fbf5e49921109c5e03addd9c",
+          "candidateChecksum": "7b8c6d9202186cc14e05ef80f9aefc8e046c2d0ce7bfeb3f947d59de53b4b827",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260510000001_add_gap_models",
+          "ledgerChecksum": "3b119f25d66f2561e9198b4cec7e464d50fb16aa5c8aba0ef4eb9251f8073f6d",
+          "candidateChecksum": "6d12476736535ebbf60e42a35ee038c2065e25f3eb110ad849717b22f5991ffa",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260510_add_perf_indexes_p8",
+          "ledgerChecksum": "62268761eddac2b04ab8b4bd842756097ea517f6d971380f232d64b48e1b64e9",
+          "candidateChecksum": "660c6c8162a861f1d76eb04f603f7b6dac152a1ab7ebff16402166de45c90262",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260511143311_add_merchant",
+          "ledgerChecksum": "67627c9ee1e3baf240a693bbb1814c9495a872f547e2bcccd0af0acdd5ceadcb",
+          "candidateChecksum": "7055bea70ff8febdd11ffd1545e52c6567f0c9e089bded694504f7d241668209",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260511145554_add_merchant",
+          "ledgerChecksum": "fc54d82cf3adf69fe6a020a5d225e640edba04c171c02d63db5d67b951f7d7d6",
+          "candidateChecksum": "a6842fe369ce8125db825cd08a66027490a083be01731cc881da65b2638456b8",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260513130000_enable_pgvector",
+          "ledgerChecksum": "a185a4ba4bdf73f96dff96a5fc269f59e4892b89dc9fecb10f69d05c5d475e9c",
+          "candidateChecksum": "ffb670bbcb64a445c821f287614eab719f732132c572da43e8b9331409f87a0b",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260513_add_automation_infrastructure",
+          "ledgerChecksum": "31e1f477a724baaff1a360baf3f760aa5a14e74877ccbb28e98cf833495c4913",
+          "candidateChecksum": "34e10ac6de9d511e102cd26b81f64e9f7197a426c997abd36df59356ccf768f6",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260513_add_compound_indexes",
+          "ledgerChecksum": "7b186c5f2b4d7bf68cc9840029fa4bb2f9c557e8c604310365deecda4980598f",
+          "candidateChecksum": "500958a83330e2e5809154f31803e0bdefc44bfc4562ac53bfcf4a263d6114f1",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260514_add_category_fields",
+          "ledgerChecksum": "f2f54f94830644c5bfaa6022957270bf95977df613c4e328e3e11981a41f270d",
+          "candidateChecksum": "ad9ff0a2dd2e738400558f47e0f71ffdb9e166c324eb4efb8836ad73c8ff3dc1",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515000000_partition_preembed",
+          "ledgerChecksum": "c7704cf1de6e8adc00b81f176bfd6505421d7cd1369e6f2700dbb8be2f410e9c",
+          "candidateChecksum": "63e4f52e35f187161db799c7bdd3c682e87b9f25a80d75ea914c90926b097a4b",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_add_ai_cache_entry",
+          "ledgerChecksum": "e1d0404d5319a609fe9da4d98fb3ee2cc2f0540bc9ddf004b49bea24cdaefff4",
+          "candidateChecksum": "c5882e0e9e6698d870e90d2bb0a18ea8068fc78564d66b968bacaae9a7d5b358",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_add_bazi_knowledge_classic_commentary",
+          "ledgerChecksum": "e8a41b7f59fb1e049329559d85c0a2ed3d665a41382aee9b62c8d2f0347427ec",
+          "candidateChecksum": "7514dc2d4df08f4f21f1fc37766c25dd82eb1870584e76e113c15e2294ac3866",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_add_classic_bazi_tags",
+          "ledgerChecksum": "03398e978b13a8387fb46afb201a6d4e67fd1d3c70433920f0b31cbd1b37bcf2",
+          "candidateChecksum": "89733f006504760f7efd8a709007060efafc8d8a2354b29df6d736e9b10dab9a",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_add_missing_fk_indexes",
+          "ledgerChecksum": "3363fac2d68d130775f8d49e3f6a076743af50a3f253e665ef70dda1a9953163",
+          "candidateChecksum": "ac4bd0070efe1d567a9a1a186170383031116a8a51c04d4d167a23baeddfec6a",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_add_quality_score_record",
+          "ledgerChecksum": "bb85f8d3f4fb360fdb591c94e2d832bc725f692ce3da85d23b8e1e1547f38729",
+          "candidateChecksum": "f7aed373438b8f72dd53f7ad8ffca975ba3b2d9a17f9056181d9f07248ff5792",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_add_rag_template_bigscreen_token_live_minute_data",
+          "ledgerChecksum": "0bf9c5f44518f926937845b5a249478a50a539e47e1ecc60aac98832af7892ee",
+          "candidateChecksum": "fcf1f0271bfeb69e5509aa23d8fdd3e8f44bda9fde8a538259da922a7aa65f77",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_rag_layers_2_4",
+          "ledgerChecksum": "28cd2470d5efe1273d9582d1f4ef602edc9a77760c5a9e8ed6ced333c59d47d4",
+          "candidateChecksum": "b4b341e32b165ba5f2a21d73c4373f58b81a180933ba6fed4e9c69af9e048a56",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260518_add_classic_images",
+          "ledgerChecksum": "41659cbb562d08de6e1a48ba23814bb184b0f1470fb66bb5fff3903261f66b89",
+          "candidateChecksum": "41f941a4e5c66497b2bd0acca27525cf4b68f25e1728662c1dba1a12ec4e92b5",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260518_add_missing_indexes",
+          "ledgerChecksum": "9b9ae977c7349eedddf61c000020738e9e18ab2057ced446bf8060e9a777a9a3",
+          "candidateChecksum": "f651701dcd620392d6c1a5ad81b04c98371ead3a86d351994043b95e73513c61",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_classic_reading_note",
+          "ledgerChecksum": "c4aad8b2cd7b18000979ea50aa8e943442e86c23afe943cdc2c113d5f69b7b46",
+          "candidateChecksum": "e7e0196f2d829679113bff61fa2003f9b57a02b8b0a8544422587273a5cdb54b",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_competition_system",
+          "ledgerChecksum": "3bde8bcc646ccab0b668460c7ba434b029d9a441390419151ae79340071f2c1b",
+          "candidateChecksum": "33c19eaa04b9dd42fd5a5277310247ac4418a1844fb0eff7bed07cc7743810d3",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_course_qa",
+          "ledgerChecksum": "3632bb782517334ef31914171cef64e079ee5c2361e01dce80731df68c666b75",
+          "candidateChecksum": "b3e343625daef545b178cbd5bbfae90ff316930e22e2bbd70e49bf028752a90a",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_course_review_reply",
+          "ledgerChecksum": "3205525b6c1a489bb46bf79ce7f256a8684b2000024faaadaee5c8e4c173012c",
+          "candidateChecksum": "32922e4861db63831c5465365fa12cd1072f668dcdcd2519456ae28b1016f582",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_ebook_review_reading_session",
+          "ledgerChecksum": "0b1c19b5286f938520f1c441ff4756a6b79d0f3de93906ce9543a9fad7679460",
+          "candidateChecksum": "537f0d7164a971492cf0c554c93d6aa960b238039e70ae86ca6ba2bfb1e264c6",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_missing_fk_indexes",
+          "ledgerChecksum": "6586fc9236d2a42d22154c0c94fa873e24bdda032bc953c70e0e65d1e119c965",
+          "candidateChecksum": "81a1690346d5fb75c43c38d705240c9582301e7b0b973c3c6c3d0851b31f9966",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_tags_gin_indexes",
+          "ledgerChecksum": "903ab724d558a593084dcae7f78d8586d76c4e56ceb58054de8d2f17c3b16f8d",
+          "candidateChecksum": "f59ff774f2fadd31678a277c5008c2146307aad0c6c521d0a3c27eee5a00b8ea",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521124129_add_station_id_and_payment_unique",
+          "ledgerChecksum": "93dfb8f9f49e9388b7f4ba301b92c540106454345777b6ff9b751383fececb31",
+          "candidateChecksum": "9526dcb051c9a9947c1161e4cb7d5b68af96c77213e9999ae314f2e7e3d6c53d",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521145000_add_identity_verified_fields",
+          "ledgerChecksum": "f3872703a574d0d82666d22504ca4640f52c4de536eaca489a0b5691baec62cc",
+          "candidateChecksum": "b95517bd7203b3e378f733df4ce3105eeaf76e33c566adb8a756ac5e09ffa4bb",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521150000_add_operator_management_bonus",
+          "ledgerChecksum": "0c0e4a49238ee155c8cb71d8e403cf76a2eba15015c3c31f64cfe32f52e862c0",
+          "candidateChecksum": "9b95598beef6e75560e1921bb9c532e0f42bfb96e095cde11e15d5176757ceda",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521160000_seed_prd_config_params",
+          "ledgerChecksum": "5ef1f19ac2e901b8df894d3d7a92e4a3cc75ea43c8b92db046054e8185ef7b5f",
+          "candidateChecksum": "4d128c3694baec6cbebcedea24f8d0a8964b7be084c710eaed55ebad51f14427",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521170000_add_risk_control_station_dimension",
+          "ledgerChecksum": "94ef0a7f86dfce5d2393d6ff796485b5ecbc94104ed84403c102c52892ddb7a6",
+          "candidateChecksum": "4e7536863fc11678959e6533489cc8d8bcc12631786951a498b381deb4ca0415",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521180000_add_banned_user_status",
+          "ledgerChecksum": "b9d3f51bea435f433f7d491a3c0ea038738e053de811f4a0b9e9264e645af50b",
+          "candidateChecksum": "ec88ff91af6ec946249f0727dd2f4a19c197e702ae7d55c67defb5bfc41b8aca",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521180000_add_task_expiry_churn_fields",
+          "ledgerChecksum": "55cdfe5a2a14b33d4b82ecf00eea899d087280d40dc2702d73f924371dacfc89",
+          "candidateChecksum": "1ac4dee2f483af07ea5dca329653ec4ab3d52abe8daa1ecb0c71d865acc96eb8",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521200000_add_permission_model",
+          "ledgerChecksum": "05c5e86118cb60cf5a13e62977eb7772aef38c7757a27460ade5796f3cdc58cf",
+          "candidateChecksum": "94f61c925835af5a1f149e5cff867bd33f5adfc2f78d2bdf844b6ffc83930490",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260530_add_discover_comment_indexes",
+          "ledgerChecksum": "cd2ae956d2500e142fe1a9e96c68cf38a944841730e22559722e54658852ce9b",
+          "candidateChecksum": "f5a2fbd4ad47466356c4d0df345b668fa8fabcc4a6810f99b7110bbe76452b3e",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260530_add_pg_trgm_extension",
+          "ledgerChecksum": "b39382343eaf30d1a741a2226437c389f22ed950b763bed1616ae0cb24a691cd",
+          "candidateChecksum": "a3d76cb7c16531df910055651c08e17ccf4ef9bfe732ee4c539c4170ab161b44",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260530_add_tags_gin_indexes",
+          "ledgerChecksum": "095f409b9592fac39905bda097c0962c7bdc8dee01c6673642a51770f8bc7691",
+          "candidateChecksum": "244ec42f439e36203f02971be328dca7b6cc32a06b2f93eb57f71783c629f5ba",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260530_remove_redundant_indexes",
+          "ledgerChecksum": "717e586fb5a340b886f659509f26569cd7e7b355cad16ffe9b37bc355354a517",
+          "candidateChecksum": "7501e024d3966a8d6ea17335a0e4a7ae710f60895d2b9d7cfdf945b708491122",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260604_add_circle_read_and_booking",
+          "ledgerChecksum": "d29eda751ca677ee1e38dbcdcc555ede52fc71ac344cf7bcf7803cd23bf3971d",
+          "candidateChecksum": "3c6e1c3ed9a42d0269a414790431a9a23a59e1b730882f6ac5104360b2e266d0",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260617000000_baseline",
+          "ledgerChecksum": "e4d154b2f55d4070b95d07278bd021704710e791e329c06426c685d14a124efa",
+          "candidateChecksum": "b5f8d9dcb84fadd82cd5dd23404f0e51183cc53715ae4e4ac31d6809ae179f98",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260620000000_add_notify_settings_and_feedback",
+          "ledgerChecksum": "a8fbcd5277a0c0437f30229c958b0ab6656390a9435fb4b75117f858538f65e5",
+          "candidateChecksum": "1d98038eb45c4dbf3e5ac141170fbb5f20fb3872a10a6550a2cd6cf07ee1f242",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260723000000_add_live_description",
+          "ledgerChecksum": "e711ad98594479213b3bacf204e36ca0323df8920d4c36eab1478182d52c021c",
+          "candidateChecksum": "e711ad98594479213b3bacf204e36ca0323df8920d4c36eab1478182d52c021c",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "20260726000000_add_article_layout",
+          "ledgerChecksum": "30886e4a864dd9b6fd8e8164693fce7c255e07d582840c553867874807c5af90",
+          "candidateChecksum": "30886e4a864dd9b6fd8e8164693fce7c255e07d582840c553867874807c5af90",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "20260726030000_add_merchant_qualification_risk",
+          "ledgerChecksum": "2d164bfff3d5ca36f368cbfcc062bab817d2695663313b4b9f646ee01f6beb06",
+          "candidateChecksum": "2d164bfff3d5ca36f368cbfcc062bab817d2695663313b4b9f646ee01f6beb06",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "20260726_add_classic_note_anchor",
+          "ledgerChecksum": "2be618029771a1cc8eb7d5bfc4dadc4e01628ba6d489d6ddd599bf63fb0a3c17",
+          "candidateChecksum": "2be618029771a1cc8eb7d5bfc4dadc4e01628ba6d489d6ddd599bf63fb0a3c17",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "20260728090000_add_circle_publish_grants",
+          "ledgerChecksum": "4578120fc6e06e631fc56e02ce740ddc883ed9e49455bfcd551af9269dc938ac",
+          "candidateChecksum": "4578120fc6e06e631fc56e02ce740ddc883ed9e49455bfcd551af9269dc938ac",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "20260728110000_add_live_watch_progress",
+          "ledgerChecksum": "89f222e52ed9e1dab1e2ec3a8e6432c32d36fdfea4bf29d6de22300d65dd8ba2",
+          "candidateChecksum": "89f222e52ed9e1dab1e2ec3a8e6432c32d36fdfea4bf29d6de22300d65dd8ba2",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "20260730100000_repair_operational_database_objects",
+          "ledgerChecksum": "e2a2e035e3c0b2b25d86007cff46d969328a25458de98e6c0917e90a2d53064b",
+          "candidateChecksum": "a28b6b344da70fad169646f9e5278df7311a664326dfb16a76c3a7aa9b2006de",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260802000000_enforce_auth_provider_uniqueness",
+          "ledgerChecksum": "ee3a20722f21948bb096b5a9692a4c6a45b6840340041c99f89e1159efdb5a0c",
+          "candidateChecksum": "75e4647a0888ace815844a0356ba2ae4fafd2e08223b8818689346a26e38457a",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260802030000_unified_accounts_and_entitlements",
+          "ledgerChecksum": "425c07c4da41b174429cecc9dcbe25f4ebcf4212ea0683483c783dcfcfe7120b",
+          "candidateChecksum": "1b43fa2eee675b8661955a984d2052afe02b6712c2d5134bc31f3be26c209a34",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260810120554_add_classic_copyright",
+          "ledgerChecksum": "c4dc50fe3c00d53c66570b65f000bc04ff81b67349665569445dcfab7fa22783",
+          "candidateChecksum": "5a7e538744186ec051f913ca4583018de5529e0beb489b4cd51da347d0cc7c5f",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260811100000_gate_classics_by_audited_license",
+          "ledgerChecksum": "0bacb3df48b7ad877ecae649c52a114fa0b03df45cea6195f351665e94782132",
+          "candidateChecksum": "acd124051efaecbddb4f410cf05ccd6da7eb00cabea6ddd485e9b1bdf39e9adb",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260815150000_add_live_gift_idempotency",
+          "ledgerChecksum": "e95acfa36e4bec03529500d9a4cca742305e93194324c5bd5b242bcc81ba5990",
+          "candidateChecksum": "68c708c0875590d908739ddbbc10dbd36c0b312c995910ccfa617cbf48145402",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260815152000_add_live_mic_media_mode",
+          "ledgerChecksum": "ef168c81a05c6bcfbff49f2d05b16d9830ab21bcb1eb96f4133cfa7f57a08c15",
+          "candidateChecksum": "47e55ad10b8be55dc734bed6f4e5d69aabc3e79bf45fbf2cd47bb53bcf1ca118",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260815163000_add_live_gift_spending_protection",
+          "ledgerChecksum": "bcad0e5117b31bcf4a56919e62a364826e857b6d1b257561d982a2717b1c303e",
+          "candidateChecksum": "63c3d35db4a666062ebcaf9aeddf22410e9a9b1f0d391930555b594b765820de",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260821100000_bootstrap_launch_business_surfaces",
+          "ledgerChecksum": "8da70bfbfe4e765fe435ee666cd8e8de7eef080b35461459451627d3563b93db",
+          "candidateChecksum": "cd1ac8712c2f6ffa367318098aec5c0ff6edb2e7e010d4228457550852adbd37",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260829100000_bootstrap_member_plans",
+          "ledgerChecksum": "90e438c2c199ba8bd8909c14d345614df16db1b74e7cec7472d89ce0512da17c",
+          "candidateChecksum": "35157d55b3ea43ebeca2dffc655a27ad817b03ae76079ad88e4b3ebe5e106734",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "add_stationId_bounty_call",
+          "ledgerChecksum": "48d0e406908b10be6976666a14979fa6b38875f209af721ff155497fe2a14cee",
+          "candidateChecksum": "f876a2f6ab56b4c92721513d6758531d368cf57b80d8858adc27fdf558302a00",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "add_stationId_marketing",
+          "ledgerChecksum": "675ffc41cc6e7d00ccaf0ed71599f2e8937984db25882b870232ed9ab34ea4e4",
+          "candidateChecksum": "d4f44b24c9d8ea2345987186fc5efefb45c903b67764585ed0884bba424f7951",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_20260623_audit_fixes",
+          "ledgerChecksum": "bc42f2de9e39de6283a4e0ea3377f2083f906654b28cf8ac8bac52b525415db0",
+          "candidateChecksum": "96c18ee132ee35f94ac1d9495eb744aae703ac8fc1189cd7411d5c39dddb3d45",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_ai_decision_outcome_provenance",
+          "ledgerChecksum": "ff871f961cad27836dd0f4fa05ba468fb01bf5ee08e848df2f49e6c9a4fb604e",
+          "candidateChecksum": "ff871f961cad27836dd0f4fa05ba468fb01bf5ee08e848df2f49e6c9a4fb604e",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_ai_event_delivery_state",
+          "ledgerChecksum": "c02a55d4339cb4c1679e9f3c942aa307974e6eea2f266bef99eaa4c72b4864bf",
+          "candidateChecksum": "c02a55d4339cb4c1679e9f3c942aa307974e6eea2f266bef99eaa4c72b4864bf",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_app_version_release_workflow",
+          "ledgerChecksum": "7aa3ca971a5305689900ae4ccac27b3370856933fcd651e529eb33e2b5c221ec",
+          "candidateChecksum": "d81b4866d5674c7e5cff6b1714ee1f25fb347e357ff7af5582830860d9ac45be",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_apple_iap",
+          "ledgerChecksum": "7ba1bf71f161eccdfa893d6629f6ffd5605d0a26a89ed6cd68b53bd6749a2884",
+          "candidateChecksum": "dba5f69362fb6421d3e65ac027b1e547ab376b47fa790d438d02b9be7a18eda5",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_article_hot_index",
+          "ledgerChecksum": "6fc44a0db64fbab4862eb680016c4b2528e4b8aadd307dbc5c612e4d69c605fd",
+          "candidateChecksum": "6fc44a0db64fbab4862eb680016c4b2528e4b8aadd307dbc5c612e4d69c605fd",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_audit_autonomy_level",
+          "ledgerChecksum": "c12e8329fb07cc470a2999cb14865d182aa7067e85c77174d7d373cf72f489b6",
+          "candidateChecksum": "c90cc138af96b349dab0095b40e99037de7770f15d19759d190b4478ad05cb90",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_bounty_close_evidence",
+          "ledgerChecksum": "954ddb8327302e0fda4a583ce224f38438c5a2c6ff32e42a18d151b062afe093",
+          "candidateChecksum": "954ddb8327302e0fda4a583ce224f38438c5a2c6ff32e42a18d151b062afe093",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_brand_config",
+          "ledgerChecksum": "a73534d7abfb70318161e98a39fa5694a3ed0460ea8d32c290334f2c9bb9b1fb",
+          "candidateChecksum": "9b81d8a7029a760fefd7aaeee76b39b553985226a7a316dbdbef9634b0c476ba",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_capability_request",
+          "ledgerChecksum": "0b25b994c0e50d0213f7b72ce16f20a591679fd6069d09e222535e957a3b6341",
+          "candidateChecksum": "29e692df8b420f3fdda31504d3d3364ec5f0ad8d1ba5f1ddf19c2e85f301a29a",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_content_supply_chain",
+          "ledgerChecksum": "e474966aa8f5417a0e96de01c23f813c706b35ca76d17a9ef70cf48d5d423f97",
+          "candidateChecksum": "4167951ec5fc60c4ec2d4cf041930ef5e5aeb93bfe1a87de056dd8c1534acb56",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_groupbuy_paid_flow",
+          "ledgerChecksum": "0201e3f4dab1a105c389efb596b2c7eaba17326e9bd7fdd4ed6bb3f1c42ba0be",
+          "candidateChecksum": "f6d38fc4ebe24a1ce4ae2e46247c89bbbd39347c35a56a279dc81f34dc545d98",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_institute_audit_split",
+          "ledgerChecksum": "e44581356940314a49bf4711088a50a353a6577e215964e4a6277b01e0dbd31c",
+          "candidateChecksum": "7ed8756a4cc7e68ce9a8f97b8cbf4504494fb9ca1f63f52810312e99a7903246",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_legacy_migration_audit",
+          "ledgerChecksum": "0829574b88050c3a87287786f35c43ad602a59c5a15de72ef50dcc0ad7206689",
+          "candidateChecksum": "ab0a92bfe316405a1da4667d83c3cf3da29bd5696feaadac32ba465d39bdf26c",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_live_booking_and_replay_publish_state",
+          "ledgerChecksum": "ac4fa80b0931ec416dee0a107ed9cd976165746013f53f0922fae74fb5857b34",
+          "candidateChecksum": "ac4fa80b0931ec416dee0a107ed9cd976165746013f53f0922fae74fb5857b34",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_merchant_suppliers",
+          "ledgerChecksum": "66f3499e118dc814711d7ca08b903cadf43883bb2cb088e47657ef176ec5b109",
+          "candidateChecksum": "66f3499e118dc814711d7ca08b903cadf43883bb2cb088e47657ef176ec5b109",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_ops_task_approval_evidence",
+          "ledgerChecksum": "f181f0e7e1a7fb26671f4ec165ce3e7682856738bbdb26b86a26a49918e71329",
+          "candidateChecksum": "f181f0e7e1a7fb26671f4ec165ce3e7682856738bbdb26b86a26a49918e71329",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_order_shipping_address",
+          "ledgerChecksum": "e6093083b7d8f599065333c8b6131b138410a63fdf54a16cb64a2c276492b0dd",
+          "candidateChecksum": "2c62f3dcd6233e017450fdb0d9c7fd8b17b06119d81d01d9ccd29cdb5ee092f7",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_payout_account_encryption",
+          "ledgerChecksum": "76087bc3a8da49bc1774dbf0d2d877a7bb908a13a3021c1d3d208c168cb207bf",
+          "candidateChecksum": "76087bc3a8da49bc1774dbf0d2d877a7bb908a13a3021c1d3d208c168cb207bf",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_product_sku_lifecycle",
+          "ledgerChecksum": "6e4b7b491b13a34c69f9e44a37dc90ffa6d8a72d085bafce0500f5eca5bb7b0d",
+          "candidateChecksum": "6e4b7b491b13a34c69f9e44a37dc90ffa6d8a72d085bafce0500f5eca5bb7b0d",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_purchase_receipts",
+          "ledgerChecksum": "d3a7178d767ad4d92f71a2ad301f6ae2b95cd5c18090079071f37adc6d6be021",
+          "candidateChecksum": "d3a7178d767ad4d92f71a2ad301f6ae2b95cd5c18090079071f37adc6d6be021",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_station_paipan_link",
+          "ledgerChecksum": "f48c8cb523465de05205fa6b1cc6a499547b0e8581aaf9067d3d0af93816b7eb",
+          "candidateChecksum": "661f46801c031c3cde9047192270660176f143e009ba593f6561f98fe768ca36",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_teacher_certification",
+          "ledgerChecksum": "3051e88e2fceaf3f205d92993fb58427eeadcd6054cad1116d08cb5422be38a2",
+          "candidateChecksum": "f2bf31ff4d4a5e6cdcc323b74433cbcd6ad867a364f88bbe2d28a76c36f46d0c",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_tenant_saas_fields",
+          "ledgerChecksum": "6ffb1315bd21740256752d18b9f3e525efe07ebdb657d69796277653648c16d0",
+          "candidateChecksum": "577b527166f6634e0814cd980e0c9ee072c0947fc914923dec14c4bdd9242361",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_user_interest_guide_completed",
+          "ledgerChecksum": "f39d227d746fca69c035f617d25d2fa3d81bacff2ae6bbad84650810a6671839",
+          "candidateChecksum": "a734b9170e9b6dfa670c00a61458179312a0136e39c41b1231330263f19fd013",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_webhook_delivery_outbox",
+          "ledgerChecksum": "53cd3ae9ade91b38fc48902e0a9665c7c0997529c39b47075f9eb3ce1227310a",
+          "candidateChecksum": "53cd3ae9ade91b38fc48902e0a9665c7c0997529c39b47075f9eb3ce1227310a",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_bind_product_freight_template",
+          "ledgerChecksum": "93be46a513138e1eb6607ae38ab335dee07434a1ad8623216cbf528310a0fc17",
+          "candidateChecksum": "93be46a513138e1eb6607ae38ab335dee07434a1ad8623216cbf528310a0fc17",
+          "status": "raw_exact_match"
+        }
+      ]
+    },
+    {
+      "node": "guoxue1",
+      "instanceId": "ins-n0sqc627",
+      "taskId": "invt-d9ei2vg09q",
+      "checkedAt": "2026-10-03T05:23:07Z",
+      "image": "sha256:e47d5a8c92151d28cd493ea269a066e32038ea3560855a67b15afc26d43d0eb7",
+      "sourceRawSha256": "a48c0bdad444d66fe22522a234f33d8c1f0872e652741e1e3df3607b7b41ecf1",
+      "completed": 103,
+      "unfinished": 0,
+      "rolledBack": 1,
+      "counts": {
+        "raw_exact_match": 18,
+        "line_ending_variant_only": 85,
+        "different_checksum": 0,
+        "outside_candidate": 0
+      },
+      "comparisons": [
+        {
+          "name": "20260507053959_init_full_schema",
+          "ledgerChecksum": "07b5d9566a6f5b499c8af60d0a32921188b0959e452f559a4b24b704a20ba27e",
+          "candidateChecksum": "8e503c36648e8e3d3c34f40d33c431f8ff0a251be3806d0c8a8b21b5eb10416b",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260507094349_add_classic_books",
+          "ledgerChecksum": "b1c2191e7e1f68cece1487450579ada6c783aded471a623a4e9520a56c49323f",
+          "candidateChecksum": "a24135e33638df428bd094f26ad0b191270d09ef4040844789d6fb3dd17dcc83",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509000000_add_missing_models",
+          "ledgerChecksum": "8dd703e90c75768a56ab3522eaafc6d593bfa6b82ef439afb7e59e0ceef9ed0b",
+          "candidateChecksum": "126f8dbb8df6ca95c17231d9a249b0f1b5acfb314559277c400d3a30c50b96ac",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509222741_add_paid_question_fields_and_call_billing",
+          "ledgerChecksum": "c36e32e2e2398f995dfe72e6ba2616adc9c45da236639dbe836984ace2aec862",
+          "candidateChecksum": "628d882a601d788e7e4dbe11f1b0aabdad8b931ec192e761931b7b73d7cfa9be",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509224842_add_live_mic_slide_mute_flash_audit",
+          "ledgerChecksum": "94846e3d0eda58653120114dddbb3479e34ef2efac77186986a82bd31e896391",
+          "candidateChecksum": "6d1dd4c3baf9a2d92bdcadcc07cf57347f2e33ca26afc77ff1fee816c82866f1",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509225200_add_video_counts",
+          "ledgerChecksum": "fa5de108db96f498cc0fba48b6a87a84ee9a8004ad8e8268685ca11d26988b12",
+          "candidateChecksum": "ee1303c18f627a70c0654007d21505ccf6e43544dd42ab272eb910a69a73c5e9",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509230000_add_course_review",
+          "ledgerChecksum": "e6e2762627a8574da26866f0032afe6718b2aa7bd23db55cd1882714e115ca4b",
+          "candidateChecksum": "092d69c6fdd63c436d19f1cce9282c51076c9f043703c8e7f19cc466d00ad3c4",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509230000_add_institute_task_event",
+          "ledgerChecksum": "682f8230b8490e7d188c394d45c5deda2c84bf6d5771a7fa7471417312f51d52",
+          "candidateChecksum": "7c4b9a8f33012c3432e1fb83c23e8bd0eb0c7a2334fde640abc30317fbf10d2b",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_fulltext_search_indices",
+          "ledgerChecksum": "211103d058b45b7ff0f92f998c710f353c09ecb4c359d266ba007dbaea1c024a",
+          "candidateChecksum": "27cf2b76e2e3d5ff1c4589b8f940170ed0c2dc2186dec849cc86a89dfd990839",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_performance_indices",
+          "ledgerChecksum": "80a1310cbe6f037caeabe75c1e43a00fea41ba8913b365076d462545cb98d58b",
+          "candidateChecksum": "278e3c2261de423297b88c6ab2e0a34ed33ba9248473599397c5a8dc9fcb5a0f",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_recommend_system",
+          "ledgerChecksum": "6e31597f1f18ef3554f168ae3409913e873c658994b7764fb9774c9eed412f83",
+          "candidateChecksum": "88ab404b9a6df5bcabb73f9ecfe4f830ebf6e1626568a7ef610d08064f46a786",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_station_miniapp_config",
+          "ledgerChecksum": "1438fdfb7294ec24e796b6ff4d127732b18f0857e67ccb6136f0d50b85b191d9",
+          "candidateChecksum": "f85f038a14f1719a61a52c24b875d6f2ff201820858717a66da0a97bcf874519",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_stationid_to_article_course_video_circle",
+          "ledgerChecksum": "502b8a5bd00c5861ccc84d5f69f418cec9c654239ac089cd2481ec3182035e56",
+          "candidateChecksum": "0608ceece8aeceb8ed46b184a7e71cadea5851a9957b04e0644631265dda98f5",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_stationid_to_content_product",
+          "ledgerChecksum": "2e965b769c6661c05aa8f3ddbbe092b655d9ba4d68bd251b63c07290719f6f9a",
+          "candidateChecksum": "ec7919c842309b31ac7f0632427a11beacce20c0b301f1f706bfc255227df295",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_type_createdat_index",
+          "ledgerChecksum": "750b9e2497db09140fa97fa4e9b16723be757742fd2987f11e71efc4168cf901",
+          "candidateChecksum": "cfa03ff57100cdf67e597ee183c2a6d4de858d893c731134975ab2efbfa30519",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260509_add_webhook_system",
+          "ledgerChecksum": "1d9511570be36c75ba236cc8da27696fbda90ab4b8b78dea37a5bfda3dd43e97",
+          "candidateChecksum": "bce489791f0151c62fec74de17b90a8a42029f52e2cbc7873751d4e249ef9f32",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260510000000_add_marketing_risk_finance",
+          "ledgerChecksum": "1bd667bfcdee21e4bfc0936db5ff1d5ab611e5e701d5988c718d818d4f0af71d",
+          "candidateChecksum": "f66532db9367e7f2bd41a6bc5e427cb34a1b1e3b634a81185e9409e40dbfd1eb",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260510000000_course_live_linkage",
+          "ledgerChecksum": "510db71313fb2ea1fe73f45354db8222f212e517fbf5e49921109c5e03addd9c",
+          "candidateChecksum": "7b8c6d9202186cc14e05ef80f9aefc8e046c2d0ce7bfeb3f947d59de53b4b827",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260510000001_add_gap_models",
+          "ledgerChecksum": "3b119f25d66f2561e9198b4cec7e464d50fb16aa5c8aba0ef4eb9251f8073f6d",
+          "candidateChecksum": "6d12476736535ebbf60e42a35ee038c2065e25f3eb110ad849717b22f5991ffa",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260510_add_perf_indexes_p8",
+          "ledgerChecksum": "62268761eddac2b04ab8b4bd842756097ea517f6d971380f232d64b48e1b64e9",
+          "candidateChecksum": "660c6c8162a861f1d76eb04f603f7b6dac152a1ab7ebff16402166de45c90262",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260511143311_add_merchant",
+          "ledgerChecksum": "67627c9ee1e3baf240a693bbb1814c9495a872f547e2bcccd0af0acdd5ceadcb",
+          "candidateChecksum": "7055bea70ff8febdd11ffd1545e52c6567f0c9e089bded694504f7d241668209",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260511145554_add_merchant",
+          "ledgerChecksum": "fc54d82cf3adf69fe6a020a5d225e640edba04c171c02d63db5d67b951f7d7d6",
+          "candidateChecksum": "a6842fe369ce8125db825cd08a66027490a083be01731cc881da65b2638456b8",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260513130000_enable_pgvector",
+          "ledgerChecksum": "a185a4ba4bdf73f96dff96a5fc269f59e4892b89dc9fecb10f69d05c5d475e9c",
+          "candidateChecksum": "ffb670bbcb64a445c821f287614eab719f732132c572da43e8b9331409f87a0b",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260513_add_automation_infrastructure",
+          "ledgerChecksum": "31e1f477a724baaff1a360baf3f760aa5a14e74877ccbb28e98cf833495c4913",
+          "candidateChecksum": "34e10ac6de9d511e102cd26b81f64e9f7197a426c997abd36df59356ccf768f6",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260513_add_compound_indexes",
+          "ledgerChecksum": "7b186c5f2b4d7bf68cc9840029fa4bb2f9c557e8c604310365deecda4980598f",
+          "candidateChecksum": "500958a83330e2e5809154f31803e0bdefc44bfc4562ac53bfcf4a263d6114f1",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260514_add_category_fields",
+          "ledgerChecksum": "f2f54f94830644c5bfaa6022957270bf95977df613c4e328e3e11981a41f270d",
+          "candidateChecksum": "ad9ff0a2dd2e738400558f47e0f71ffdb9e166c324eb4efb8836ad73c8ff3dc1",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515000000_partition_preembed",
+          "ledgerChecksum": "c7704cf1de6e8adc00b81f176bfd6505421d7cd1369e6f2700dbb8be2f410e9c",
+          "candidateChecksum": "63e4f52e35f187161db799c7bdd3c682e87b9f25a80d75ea914c90926b097a4b",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_add_ai_cache_entry",
+          "ledgerChecksum": "e1d0404d5319a609fe9da4d98fb3ee2cc2f0540bc9ddf004b49bea24cdaefff4",
+          "candidateChecksum": "c5882e0e9e6698d870e90d2bb0a18ea8068fc78564d66b968bacaae9a7d5b358",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_add_bazi_knowledge_classic_commentary",
+          "ledgerChecksum": "e8a41b7f59fb1e049329559d85c0a2ed3d665a41382aee9b62c8d2f0347427ec",
+          "candidateChecksum": "7514dc2d4df08f4f21f1fc37766c25dd82eb1870584e76e113c15e2294ac3866",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_add_classic_bazi_tags",
+          "ledgerChecksum": "03398e978b13a8387fb46afb201a6d4e67fd1d3c70433920f0b31cbd1b37bcf2",
+          "candidateChecksum": "89733f006504760f7efd8a709007060efafc8d8a2354b29df6d736e9b10dab9a",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_add_missing_fk_indexes",
+          "ledgerChecksum": "3363fac2d68d130775f8d49e3f6a076743af50a3f253e665ef70dda1a9953163",
+          "candidateChecksum": "ac4bd0070efe1d567a9a1a186170383031116a8a51c04d4d167a23baeddfec6a",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_add_quality_score_record",
+          "ledgerChecksum": "bb85f8d3f4fb360fdb591c94e2d832bc725f692ce3da85d23b8e1e1547f38729",
+          "candidateChecksum": "f7aed373438b8f72dd53f7ad8ffca975ba3b2d9a17f9056181d9f07248ff5792",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_add_rag_template_bigscreen_token_live_minute_data",
+          "ledgerChecksum": "0bf9c5f44518f926937845b5a249478a50a539e47e1ecc60aac98832af7892ee",
+          "candidateChecksum": "fcf1f0271bfeb69e5509aa23d8fdd3e8f44bda9fde8a538259da922a7aa65f77",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260515_rag_layers_2_4",
+          "ledgerChecksum": "28cd2470d5efe1273d9582d1f4ef602edc9a77760c5a9e8ed6ced333c59d47d4",
+          "candidateChecksum": "b4b341e32b165ba5f2a21d73c4373f58b81a180933ba6fed4e9c69af9e048a56",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260518_add_classic_images",
+          "ledgerChecksum": "41659cbb562d08de6e1a48ba23814bb184b0f1470fb66bb5fff3903261f66b89",
+          "candidateChecksum": "41f941a4e5c66497b2bd0acca27525cf4b68f25e1728662c1dba1a12ec4e92b5",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260518_add_missing_indexes",
+          "ledgerChecksum": "9b9ae977c7349eedddf61c000020738e9e18ab2057ced446bf8060e9a777a9a3",
+          "candidateChecksum": "f651701dcd620392d6c1a5ad81b04c98371ead3a86d351994043b95e73513c61",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_classic_reading_note",
+          "ledgerChecksum": "c4aad8b2cd7b18000979ea50aa8e943442e86c23afe943cdc2c113d5f69b7b46",
+          "candidateChecksum": "e7e0196f2d829679113bff61fa2003f9b57a02b8b0a8544422587273a5cdb54b",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_competition_system",
+          "ledgerChecksum": "3bde8bcc646ccab0b668460c7ba434b029d9a441390419151ae79340071f2c1b",
+          "candidateChecksum": "33c19eaa04b9dd42fd5a5277310247ac4418a1844fb0eff7bed07cc7743810d3",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_course_qa",
+          "ledgerChecksum": "3632bb782517334ef31914171cef64e079ee5c2361e01dce80731df68c666b75",
+          "candidateChecksum": "b3e343625daef545b178cbd5bbfae90ff316930e22e2bbd70e49bf028752a90a",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_course_review_reply",
+          "ledgerChecksum": "3205525b6c1a489bb46bf79ce7f256a8684b2000024faaadaee5c8e4c173012c",
+          "candidateChecksum": "32922e4861db63831c5465365fa12cd1072f668dcdcd2519456ae28b1016f582",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_ebook_review_reading_session",
+          "ledgerChecksum": "0b1c19b5286f938520f1c441ff4756a6b79d0f3de93906ce9543a9fad7679460",
+          "candidateChecksum": "537f0d7164a971492cf0c554c93d6aa960b238039e70ae86ca6ba2bfb1e264c6",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_missing_fk_indexes",
+          "ledgerChecksum": "6586fc9236d2a42d22154c0c94fa873e24bdda032bc953c70e0e65d1e119c965",
+          "candidateChecksum": "81a1690346d5fb75c43c38d705240c9582301e7b0b973c3c6c3d0851b31f9966",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260519_add_tags_gin_indexes",
+          "ledgerChecksum": "903ab724d558a593084dcae7f78d8586d76c4e56ceb58054de8d2f17c3b16f8d",
+          "candidateChecksum": "f59ff774f2fadd31678a277c5008c2146307aad0c6c521d0a3c27eee5a00b8ea",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521124129_add_station_id_and_payment_unique",
+          "ledgerChecksum": "93dfb8f9f49e9388b7f4ba301b92c540106454345777b6ff9b751383fececb31",
+          "candidateChecksum": "9526dcb051c9a9947c1161e4cb7d5b68af96c77213e9999ae314f2e7e3d6c53d",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521145000_add_identity_verified_fields",
+          "ledgerChecksum": "f3872703a574d0d82666d22504ca4640f52c4de536eaca489a0b5691baec62cc",
+          "candidateChecksum": "b95517bd7203b3e378f733df4ce3105eeaf76e33c566adb8a756ac5e09ffa4bb",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521150000_add_operator_management_bonus",
+          "ledgerChecksum": "0c0e4a49238ee155c8cb71d8e403cf76a2eba15015c3c31f64cfe32f52e862c0",
+          "candidateChecksum": "9b95598beef6e75560e1921bb9c532e0f42bfb96e095cde11e15d5176757ceda",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521160000_seed_prd_config_params",
+          "ledgerChecksum": "5ef1f19ac2e901b8df894d3d7a92e4a3cc75ea43c8b92db046054e8185ef7b5f",
+          "candidateChecksum": "4d128c3694baec6cbebcedea24f8d0a8964b7be084c710eaed55ebad51f14427",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521170000_add_risk_control_station_dimension",
+          "ledgerChecksum": "94ef0a7f86dfce5d2393d6ff796485b5ecbc94104ed84403c102c52892ddb7a6",
+          "candidateChecksum": "4e7536863fc11678959e6533489cc8d8bcc12631786951a498b381deb4ca0415",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521180000_add_banned_user_status",
+          "ledgerChecksum": "b9d3f51bea435f433f7d491a3c0ea038738e053de811f4a0b9e9264e645af50b",
+          "candidateChecksum": "ec88ff91af6ec946249f0727dd2f4a19c197e702ae7d55c67defb5bfc41b8aca",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521180000_add_task_expiry_churn_fields",
+          "ledgerChecksum": "55cdfe5a2a14b33d4b82ecf00eea899d087280d40dc2702d73f924371dacfc89",
+          "candidateChecksum": "1ac4dee2f483af07ea5dca329653ec4ab3d52abe8daa1ecb0c71d865acc96eb8",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260521200000_add_permission_model",
+          "ledgerChecksum": "05c5e86118cb60cf5a13e62977eb7772aef38c7757a27460ade5796f3cdc58cf",
+          "candidateChecksum": "94f61c925835af5a1f149e5cff867bd33f5adfc2f78d2bdf844b6ffc83930490",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260530_add_discover_comment_indexes",
+          "ledgerChecksum": "cd2ae956d2500e142fe1a9e96c68cf38a944841730e22559722e54658852ce9b",
+          "candidateChecksum": "f5a2fbd4ad47466356c4d0df345b668fa8fabcc4a6810f99b7110bbe76452b3e",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260530_add_pg_trgm_extension",
+          "ledgerChecksum": "b39382343eaf30d1a741a2226437c389f22ed950b763bed1616ae0cb24a691cd",
+          "candidateChecksum": "a3d76cb7c16531df910055651c08e17ccf4ef9bfe732ee4c539c4170ab161b44",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260530_add_tags_gin_indexes",
+          "ledgerChecksum": "095f409b9592fac39905bda097c0962c7bdc8dee01c6673642a51770f8bc7691",
+          "candidateChecksum": "244ec42f439e36203f02971be328dca7b6cc32a06b2f93eb57f71783c629f5ba",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260530_remove_redundant_indexes",
+          "ledgerChecksum": "717e586fb5a340b886f659509f26569cd7e7b355cad16ffe9b37bc355354a517",
+          "candidateChecksum": "7501e024d3966a8d6ea17335a0e4a7ae710f60895d2b9d7cfdf945b708491122",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260604_add_circle_read_and_booking",
+          "ledgerChecksum": "d29eda751ca677ee1e38dbcdcc555ede52fc71ac344cf7bcf7803cd23bf3971d",
+          "candidateChecksum": "3c6e1c3ed9a42d0269a414790431a9a23a59e1b730882f6ac5104360b2e266d0",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260617000000_baseline",
+          "ledgerChecksum": "e4d154b2f55d4070b95d07278bd021704710e791e329c06426c685d14a124efa",
+          "candidateChecksum": "b5f8d9dcb84fadd82cd5dd23404f0e51183cc53715ae4e4ac31d6809ae179f98",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260620000000_add_notify_settings_and_feedback",
+          "ledgerChecksum": "a8fbcd5277a0c0437f30229c958b0ab6656390a9435fb4b75117f858538f65e5",
+          "candidateChecksum": "1d98038eb45c4dbf3e5ac141170fbb5f20fb3872a10a6550a2cd6cf07ee1f242",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260723000000_add_live_description",
+          "ledgerChecksum": "e711ad98594479213b3bacf204e36ca0323df8920d4c36eab1478182d52c021c",
+          "candidateChecksum": "e711ad98594479213b3bacf204e36ca0323df8920d4c36eab1478182d52c021c",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "20260726000000_add_article_layout",
+          "ledgerChecksum": "30886e4a864dd9b6fd8e8164693fce7c255e07d582840c553867874807c5af90",
+          "candidateChecksum": "30886e4a864dd9b6fd8e8164693fce7c255e07d582840c553867874807c5af90",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "20260726030000_add_merchant_qualification_risk",
+          "ledgerChecksum": "2d164bfff3d5ca36f368cbfcc062bab817d2695663313b4b9f646ee01f6beb06",
+          "candidateChecksum": "2d164bfff3d5ca36f368cbfcc062bab817d2695663313b4b9f646ee01f6beb06",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "20260726_add_classic_note_anchor",
+          "ledgerChecksum": "2be618029771a1cc8eb7d5bfc4dadc4e01628ba6d489d6ddd599bf63fb0a3c17",
+          "candidateChecksum": "2be618029771a1cc8eb7d5bfc4dadc4e01628ba6d489d6ddd599bf63fb0a3c17",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "20260728090000_add_circle_publish_grants",
+          "ledgerChecksum": "4578120fc6e06e631fc56e02ce740ddc883ed9e49455bfcd551af9269dc938ac",
+          "candidateChecksum": "4578120fc6e06e631fc56e02ce740ddc883ed9e49455bfcd551af9269dc938ac",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "20260728110000_add_live_watch_progress",
+          "ledgerChecksum": "89f222e52ed9e1dab1e2ec3a8e6432c32d36fdfea4bf29d6de22300d65dd8ba2",
+          "candidateChecksum": "89f222e52ed9e1dab1e2ec3a8e6432c32d36fdfea4bf29d6de22300d65dd8ba2",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "20260730100000_repair_operational_database_objects",
+          "ledgerChecksum": "e2a2e035e3c0b2b25d86007cff46d969328a25458de98e6c0917e90a2d53064b",
+          "candidateChecksum": "a28b6b344da70fad169646f9e5278df7311a664326dfb16a76c3a7aa9b2006de",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260802000000_enforce_auth_provider_uniqueness",
+          "ledgerChecksum": "ee3a20722f21948bb096b5a9692a4c6a45b6840340041c99f89e1159efdb5a0c",
+          "candidateChecksum": "75e4647a0888ace815844a0356ba2ae4fafd2e08223b8818689346a26e38457a",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260802030000_unified_accounts_and_entitlements",
+          "ledgerChecksum": "425c07c4da41b174429cecc9dcbe25f4ebcf4212ea0683483c783dcfcfe7120b",
+          "candidateChecksum": "1b43fa2eee675b8661955a984d2052afe02b6712c2d5134bc31f3be26c209a34",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260810120554_add_classic_copyright",
+          "ledgerChecksum": "c4dc50fe3c00d53c66570b65f000bc04ff81b67349665569445dcfab7fa22783",
+          "candidateChecksum": "5a7e538744186ec051f913ca4583018de5529e0beb489b4cd51da347d0cc7c5f",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260811100000_gate_classics_by_audited_license",
+          "ledgerChecksum": "0bacb3df48b7ad877ecae649c52a114fa0b03df45cea6195f351665e94782132",
+          "candidateChecksum": "acd124051efaecbddb4f410cf05ccd6da7eb00cabea6ddd485e9b1bdf39e9adb",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260815150000_add_live_gift_idempotency",
+          "ledgerChecksum": "e95acfa36e4bec03529500d9a4cca742305e93194324c5bd5b242bcc81ba5990",
+          "candidateChecksum": "68c708c0875590d908739ddbbc10dbd36c0b312c995910ccfa617cbf48145402",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260815152000_add_live_mic_media_mode",
+          "ledgerChecksum": "ef168c81a05c6bcfbff49f2d05b16d9830ab21bcb1eb96f4133cfa7f57a08c15",
+          "candidateChecksum": "47e55ad10b8be55dc734bed6f4e5d69aabc3e79bf45fbf2cd47bb53bcf1ca118",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260815163000_add_live_gift_spending_protection",
+          "ledgerChecksum": "bcad0e5117b31bcf4a56919e62a364826e857b6d1b257561d982a2717b1c303e",
+          "candidateChecksum": "63c3d35db4a666062ebcaf9aeddf22410e9a9b1f0d391930555b594b765820de",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260821100000_bootstrap_launch_business_surfaces",
+          "ledgerChecksum": "8da70bfbfe4e765fe435ee666cd8e8de7eef080b35461459451627d3563b93db",
+          "candidateChecksum": "cd1ac8712c2f6ffa367318098aec5c0ff6edb2e7e010d4228457550852adbd37",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "20260829100000_bootstrap_member_plans",
+          "ledgerChecksum": "90e438c2c199ba8bd8909c14d345614df16db1b74e7cec7472d89ce0512da17c",
+          "candidateChecksum": "35157d55b3ea43ebeca2dffc655a27ad817b03ae76079ad88e4b3ebe5e106734",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "add_stationId_bounty_call",
+          "ledgerChecksum": "48d0e406908b10be6976666a14979fa6b38875f209af721ff155497fe2a14cee",
+          "candidateChecksum": "f876a2f6ab56b4c92721513d6758531d368cf57b80d8858adc27fdf558302a00",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "add_stationId_marketing",
+          "ledgerChecksum": "675ffc41cc6e7d00ccaf0ed71599f2e8937984db25882b870232ed9ab34ea4e4",
+          "candidateChecksum": "d4f44b24c9d8ea2345987186fc5efefb45c903b67764585ed0884bba424f7951",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_20260623_audit_fixes",
+          "ledgerChecksum": "bc42f2de9e39de6283a4e0ea3377f2083f906654b28cf8ac8bac52b525415db0",
+          "candidateChecksum": "96c18ee132ee35f94ac1d9495eb744aae703ac8fc1189cd7411d5c39dddb3d45",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_ai_decision_outcome_provenance",
+          "ledgerChecksum": "ff871f961cad27836dd0f4fa05ba468fb01bf5ee08e848df2f49e6c9a4fb604e",
+          "candidateChecksum": "ff871f961cad27836dd0f4fa05ba468fb01bf5ee08e848df2f49e6c9a4fb604e",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_ai_event_delivery_state",
+          "ledgerChecksum": "c02a55d4339cb4c1679e9f3c942aa307974e6eea2f266bef99eaa4c72b4864bf",
+          "candidateChecksum": "c02a55d4339cb4c1679e9f3c942aa307974e6eea2f266bef99eaa4c72b4864bf",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_app_version_release_workflow",
+          "ledgerChecksum": "7aa3ca971a5305689900ae4ccac27b3370856933fcd651e529eb33e2b5c221ec",
+          "candidateChecksum": "d81b4866d5674c7e5cff6b1714ee1f25fb347e357ff7af5582830860d9ac45be",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_apple_iap",
+          "ledgerChecksum": "7ba1bf71f161eccdfa893d6629f6ffd5605d0a26a89ed6cd68b53bd6749a2884",
+          "candidateChecksum": "dba5f69362fb6421d3e65ac027b1e547ab376b47fa790d438d02b9be7a18eda5",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_article_hot_index",
+          "ledgerChecksum": "6fc44a0db64fbab4862eb680016c4b2528e4b8aadd307dbc5c612e4d69c605fd",
+          "candidateChecksum": "6fc44a0db64fbab4862eb680016c4b2528e4b8aadd307dbc5c612e4d69c605fd",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_audit_autonomy_level",
+          "ledgerChecksum": "c12e8329fb07cc470a2999cb14865d182aa7067e85c77174d7d373cf72f489b6",
+          "candidateChecksum": "c90cc138af96b349dab0095b40e99037de7770f15d19759d190b4478ad05cb90",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_bounty_close_evidence",
+          "ledgerChecksum": "954ddb8327302e0fda4a583ce224f38438c5a2c6ff32e42a18d151b062afe093",
+          "candidateChecksum": "954ddb8327302e0fda4a583ce224f38438c5a2c6ff32e42a18d151b062afe093",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_brand_config",
+          "ledgerChecksum": "a73534d7abfb70318161e98a39fa5694a3ed0460ea8d32c290334f2c9bb9b1fb",
+          "candidateChecksum": "9b81d8a7029a760fefd7aaeee76b39b553985226a7a316dbdbef9634b0c476ba",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_capability_request",
+          "ledgerChecksum": "0b25b994c0e50d0213f7b72ce16f20a591679fd6069d09e222535e957a3b6341",
+          "candidateChecksum": "29e692df8b420f3fdda31504d3d3364ec5f0ad8d1ba5f1ddf19c2e85f301a29a",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_content_supply_chain",
+          "ledgerChecksum": "e474966aa8f5417a0e96de01c23f813c706b35ca76d17a9ef70cf48d5d423f97",
+          "candidateChecksum": "4167951ec5fc60c4ec2d4cf041930ef5e5aeb93bfe1a87de056dd8c1534acb56",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_groupbuy_paid_flow",
+          "ledgerChecksum": "0201e3f4dab1a105c389efb596b2c7eaba17326e9bd7fdd4ed6bb3f1c42ba0be",
+          "candidateChecksum": "f6d38fc4ebe24a1ce4ae2e46247c89bbbd39347c35a56a279dc81f34dc545d98",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_institute_audit_split",
+          "ledgerChecksum": "e44581356940314a49bf4711088a50a353a6577e215964e4a6277b01e0dbd31c",
+          "candidateChecksum": "7ed8756a4cc7e68ce9a8f97b8cbf4504494fb9ca1f63f52810312e99a7903246",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_legacy_migration_audit",
+          "ledgerChecksum": "0829574b88050c3a87287786f35c43ad602a59c5a15de72ef50dcc0ad7206689",
+          "candidateChecksum": "ab0a92bfe316405a1da4667d83c3cf3da29bd5696feaadac32ba465d39bdf26c",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_live_booking_and_replay_publish_state",
+          "ledgerChecksum": "ac4fa80b0931ec416dee0a107ed9cd976165746013f53f0922fae74fb5857b34",
+          "candidateChecksum": "ac4fa80b0931ec416dee0a107ed9cd976165746013f53f0922fae74fb5857b34",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_merchant_suppliers",
+          "ledgerChecksum": "66f3499e118dc814711d7ca08b903cadf43883bb2cb088e47657ef176ec5b109",
+          "candidateChecksum": "66f3499e118dc814711d7ca08b903cadf43883bb2cb088e47657ef176ec5b109",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_ops_task_approval_evidence",
+          "ledgerChecksum": "f181f0e7e1a7fb26671f4ec165ce3e7682856738bbdb26b86a26a49918e71329",
+          "candidateChecksum": "f181f0e7e1a7fb26671f4ec165ce3e7682856738bbdb26b86a26a49918e71329",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_order_shipping_address",
+          "ledgerChecksum": "e6093083b7d8f599065333c8b6131b138410a63fdf54a16cb64a2c276492b0dd",
+          "candidateChecksum": "2c62f3dcd6233e017450fdb0d9c7fd8b17b06119d81d01d9ccd29cdb5ee092f7",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_payout_account_encryption",
+          "ledgerChecksum": "76087bc3a8da49bc1774dbf0d2d877a7bb908a13a3021c1d3d208c168cb207bf",
+          "candidateChecksum": "76087bc3a8da49bc1774dbf0d2d877a7bb908a13a3021c1d3d208c168cb207bf",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_product_sku_lifecycle",
+          "ledgerChecksum": "6e4b7b491b13a34c69f9e44a37dc90ffa6d8a72d085bafce0500f5eca5bb7b0d",
+          "candidateChecksum": "6e4b7b491b13a34c69f9e44a37dc90ffa6d8a72d085bafce0500f5eca5bb7b0d",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_purchase_receipts",
+          "ledgerChecksum": "d3a7178d767ad4d92f71a2ad301f6ae2b95cd5c18090079071f37adc6d6be021",
+          "candidateChecksum": "d3a7178d767ad4d92f71a2ad301f6ae2b95cd5c18090079071f37adc6d6be021",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_add_station_paipan_link",
+          "ledgerChecksum": "f48c8cb523465de05205fa6b1cc6a499547b0e8581aaf9067d3d0af93816b7eb",
+          "candidateChecksum": "661f46801c031c3cde9047192270660176f143e009ba593f6561f98fe768ca36",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_teacher_certification",
+          "ledgerChecksum": "3051e88e2fceaf3f205d92993fb58427eeadcd6054cad1116d08cb5422be38a2",
+          "candidateChecksum": "f2bf31ff4d4a5e6cdcc323b74433cbcd6ad867a364f88bbe2d28a76c36f46d0c",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_tenant_saas_fields",
+          "ledgerChecksum": "6ffb1315bd21740256752d18b9f3e525efe07ebdb657d69796277653648c16d0",
+          "candidateChecksum": "577b527166f6634e0814cd980e0c9ee072c0947fc914923dec14c4bdd9242361",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_user_interest_guide_completed",
+          "ledgerChecksum": "f39d227d746fca69c035f617d25d2fa3d81bacff2ae6bbad84650810a6671839",
+          "candidateChecksum": "a734b9170e9b6dfa670c00a61458179312a0136e39c41b1231330263f19fd013",
+          "status": "line_ending_variant_only"
+        },
+        {
+          "name": "manual_add_webhook_delivery_outbox",
+          "ledgerChecksum": "53cd3ae9ade91b38fc48902e0a9665c7c0997529c39b47075f9eb3ce1227310a",
+          "candidateChecksum": "53cd3ae9ade91b38fc48902e0a9665c7c0997529c39b47075f9eb3ce1227310a",
+          "status": "raw_exact_match"
+        },
+        {
+          "name": "manual_bind_product_freight_template",
+          "ledgerChecksum": "93be46a513138e1eb6607ae38ab335dee07434a1ad8623216cbf528310a0fc17",
+          "candidateChecksum": "93be46a513138e1eb6607ae38ab335dee07434a1ad8623216cbf528310a0fc17",
+          "status": "raw_exact_match"
+        }
+      ]
+    }
+  ],
+  "pendingCandidate": [
+    {
+      "name": "20260918120000_add_circle_revenue_order_idempotency",
+      "path": "apps/server/prisma/migrations/20260918120000_add_circle_revenue_order_idempotency/migration.sql",
+      "bytes": 1170,
+      "sha256": "5613ad14e71703fd9c0536d644c0f62a487cc11af1db5e6c5bfdce283675b148",
+      "lfSha256": "5613ad14e71703fd9c0536d644c0f62a487cc11af1db5e6c5bfdce283675b148",
+      "crlfSha256": "8e06e9e403793e30fc23617d20cd1394eeef638c886a8b8c1da709bf2476fd5c",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": false,
+        "uniqueIndex": true,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "20260919090000_add_commission_recall_reason",
+      "path": "apps/server/prisma/migrations/20260919090000_add_commission_recall_reason/migration.sql",
+      "bytes": 1647,
+      "sha256": "a7957a4aecd8e1502cf1a9124596c1f72e4d4636559e05a9e4469b60f8628093",
+      "lfSha256": "a7957a4aecd8e1502cf1a9124596c1f72e4d4636559e05a9e4469b60f8628093",
+      "crlfSha256": "56f440c9ed84a00289a9a602a756b1a1d2428ed64c34a317c8131a9730e4d888",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "20260920090000_add_commission_recall_resolution",
+      "path": "apps/server/prisma/migrations/20260920090000_add_commission_recall_resolution/migration.sql",
+      "bytes": 546,
+      "sha256": "cedddb19f51bb5309dae74c798590b68cbdff0169889f790a9194cda57116cd1",
+      "lfSha256": "cedddb19f51bb5309dae74c798590b68cbdff0169889f790a9194cda57116cd1",
+      "crlfSha256": "7d72975c0296773ce3dd65237587cb535a04b3e9a7d91dfe35cfb5f222c7420f",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "20260923010000_add_public_content_catalog",
+      "path": "apps/server/prisma/migrations/20260923010000_add_public_content_catalog/migration.sql",
+      "bytes": 1131,
+      "sha256": "cacd85d1763ff5c69b6b3b4d4506caa18d4a9c016404fb92bdc47c5ed8f2e25e",
+      "lfSha256": "cacd85d1763ff5c69b6b3b4d4506caa18d4a9c016404fb92bdc47c5ed8f2e25e",
+      "crlfSha256": "f924409a9d4ac7ae0c820acde0e8f7eef8d5a2339577f294395272eaf0780432",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "20260923120000_circle_knowledge_showcase",
+      "path": "apps/server/prisma/migrations/20260923120000_circle_knowledge_showcase/migration.sql",
+      "bytes": 3873,
+      "sha256": "485c10e8ec5e673ca1d27f78613f4422180ac075d9a627b2b3f97df14378d6ff",
+      "lfSha256": "485c10e8ec5e673ca1d27f78613f4422180ac075d9a627b2b3f97df14378d6ff",
+      "crlfSha256": "e482db3e0cdf3d369ce5c89c153dc4a8f4ca21004a78a5c771cbda5de42db987",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": true,
+        "deleteMention": true,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "20260928183000_add_im_fallback",
+      "path": "apps/server/prisma/migrations/20260928183000_add_im_fallback/migration.sql",
+      "bytes": 1371,
+      "sha256": "79be0ed57b9627b3d471a38f3383abf3c64a407d0c57b6d58610cd4b9c04b981",
+      "lfSha256": "79be0ed57b9627b3d471a38f3383abf3c64a407d0c57b6d58610cd4b9c04b981",
+      "crlfSha256": "7883089d893a82e25bd49149699b156f03bc4bf9b74eef7ca54589be7455b3e7",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "20260930090000_app_distribution_and_operations",
+      "path": "apps/server/prisma/migrations/20260930090000_app_distribution_and_operations/migration.sql",
+      "bytes": 4064,
+      "sha256": "69ec1173ee000dccd78f82309e42caf64e6498760da8104ce7ddbcdc53f860aa",
+      "lfSha256": "69ec1173ee000dccd78f82309e42caf64e6498760da8104ce7ddbcdc53f860aa",
+      "crlfSha256": "31e8cbb665691658429b3fabc107700606ad5bbe288ccc77d2c1d9649884a28d",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": true,
+        "uniqueIndex": true,
+        "updateMention": true,
+        "deleteMention": false,
+        "dropMention": true
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "20261002100008_order_business_notification_facts",
+      "path": "apps/server/prisma/migrations/20261002100008_order_business_notification_facts/migration.sql",
+      "bytes": 935,
+      "sha256": "46f02f59ff4a502f07187ff01b5474ef21d934cfed436eeb80e32ae8786dc4e3",
+      "lfSha256": "46f02f59ff4a502f07187ff01b5474ef21d934cfed436eeb80e32ae8786dc4e3",
+      "crlfSha256": "9cf20015ba753efcffc180ef0a33f1083fcc86367741b69a1078f187d55f1f70",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": true,
+        "deleteMention": true,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_add_couple_scene",
+      "path": "apps/server/prisma/migrations/manual_add_couple_scene/migration.sql",
+      "bytes": 788,
+      "sha256": "ead573bc994f2098749ebfe4b7130f61871d0cc97987b7c378fca9e850447bd7",
+      "lfSha256": "ead573bc994f2098749ebfe4b7130f61871d0cc97987b7c378fca9e850447bd7",
+      "crlfSha256": "b13c9cb6c1f5651e1d85da3c50a418d50adee68ac4e47d0c52cab4f903f61289",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_add_order_client_request_id",
+      "path": "apps/server/prisma/migrations/manual_add_order_client_request_id/migration.sql",
+      "bytes": 306,
+      "sha256": "4a924f05108e414d7295b714220dbf1c6e9d6bfb67b1924884502fa5d6b8ac70",
+      "lfSha256": "4a924f05108e414d7295b714220dbf1c6e9d6bfb67b1924884502fa5d6b8ac70",
+      "crlfSha256": "1822ce78e046e0d557938848ddc2ff11fcbd32fcd2ed817d5cfe6c9b0f110251",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": true,
+        "uniqueIndex": true,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_add_paipan_case_feedback",
+      "path": "apps/server/prisma/migrations/manual_add_paipan_case_feedback/migration.sql",
+      "bytes": 3132,
+      "sha256": "d6830071cf464b6868b9bdd649f87bb9b7b4efb593b3e9f43bae1b944c670820",
+      "lfSha256": "d6830071cf464b6868b9bdd649f87bb9b7b4efb593b3e9f43bae1b944c670820",
+      "crlfSha256": "3f151aef77149b2fc40c11e1749ba1ed930fc3ac06520a51bd43eaa1b3f9c605",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_add_user_preferred_name",
+      "path": "apps/server/prisma/migrations/manual_add_user_preferred_name/migration.sql",
+      "bytes": 874,
+      "sha256": "a9f11ebeca7f9a4aaf8edd079d8bf90f64d6cf96a93c91bf5aa9bd0fca86e3cc",
+      "lfSha256": "a9f11ebeca7f9a4aaf8edd079d8bf90f64d6cf96a93c91bf5aa9bd0fca86e3cc",
+      "crlfSha256": "a13cc864cc09e930b0478ae13386487888687c2a941ea565fc4a3796917b2316",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_add_voice_minutes_order_type",
+      "path": "apps/server/prisma/migrations/manual_add_voice_minutes_order_type/migration.sql",
+      "bytes": 301,
+      "sha256": "c8383648bc2c1d132739eb42c33eb384c79a4c145e5dd95b76a5385ed8ed49f3",
+      "lfSha256": "c8383648bc2c1d132739eb42c33eb384c79a4c145e5dd95b76a5385ed8ed49f3",
+      "crlfSha256": "b8867e854dba0b5c6865bbd505ce3275c0577abed15f80abe2fa02c2c8163696",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_add_xiaobu_ai_assets",
+      "path": "apps/server/prisma/migrations/manual_add_xiaobu_ai_assets/migration.sql",
+      "bytes": 12984,
+      "sha256": "eb7440f53f3cea87140b0ef127d13467eaa70f56f9322ecd697363a5ec45f6f1",
+      "lfSha256": "eb7440f53f3cea87140b0ef127d13467eaa70f56f9322ecd697363a5ec45f6f1",
+      "crlfSha256": "51ff300b44216fcc539007bad66624bf818ea953dadf4db1580bdb9b8a71cda4",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": true,
+        "uniqueIndex": true,
+        "updateMention": true,
+        "deleteMention": true,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_add_xiaobu_commerce_order_types",
+      "path": "apps/server/prisma/migrations/manual_add_xiaobu_commerce_order_types/migration.sql",
+      "bytes": 510,
+      "sha256": "57de376b08edee3702549f4c78dd262137f683e87d82c059fc308df928e890f5",
+      "lfSha256": "57de376b08edee3702549f4c78dd262137f683e87d82c059fc308df928e890f5",
+      "crlfSha256": "12115aec8589c4d4ff95ce616ce8109ac2fe21dd6e1691cb43defc6a961e1559",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20260926_01_knowledge_debate",
+      "path": "apps/server/prisma/migrations/manual_z_20260926_01_knowledge_debate/migration.sql",
+      "bytes": 1723,
+      "sha256": "f3b0edbc091e1c416790de82ba43fc112f87e3d7df04d1a693e5a07eb47e8896",
+      "lfSha256": "f3b0edbc091e1c416790de82ba43fc112f87e3d7df04d1a693e5a07eb47e8896",
+      "crlfSha256": "a8f054adc4acee8492d5d6a9304fb531928578bbc3d40d0b1628731de1a4cef6",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20260926_02_knowledge_source",
+      "path": "apps/server/prisma/migrations/manual_z_20260926_02_knowledge_source/migration.sql",
+      "bytes": 1198,
+      "sha256": "864c0ca64b88771c73abdac7c4dd95bf2bb49118adf1488960d1042cc58fb37b",
+      "lfSha256": "864c0ca64b88771c73abdac7c4dd95bf2bb49118adf1488960d1042cc58fb37b",
+      "crlfSha256": "1677af78231675f5cced2d2dfa4cbbfef8eb306ed83accd114545d5d223032f1",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": true,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20260926_03_owner_services",
+      "path": "apps/server/prisma/migrations/manual_z_20260926_03_owner_services/migration.sql",
+      "bytes": 241,
+      "sha256": "b81dd72db1e620f4c75e4cd17f93bf3099cb92b7e956a9a00e773178fd3fd021",
+      "lfSha256": "b81dd72db1e620f4c75e4cd17f93bf3099cb92b7e956a9a00e773178fd3fd021",
+      "crlfSha256": "56a36c554f273eb9677703003fcda7f7f507950375e6ed2ab238965f8ee71546",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20260926_04_voice_provider_boundary",
+      "path": "apps/server/prisma/migrations/manual_z_20260926_04_voice_provider_boundary/migration.sql",
+      "bytes": 8800,
+      "sha256": "5cf50793c468c892ae6e3fb8ed26703a707b2e99c41567504fbbfa7523f179db",
+      "lfSha256": "5cf50793c468c892ae6e3fb8ed26703a707b2e99c41567504fbbfa7523f179db",
+      "crlfSha256": "694f385718c4dde5c90c2e3d950cdc95300120ceb3640f9a72d12d2de7b10574",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": true,
+        "updateMention": true,
+        "deleteMention": true,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20260926_05_voice_device_terminal_identity",
+      "path": "apps/server/prisma/migrations/manual_z_20260926_05_voice_device_terminal_identity/migration.sql",
+      "bytes": 430,
+      "sha256": "0778628da2d05fbc0e4122af8fdbb98954a7a4f70ff60aa65e779e3aa0b40477",
+      "lfSha256": "0778628da2d05fbc0e4122af8fdbb98954a7a4f70ff60aa65e779e3aa0b40477",
+      "crlfSha256": "6f6749bd478629b4e7d0e3f43351550f2d483894867dedf42260857d70e9eb5d",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20260926_06_voice_firmware_release",
+      "path": "apps/server/prisma/migrations/manual_z_20260926_06_voice_firmware_release/migration.sql",
+      "bytes": 2191,
+      "sha256": "fad1e712aa462f881824f192fa1757b802d248b412f81f813b81024acfb9c2b1",
+      "lfSha256": "fad1e712aa462f881824f192fa1757b802d248b412f81f813b81024acfb9c2b1",
+      "crlfSha256": "8a3df79ed0860612c86c38bb4ded2b4fb46e55a2ccd671915b8b1b713b01d5eb",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": true,
+        "updateMention": true,
+        "deleteMention": true,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20260926_07_voice_session_idle",
+      "path": "apps/server/prisma/migrations/manual_z_20260926_07_voice_session_idle/migration.sql",
+      "bytes": 275,
+      "sha256": "e0a2a2270c7438e1c0e68d62a5fc2242517524a213c102946e38120899cc4572",
+      "lfSha256": "e0a2a2270c7438e1c0e68d62a5fc2242517524a213c102946e38120899cc4572",
+      "crlfSha256": "5e74179f752c9d03b94dccc4f2a960afecf5770026d50bc838b1ce500cb5419b",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20260926_08_voice_trial_usage",
+      "path": "apps/server/prisma/migrations/manual_z_20260926_08_voice_trial_usage/migration.sql",
+      "bytes": 1468,
+      "sha256": "de984510f72077f82035e85d379b85f33dd4024996e8c12da05ef10d83f4d5e1",
+      "lfSha256": "de984510f72077f82035e85d379b85f33dd4024996e8c12da05ef10d83f4d5e1",
+      "crlfSha256": "92d52c91e90f585510698b077375c8cb4d95190c4384c29488e5c0a7d20a6404",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": true,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20260926_09_bot_quota_reservation",
+      "path": "apps/server/prisma/migrations/manual_z_20260926_09_bot_quota_reservation/migration.sql",
+      "bytes": 718,
+      "sha256": "0f53094bd9ca728c6f06331a9636ffcb178f919d6c099df17849e941c5e9d4b7",
+      "lfSha256": "0f53094bd9ca728c6f06331a9636ffcb178f919d6c099df17849e941c5e9d4b7",
+      "crlfSha256": "d4afce62352cfc15d2229143d8483ec7b930d85e58f09ced57b522f67e0b10ea",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20260926_10_bot_quota_purchase_idempotency",
+      "path": "apps/server/prisma/migrations/manual_z_20260926_10_bot_quota_purchase_idempotency/migration.sql",
+      "bytes": 744,
+      "sha256": "49dba48766c5190d0cdf999ffaf385c464dcd6c3851909076eaa4f42073a7e53",
+      "lfSha256": "49dba48766c5190d0cdf999ffaf385c464dcd6c3851909076eaa4f42073a7e53",
+      "crlfSha256": "aed21fc6ae63cd6a345e3d60283583bdcfd74f4cd9c19b817aa69f8d6d43d697",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": true,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20260926_11_notification_idempotency_key",
+      "path": "apps/server/prisma/migrations/manual_z_20260926_11_notification_idempotency_key/migration.sql",
+      "bytes": 193,
+      "sha256": "0a41ea8da5f1fdcfafb657426f3ac2ca077104cea45a06f4225946267ad0609c",
+      "lfSha256": "0a41ea8da5f1fdcfafb657426f3ac2ca077104cea45a06f4225946267ad0609c",
+      "crlfSha256": "68161b290406c7f00a4b0639207581cf74a05c83810e3c35cf721ab240620085",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": false,
+        "uniqueIndex": true,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20261002_01_circle_post_reward_notice",
+      "path": "apps/server/prisma/migrations/manual_z_20261002_01_circle_post_reward_notice/migration.sql",
+      "bytes": 655,
+      "sha256": "fa9af2c9585696874fd31ac4c7fd45210cc45a809fa9393f17970716435ea5aa",
+      "lfSha256": "fa9af2c9585696874fd31ac4c7fd45210cc45a809fa9393f17970716435ea5aa",
+      "crlfSha256": "ad0b8bce9d63463fac9e5f436a3ce58d99ae27d913a0b2836c2da0a94dc7d3ac",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": true,
+        "deleteMention": true,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20261002_02_circle_membership_expiry_notice",
+      "path": "apps/server/prisma/migrations/manual_z_20261002_02_circle_membership_expiry_notice/migration.sql",
+      "bytes": 992,
+      "sha256": "6ab6dad9bb56dfa4a5e36c5a4c410a0eea5506e4adcf5c5795decdb12623f32e",
+      "lfSha256": "6ab6dad9bb56dfa4a5e36c5a4c410a0eea5506e4adcf5c5795decdb12623f32e",
+      "crlfSha256": "9bb7f72f0f6392a9000b2db7eeb17da947db3d90853070d377d247a0b32c1bf4",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": true,
+        "deleteMention": true,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20261002_03_circle_governance_notice",
+      "path": "apps/server/prisma/migrations/manual_z_20261002_03_circle_governance_notice/migration.sql",
+      "bytes": 941,
+      "sha256": "313f51de5b45e6ed1c2b6faa2f35bbe5622a6f2171fb2e4d004cb22570afc2b0",
+      "lfSha256": "313f51de5b45e6ed1c2b6faa2f35bbe5622a6f2171fb2e4d004cb22570afc2b0",
+      "crlfSha256": "803ce748d527b8229cefec71d062e32150311a425cdcc703ae783bdc8bde1f8b",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": true,
+        "updateMention": true,
+        "deleteMention": true,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20261002_04_circle_membership_cache",
+      "path": "apps/server/prisma/migrations/manual_z_20261002_04_circle_membership_cache/migration.sql",
+      "bytes": 525,
+      "sha256": "5d47e365ba3163d38dc39a37c2d31788844e10d94d4399936fc34747bba9718a",
+      "lfSha256": "5d47e365ba3163d38dc39a37c2d31788844e10d94d4399936fc34747bba9718a",
+      "crlfSha256": "b82a1cc1a3cbc04d95224c6f11e3aeb925bd8fdea51243fef1332b1caf8338f1",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20261002_05_member_monthly_benefit_notice",
+      "path": "apps/server/prisma/migrations/manual_z_20261002_05_member_monthly_benefit_notice/migration.sql",
+      "bytes": 1029,
+      "sha256": "c54604136f5da190d18360c4fa9c4e8ef5ff8f92704a5096751a9c3bfd9c20c1",
+      "lfSha256": "c54604136f5da190d18360c4fa9c4e8ef5ff8f92704a5096751a9c3bfd9c20c1",
+      "crlfSha256": "5b689c72fc9f0adfebe675010f83efa20bcf6884bc53554f2b932ca795fb8faa",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": true,
+        "updateMention": true,
+        "deleteMention": true,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20261002_06_free_course_enrollment_notice",
+      "path": "apps/server/prisma/migrations/manual_z_20261002_06_free_course_enrollment_notice/migration.sql",
+      "bytes": 591,
+      "sha256": "d7f667dd38d325c18513e209810b44ee9a31510c296511404438a0940b2f65df",
+      "lfSha256": "d7f667dd38d325c18513e209810b44ee9a31510c296511404438a0940b2f65df",
+      "crlfSha256": "a7b86d86d1540234c921befd8a567558f6d6fd0fbe3204259d38a9d7df99df5c",
+      "keywordIndicators": {
+        "createTable": true,
+        "addColumn": false,
+        "uniqueIndex": false,
+        "updateMention": true,
+        "deleteMention": true,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    },
+    {
+      "name": "manual_z_20261002_07_circle_post_reward_notice_snapshot",
+      "path": "apps/server/prisma/migrations/manual_z_20261002_07_circle_post_reward_notice_snapshot/migration.sql",
+      "bytes": 677,
+      "sha256": "326d3f3e0fb800c0b2689da8a44e3e2c5f6b15b6b42e2896ccc91b69b09c6a88",
+      "lfSha256": "326d3f3e0fb800c0b2689da8a44e3e2c5f6b15b6b42e2896ccc91b69b09c6a88",
+      "crlfSha256": "f02eebd8374d2d3b5df061f4b4dcb7fb2cabf7c06ad213d16a9ea70ddc2093d9",
+      "keywordIndicators": {
+        "createTable": false,
+        "addColumn": true,
+        "uniqueIndex": false,
+        "updateMention": false,
+        "deleteMention": false,
+        "dropMention": false
+      },
+      "indicatorLimit": "仅关键词提示，包含注释/引用，不等同SQL语法或安全判定"
+    }
+  ],
+  "monthlyCouponCandidateIncluded": false,
+  "rawComparisonFile": "migration-checksum-comparison.json",
+  "productionDdl": false,
+  "productionLedgerChanged": false,
+  "productionDataChanged": false,
+  "productionSchemaDriftChecked": false,
+  "productionDataPreconditionsChecked": false,
+  "upgradeRehearsal103to136": false,
+  "backupAndMaintenanceApproved": false,
+  "releaseReady": false,
+  "preparationFailure": {
+    "localError": "PowerShell字符替换重载失败，后续空脚本被官方InvalidParameterValue拒绝，无invocation产生",
+    "requestId": "bbc4469e-4ce4-4f5f-ab5f-99d8d199b2b0",
+    "scriptContentReviewedAfterRepair": true
+  },
+  "scope": "仅当前已执行SQL校验值兼容与33待登记脚本身份；不授权执行，不能据此标生产迁移通过"
+}

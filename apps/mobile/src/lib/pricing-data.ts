@@ -2,6 +2,7 @@
 // 定位：服务对象=定价者（讲师/商家），仅按【商品类目维度】聚合同类市场价格分布。
 // R2 合规：绝不含任何购买者/用户画像/消费能力维度；定价权完全在用户手中。
 import { apiGet } from '@/utils/request'
+import { queryString } from '@/utils/query-string'
 
 /** 业务类型（与后端 PricingBizType 一致） */
 export type PricingBizType = 'COURSE' | 'PRODUCT'
@@ -48,14 +49,13 @@ export const pricingApi = {
     categoryLevel2?: string
     currentPrice?: number
   }): Promise<PricingReference> {
-    const q = new URLSearchParams()
-    q.set('bizType', params.bizType)
-    q.set('categoryLevel1', params.categoryLevel1)
-    if (params.categoryLevel2) q.set('categoryLevel2', params.categoryLevel2)
-    if (params.currentPrice != null && !Number.isNaN(params.currentPrice)) {
-      q.set('currentPrice', String(params.currentPrice))
-    }
-    return apiGet<PricingReference>(`/pricing/reference?${q.toString()}`)
+    const query = queryString([
+      ['bizType', params.bizType],
+      ['categoryLevel1', params.categoryLevel1],
+      ['categoryLevel2', params.categoryLevel2],
+      ['currentPrice', params.currentPrice != null && !Number.isNaN(params.currentPrice) ? params.currentPrice : undefined],
+    ])
+    return apiGet<PricingReference>(`/pricing/reference?${query}`)
   },
 }
 

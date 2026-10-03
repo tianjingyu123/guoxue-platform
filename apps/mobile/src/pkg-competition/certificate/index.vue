@@ -1,11 +1,11 @@
 <template>
   <view class="page">
-    <!-- 顶部导航 -->
+    <!-- 顶部导航（宋体标题·浅底描边分隔） -->
     <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-inner">
-        <view class="nav-btn" @click="goBack"><app-icon name="arrow-left" :size="20" color="#fff" /></view>
+        <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="nav-title">荣誉证书</text>
-        <view class="nav-btn" @click="goPoster"><app-icon name="share-2" :size="18" color="#fff" /></view>
+        <view class="nav-btn" @tap="goPoster"><app-icon name="share-2" :size="18" color="#A5883F" /></view>
       </view>
     </view>
 
@@ -16,58 +16,98 @@
 
     <!-- error -->
     <view v-else-if="error" class="state">
-      <app-icon name="alert-circle" :size="44" color="#d1d5db" />
+      <app-icon name="alert-circle" :size="44" color="#d8cfc0" />
       <text class="state-txt">{{ error }}</text>
-      <view class="retry-btn" @click="load"><text class="retry-txt">重新加载</text></view>
+      <view class="retry-btn" @tap="load"><text class="retry-txt">重新加载</text></view>
     </view>
 
     <!-- 空态：无获奖记录 / 未晋级 -->
     <view v-else-if="!canShow" class="state">
-      <app-icon name="award" :size="48" color="#d1d5db" />
-      <text class="state-txt">完赛并获奖后可领取证书</text>
-      <view class="retry-btn ghost" @click="goBack"><text class="retry-txt ghost">返回赛事</text></view>
+      <app-icon name="award" :size="48" color="#d8cfc0" />
+      <text class="state-txt">完赛并晋级后可领取荣誉证书</text>
+      <view class="retry-btn ghost" @tap="goBack"><text class="retry-txt ghost">返回赛事</text></view>
     </view>
 
     <!-- 证书 -->
     <scroll-view v-else scroll-y class="scroll" :style="{ height: scrollHeight + 'px' }">
-      <view class="cert-wrap">
+      <view class="cert-stage">
+        <!-- 红金纸质证书·竖版 3:4 -->
         <view class="cert">
-          <view class="cert-inner">
-            <!-- 抬头 -->
-            <view class="cert-header">
-              <text class="cert-title">获 奖 证 书</text>
-              <text class="cert-sub">{{ BRAND.name }}传统文化平台</text>
+          <!-- 3:4 比例撑高（宽:高 = 3:4 → 高 = 宽 ×133.33%） -->
+          <view class="cert-ratio">
+            <view class="cert-inner">
+              <!-- 四角金描边 -->
+              <view class="corner c-tl" />
+              <view class="corner c-tr" />
+              <view class="corner c-bl" />
+              <view class="corner c-br" />
+
+              <!-- 品牌行 -->
+              <view class="brand">
+                <view class="brand-lg"><text class="brand-lg-txt">{{ sealShort }}</text></view>
+                <text class="brand-name">{{ BRAND.name }}</text>
+              </view>
+
+              <!-- 标题 -->
+              <text class="cert-title">{{ honorTitle }}</text>
+              <text class="cert-subtitle">{{ honorTitleEn }}</text>
+
+              <!-- 名次徽章 -->
+              <view class="rankmark">
+                <text class="rankmark-txt">{{ honorLabel }}</text>
+              </view>
+
+              <!-- 正文 -->
+              <view class="cert-body">
+                <view class="line-cn">
+                  <text class="line-txt">{{ isChampionLine ? '兹授予' : '兹证明' }} </text>
+                  <text class="name-u">{{ winnerName }}</text>
+                  <text class="line-txt"> 先生 / 女士</text>
+                </view>
+                <view class="line-cn">
+                  <text class="line-txt">于 </text>
+                  <text class="evt">{{ compTitle }}</text>
+                </view>
+                <view class="line-cn">
+                  <text class="line-txt">{{ bodyPrefix }} </text>
+                  <text class="honor-b">{{ honorLabel }}</text>
+                  <text class="line-txt">{{ bodySuffix }}</text>
+                </view>
+                <text v-if="scoreText" class="score-line">综合成绩 {{ scoreText }} 分</text>
+              </view>
+
+              <!-- 落款 -->
+              <view class="foot">
+                <view class="issuer">
+                  <text class="issuer-txt">颁发单位：{{ BRAND.name }}</text>
+                  <text class="issuer-txt">颁发日期：{{ issueDateCn }}</text>
+                </view>
+                <!-- 朱红钤印 -->
+                <view class="seal">
+                  <text class="seal-txt">{{ sealShort }}</text>
+                  <text class="seal-txt">专用章</text>
+                </view>
+              </view>
+
+              <!-- 防伪编号 -->
+              <text class="serial">防伪编号 · NO. {{ serialNo }}</text>
             </view>
-            <!-- 正文 -->
-            <view class="cert-body">
-              <text class="cert-line info">兹证明</text>
-              <text class="cert-name">{{ winnerName }}</text>
-              <text class="cert-line info">在「{{ compTitle }}」赛事中</text>
-              <text class="cert-line info">荣获 <text class="cert-honor">{{ honorLabel }}</text></text>
-              <text class="cert-line tip">特颁此证，以资鼓励</text>
-            </view>
-            <!-- 落款 -->
-            <view class="cert-footer">
-              <text class="cert-foot-txt">颁发日期：{{ issueDate }}</text>
-              <text class="cert-foot-txt">证书编号：{{ certNo }}</text>
-            </view>
-            <!-- 红章 -->
-            <view class="cert-stamp"><text class="cert-stamp-txt">{{ BRAND.name }}</text></view>
           </view>
         </view>
       </view>
 
       <!-- 操作 -->
       <view class="actions">
-        <view class="act-btn primary" :class="{ disabled: submitting }" @click="onSaveCert">
-          <app-icon name="download" :size="16" color="#fff" />
-          <text class="act-txt">{{ submitting ? '生成中...' : '保存证书图片' }}</text>
+        <view class="act-btn gold" :class="{ disabled: submitting }" @tap="onSaveCert">
+          <app-icon name="download" :size="16" color="#A5883F" />
+          <text class="act-txt gold">{{ submitting ? '生成中...' : '保存为图片' }}</text>
         </view>
-        <view class="act-btn ghost" @click="goPoster">
-          <app-icon name="share-2" :size="16" color="#8B0000" />
-          <text class="act-txt ghost">生成分享海报</text>
+        <view class="act-btn primary" @tap="goPoster">
+          <app-icon name="share-2" :size="16" color="#fff" />
+          <text class="act-txt">分享荣誉</text>
         </view>
       </view>
+      <text class="tip-note">证书由平台颁发，编号唯一可溯。可截图收藏或长按分享荣誉海报。</text>
       <view class="safe-bottom" />
     </scroll-view>
   </view>
@@ -79,14 +119,15 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
+import { getUserInfo } from '@/utils/storage'
 import {
-  competitionApi, promotionLabel, fmtDate,
+  competitionApi, promotionLabel,
   type Competition, type Registration, type Ranking,
-} from '@/lib/competition-data'
+} from '@/pkg-competition/lib/competition-data'
 
 const statusBarHeight = ref(0)
 const sysH = ref(667)
-const scrollHeight = computed(() => sysH.value - statusBarHeight.value - 44)
+const scrollHeight = computed(() => sysH.value - statusBarHeight.value - 48)
 
 const compId = ref('')
 const rankingId = ref('')
@@ -100,11 +141,51 @@ const myRank = ref<Ranking | null>(null)
 // 仅在有获奖记录且非「未晋级」时展示证书
 const canShow = computed(() => !!myRank.value && myRank.value.status !== 'ELIMINATED')
 
-const winnerName = computed(() => myRank.value?.user?.nickname || '参赛者')
+// 冠军类（冠/亚/季）用「荣誉证书」，晋级用「晋级证书」
+const isChampionLine = computed(() => {
+  const s = myRank.value?.status
+  return s === 'CHAMPION' || s === 'RUNNER_UP' || s === 'THIRD_PLACE'
+})
+const honorTitle = computed(() => (isChampionLine.value ? '荣誉证书' : '晋级证书'))
+const honorTitleEn = computed(() => (isChampionLine.value ? 'CERTIFICATE OF HONOR' : 'CERTIFICATE OF ADVANCEMENT'))
+const bodyPrefix = computed(() => (isChampionLine.value ? '荣获' : '成功晋级'))
+const bodySuffix = computed(() => (isChampionLine.value ? '，特发此证，以资鼓励。' : '，特发此证。'))
+
+// 获奖者：当前用户昵称（后端无真实姓名，诚实降级）
+const winnerName = computed(() => {
+  const u = getUserInfo<{ nickname?: string } | null>()
+  return u?.nickname || myRank.value?.user?.nickname || '参赛者'
+})
 const compTitle = computed(() => comp.value?.title || '国学赛事')
 const honorLabel = computed(() => (myRank.value ? promotionLabel[myRank.value.status] : ''))
-const issueDate = computed(() => fmtDate(new Date().toISOString()))
-const certNo = computed(() => (myRank.value ? myRank.value.id.slice(0, 8).toUpperCase() : ''))
+const scoreText = computed(() => {
+  const s = myRank.value?.score
+  return s != null && s > 0 ? String(s) : ''
+})
+
+// 印章两字（品牌简称）
+const sealShort = computed(() => BRAND.nameShort || BRAND.name.slice(0, 2))
+
+// 日期：赛事 finishedAt 真值，中文格式；无则回退到今天
+const issueDateCn = computed(() => {
+  const iso = comp.value?.finishedAt || new Date().toISOString()
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()} 年 ${p(d.getMonth() + 1)} 月 ${p(d.getDate())} 日`
+})
+
+// 防伪编号：由 rankingId（真实唯一）派生，前缀含品牌 + 日期，保证唯一可溯
+const serialNo = computed(() => {
+  const rid = (myRank.value?.id || rankingId.value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+  const tail = rid.slice(-8).padStart(8, '0')
+  const iso = comp.value?.finishedAt || comp.value?.createdAt || new Date().toISOString()
+  const d = new Date(iso)
+  const p = (n: number) => String(n).padStart(2, '0')
+  const ymd = isNaN(d.getTime()) ? '00000000' : `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`
+  const brandCode = (BRAND.nameEn || 'RC').slice(0, 2).toUpperCase()
+  return `${brandCode}-${ymd}-${tail}`
+})
 
 async function load() {
   loading.value = true
@@ -133,33 +214,33 @@ async function load() {
 }
 
 /**
- * 保存证书：本项目证书由后端生成可打印 HTML（base64）。
- * H5 端以新窗口展示供打印/截图；其它端调用成功后 toast 引导至「我的-证书」。
- * 无 canvas 截图链路，诚实降级——不伪造图片落库。
+ * 保存为图片：证书为前端重绘，无内置 canvas 截图链路。
+ * H5 端以后端可打印 HTML（base64）在新窗口打开供打印/截图（备选保存版）；
+ * 其它端引导用户截屏收藏，诚实降级——不伪造图片落库。
  */
 async function onSaveCert() {
   if (submitting.value || !myRank.value) return
   submitting.value = true
   try {
+    // #ifdef H5
     const html = await competitionApi.certificateHtml(myRank.value.id)
     if (!html) throw new Error('empty')
-    // #ifdef H5
     // 用 Blob URL 在新窗口打开后端生成的可打印 HTML（避免 document.write 的 XSS/性能问题）
     const blob = new Blob([html], { type: 'text/html' })
     const url = URL.createObjectURL(blob)
     const w = (typeof window !== 'undefined') ? window.open(url, '_blank') : null
     if (w) {
-      uni.showToast({ title: '证书已生成，可打印保存', icon: 'none' })
+      uni.showToast({ title: '打印版已生成，可保存', icon: 'none' })
     } else {
       URL.revokeObjectURL(url)
-      uni.showToast({ title: '证书已生成，可在「我的-证书」查看', icon: 'none' })
+      uni.showToast({ title: '请长按证书截图收藏', icon: 'none' })
     }
     // #endif
     // #ifndef H5
-    uni.showToast({ title: '证书已生成，可在「我的-证书」查看', icon: 'none' })
+    uni.showToast({ title: '请长按或截图收藏此证书', icon: 'none' })
     // #endif
   } catch {
-    uni.showToast({ title: '证书生成失败，请稍后重试', icon: 'none' })
+    uni.showToast({ title: '请长按或截图收藏此证书', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -179,57 +260,139 @@ onLoad((q) => {
 </script>
 
 <style lang="scss" scoped>
-.page { min-height: 100vh; background: #f5f0e8; }
-.nav-bar { background: #8B0000; position: sticky; top: 0; z-index: 50; }
-.nav-inner { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+/* 设计 token：宣纸白 #FAF8F5 · 卡片白 #FFF · 朱红 #C41E3A · 金 #C9A96E / 深金 #A5883F · 文 #2C2C2C */
+.page { min-height: 100vh; background: #FAF8F5; }
+
+/* 顶部导航：浅底宋体标题 + 描边分隔（非同色系底字） */
+.nav-bar { background: #FFFFFF; position: sticky; top: 0; z-index: 50; border-bottom: 1rpx solid #ECE7DF; }
+.nav-inner { height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
 .nav-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
-.nav-title { color: #fff; font-size: 16px; font-weight: 500; }
+.nav-title { color: #2C2C2C; font-size: 16px; font-weight: 700; font-family: "Songti SC", "STSong", serif; letter-spacing: 1px; }
 .scroll { width: 100%; }
 
+/* 三态 */
 .state { padding: 100px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.state-txt { color: #9ca3af; font-size: 14px; }
-.spinner { width: 32px; height: 32px; border: 3px solid #e8d8c0; border-top-color: #8B0000; border-radius: 50%; animation: spin 0.8s linear infinite; }
+.state-txt { color: #9a9186; font-size: 14px; }
+.spinner { width: 32px; height: 32px; border: 3px solid #ECE1CC; border-top-color: #C9A96E; border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.retry-btn { margin-top: 4px; padding: 8px 24px; background: #8B0000; border-radius: 8px; }
-.retry-btn.ghost { background: transparent; border: 1rpx solid #C9A96E; }
+.retry-btn { margin-top: 4px; padding: 8px 24px; background: #C41E3A; border-radius: 8px; }
+.retry-btn.ghost { background: #F1E9D8; border: 1rpx solid #E3D5B0; }
 .retry-txt { color: #fff; font-size: 14px; }
-.retry-txt.ghost { color: #8B0000; }
+.retry-txt.ghost { color: #A5883F; }
 
-/* 证书 */
-.cert-wrap { padding: 20px 16px 0; }
+/* 证书舞台 */
+.cert-stage { padding: 20px 16px 0; }
+
+/* 红金纸质证书外框（金色实底衬托，X5 兼容用实色而非同色系） */
 .cert {
-  background: linear-gradient(135deg, #fdf6ed 0%, #fef9f3 100%);
-  border: 6px double #8B0000;
-  border-radius: 4px;
-  padding: 10px;
-  box-shadow: 0 6rpx 24rpx rgba(139,0,0,0.12);
+  width: 100%;
+  background: #FFFDF8;
+  border: 2px solid #C9A96E;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 10px 30px rgba(150, 120, 60, 0.22);
 }
-.cert-inner { position: relative; border: 2px solid #C9A96E; padding: 36px 24px 44px; }
-.cert-header { text-align: center; margin-bottom: 24px; }
-.cert-title { display: block; font-size: 26px; color: #8B0000; letter-spacing: 8px; font-weight: 700; }
-.cert-sub { display: block; font-size: 13px; color: #8a6d4a; margin-top: 10px; letter-spacing: 1px; }
-.cert-body { text-align: center; margin: 28px 0 12px; }
-.cert-line { display: block; font-size: 16px; color: #333; line-height: 2.4; }
-.cert-line.tip { margin-top: 16px; color: #6b5640; }
-.cert-name { display: block; font-size: 26px; color: #8B0000; font-weight: 700; line-height: 2.2; letter-spacing: 2px; }
-.cert-honor { color: #8B0000; font-weight: 700; }
-.cert-footer { display: flex; justify-content: space-between; margin-top: 32px; }
-.cert-foot-txt { font-size: 11px; color: #8a6d4a; }
-.cert-stamp {
-  position: absolute; right: 28px; bottom: 56px;
-  width: 78px; height: 78px; border: 3px solid var(--brand); border-radius: 50%;
+
+/* 3:4 比例：高 = 宽 × 133.33% */
+.cert-ratio {
+  position: relative;
+  width: 100%;
+  padding-top: 133.33%;
+}
+
+/* 内层金细线框 */
+.cert-inner {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border: 1rpx solid #DCC998;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 20px 18px;
+  text-align: center;
+  background: #FFFDF6;
+}
+
+/* 四角金描边 */
+.corner { position: absolute; width: 20px; height: 20px; }
+.c-tl { top: 6px; left: 6px; border-top: 2px solid #C9A96E; border-left: 2px solid #C9A96E; }
+.c-tr { top: 6px; right: 6px; border-top: 2px solid #C9A96E; border-right: 2px solid #C9A96E; }
+.c-bl { bottom: 6px; left: 6px; border-bottom: 2px solid #C9A96E; border-left: 2px solid #C9A96E; }
+.c-br { bottom: 6px; right: 6px; border-bottom: 2px solid #C9A96E; border-right: 2px solid #C9A96E; }
+
+/* 品牌行 */
+.brand { display: flex; flex-direction: row; align-items: center; gap: 6px; margin-bottom: 14px; }
+.brand-lg {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: #EFE4C9; border: 1rpx solid #D0B979;
   display: flex; align-items: center; justify-content: center;
-  transform: rotate(-15deg); opacity: 0.78;
 }
-.cert-stamp-txt { color: var(--brand); font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+.brand-lg-txt { font-size: 11px; color: #A5883F; font-weight: 700; }
+.brand-name { font-size: 12px; color: #A5883F; letter-spacing: 1px; }
+
+/* 标题（宋体大字·朱红） */
+.cert-title {
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 32px; font-weight: 800; color: #C41E3A;
+  letter-spacing: 8px; text-indent: 8px; line-height: 1.2;
+}
+.cert-subtitle { font-size: 11px; color: #A5883F; letter-spacing: 3px; margin: 4px 0 18px; }
+
+/* 名次徽章（金双线圆章） */
+.rankmark {
+  width: 78px; height: 78px; border-radius: 50%;
+  border: 2px double #C9A96E;
+  background: #F6EEDD;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(201, 169, 110, 0.3);
+}
+.rankmark-txt { font-family: "Songti SC", serif; font-size: 17px; font-weight: 800; color: #A5883F; }
+
+/* 正文 */
+.cert-body { display: flex; flex-direction: column; align-items: center; }
+.line-cn { display: flex; flex-direction: row; align-items: baseline; justify-content: center; flex-wrap: wrap; line-height: 2.3; }
+.line-txt { font-size: 14px; color: #2C2C2C; }
+.name-u {
+  font-size: 18px; font-weight: 700; color: #C41E3A;
+  border-bottom: 1rpx solid #DCC998; padding: 0 12px;
+}
+.evt { font-size: 14px; font-weight: 700; color: #2C2C2C; }
+.honor-b { font-size: 14px; font-weight: 700; color: #A5883F; }
+.score-line { font-size: 12px; color: #A5883F; margin-top: 8px; letter-spacing: 1px; }
+
+/* 落款（贴底） */
+.foot {
+  margin-top: auto;
+  width: 100%;
+  display: flex; flex-direction: row; align-items: flex-end; justify-content: space-between;
+  padding-top: 14px;
+}
+.issuer { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+.issuer-txt { font-size: 11px; color: #6E6E73; line-height: 1.8; }
+
+/* 朱红钤印 */
+.seal {
+  width: 60px; height: 60px; border-radius: 50%;
+  border: 2px solid #C41E3A;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transform: rotate(-12deg); opacity: 0.9;
+}
+.seal-txt { color: #C41E3A; font-size: 11px; font-weight: 800; line-height: 1.25; }
+
+/* 防伪编号 */
+.serial { font-size: 9px; color: #B9A978; letter-spacing: 1px; margin-top: 10px; }
 
 /* 操作 */
-.actions { padding: 24px 16px 0; display: flex; flex-direction: column; gap: 12px; }
-.act-btn { height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.act-btn.primary { background: linear-gradient(135deg, #8B0000, #a01830); }
-.act-btn.primary.disabled { opacity: 0.6; }
-.act-btn.ghost { background: #fdf6ed; border: 1rpx solid #C9A96E; }
-.act-txt { color: #fff; font-size: 15px; font-weight: 600; }
-.act-txt.ghost { color: #8B0000; }
+.actions { padding: 20px 16px 0; display: flex; flex-direction: row; gap: 12px; }
+.act-btn { flex: 1; height: 46px; border-radius: 999px; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; }
+.act-btn.gold { background: #F1E9D8; border: 1rpx solid #E3D5B0; }
+.act-btn.gold.disabled { opacity: 0.6; }
+.act-btn.primary { background: linear-gradient(135deg, #C41E3A, #A01830); }
+.act-txt { color: #fff; font-size: 15px; font-weight: 700; }
+.act-txt.gold { color: #A5883F; }
+
+.tip-note { display: block; text-align: center; font-size: 11px; color: #a89f92; padding: 14px 24px 0; line-height: 1.7; }
 .safe-bottom { height: 40px; }
 </style>

@@ -13,14 +13,11 @@ import { ShopOrderLifecycleService } from "./shop-order-lifecycle.service";
 import { ShopPaymentService } from "./shop-payment.service";
 import { ShopRefundService } from "./shop-refund.service";
 import {
-  CreateProductDto, UpdateProductDto, CreateOrderDto,
+  CreateProductDto, UpdateProductDto, CreateOrderDto, EstimateOrderDto,
   CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto,
   ProductListQueryDto, OrderListQueryDto,
 } from "./shop.dto";
-
-/** 缓存前缀 */
-const CACHE_PREFIX = "shop:";
 
 /**
  * 商城 facade（拆分后·纯委托层）。
@@ -45,12 +42,12 @@ export class ShopService {
 
   // ═══════════════════ 商品管理（委托 ShopProductService） ═══════════════════
 
-  createProduct(userId: string, dto: CreateProductDto) {
-    return this.product.createProduct(userId, dto);
+  createProduct(userId: string, dto: CreateProductDto, autoPublish = false) {
+    return this.product.createProduct(userId, dto, autoPublish);
   }
 
-  updateProduct(userId: string, productId: string, dto: UpdateProductDto) {
-    return this.product.updateProduct(userId, productId, dto);
+  updateProduct(userId: string, productId: string, dto: UpdateProductDto, isAdmin = false) {
+    return this.product.updateProduct(userId, productId, dto, isAdmin);
   }
 
   deleteProduct(userId: string, productId: string, isAdmin = false) {
@@ -69,8 +66,8 @@ export class ShopService {
     return this.product.moderateProduct(productId, action, reason);
   }
 
-  getProduct(productId: string, scene?: string, pageId?: string) {
-    return this.product.getProduct(productId, scene, pageId);
+  getProduct(productId: string, scene?: string, pageId?: string, includeUnpublished = false) {
+    return this.product.getProduct(productId, scene, pageId, includeUnpublished);
   }
 
   listProducts(dto: ProductListQueryDto) {
@@ -103,6 +100,10 @@ export class ShopService {
     return this.orderSvc.createOrder(userId, dto);
   }
 
+  estimateOrder(userId: string, dto: EstimateOrderDto) {
+    return this.orderSvc.estimateOrder(userId, dto);
+  }
+
   createGroupBuyOrder(userId: string, params: {
     groupBuyId: string; productId: string; skuId?: string; groupPrice: number; groupId: string;
   }) {
@@ -117,6 +118,10 @@ export class ShopService {
     return this.refundSvc.refundExpiredGroupBuys();
   }
 
+  getCurrentOrder(orderId: string, userId: string) {
+    return this.orderSvc.getCurrentOrder(orderId, userId);
+  }
+
   getOrder(orderId: string, userId?: string, isAdmin = false) {
     return this.orderSvc.getOrder(orderId, userId, isAdmin);
   }
@@ -129,20 +134,41 @@ export class ShopService {
     return this.orderSvc.getUserOrders(userId, page, pageSize, status);
   }
 
-  createJsapiPayment(userId: string, openid: string, orderId: string, notifyUrl?: string) {
-    return this.paymentSvc.createJsapiPayment(userId, openid, orderId, notifyUrl);
+  createJsapiPayment(userId: string, openid: string | undefined, orderId: string, channel?: "MINI" | "OFFICIAL") {
+    return this.paymentSvc.createJsapiPayment(userId, openid, orderId, channel);
   }
 
-  createNativePayment(orderId: string, userId: string, notifyUrl?: string) {
-    return this.paymentSvc.createNativePayment(orderId, userId, notifyUrl);
+  createNativePayment(orderId: string, userId: string) {
+    return this.paymentSvc.createNativePayment(orderId, userId);
   }
 
-  createRechargePayment(userId: string, openid: string, amountCoin: number, notifyUrl?: string) {
-    return this.paymentSvc.createRechargePayment(userId, openid, amountCoin, notifyUrl);
+  createAppPayment(orderId: string, userId: string, platform: "ios" | "android") {
+    return this.paymentSvc.createAppPayment(orderId, userId, platform);
   }
 
-  createCoinRechargeJsapi(userId: string, amountCoin: number) {
-    return this.paymentSvc.createCoinRechargeJsapi(userId, amountCoin);
+  createH5Payment(orderId: string, userId: string, clientIp: string) {
+    return this.paymentSvc.createH5Payment(orderId, userId, clientIp);
+  }
+
+  createRechargePayment(userId: string, openid: string, amountCoin: number, appId?: string) {
+    return this.paymentSvc.createRechargePayment(userId, openid, amountCoin, appId);
+  }
+
+  createCoinRechargeJsapi(
+    userId: string,
+    amountCoin: number,
+    openid?: string,
+    channel?: "MINI" | "OFFICIAL",
+  ) {
+    return this.paymentSvc.createCoinRechargeJsapi(userId, amountCoin, openid, channel);
+  }
+
+  createCoinRechargeH5(userId: string, amountCoin: number, clientIp: string) {
+    return this.paymentSvc.createCoinRechargeH5(userId, amountCoin, clientIp);
+  }
+
+  queryCoinRechargeStatus(userId: string, orderNo: string) {
+    return this.paymentSvc.queryCoinRechargeStatus(userId, orderNo);
   }
 
   verifyAndDecryptNotify(signature: string, rawBody: string, timestamp: string, nonce: string, serialNo: string) {
@@ -165,7 +191,11 @@ export class ShopService {
     return this.paymentSvc.verifyUnionpayNotify(params);
   }
 
-  handleUnionpayNotify(data: Record<string, unknown>) {
+  async handleUnionpayNotify(data: Record<string, unknown>) {
+    if (data.txnType === "04") {
+      await this.refundSvc.handleUnionpayRefundNotify(data);
+      return true;
+    }
     return this.paymentSvc.handleUnionpayNotify(data);
   }
 
@@ -244,6 +274,8 @@ export class ShopService {
       userId,
       dataId: productId,
     });
+    // 图片审核：评价配图（晒图，先审后发）
+    await this.audit.moderateImageOrThrow(dto.images, { scene: "PRODUCT_REVIEW", userId, dataId: productId });
 
     return this.prisma.productReview.create({
       data: {
@@ -357,6 +389,43 @@ export class ShopService {
     return { success: true };
   }
 
+  /**
+   * 管理员隐藏/恢复评价（评价治理）。
+   * schema 定义了 status: PUBLISHED/HIDDEN 但此前全模块没有任何写 HIDDEN 的代码，
+   * 隐藏能力有列无门 —— C 端 listReviews/listShopReviews/getReviewStats 均只查 PUBLISHED，
+   * 置 HIDDEN 后 C 端立即不可见（含评分统计），无需改 C 端。
+   */
+  async setProductReviewStatus(reviewId: string, status: "PUBLISHED" | "HIDDEN") {
+    const review = await this.prisma.productReview.findUnique({ where: { id: reviewId } });
+    if (!review) throw new BusinessException(ErrorCode.NOT_FOUND, "评价不存在");
+    if (review.status === status) return review; // 幂等：重复隐藏/恢复直接返回
+    return this.prisma.productReview.update({
+      where: { id: reviewId },
+      data: { status },
+    });
+  }
+
+  /**
+   * 管理员评价列表（聚合全部商品评价·治理视角）：
+   * 与公开的 listShopReviews 不同，默认返回全部状态（含 HIDDEN），支持 status 筛选。
+   */
+  async listShopReviewsAdmin(rawPage = 1, rawPageSize = 20, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+    const where: Prisma.ProductReviewWhereInput = {};
+    if (status === "PUBLISHED" || status === "HIDDEN") where.status = status;
+    const [rawReviews, total] = await Promise.all([
+      this.prisma.productReview.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.productReview.count({ where }),
+    ]);
+    const reviews = await this.enrichReviews(rawReviews, true);
+    return { reviews, total, page, pageSize };
+  }
+
   /** 获取店铺级评价列表（聚合所有商品评价） */
   async listShopReviews(rawPage = 1, rawPageSize = 20) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
@@ -417,6 +486,7 @@ export class ShopService {
   // ═══════════════════ 运费模板 ═══════════════════
 
   async createFreightTemplate(dto: CreateFreightTemplateDto) {
+    this.validateFreightTemplate(dto);
     const data: Prisma.FreightTemplateCreateInput = {
       name: dto.name,
       type: dto.type ?? "FIXED",
@@ -432,6 +502,18 @@ export class ShopService {
   async updateFreightTemplate(id: string, dto: UpdateFreightTemplateDto) {
     const existing = await this.prisma.freightTemplate.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "运费模板不存在");
+    this.validateFreightTemplate({
+      name: dto.name ?? existing.name,
+      type: dto.type ?? existing.type,
+      defaultFee: dto.defaultFee ?? Number(existing.defaultFee),
+      conditionFree: dto.conditionFree ?? (existing.conditionFree as Record<string, unknown> | undefined),
+      regions: dto.regions ?? (existing.regions as Record<string, unknown> | undefined),
+      isActive: dto.isActive ?? existing.isActive,
+    });
+    if (dto.isActive === false && existing.isActive) {
+      const inUse = await this.prisma.product.count({ where: { freightTemplateId: id, status: "ON_SALE", deletedAt: null } });
+      if (inUse > 0) throw new BusinessException(ErrorCode.BAD_REQUEST, `仍有 ${inUse} 个在售商品使用此模板，请先换绑或下架商品`);
+    }
 
     const data: Prisma.FreightTemplateUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
@@ -449,13 +531,15 @@ export class ShopService {
 
   async deleteFreightTemplate(id: string) {
     await this.prisma.freightTemplate.findUniqueOrThrow({ where: { id } });
+    const inUse = await this.prisma.product.count({ where: { freightTemplateId: id, deletedAt: null } });
+    if (inUse > 0) throw new BusinessException(ErrorCode.BAD_REQUEST, `仍有 ${inUse} 个商品使用此模板，不能删除`);
     await this.prisma.freightTemplate.delete({ where: { id } });
     return { success: true };
   }
 
   async getFreightTemplates(rawPage = 1, rawPageSize = 20) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where = { isActive: true };
+    const where = {};
     const [items, total] = await Promise.all([
       this.prisma.freightTemplate.findMany({
         where,
@@ -474,6 +558,32 @@ export class ShopService {
     return template;
   }
 
+  private validateFreightTemplate(dto: {
+    name: string;
+    type?: string;
+    defaultFee?: number;
+    conditionFree?: Record<string, unknown>;
+    regions?: Record<string, unknown>;
+    isActive?: boolean;
+  }): void {
+    const type = dto.type ?? "FIXED";
+    if (!["FREE", "FIXED", "CONDITIONAL"].includes(type)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的运费计费方式");
+    }
+    if (Number(dto.defaultFee ?? 0) < 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "默认运费不能为负数");
+    if (dto.regions) {
+      for (const [province, fee] of Object.entries(dto.regions)) {
+        if (!province.trim() || !Number.isFinite(Number(fee)) || Number(fee) < 0) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, `区域运费配置无效：${province || "空省份"}`);
+        }
+      }
+    }
+    if (type === "CONDITIONAL") {
+      const threshold = Number(dto.conditionFree?.threshold ?? 0);
+      if (!(threshold > 0)) throw new BusinessException(ErrorCode.BAD_REQUEST, "条件包邮必须设置大于 0 的包邮阈值");
+    }
+  }
+
   // ═══════════════════ 购物车（Redis） ═══════════════════
 
   private cartKey(userId: string) { return `shop:cart:${userId}`; }
@@ -486,7 +596,7 @@ export class ShopService {
     // 补全商品信息
     const productIds = [...new Set(items.map(i => i.productId))];
     const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds }, status: "ON_SALE" },
+      where: { id: { in: productIds }, status: "ON_SALE", deletedAt: null },
       select: { id: true, title: true, price: true, images: true, stock: true, status: true },
     });
     const productMap = new Map(products.map(p => [p.id, p]));
@@ -494,7 +604,7 @@ export class ShopService {
     // 补全SKU信息
     const skuIds = items.filter(i => i.skuId).map(i => i.skuId!);
     const skus = skuIds.length > 0 ? await this.prisma.productSku.findMany({
-      where: { id: { in: skuIds } },
+      where: { id: { in: skuIds }, isActive: true },
       select: { id: true, specs: true, price: true, stock: true, skuCode: true },
     }) : [];
     const skuMap = new Map(skus.map(s => [s.id, s]));
@@ -543,10 +653,27 @@ export class ShopService {
     // 校验商品存在且上架
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
-      select: { id: true, status: true, stock: true },
+      select: {
+        id: true,
+        status: true,
+        deletedAt: true,
+        stock: true,
+        skus: { where: { isActive: true }, select: { id: true, stock: true } },
+      },
     });
-    if (!product || product.status !== "ON_SALE") {
+    if (!product || product.deletedAt || product.status !== "ON_SALE") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在或已下架");
+    }
+    const sku = skuId ? product.skus.find((item) => item.id === skuId) : null;
+    if (skuId && !sku) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "SKU不存在、已停用或与商品不匹配");
+    }
+    if (!skuId && product.skus.length) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择商品规格");
+    }
+    const availableStock = sku?.stock ?? product.stock;
+    if (availableStock < quantity) {
+      throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
     }
 
     const key = this.cartKey(userId);
@@ -556,7 +683,11 @@ export class ShopService {
       i => i.productId === productId && (i.skuId || null) === (skuId || null),
     );
     if (existingIdx >= 0) {
-      items[existingIdx].quantity += quantity;
+      const nextQuantity = Number(items[existingIdx].quantity || 0) + quantity;
+      if (nextQuantity > availableStock) {
+        throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
+      }
+      items[existingIdx].quantity = nextQuantity;
     } else {
       items.push({
         id: `${productId}_${skuId || "default"}`,

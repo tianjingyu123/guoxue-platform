@@ -28,11 +28,11 @@
         <view @tap="fetchData">重试</view>
       </view>
       <template v-else>
-        <view v-if="filtered.length === 0" class="empty">
+        <view v-if="filtered.length === 0 && !hasMore" class="empty">
           <view class="empty-icon">
             <app-icon name="package" :size="80" color="#999999" />
           </view>
-          <text class="empty-text">暂无售后记录</text>
+          <text class="empty-text">没有售后记录，一切顺利就最好</text>
           <view class="empty-btn" @tap="navigateTo('/orders')">
             <text class="empty-btn-text">查看订单</text>
           </view>
@@ -49,21 +49,22 @@
                 <app-icon :name="sCfg(item.status).icon" :size="22" :color="sCfg(item.status).color" />
                 <text class="as-status-text" :style="{ color: sCfg(item.status).color }">{{ sCfg(item.status).label }}</text>
               </view>
-              <text class="as-type">{{ item.type === 'refund_only' ? '仅退款' : '退货退款' }}</text>
+              <text class="as-type">{{ afterSaleTypeLabel(item.type) }}</text>
             </view>
             <text class="as-time">{{ item.createdAt }}</text>
           </view>
 
           <view class="as-body" @tap="navigateTo(`/shop/after-sale/${item.id}`)">
-            <image lazy-load class="as-cover" :src="item.product.cover" mode="aspectFill" />
+            <view class="as-cover"><smart-cover :src="item.product.cover" :title="item.product.name" type="product" deco :deco-size="44" /></view>
             <view class="as-info">
               <text class="as-name">{{ item.product.name }}</text>
               <text class="as-sku">{{ item.product.skuName }}</text>
               <view class="as-foot">
-                <view class="as-amount">
+                <view v-if="isRefundAfterSaleType(item.type)" class="as-amount">
                   <text class="amount-label">退款金额：</text>
-                  <text class="amount-value">¥{{ item.amount }}</text>
+                  <text class="amount-value">¥{{ formatPrice(item.amount) }}</text>
                 </view>
+                <text v-else class="exchange-hint">{{ afterSaleTypeLabel(item.type) }}</text>
                 <app-icon name="chevron-right" :size="28" color="#999999" />
               </view>
             </view>
@@ -87,6 +88,9 @@
           </view>
         </view>
 
+        <view v-if="hasMore || pageError" class="page-more" role="button" tabindex="0" @tap="loadMore" @keydown.enter="loadMore" @keydown.space.prevent="loadMore">
+          {{ loadingMore ? '加载中...' : pageError ? `加载失败，点击重试：${pageError}` : '加载更多售后记录' }}
+        </view>
         <view class="bottom-gap" />
       </template>
     </scroll-view>
@@ -115,8 +119,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import { goBack, navigateTo } from '@/utils/router'
-import { accountApi, afterSaleTabs, afterSaleStatusConfig, type AfterSaleListItem } from '@/lib/account-data'
+import SmartCover from '@/components/common/smart-cover.vue'
+import { accountApi, afterSaleTabs, afterSaleStatusConfig, afterSaleTypeLabel, isRefundAfterSaleType, type AfterSaleListItem } from '@/pkg-account/lib/account-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(108)
@@ -127,6 +134,10 @@ const list = ref<AfterSaleListItem[]>([])
 const cancelId = ref('')
 const loading = ref(false)
 const error = ref('')
+const loadingMore = ref(false)
+const pageError = ref('')
+const nextPage = ref(1)
+const hasMore = ref(false)
 
 const filtered = computed(() => {
   if (!activeTab.value) return list.value
@@ -140,16 +151,39 @@ function sCfg(status: string) {
   return afterSaleStatusConfig[status] || { label: status, color: '#999', bg: '#F5F5F5', icon: 'clock' }
 }
 
-async function fetchData() {
-  loading.value = true
-  error.value = ''
+let loaded = false
+async function fetchData(silent = false) {
+  silent = silent === true
+  if (!silent) { loading.value = true; error.value = '' }
+  pageError.value = ''
   try {
-    const data = await accountApi.afterSales()
-    list.value = data || []
+    const data = await accountApi.afterSalesPage(1)
+    list.value = data.items
+    nextPage.value = 2
+    hasMore.value = data.page * data.pageSize < data.total
+    loaded = true
+    error.value = ''
   } catch (e) {
-    error.value = (e as Error)?.message || '加载失败，请重试'
+    if (!silent) error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
+  }
+}
+
+async function loadMore() {
+  if (loadingMore.value || (!hasMore.value && !pageError.value)) return
+  loadingMore.value = true
+  pageError.value = ''
+  try {
+    const data = await accountApi.afterSalesPage(nextPage.value)
+    const seen = new Set(list.value.map((item) => item.id))
+    list.value = [...list.value, ...data.items.filter((item) => !seen.has(item.id))]
+    nextPage.value = data.page + 1
+    hasMore.value = data.page * data.pageSize < data.total
+  } catch (e) {
+    pageError.value = (e as Error)?.message || '请重试'
+  } finally {
+    loadingMore.value = false
   }
 }
 
@@ -162,8 +196,8 @@ onLoad(() => {
     statusBarHeight.value = 20
     navHeight.value = 108
   }
-  fetchData()
 })
+usePageRefresh(() => fetchData(loaded))
 
 function confirmCancel(id: string) {
   cancelId.value = id
@@ -340,6 +374,8 @@ async function doCancel() {
   height: 150rpx;
   border-radius: 16rpx;
   background: #FAF8F5;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 .as-info {
   flex: 1;
@@ -375,6 +411,10 @@ async function doCancel() {
   font-weight: 600;
   color: var(--brand);
 }
+.exchange-hint {
+  font-size: 24rpx;
+  color: #666666;
+}
 
 .as-actions {
   display: flex;
@@ -409,6 +449,7 @@ async function doCancel() {
   color: #FFFFFF;
 }
 
+.page-more { margin: 20rpx 32rpx; padding: 24rpx; text-align: center; color: #8A3636; font-size: 26rpx; }
 .bottom-gap {
   height: 40rpx;
 }

@@ -1,0 +1,111 @@
+{
+  "checkedAt": "2026-10-03T14:33:19.772Z",
+  "nodes": [
+    {
+      "node": "A",
+      "instanceId": "ins-0sen8yvf",
+      "taskId": "invt-d9f2340gb7",
+      "invocationId": "inv-d9f2340gb6",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordSha256": "b529d74b5b92d035300fa5fce69f48828e82e2d3a450b0d4f902dccc7f506e86",
+      "executedScriptSha256": "47a43a2953c1cca2fae68e5076cbdb97994781f5ae4cdae2559dc60da9d95035",
+      "rawRecordActuallyRead": true,
+      "requests": [
+        {
+          "peer": "B",
+          "kind": "API_LIVE",
+          "httpStatus": 200
+        },
+        {
+          "peer": "B",
+          "kind": "H5",
+          "httpStatus": 200
+        }
+      ],
+      "fields": {
+        "SOURCE_HOST": "VM-0-10-ubuntu",
+        "TARGET_NODE": "B",
+        "CONNECT_TIMEOUT_SECONDS": "3",
+        "TOTAL_TIMEOUT_SECONDS": "8",
+        "AUTOMATIC_RETRY": "NO",
+        "COOKIE_OR_AUTH_SENT": "NO",
+        "ACTIVE_CONFIG_READ": "YES",
+        "API_PROXY_SERVER_BACKEND_PRESENT": "YES",
+        "SOCKET_PROXY_SERVER_BACKEND_PRESENT": "YES",
+        "FORWARD_HOST_RULE_PRESENT": "YES",
+        "FORWARD_REAL_IP_RULE_PRESENT": "YES",
+        "FORWARD_FOR_RULE_PRESENT": "YES",
+        "FORWARDED_PROTO_RULE_PRESENT": "YES",
+        "REDIRECT_API_LIVE": false,
+        "LIVE_RELEASE_ID": "preprod-cd055084-20260903-r1",
+        "REDIRECT_H5": false,
+        "STATIC_BODY_SHA256": "b765d4b75e3b46dc5d89be91d29b0a094737d2c2371d44f8208da4b0a2a23dda",
+        "STATIC_BODY_BYTES": "1174",
+        "REDIRECT_LOOP_OBSERVED": "NO",
+        "CROSS_NODE_READONLY_HTTP_PROBE": "OK"
+      }
+    },
+    {
+      "node": "B",
+      "instanceId": "ins-n0sqc627",
+      "taskId": "invt-c9f23f0bbs",
+      "invocationId": "inv-c9f23f0bbr",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordSha256": "b33333bb7025b2642bcc92cfc2bd111aeb6e5c14d1855aeb8f9a703eba414565",
+      "executedScriptSha256": "47a43a2953c1cca2fae68e5076cbdb97994781f5ae4cdae2559dc60da9d95035",
+      "rawRecordActuallyRead": true,
+      "requests": [
+        {
+          "peer": "A",
+          "kind": "API_LIVE",
+          "httpStatus": 200
+        },
+        {
+          "peer": "A",
+          "kind": "H5",
+          "httpStatus": 200
+        }
+      ],
+      "fields": {
+        "SOURCE_HOST": "VM-0-14-ubuntu",
+        "TARGET_NODE": "A",
+        "CONNECT_TIMEOUT_SECONDS": "3",
+        "TOTAL_TIMEOUT_SECONDS": "8",
+        "AUTOMATIC_RETRY": "NO",
+        "COOKIE_OR_AUTH_SENT": "NO",
+        "ACTIVE_CONFIG_READ": "YES",
+        "API_PROXY_SERVER_BACKEND_PRESENT": "YES",
+        "SOCKET_PROXY_SERVER_BACKEND_PRESENT": "YES",
+        "FORWARD_HOST_RULE_PRESENT": "YES",
+        "FORWARD_REAL_IP_RULE_PRESENT": "YES",
+        "FORWARD_FOR_RULE_PRESENT": "YES",
+        "FORWARDED_PROTO_RULE_PRESENT": "YES",
+        "REDIRECT_API_LIVE": false,
+        "LIVE_RELEASE_ID": "preprod-cd055084-20260903-r1",
+        "REDIRECT_H5": false,
+        "STATIC_BODY_SHA256": "b765d4b75e3b46dc5d89be91d29b0a094737d2c2371d44f8208da4b0a2a23dda",
+        "STATIC_BODY_BYTES": "1174",
+        "REDIRECT_LOOP_OBSERVED": "NO",
+        "CROSS_NODE_READONLY_HTTP_PROBE": "OK"
+      }
+    }
+  ],
+  "probeExecutionLocation": "节点宿主机curl；配置规则经docker exec读取Nginx容器。不是容器网络命名空间内curl。",
+  "currentNodeHostToPeerPort80ConnectivityVerified": true,
+  "automaticHttpRetries": false,
+  "currentApiReleaseId": "preprod-cd055084-20260903-r1",
+  "noRedirectOnObservedGet": true,
+  "formalProxyLoopPreventionVerified": false,
+  "originalClientIpPreservationVerified": false,
+  "websocketUploadPaymentCallbackVerified": false,
+  "formalCrossNodeProxyAccepted": false,
+  "productionConfigurationModified": false,
+  "priorFailure": {
+    "taskId": "invt-a9f22n0d8b",
+    "source": "云端报告：局部变量初始化失败发生在HTTP前；本任务未读取该失败原任务，不把它作独立核验结论。"
+  }
+}

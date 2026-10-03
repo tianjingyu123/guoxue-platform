@@ -13,6 +13,7 @@
         >
           向量化索引
         </el-button><el-button
+          v-if="MANUAL_EDIT"
           type="primary"
           @click="openCreate"
         >
@@ -20,6 +21,8 @@
         </el-button>
       </div>
     </div>
+
+    <AiMaintainedBanner description="古籍注解由 AI 数字员工采集导入维护，人工请勿直接新增/编辑（数据订正走工单/AI 兜底）。本页保留查看、检索与运营操作（种子/向量化）。" />
 
     <el-form
       :inline="true"
@@ -38,6 +41,7 @@
       <el-form-item label="流派">
         <el-select
           v-model="filter.school"
+          placeholder="全部流派"
           clearable
           style="width:120px"
           @change="search"
@@ -66,6 +70,7 @@
       <el-form-item label="类型">
         <el-select
           v-model="filter.type"
+          placeholder="全部类型"
           clearable
           style="width:120px"
           @change="search"
@@ -88,14 +93,23 @@
           />
         </el-select>
       </el-form-item>
-      <el-form-item label="古籍ID">
-        <el-input
+      <el-form-item label="所属古籍">
+        <!-- 用书名下拉替代裸古籍ID输入（书目从古籍列表拉取映射） -->
+        <el-select
           v-model="filter.bookId"
-          placeholder="古籍ID"
+          placeholder="全部古籍"
           clearable
+          filterable
           style="width:200px"
-          @change="fetchList"
-        />
+          @change="search"
+        >
+          <el-option
+            v-for="b in bookOptions"
+            :key="b.id"
+            :label="b.title"
+            :value="b.id"
+          />
+        </el-select>
       </el-form-item>
       <el-form-item>
         <el-button
@@ -103,6 +117,9 @@
           @click="search"
         >
           搜索
+        </el-button>
+        <el-button @click="resetFilter">
+          重置
         </el-button>
       </el-form-item>
     </el-form>
@@ -159,11 +176,24 @@
         width="60"
       />
       <el-table-column
-        prop="bookId"
-        label="古籍ID"
-        width="200"
+        label="所属古籍"
+        width="160"
         show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          <span v-if="bookTitleMap[row.bookId]">{{ bookTitleMap[row.bookId] }}</span>
+          <el-tooltip
+            v-else-if="row.bookId"
+            :content="'古籍ID：' + row.bookId + '（点击复制）'"
+          >
+            <span
+              style="cursor:pointer;color:#666"
+              @click="copyText(row.bookId)"
+            >{{ row.bookId.slice(0, 8) }}…</span>
+          </el-tooltip>
+          <span v-else>—</span>
+        </template>
+      </el-table-column>
       <el-table-column
         label="内容"
         min-width="200"
@@ -183,6 +213,7 @@
         </template>
       </el-table-column>
       <el-table-column
+        v-if="MANUAL_EDIT"
         label="操作"
         width="150"
         fixed="right"
@@ -267,6 +298,7 @@
             <el-form-item label="流派">
               <el-select
                 v-model="form.school"
+                placeholder="请选择流派"
                 style="width:100%"
               >
                 <el-option
@@ -286,6 +318,7 @@
             <el-form-item label="类型">
               <el-select
                 v-model="form.type"
+                placeholder="请选择类型"
                 style="width:100%"
               >
                 <el-option
@@ -340,9 +373,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { api } from '@/api'
+import { api, classicApi } from '@/api'
+import AiMaintainedBanner from '@/components/AiMaintainedBanner.vue'
+
+// 目录重构批（2026-07-11）：古籍注解由 AI 数字员工维护，人工编辑入口下线（置 true 可回滚·代码保留）
+const MANUAL_EDIT = false
 
 const loading = ref(false); const error = ref(false); const saving = ref(false); const seeding = ref(false); const vectorizing = ref(false)
 /** 古籍注解行（字段宽松 optional） */
@@ -364,7 +401,38 @@ const vis = ref(false); const editingId = ref('')
 const filter = reactive({ keyword: '', school: '', type: '', bookId: '' })
 const form = reactive({ title: '', bookId: '', chapterId: '', author: '', dynasty: '', school: '', type: '', content: '', sourceUrl: '' })
 
-onMounted(() => fetchList())
+// 书目映射（古籍ID → 书名）：全库仅几十本，一次拉取用于列表列与筛选下拉
+const bookOptions = ref<{ id: string; title: string }[]>([])
+const bookTitleMap = computed(() => {
+  const m: Record<string, string> = {}
+  bookOptions.value.forEach((b) => { m[b.id] = b.title })
+  return m
+})
+
+async function fetchBookOptions() {
+  try {
+    const { data } = await classicApi.list({ pageSize: 200 })
+    const items = Array.isArray(data) ? data : data.items || data.books || []
+    bookOptions.value = items
+      .filter((b: { id?: string; title?: string }) => b.id && b.title)
+      .map((b: { id: string; title: string }) => ({ id: b.id, title: b.title }))
+  } catch { /* 书目映射失败不阻塞列表，古籍列回退显示截断ID */ }
+}
+
+function copyText(text: string) {
+  navigator.clipboard?.writeText(text).then(
+    () => ElMessage.success('已复制'),
+    () => ElMessage.warning('复制失败，请手动复制'),
+  )
+}
+
+function resetFilter() {
+  filter.keyword = ''; filter.school = ''; filter.type = ''; filter.bookId = ''
+  page.value = 1
+  fetchList()
+}
+
+onMounted(() => { fetchList(); fetchBookOptions() })
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
@@ -400,12 +468,24 @@ async function save() {
     if (editingId.value) { await api.put(`/classic/commentaries/${editingId.value}`, payload) }
     else { await api.post('/classic/commentaries', payload) }
     ElMessage.success('已保存'); vis.value = false; fetchList()
-  } catch { } finally { saving.value = false }
+  } catch { ElMessage.error('保存失败，请重试') } finally { saving.value = false }
 }
 
 async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await api.delete(`/classic/commentaries/${id}`); ElMessage.success('已删除'); fetchList() } catch {} }
 
-async function handleSeed() { seeding.value = true; try { await api.post('/classic/commentaries/admin/seed'); ElMessage.success('种子数据初始化已触发') } catch {} finally { seeding.value = false } }
-async function handleVectorize() { vectorizing.value = true; try { await api.post('/classic/commentaries/admin/vectorize'); ElMessage.success('向量化索引已触发') } catch {} finally { vectorizing.value = false } }
+async function handleSeed() {
+  if (seeding.value) return
+  // L3 影响预告：生产写库操作
+  try {
+    await ElMessageBox.confirm(`将向注解库写入种子数据（当前共 ${total.value} 条注解）。该操作直接写生产数据库，仅在初始化/补种时使用。确定执行？`, '初始化种子数据确认', { type: 'warning', confirmButtonText: '确认执行', cancelButtonText: '取消' })
+  } catch { return }
+  seeding.value = true
+  try { await api.post('/classic/commentaries/admin/seed'); ElMessage.success('种子数据初始化已触发'); fetchList() } catch { ElMessage.error('初始化失败，请重试') } finally { seeding.value = false }
+}
+async function handleVectorize() {
+  if (vectorizing.value) return
+  vectorizing.value = true
+  try { await api.post('/classic/commentaries/admin/vectorize'); ElMessage.success('向量化索引已触发') } catch { ElMessage.error('向量化失败，请重试') } finally { vectorizing.value = false }
+}
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

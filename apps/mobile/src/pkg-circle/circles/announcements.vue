@@ -4,8 +4,14 @@
  * 故宫红顶栏 + 圈子来源 + 置顶标识 + 富文本正文(块解析) + 其他公告 + 底部确认已读栏
  */
 import { ref, computed } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { shareLink } from '@/utils/share'
+import { apiGet, apiPost } from '@/utils/request'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
+import { getToken } from '@/utils/storage'
 
 interface Announcement {
   id: string
@@ -25,72 +31,117 @@ interface ContentBlock {
   text?: string
 }
 
-const circleId = ref('1')
+/** 后端 CircleAnnouncement 原始项（GET /circles/:id/announcement | /announcements） */
+interface RawAnnouncement {
+  id?: string
+  content?: string
+  isTop?: boolean
+  createdAt?: string
+  user?: { id?: string; nickname?: string; avatar?: string } | null
+}
 
-const announcement = ref<Announcement>({
-  id: '1',
-  circleId: 'c1',
-  circleName: '八字命理研习社',
-  title: '圈子重要规则更新：关于内容质量与互动规范的说明',
-  content: `亲爱的圈友们：
-
-为了给大家提供更好的学习交流环境，圈子管理团队经过讨论，决定对圈子规则进行更新。请各位圈友仔细阅读以下内容：
-
-**一、内容质量要求**
-
-1. 所有发帖须与命理、国学相关，严禁发布无关广告、营销内容；
-2. 提倡原创内容，转载须注明来源，严禁直接搬运他人付费内容；
-3. 对他人的命盘分析须基于专业知识，不得无依据妄下论断；
-4. 鼓励图文并茂，高质量帖子将获得精华标注并获得额外积分奖励。
-
-**二、互动规范**
-
-1. 评论须礼貌友善，禁止人身攻击、谩骂或带有侮辱性语言；
-2. 圈内讨论应基于理性分析，欢迎不同观点，但须以事实为据；
-3. 私信功能须用于正当学习交流，严禁骚扰行为；
-4. 发现违规内容请通过举报功能反映，切勿在评论区引战。
-
-**三、违规处理**
-
-• 首次违规：警告并删除违规内容
-• 二次违规：禁言3天
-• 三次及以上：移出圈子，严重者永久封禁
-
-**四、新功能上线**
-
-本周我们将上线"每周精华"评选活动，每周日由管理团队评选5篇优质帖子，作者将获得：
-- 精华徽章展示
-- 50积分奖励  
-- 优先推荐展示权益
-
-感谢大家的支持与配合，我们共同维护一个高质量的国学学习社区！`,
-  isPinned: true,
-  isRead: false,
-  readCount: 328,
-  publishedAt: '2024-01-15T09:00:00Z',
-  author: { id: 'u1', name: '圈子管理员', avatar: '' },
-})
-
-const related = ref<Announcement[]>([
-  {
-    id: '2', circleId: 'c1', circleName: '八字命理研习社',
-    title: '关于圈子积分系统升级的公告', content: '',
-    isPinned: false, isRead: true, readCount: 215,
-    publishedAt: '2024-01-10T09:00:00Z', author: { id: 'u1', name: '圈子管理员', avatar: '' },
-  },
-  {
-    id: '3', circleId: 'c1', circleName: '八字命理研习社',
-    title: '新年活动：八字2024年运势公益解读报名开始', content: '',
-    isPinned: false, isRead: true, readCount: 487,
-    publishedAt: '2024-01-05T09:00:00Z', author: { id: 'u1', name: '圈子管理员', avatar: '' },
-  },
-])
-
+const circleId = ref('')
+const announcementId = ref('')
+const circleName = ref('')
+const announcement = ref<Announcement | null>(null)
+const related = ref<Announcement[]>([])
 const isRead = ref(false)
+const loggedIn = ref(false)
+const readStatusLoading = ref(false)
+const readStatusError = ref(false)
+const readMemberRequired = ref(false)
+const loading = ref(true)
+const loadError = ref('')
+const menuSafeRight = getMiniProgramMenuSafeRight()
+
+/** 公告无独立标题字段，取正文首个非空行作标题，剩余作正文 */
+function deriveTitle(content: string): { title: string; body: string } {
+  const lines = content.split('\n')
+  const idx = lines.findIndex((l) => l.trim())
+  if (idx < 0) return { title: '圈子公告', body: content }
+  const title = lines[idx].trim().replace(/\*\*/g, '').replace(/^#+\s*/, '').replace(/[:：]$/, '').slice(0, 40)
+  const body = lines.slice(idx + 1).join('\n').trim()
+  return { title, body: body || content }
+}
+
+function adapt(raw: RawAnnouncement, splitTitle: boolean): Announcement {
+  const content = raw.content || ''
+  const { title, body } = deriveTitle(content)
+  return {
+    id: String(raw.id || ''),
+    circleId: circleId.value,
+    circleName: circleName.value,
+    title,
+    content: splitTitle ? body : content,
+    isPinned: !!raw.isTop,
+    isRead: true, // 后端未返回逐条已读态，列表项默认不显示未读点
+    readCount: 0, // 后端未返回已读数
+    publishedAt: raw.createdAt || '',
+    author: { id: raw.user?.id || '', name: raw.user?.nickname || '圈子管理员', avatar: raw.user?.avatar || '' },
+  }
+}
+
+async function loadReadStatus() {
+  if (!loggedIn.value || !circleId.value || !announcement.value?.id) return
+  readStatusLoading.value = true
+  readStatusError.value = false
+  readMemberRequired.value = false
+  try {
+    const status = await apiGet<{ isRead: boolean }>(`/circles/${circleId.value}/announcements/${announcement.value.id}/read-status`)
+    isRead.value = status.isRead === true
+  } catch (error) {
+    readStatusError.value = true
+    readMemberRequired.value = ((error as Error)?.message || '').includes('请先加入圈子')
+  } finally {
+    readStatusLoading.value = false
+  }
+}
+
+async function load() {
+  loading.value = true
+  loadError.value = ''
+  try {
+    if (!circleId.value) { loadError.value = '圈子信息缺失，请返回重试'; return }
+    const [circle, main, listResp] = await Promise.all([
+      apiGet<{ name?: string; circle?: { name?: string } }>(`/circles/${circleId.value}`).catch(() => null),
+      apiGet<RawAnnouncement>(announcementId.value
+        ? `/circles/${circleId.value}/announcements/${announcementId.value}`
+        : `/circles/${circleId.value}/announcement`),
+      apiGet<{ list?: RawAnnouncement[] }>(`/circles/${circleId.value}/announcements?page=1&pageSize=10`).catch(() => null),
+    ])
+    circleName.value = circle?.name || circle?.circle?.name || '本圈'
+    if (main?.content) {
+      announcement.value = adapt(main, true)
+      isRead.value = false
+      if (loggedIn.value) await loadReadStatus()
+    } else {
+      announcement.value = null
+    }
+    const mainId = announcement.value?.id
+    related.value = (listResp?.list || [])
+      .filter((a) => a?.content && String(a.id || '') !== mainId)
+      .map((a) => adapt(a, false))
+  } catch {
+    announcement.value = null
+    loadError.value = '公告暂时无法加载，请重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((q) => {
+  if (q?.circleId) circleId.value = String(q.circleId)
+  if (q?.id) announcementId.value = String(q.id)
+})
+onShow(() => {
+  loggedIn.value = !!getToken()
+  void load()
+})
 
 // 富文本块解析（替代 dangerouslySetInnerHTML，跨端安全）
 const blocks = computed<ContentBlock[]>(() => {
-  return announcement.value.content.split('\n').map((line): ContentBlock => {
+  const content = announcement.value?.content || ''
+  return content.split('\n').map((line): ContentBlock => {
     const t = line.trim()
     if (!t) return { type: 'space' }
     if (t.startsWith('**') && t.endsWith('**')) return { type: 'bold', text: t.replace(/\*\*/g, '') }
@@ -102,58 +153,94 @@ const blocks = computed<ContentBlock[]>(() => {
 })
 
 function fmtDate(s: string) {
+  if (!s) return ''
   const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return ''
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
-function markRead() {
-  if (isRead.value) return
-  isRead.value = true
-  uni.showToast({ title: '已标记为已读', icon: 'success' })
+async function markRead() {
+  if (!loggedIn.value) {
+    try { uni.setStorageSync('login:redirect', `/pkg-circle/circles/announcements?circleId=${encodeURIComponent(circleId.value)}&id=${encodeURIComponent(announcement.value?.id || '')}`) } catch { /* 登录仍可继续 */ }
+    navigateTo('/pkg-auth/login/index')
+    return
+  }
+  if (readStatusLoading.value) return
+  if (readMemberRequired.value) { openCircle(); return }
+  if (readStatusError.value) { await loadReadStatus(); return }
+  if (isRead.value || !announcement.value?.id) return
+  try {
+    await apiPost(`/circles/${circleId.value}/announcements/${announcement.value.id}/read`, {})
+    isRead.value = true
+    readStatusError.value = false
+    uni.showToast({ title: '已标记为已读', icon: 'success' })
+  } catch {
+    uni.showToast({ title: '未能同步已读状态，请稍后重试', icon: 'none' })
+  }
 }
 function openCircle() { navigateTo(`/pkg-circle/circles/detail?id=${circleId.value}`) }
 function openRelated(id: string) { navigateTo(`/pkg-circle/circles/announcements?id=${id}&circleId=${circleId.value}`) }
-function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
+async function share() {
+  await shareLink({
+    title: announcement.value?.title || '圈子公告',
+    text: announcement.value?.circleName ? `来自${announcement.value.circleName}` : undefined,
+  })
+}
 </script>
 
 <template>
   <view class="an">
     <!-- 顶栏 -->
-    <view class="an-hdr">
-      <view class="an-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#ffffff" /></view>
+    <view class="an-hdr" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
+      <view class="an-hdr-btn" role="button" aria-label="返回上一页" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
       <text class="an-hdr-title">圈子公告</text>
-      <view class="an-hdr-btn" @tap="share"><app-icon name="share-2" :size="36" color="#ffffff" /></view>
+      <view v-if="announcement" class="an-hdr-btn" role="button" aria-label="分享公告" @tap="share"><app-icon name="share-2" :size="36" color="#ffffff" /></view>
     </view>
 
     <scroll-view scroll-y class="an-body">
+      <!-- 加载态 -->
+      <view v-if="loading" class="an-empty"><AppLoading /></view>
+
+      <view v-else-if="loadError" class="an-empty">
+        <text class="an-empty-t">{{ loadError }}</text>
+        <view v-if="circleId" class="an-retry" role="button" aria-label="重新加载公告" @tap="load">重试</view>
+      </view>
+
+      <!-- 空态 -->
+      <view v-else-if="!announcement" class="an-empty">
+        <app-icon name="bell-off" :size="96" color="#d8d2c6" />
+        <text class="an-empty-t">该圈子暂无公告</text>
+      </view>
+
+      <template v-else>
       <!-- 圈子来源 -->
       <view class="an-source" @tap="openCircle">
         <app-icon name="bell" :size="28" color="#C41E3A" />
-        <text class="an-source-t">来自圈子：<text class="an-source-name">{{ announcement.circleName }}</text></text>
+        <text class="an-source-t">来自圈子：<text class="an-source-name">{{ announcement?.circleName }}</text></text>
         <app-icon name="chevron-right" :size="28" color="#999999" />
       </view>
 
       <!-- 主内容卡片 -->
       <view class="an-card">
-        <view v-if="announcement.isPinned" class="an-pin">
+        <view v-if="announcement?.isPinned" class="an-pin">
           <app-icon name="pin" :size="24" color="#C9A96E" />
           <text class="an-pin-t">置顶公告</text>
         </view>
         <view class="an-card-body">
-          <text class="an-title">{{ announcement.title }}</text>
+          <text class="an-title">{{ announcement?.title }}</text>
           <!-- 元信息 -->
           <view class="an-meta">
             <view class="an-meta-author">
               <view class="an-avatar"><text class="an-avatar-t">管</text></view>
-              <text class="an-meta-t">{{ announcement.author.name }}</text>
+              <text class="an-meta-t">{{ announcement?.author?.name }}</text>
             </view>
-            <view class="an-meta-item">
+            <view v-if="announcement?.publishedAt" class="an-meta-item">
               <app-icon name="clock" :size="26" color="#999999" />
-              <text class="an-meta-t">{{ fmtDate(announcement.publishedAt) }}</text>
+              <text class="an-meta-t">{{ fmtDate(announcement?.publishedAt || '') }}</text>
             </view>
-            <view class="an-meta-item right">
+            <view v-if="(announcement?.readCount ?? 0) > 0" class="an-meta-item right">
               <app-icon name="eye" :size="26" color="#999999" />
-              <text class="an-meta-t">{{ announcement.readCount }} 已读</text>
+              <text class="an-meta-t">{{ announcement?.readCount }} 已读</text>
             </view>
           </view>
           <!-- 富文本正文 -->
@@ -189,14 +276,15 @@ function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
         </view>
       </view>
       <view class="an-spacer" />
+      </template>
     </scroll-view>
 
     <!-- 底部确认已读栏 -->
-    <view class="an-foot">
+    <view v-if="announcement" class="an-foot">
       <view class="an-foot-back" @tap="openCircle"><text class="an-foot-back-t">返回圈子</text></view>
-      <view class="an-foot-read" :class="{ done: isRead }" @tap="markRead">
+      <view class="an-foot-read" :class="{ done: isRead || readStatusLoading }" @tap="markRead">
         <app-icon name="check" :size="28" :color="isRead ? '#999999' : '#ffffff'" />
-        <text class="an-foot-read-t" :class="{ done: isRead }">{{ isRead ? '已确认阅读' : '确认已读' }}</text>
+        <text class="an-foot-read-t" :class="{ done: isRead }">{{ !loggedIn ? '登录后确认已读' : readStatusLoading ? '核实已读状态…' : readMemberRequired ? '加入圈子后可确认已读' : readStatusError ? '状态未确认，点此重试' : isRead ? '已确认阅读' : '确认已读' }}</text>
       </view>
     </view>
   </view>
@@ -205,9 +293,12 @@ function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
 <style scoped lang="scss">
 .an { display: flex; flex-direction: column; height: 100vh; background: #faf8f5; }
 .an-hdr { display: flex; align-items: center; gap: 16rpx; height: 88rpx; padding: 0 24rpx; background: var(--brand); padding-top: var(--status-bar-height, 0); flex-shrink: 0; }
-.an-hdr-btn { width: 60rpx; height: 60rpx; border-radius: 999rpx; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; }
+.an-hdr-btn { width: 44px; height: 44px; flex-shrink: 0; border-radius: 999rpx; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; }
 .an-hdr-title { flex: 1; font-size: 30rpx; font-weight: 500; color: #ffffff; }
 .an-body { flex: 1; overflow: hidden; }
+.an-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 200rpx 0; }
+.an-empty-t { font-size: 28rpx; color: #999999; }
+.an-retry { min-width: 120rpx; min-height: 44px; padding: 0 28rpx; border-radius: 18rpx; display: flex; align-items: center; justify-content: center; background: var(--brand); color: #fff; font-size: 28rpx; }
 .an-source { display: flex; align-items: center; gap: 12rpx; padding: 22rpx 24rpx; background: #ffffff; border-bottom: 2rpx solid #f0ebe3; }
 .an-source-t { flex: 1; font-size: 26rpx; color: #666666; }
 .an-source-name { color: var(--brand); font-weight: 500; }

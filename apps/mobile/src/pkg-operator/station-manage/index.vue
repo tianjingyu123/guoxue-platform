@@ -82,7 +82,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import { operatorApi, type StationConfigData } from '@/lib/operator-data'
+import { operatorApi, type StationConfigData } from '@/pkg-operator/lib/operator-data'
 
 const statusBarHeight = ref(20)
 const loading = ref(true)

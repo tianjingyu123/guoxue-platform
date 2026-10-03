@@ -52,8 +52,15 @@ describe("NginxLogService", () => {
     expect(out.topPaths[0].count).toBeGreaterThanOrEqual(1);
   });
 
-  it("cron 非 linux 平台直接跳过（本测试环境即如此）", async () => {
+  it("cron 仅在 linux 平台解析日志", async () => {
+    const parse = jest.spyOn(svc, "parseIncrement").mockResolvedValue(null);
     await svc.cron();
-    expect(mockRedis.runExclusive).not.toHaveBeenCalled();
+    if (process.platform === "linux") {
+      expect(mockRedis.runExclusive).toHaveBeenCalledWith("nginx_log_parse", 240, expect.any(Function));
+      expect(parse).toHaveBeenCalledTimes(1);
+    } else {
+      expect(mockRedis.runExclusive).not.toHaveBeenCalled();
+      expect(parse).not.toHaveBeenCalled();
+    }
   });
 });

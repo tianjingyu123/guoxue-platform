@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing"
 import { QuestionService } from "./question.service"
 import { PrismaService } from "../../prisma/prisma.service"
+import { RedisService } from "../../redis/redis.service"
 import { CoinService } from "../coin/coin.service"
 import { RevenueService } from "../revenue/revenue.service"
 import { AuditService } from "../audit/audit.service"
@@ -14,6 +15,8 @@ const mockPrisma: any = {
   $transaction: jest.fn((arg: any) => typeof arg === "function" ? arg(txProxy) : Promise.all(Array.isArray(arg) ? arg : [arg])),
   circle: { findUnique: jest.fn() },
   circleMember: { findFirst: jest.fn() },
+  // 圈子治理 #10：发起提问前禁言直查（默认无禁言）
+  circleViolation: { findFirst: jest.fn().mockResolvedValue(null) },
   paidQuestion: {
     create: jest.fn(),
     findUnique: jest.fn(),
@@ -31,6 +34,7 @@ const mockCoin = {
 
 const mockRevenue = {
   record: jest.fn().mockResolvedValue({ id: "e1" }),
+  settleLedger: jest.fn().mockResolvedValue(undefined),
 }
 
 const mockAudit = {
@@ -46,6 +50,7 @@ describe("QuestionService", () => {
       providers: [
         QuestionService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: { runExclusive: (_n: string, _t: number, fn: () => Promise<unknown>) => fn() } },
         { provide: CoinService, useValue: mockCoin },
         { provide: RevenueService, useValue: mockRevenue },
         { provide: AuditService, useValue: mockAudit },
@@ -56,6 +61,7 @@ describe("QuestionService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPrisma.paidQuestion.updateMany.mockResolvedValue({ count: 1 })
   })
 
   describe("ask", () => {
@@ -78,12 +84,60 @@ describe("QuestionService", () => {
 
     it("提问成功", async () => {
       mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
-      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
       mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
       const result = await svc.ask("u1", askDto)
       expect(result.status).toBe("PENDING")
       // coin.spend 在事务内调用，传入了 tx 参数
       expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ scene: "PAID_QUESTION" }), expect.any(Object))
+    })
+
+    // 🔴 定价以达人配置为准，忽略客户端传入 priceCoin —— 防提问者压低达人收入
+    it("扣费与围观价以达人(answerer)配置为准，不信客户端 priceCoin", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
+      mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
+      // 客户端恶意传 priceCoin=1 想只花 1 币
+      await svc.ask("u1", { ...askDto, priceCoin: 1, peekPriceCoin: 1 })
+      expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ amountCoin: 50 }), expect.any(Object))
+      const created = mockPrisma.paidQuestion.create.mock.calls[0][0].data
+      expect(created.priceCoin).toBe(50)     // 达人提问价
+      expect(created.peekPriceCoin).toBe(10) // 达人围观价
+    })
+
+    it("用户确认的报价与当前达人报价不一致时拒绝且不扣币", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 80, peekPriceCoin: 10 })
+      await expect(svc.ask("u1", { ...askDto, expectedPriceCoin: 50 })).rejects.toThrow("达人报价已变化")
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+      expect(mockPrisma.paidQuestion.create).not.toHaveBeenCalled()
+    })
+
+    it("达人未开放付费提问(questionPriceCoin=0)时拒绝且不扣币", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 0, peekPriceCoin: 0 })
+      await expect(svc.ask("u1", askDto)).rejects.toThrow(BusinessException)
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+    })
+
+    // 圈子治理 #10（2026-07-11）：被禁言成员在该圈内不能发起付费提问
+    it("圈内禁言中：发起提问被拦且不扣币", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
+      mockPrisma.circleViolation.findFirst.mockResolvedValueOnce({ expiresAt: new Date(Date.now() + 86400000) })
+      await expect(svc.ask("u1", askDto)).rejects.toThrow("禁言")
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+      expect(mockPrisma.paidQuestion.create).not.toHaveBeenCalled()
+    })
+
+    it("禁言查询限定本圈生效禁言（circleId+MUTE+ACTIVE+未到期）·无禁言正常提问", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
+      mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
+      await svc.ask("u1", askDto)
+      const where = mockPrisma.circleViolation.findFirst.mock.calls[0][0].where
+      expect(where).toMatchObject({ circleId: "c1", userId: "u1", type: "MUTE", status: "ACTIVE" })
+      expect(where.expiresAt).toHaveProperty("gt")
     })
   })
 
@@ -104,14 +158,56 @@ describe("QuestionService", () => {
     })
 
     it("回答成功并记录收益", async () => {
-      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", answererId: "u2", status: "PENDING", priceCoin: 50 })
-      mockPrisma.paidQuestion.update.mockResolvedValue({
+      mockPrisma.paidQuestion.findUnique.mockResolvedValueOnce({ id: "q1", answererId: "u2", status: "PENDING", priceCoin: 50, askerId: "u1" })
+      mockPrisma.paidQuestion.findUnique.mockResolvedValueOnce({
         id: "q1", status: "ANSWERED", answer: "回复",
         asker: { id: "u1", nickname: "张三", avatar: null },
         answerer: { id: "u2", nickname: "李四", avatar: null },
       })
       const result = await svc.answer("u2", "q1", { answer: "回复" })
       expect(result.status).toBe("ANSWERED")
+      expect(mockPrisma.paidQuestion.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "q1", status: "PENDING" } }))
+      expect(mockRevenue.record).toHaveBeenCalledWith(expect.objectContaining({ refId: "q1" }), expect.any(Object))
+    })
+
+    it("审核期间问题已退款时不覆盖状态，也不生成收益", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", answererId: "u2", status: "PENDING", priceCoin: 50 })
+      mockPrisma.paidQuestion.updateMany.mockResolvedValueOnce({ count: 0 })
+      await expect(svc.answer("u2", "q1", { answer: "回复" })).rejects.toThrow("问题状态已变更")
+      expect(mockRevenue.record).not.toHaveBeenCalled()
+    })
+
+    it("收益记录写入失败时不完成回答事务", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", answererId: "u2", status: "PENDING", priceCoin: 50 })
+      mockRevenue.record.mockRejectedValueOnce(new Error("收益库暂不可用"))
+      await expect(svc.answer("u2", "q1", { answer: "回复" })).rejects.toThrow("收益库暂不可用")
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+      expect(mockRevenue.settleLedger).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("reject", () => {
+    it("拒答在同一事务认领问题并退币", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValueOnce({ id: "q1", askerId: "u1", answererId: "u2", status: "PENDING", priceCoin: 50 })
+        .mockResolvedValueOnce({ id: "q1", status: "REFUNDED" })
+      await expect(svc.reject("u2", "q1")).resolves.toEqual({ id: "q1", status: "REFUNDED" })
+      expect(mockPrisma.paidQuestion.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "q1", status: "PENDING" } }))
+      expect(mockCoin.refund).toHaveBeenCalledWith("u1", 50, expect.any(String), expect.any(Object))
+    })
+
+    it("重复拒答未认领成功时不重复退币", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", askerId: "u1", answererId: "u2", status: "PENDING", priceCoin: 50 })
+      mockPrisma.paidQuestion.updateMany.mockResolvedValueOnce({ count: 0 })
+      await expect(svc.reject("u2", "q1")).rejects.toThrow("问题状态已变更")
+      expect(mockCoin.refund).not.toHaveBeenCalled()
+    })
+
+    it("拒答退币失败时不把操作报告为成功", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", askerId: "u1", answererId: "u2", status: "PENDING", priceCoin: 50 })
+      mockCoin.refund.mockRejectedValueOnce(new Error("退币失败"))
+      await expect(svc.reject("u2", "q1")).rejects.toThrow("退币失败")
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+      expect(mockCoin.refund).toHaveBeenCalledWith("u1", 50, expect.any(String), expect.any(Object))
     })
   })
 
@@ -132,14 +228,14 @@ describe("QuestionService", () => {
     })
 
     it("提问者或回答者可免费围观", async () => {
-      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", status: "ANSWERED", peekPriceCoin: 10, askerId: "u1", answererId: "u2" })
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", status: "ANSWERED", peekPriceCoin: 10, askerId: "u1", answererId: "u2", isPublic: true })
       const result = await svc.peek("u1", "q1")
       expect(result.id).toBe("q1")
       expect(mockCoin.spend).not.toHaveBeenCalled()
     })
 
     it("付费围观成功", async () => {
-      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", status: "ANSWERED", peekPriceCoin: 10, askerId: "u1", answererId: "u2" })
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", status: "ANSWERED", peekPriceCoin: 10, askerId: "u1", answererId: "u2", isPublic: true })
       mockPrisma.paidQuestion.update.mockResolvedValue({})
       // 新增的幂等检查：未围观过
       mockPrisma.virtualCoinTransaction = { findFirst: jest.fn().mockResolvedValue(null) }
@@ -147,6 +243,42 @@ describe("QuestionService", () => {
       expect(result.id).toBe("q1")
       // coin.spend 在事务内调用，传入了 tx 参数
       expect(mockCoin.spend).toHaveBeenCalledWith("u3", expect.objectContaining({ scene: "PEEK_ANSWER" }), expect.any(Object))
+    })
+
+    // 引擎口径转正前置：围观必须落统一总账，且「每人每次一笔交易」
+    it("围观落总账：refId 带围观者 userId —— 否则幂等守卫会吃掉第二个围观者的分成", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", status: "ANSWERED", peekPriceCoin: 10, askerId: "u1", answererId: "u2", isPublic: true })
+      mockPrisma.paidQuestion.update.mockResolvedValue({})
+      mockPrisma.virtualCoinTransaction = { findFirst: jest.fn().mockResolvedValue(null) }
+
+      await svc.peek("u3", "q1")
+      await svc.peek("u4", "q1") // 第二个围观者
+
+      // settle() 的幂等守卫按 (refType, refId, scene) 去重。若 refId 只用 questionId，
+      // u4 这笔会被判为「已入账」整个丢弃 —— 达人和提问者都拿不到 u4 的围观分成。
+      expect(mockRevenue.settleLedger).toHaveBeenNthCalledWith(1, expect.objectContaining({ refId: "q1:u3" }))
+      expect(mockRevenue.settleLedger).toHaveBeenNthCalledWith(2, expect.objectContaining({ refId: "q1:u4" }))
+    })
+
+    // 围观是「一次交易、两个受益人」：必须一次 settle 传全 parties。
+    // 若拆成两次调用（如塞进 record() 里），第二次会被幂等守卫拦掉，ASKER 条目永远落不了账。
+    it("围观落总账：一次 settle 同时带达人(PROVIDER)与提问者(ASKER)", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", status: "ANSWERED", peekPriceCoin: 10, askerId: "u1", answererId: "u2", isPublic: true })
+      mockPrisma.paidQuestion.update.mockResolvedValue({})
+      mockPrisma.virtualCoinTransaction = { findFirst: jest.fn().mockResolvedValue(null) }
+
+      await svc.peek("u3", "q1")
+
+      expect(mockRevenue.settleLedger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scene: "PEEK",
+          payerId: "u3",
+          parties: {
+            PROVIDER: { type: "USER", id: "u2", userId: "u2" },
+            ASKER: { type: "USER", id: "u1", userId: "u1" },
+          },
+        }),
+      )
     })
   })
 
@@ -156,13 +288,28 @@ describe("QuestionService", () => {
         { id: "q1", askerId: "u1", priceCoin: 50 },
         { id: "q2", askerId: "u2", priceCoin: 30 },
       ])
-      mockPrisma.paidQuestion.updateMany.mockResolvedValue({ count: 2 })
       const result = await svc.refundExpiredQuestions()
       expect(result.refunded).toBe(2)
       expect(mockCoin.refund).toHaveBeenCalledTimes(2)
-      expect(mockPrisma.paidQuestion.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: { in: ["q1", "q2"] } } }),
-      )
+      expect(mockPrisma.paidQuestion.updateMany).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: { id: "q1", status: "PENDING" } }))
+      expect(mockPrisma.paidQuestion.updateMany).toHaveBeenNthCalledWith(2, expect.objectContaining({ where: { id: "q2", status: "PENDING" } }))
+      expect(mockPrisma.paidQuestion.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "REFUNDED" } }))
+      expect(mockCoin.refund).toHaveBeenCalledWith("u1", 50, expect.any(String), expect.any(Object))
+    })
+
+    it("退币失败不计为成功，并将该笔事务交给数据库回滚重试", async () => {
+      mockPrisma.paidQuestion.findMany.mockResolvedValue([{ id: "q1", askerId: "u1", priceCoin: 50 }])
+      mockCoin.refund.mockRejectedValueOnce(new Error("余额库暂不可用"))
+      await expect(svc.refundExpiredQuestions()).resolves.toEqual({ refunded: 0 })
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+      expect(mockCoin.refund).toHaveBeenCalledWith("u1", 50, expect.any(String), expect.any(Object))
+    })
+
+    it("并发处理已认领的问题不会重复退币", async () => {
+      mockPrisma.paidQuestion.findMany.mockResolvedValue([{ id: "q1", askerId: "u1", priceCoin: 50 }])
+      mockPrisma.paidQuestion.updateMany.mockResolvedValueOnce({ count: 0 })
+      await expect(svc.refundExpiredQuestions()).resolves.toEqual({ refunded: 0 })
+      expect(mockCoin.refund).not.toHaveBeenCalled()
     })
 
     it("无过期问题时不退款", async () => {
@@ -180,6 +327,28 @@ describe("QuestionService", () => {
       expect(result.total).toBe(1)
       expect(result.questions).toHaveLength(1)
     })
+
+    it("公开列表强制只查公开条目，且查询字段不包含付费答案", async () => {
+      mockPrisma.paidQuestion.findMany.mockResolvedValue([])
+      mockPrisma.paidQuestion.count.mockResolvedValue(0)
+      await svc.listQuestions({ isPublic: false, participantId: "someone-else", page: 1 })
+      const args = mockPrisma.paidQuestion.findMany.mock.calls.at(-1)![0]
+      expect(args.where.isPublic).toBe(true)
+      expect(args.where.OR).toBeUndefined()
+      expect(args.select.answer).toBeUndefined()
+      expect(args.select.answerAudioUrl).toBeUndefined()
+    })
+
+    it("本人记录只使用登录身份，忽略传入的其他用户 ID", async () => {
+      mockPrisma.paidQuestion.findMany.mockResolvedValue([])
+      mockPrisma.paidQuestion.count.mockResolvedValue(0)
+      await svc.listMyQuestions("signed-in", { askerId: "another-user", circleId: "circle-1" })
+      const args = mockPrisma.paidQuestion.findMany.mock.calls.at(-1)![0]
+      expect(args.where).toMatchObject({ askerId: "signed-in", circleId: "circle-1" })
+      await svc.listMyQuestions("signed-in", { participantId: "another-user" } as any)
+      const participantWhere = mockPrisma.paidQuestion.findMany.mock.calls.at(-1)![0].where
+      expect(participantWhere.OR).toEqual([{ askerId: "signed-in" }, { answererId: "signed-in" }])
+    })
   })
 
   describe("getQuestion", () => {
@@ -193,6 +362,19 @@ describe("QuestionService", () => {
       mockPrisma.paidQuestion.findUnique.mockResolvedValue(null)
       await expect(svc.getQuestion("no")).rejects.toThrow(BusinessException)
     })
+
+    it("未公开问题只有提问者与回答者能查看，外部用户不能靠 ID 访问", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q-private", isPublic: false, askerId: "u-ask", answererId: "u-answer" })
+      await expect(svc.getQuestion("q-private", "outsider")).rejects.toThrow(BusinessException)
+      await expect(svc.getQuestion("q-private", undefined)).rejects.toThrow(BusinessException)
+      await expect(svc.getQuestion("q-private", "u-ask")).resolves.toMatchObject({ id: "q-private" })
+    })
+  })
+
+  it("未公开问题不能被外部用户围观扣币", async () => {
+    mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q-private", isPublic: false, askerId: "u-ask", answererId: "u-answer", status: "ANSWERED", peekPriceCoin: 10 })
+    await expect(svc.peek("outsider", "q-private")).rejects.toThrow(BusinessException)
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled()
   })
 
   // 坏味道 P2-4：入参归一化（safePagination），防非法 page/pageSize 致 skip:NaN/负数进 Prisma 抛 500

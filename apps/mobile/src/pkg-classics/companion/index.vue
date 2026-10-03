@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="cp-page">
     <!-- 顶部导航 -->
     <view class="cp-header">
@@ -6,7 +7,7 @@
         <app-icon name="arrow-left" :size="40" color="#1a1a1a" />
       </view>
       <view class="cp-hd-center">
-        <text class="cp-hd-title">识典伴读</text>
+        <text class="cp-hd-title">小简伴读</text>
         <text class="cp-hd-sub">{{ headerSub }}</text>
       </view>
       <view class="cp-hd-btn" @tap="clearChat">
@@ -33,7 +34,7 @@
               <app-icon name="sparkles" :size="40" color="#ffffff" />
             </view>
             <view>
-              <text class="cp-intro-title">我是你的识典伴读</text>
+              <text class="cp-intro-title">我是小简，陪你读这章</text>
               <text class="cp-intro-desc">正陪你研读{{ bookTitle ? `《${bookTitle}》` : '本篇' }}</text>
             </view>
           </view>
@@ -79,17 +80,35 @@
           </view>
           <view v-else class="cp-assist-wrap">
             <view class="cp-card">
-              <text class="cp-card-text">{{ m.content }}</text>
+              <text v-if="m.content" class="cp-card-text">{{ companionVisibleText(m) }}</text>
+              <view
+                v-if="!m.isStreaming && isLongCompanionAnswer(m)"
+                class="cp-answer-toggle"
+                role="button"
+                tabindex="0"
+                :aria-expanded="Boolean(m.expanded)"
+                @tap="toggleAnswer(m)"
+                @keydown="onAnswerKeydown($event, m)"
+              >
+                <text class="cp-answer-toggle-text">{{ m.expanded ? '收起详解' : '展开详解' }}</text>
+                <app-icon :name="m.expanded ? 'chevron-up' : 'chevron-down'" :size="26" color="#6b5b7a" />
+              </view>
+              <!-- 流式空气泡：首个 chunk 到达前的研读动画（内容到来后即被替换） -->
+              <view v-else-if="m.isStreaming" class="cp-loading">
+                <view class="cp-dots"><view class="cp-dot" /><view class="cp-dot" /><view class="cp-dot" /></view>
+                <text class="cp-loading-text">正在研读本章…</text>
+              </view>
               <text v-if="m.disclaimer" class="cp-disclaimer">{{ m.disclaimer }}</text>
             </view>
-            <view class="cp-card-ops">
+            <!-- 复制：流式进行中隐藏（内容未完整），完成后展示 -->
+            <view v-if="!m.isStreaming" class="cp-card-ops">
               <view class="cp-op" @tap="copyMsg(m.content)"><app-icon name="copy" :size="28" color="#999999" /></view>
             </view>
           </view>
         </view>
 
-        <!-- 加载状态 -->
-        <view v-if="isLoading" class="cp-msg-row">
+        <!-- 加载状态（降级模式：等待完整回复时显示；流式模式空气泡已自带研读动画，故仅在最后一条是用户消息时显示） -->
+        <view v-if="isLoading && messages[messages.length - 1]?.role === 'user'" class="cp-msg-row">
           <view class="cp-avatar">
             <app-icon name="sparkles" :size="32" color="#ffffff" />
           </view>
@@ -110,6 +129,23 @@
           </view>
           <view class="cp-upsell-btn" @tap="goVip">
             <text class="cp-upsell-btn-txt">了解会员</text>
+          </view>
+        </view>
+
+        <view v-if="messages.length && !isLoading" class="cp-next-steps">
+          <view class="cp-next-head">
+            <text class="cp-next-kicker">顺着这次共读继续</text>
+            <text class="cp-next-title">把理解变成下一步</text>
+          </view>
+          <view class="cp-next-actions">
+            <view class="cp-next-action cp-next-action--book" @tap="goClassics">
+              <app-icon name="book-open" :size="26" color="#8a5d2f" />
+              <text>继续读古籍</text>
+            </view>
+            <view class="cp-next-action cp-next-action--agent" @tap="goAgents">
+              <app-icon name="sparkles" :size="26" color="#315f7a" />
+              <text>找专业智能体</text>
+            </view>
           </view>
         </view>
 
@@ -149,12 +185,35 @@ import { classicsApi } from '@/lib/classics-data'
 import { vipApi } from '@/lib/vip-data'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
+import { streamChat, streamChatSupported } from '@/utils/stream-chat'
+import { track } from '@/composables/useTrack'
+import { presentAiAnswer } from '@/lib/ai-readable-answer'
 
 interface CompanionMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   disclaimer?: string
+  // 流式增量填充中（H5 真流式：空气泡→逐块追加；完成/降级时为 false）
+  isStreaming?: boolean
+  /** 长回答默认只露出结论，用户需要时再展开。 */
+  expanded?: boolean
+}
+
+function isLongCompanionAnswer(message: CompanionMessage) {
+  return message.role === 'assistant' && Boolean(presentAiAnswer(message.content).detail)
+}
+
+function companionVisibleText(message: CompanionMessage) {
+  if (!isLongCompanionAnswer(message) || message.expanded || message.isStreaming) return message.content
+  return presentAiAnswer(message.content).lead
+}
+
+function toggleAnswer(message: CompanionMessage) { message.expanded = !message.expanded }
+function onAnswerKeydown(event: KeyboardEvent, message: CompanionMessage) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  toggleAnswer(message)
 }
 
 const chapterId = ref('')
@@ -162,6 +221,14 @@ const bookTitle = ref('')
 const chapterTitle = ref('')
 const guidingPrompts = ref<string[]>([])
 const promptsLoading = ref(true)
+
+// 后端未按章节生成引导问题时的通用兜底（章节无关，任何篇目都成立）
+const FALLBACK_PROMPTS = [
+  '这一章主要讲了什么？',
+  '帮我把本章原文翻译成白话',
+  '本章有哪些值得记住的名句？',
+  '这一章对今天的我们有什么启发？',
+]
 
 const messages = ref<CompanionMessage[]>([])
 const inputValue = ref('')
@@ -171,11 +238,12 @@ const scrollAnchor = ref('')
 // —— AI 额度（书院会员权益①：会员不限量，免费用户每日限次）——
 const quota = ref<{ isMember: boolean; dailyLimit: number; remaining: number } | null>(null)
 const quotaExhausted = ref(false)
+const nextStepsReported = ref(false)
 
 async function loadQuota() {
   if (!getToken()) return // 未登录不打扰，发送时才引导登录
   try {
-    const q = await vipApi.getAiQuota()
+    const q = await vipApi.getAiQuota(true)
     quota.value = { isMember: q.isMember, dailyLimit: q.dailyLimit, remaining: q.remaining }
     quotaExhausted.value = !q.isMember && q.remaining <= 0
   } catch {
@@ -184,6 +252,19 @@ async function loadQuota() {
 }
 
 function goVip() { navigateTo('/vip') }
+function reportNextStepsView() {
+  if (nextStepsReported.value || !messages.value.length || isLoading.value) return
+  nextStepsReported.value = true
+  track.custom('classics_companion_next_view', { chapterId: chapterId.value })
+}
+function goClassics() {
+  track.custom('classics_companion_next_click', { chapterId: chapterId.value, target: 'classics' })
+  navigateTo('/pkg-classics/home/index')
+}
+function goAgents() {
+  track.custom('classics_companion_next_click', { chapterId: chapterId.value, target: 'agents' })
+  navigateTo('/agents')
+}
 
 // —— E3 带记忆：进页恢复本书共读历史（跨章节/跨登录续聊）——
 const memoryRestored = ref(false)
@@ -196,7 +277,7 @@ async function loadSession() {
       messages.value = s.messages.map((m, i) => ({
         id: `h-${i}`,
         role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.content,
+        content: m.chapterId === chapterId.value ? m.content : `【其他章节的历史对话】\n${m.content}`,
       }))
       memoryRestored.value = true
       scrollToBottom()
@@ -228,9 +309,11 @@ async function loadPrompts() {
     const r = await classicsApi.companionPrompts(chapterId.value)
     bookTitle.value = r.bookTitle || bookTitle.value
     chapterTitle.value = r.chapterTitle || chapterTitle.value
-    guidingPrompts.value = Array.isArray(r.prompts) ? r.prompts : []
+    const list = Array.isArray(r.prompts) ? r.prompts.filter((p) => !!p && p.trim()) : []
+    // 后端没给（或全空）时用通用兜底，保证开场必有引导气泡
+    guidingPrompts.value = list.length ? list : FALLBACK_PROMPTS
   } catch {
-    guidingPrompts.value = []
+    guidingPrompts.value = FALLBACK_PROMPTS
   } finally {
     promptsLoading.value = false
   }
@@ -241,6 +324,10 @@ function goBack() {
 }
 
 function clearChat() {
+  if (isLoading.value) {
+    uni.showToast({ title: '请等待本次回答结束后再清空', icon: 'none' })
+    return
+  }
   if (!messages.value.length) return
   uni.showModal({
     title: '清空对话',
@@ -267,7 +354,7 @@ function scrollToBottom() {
 function ensureLogin(): boolean {
   if (getToken()) return true
   uni.showModal({
-    title: '需要登录', content: '登录后即可与识典伴读对话', confirmText: '去登录',
+    title: '需要登录', content: '登录后即可与小简一起读书', confirmText: '去登录',
     success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-auth/login/index' }) },
   })
   return false
@@ -284,7 +371,7 @@ async function handleSend() {
   if (!chapterId.value) { uni.showToast({ title: '缺少章节信息', icon: 'none' }); return }
   if (!ensureLogin()) return
 
-  // 发送前的对话作为多轮历史
+  // 发送前的对话作为多轮历史（与非流式 companionChat 完全一致的入参）
   const history = messages.value.map((m) => ({ role: m.role, content: m.content }))
 
   messages.value.push({ id: Date.now().toString(), role: 'user', content: text })
@@ -292,31 +379,96 @@ async function handleSend() {
   isLoading.value = true
   scrollToBottom()
 
+  // H5 走真流式 SSE（chunk 增量上屏，根治长回答超时）；小程序/App 端不支持 fetch 流 → 降级原非流式接口
+  if (streamChatSupported()) await sendCoreStream(text, history)
+  else await sendCoreFallback(text, history)
+}
+
+/**
+ * H5 真流式：POST /classic/companion/chat/stream。
+ * 先 push 一条空 assistant 气泡，onChunk 逐块追加、onMeta 挂免责声明。
+ * 章节上下文靠 chapterId 透传（与非流式 companionChat 同构），后端据此注入本章原文，AI 才知道在读哪一章。
+ */
+async function sendCoreStream(text: string, history: { role: string; content: string }[]) {
+  const msgId = (Date.now() + 1).toString()
+  messages.value.push({ id: msgId, role: 'assistant', content: '', isStreaming: true })
+  const live = () => messages.value.find((m) => m.id === msgId)
+  try {
+    await streamChat(
+      '/classic/companion/chat/stream',
+      // 与 companionChat 原样透传：chapterId=章节上下文（后端注入本章原文）、question=用户问题、history=多轮历史
+      { chapterId: chapterId.value, question: text, history },
+      {
+        onChunk: (t) => {
+          const m = live()
+          if (m) m.content += t
+          scrollToBottom()
+        },
+        onMeta: (meta) => {
+          const m = live()
+          // disclaimer 为后端下发的 AI 风险免责声明（合规要求）
+          if (m && meta.disclaimer) m.disclaimer = meta.disclaimer
+        },
+      },
+    )
+    // 成功：收尾流式态 + 免费用户本地额度同步减 1
+    const done = live()
+    if (!done?.content.trim()) throw new Error('伴读未返回内容，请稍后重试。')
+    done.isStreaming = false
+    consumeQuotaLocal()
+  } catch (e) {
+    // 移除刚 push 的空流式气泡（若仍无内容）；已有部分内容则保留并收尾流式态
+    const m = live()
+    if (m) {
+      if (!m.content.trim()) messages.value = messages.value.filter((x) => x !== m)
+      else m.isStreaming = false
+    }
+    handleSendError(e)
+  } finally {
+    isLoading.value = false
+    scrollToBottom()
+    nextTick(reportNextStepsView)
+  }
+}
+
+/** 非 H5 降级：原非流式接口 companionChat（一次性完整返回，保留原有逻辑） */
+async function sendCoreFallback(text: string, history: { role: string; content: string }[]) {
   try {
     const r = await classicsApi.companionChat(chapterId.value, text, history)
+    if (!r?.answer?.trim()) throw new Error('伴读未返回内容，请稍后重试。')
     messages.value.push({
       id: (Date.now() + 1).toString(),
       role: 'assistant',
       content: r?.answer || '抱歉，我暂时无法回答，请换个角度再问问。',
       disclaimer: r?.disclaimer,
     })
-    // 免费用户成功一次消耗一次额度，本地同步减
-    if (quota.value && !quota.value.isMember) {
-      quota.value = { ...quota.value, remaining: Math.max(0, quota.value.remaining - 1) }
-      quotaExhausted.value = quota.value.remaining <= 0
-    }
+    consumeQuotaLocal()
   } catch (e) {
-    const msg = (e as Error)?.message || 'AI 暂时无法回答，请稍后重试。'
-    // 后端限次错误（引导语含“书院会员”）→ 展示会员引导卡而非裸错误
-    if (msg.includes('已用完') || msg.includes('书院会员')) {
-      quotaExhausted.value = true
-      if (quota.value) quota.value = { ...quota.value, remaining: 0 }
-    }
-    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: msg })
+    handleSendError(e)
   } finally {
     isLoading.value = false
     scrollToBottom()
+    nextTick(reportNextStepsView)
   }
+}
+
+/** 发送成功后免费用户本地额度同步减 1（流式与降级共用） */
+function consumeQuotaLocal() {
+  if (quota.value && !quota.value.isMember) {
+    quota.value = { ...quota.value, remaining: Math.max(0, quota.value.remaining - 1) }
+    quotaExhausted.value = quota.value.remaining <= 0
+  }
+}
+
+/** 统一错误处理（流式与降级共用）：后端限次错误 → 会员引导卡；其余 → 错误气泡 */
+function handleSendError(e: unknown) {
+  const msg = (e as Error)?.message || 'AI 暂时无法回答，请稍后重试。'
+  // 后端限次错误（引导语含“书院会员”）→ 展示会员引导卡而非裸错误
+  if (msg.includes('已用完') || msg.includes('书院会员')) {
+    quotaExhausted.value = true
+    if (quota.value) quota.value = { ...quota.value, remaining: 0 }
+  }
+  messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: msg })
 }
 
 function copyMsg(content: string) {
@@ -335,7 +487,7 @@ function copyMsg(content: string) {
 /* 顶部导航 */
 .cp-header {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 50;
   display: flex;
   align-items: center;
@@ -427,6 +579,16 @@ function copyMsg(content: string) {
 .cp-upsell-desc { font-size: 22rpx; color: #8A8478; line-height: 1.6; margin-top: 8rpx; display: block; }
 .cp-upsell-btn { padding: 14rpx 28rpx; border-radius: 999rpx; background: #C9A96E; flex-shrink: 0; }
 .cp-upsell-btn-txt { font-size: 24rpx; color: #FFFFFF; }
+
+/* 共读完成后的自然承接，不强迫用户购买或离开当前场景。 */
+.cp-next-steps { padding: 24rpx; border: 2rpx solid rgba(49,95,122,.14); border-radius: 24rpx; background: linear-gradient(145deg, #fbfaf6, #f7fafb); }
+.cp-next-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16rpx; }
+.cp-next-kicker { font-size: 20rpx; letter-spacing: 2rpx; color: #8a7a70; }
+.cp-next-title { font-size: 26rpx; font-weight: 700; color: #2f3540; }
+.cp-next-actions { display: flex; gap: 14rpx; margin-top: 18rpx; }
+.cp-next-action { flex: 1; min-width: 0; height: 72rpx; display: flex; align-items: center; justify-content: center; gap: 8rpx; border-radius: 16rpx; font-size: 23rpx; font-weight: 700; }
+.cp-next-action--book { color: #8a5d2f; background: rgba(138,93,47,.09); }
+.cp-next-action--agent { color: #315f7a; background: rgba(49,95,122,.09); }
 
 /* 消息区域 */
 .cp-body {
@@ -550,11 +712,22 @@ function copyMsg(content: string) {
   border: 2rpx solid rgba(235, 230, 223, 0.6);
 }
 .cp-card-text {
-  font-size: 28rpx;
-  line-height: 1.7;
+  font-size: 31rpx;
+  line-height: 1.82;
   color: #1a1a1a;
   white-space: pre-wrap;
 }
+.cp-answer-toggle {
+  min-height: 64rpx;
+  margin-top: 18rpx;
+  padding-top: 16rpx;
+  border-top: 2rpx solid rgba(107, 91, 122, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+}
+.cp-answer-toggle-text { font-size: 25rpx; color: #6b5b7a; font-weight: 600; }
 .cp-disclaimer {
   display: block;
   margin-top: 20rpx;

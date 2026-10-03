@@ -93,6 +93,35 @@ export function validateVideoMagic(buffer: Buffer): { valid: boolean; actualType
   return { valid: false };
 }
 
+/**
+ * 文档魔数校验（PDF / Office / 纯文本 / 压缩包）。
+ * - PDF: %PDF (25 50 44 46)
+ * - docx/xlsx/pptx/zip: PK (50 4B 03 04 / 50 4B 05 06 / 50 4B 07 08)
+ * - doc/xls/ppt (OLE2): D0 CF 11 E0
+ * - text/plain / text/markdown 无魔数 → 由调用方按 MIME 跳过本校验
+ */
+export function validateDocumentMagic(buffer: Buffer): { valid: boolean; actualType?: string } {
+  if (buffer.length < 4) return { valid: false };
+
+  // PDF: 25 50 44 46 ("%PDF")
+  if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+    return { valid: true, actualType: "application/pdf" };
+  }
+
+  // ZIP 容器（docx/xlsx/pptx/zip）: 50 4B 03/05/07
+  if (buffer[0] === 0x50 && buffer[1] === 0x4b &&
+      (buffer[2] === 0x03 || buffer[2] === 0x05 || buffer[2] === 0x07)) {
+    return { valid: true, actualType: "application/zip" };
+  }
+
+  // OLE2 复合文档（doc/xls/ppt）: D0 CF 11 E0
+  if (buffer[0] === 0xd0 && buffer[1] === 0xcf && buffer[2] === 0x11 && buffer[3] === 0xe0) {
+    return { valid: true, actualType: "application/x-ole-storage" };
+  }
+
+  return { valid: false };
+}
+
 /** 获取文件魔数字节特征串（用于日志/调试） */
 export function getMagicHex(buffer: Buffer, length = 16): string {
   return buffer.subarray(0, Math.min(length, buffer.length)).toString("hex");

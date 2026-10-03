@@ -1,0 +1,547 @@
+{
+  "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+  "parent": "13686abd92a027914b74ac0992d6dd861a7dc939",
+  "businessCommit": "dc46ce10403fb42fa910174442ea95f61f5c9512",
+  "testFixtureCommits": [
+    "eb882aeb9cf161124d3c396f833195d781b4c9f6",
+    "4d5dc15ef4d316101fe7dc6fc312729c20152dcd"
+  ],
+  "record": "会员当月恢复跨月保护与工单行锁验证-20261002.json",
+  "localPassed": 390,
+  "localSuites": 21,
+  "directionalFixturePassed": 41,
+  "compiledPassed": 20,
+  "compiledPostgresPassed": 8,
+  "linux": {
+    "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+    "verificationCommit": "2eacad95e9ba409df06269d758bfb3f69375b869",
+    "runId": 37027014500,
+    "artifactId": 11234979902,
+    "artifactDigest": "sha256:bf1af3e32965eafdc0efc6c6f63ec29d74ca3256a6b4341e94e9666eb6958ec3",
+    "digestVerified": true,
+    "passed": 758,
+    "suites": 44,
+    "skipped": 0,
+    "failed": 0,
+    "newCases": 20,
+    "newPostgresCases": 8,
+    "sourceBindings": [
+      {
+        "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
+        "sha256": "e0e8933425f69dc71ead6eab089a5bdf62bc8919db1f8e6deb45e6a3716ae1b3"
+      },
+      {
+        "path": "apps/server/src/modules/entitlement/entitlement.controller.ts",
+        "sha256": "1008f232f1bd0592c57f7db1b1a1b55528f64a6ea84e4fd913ad5111ef10d54a"
+      },
+      {
+        "path": "apps/mobile/src/pkg-mine/memberships/index.vue",
+        "sha256": "4699b9b4587b28ba2b239498be304c214f46eb4ca7b9a89c9073f062611a2343"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.service.ts",
+        "sha256": "b86371048153c7f6f6146e50b7ce3a23f4c8b3bc4b6f00206baf83801acd867b"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.controller.ts",
+        "sha256": "b071e9b9b56f9c2119956815c8487ef0f411ad07d07d4a1f3ad7239295f8b2e8"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.dto.ts",
+        "sha256": "832467dd50bf8f8b4e557aca088a9a754c57927205eda68237431b4ff869bc61"
+      },
+      {
+        "path": "apps/server/prisma/schema.prisma",
+        "sha256": "f9c8024c771822d0b012e42eb87ae8280c973d791e06a788930fbef0e11eaea1"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-grant.service.ts",
+        "sha256": "e205b81713531f5a6b307dc1d4ec111c7148a0ab9a02bcbb51d2c215ccae7df6"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+        "sha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+      },
+      {
+        "path": "apps/mobile/src/lib/im-data.ts",
+        "sha256": "8af6322ddb816573a9735c7e0567e427b6f893e0d4056cdaff67c8a4537221e3"
+      },
+      {
+        "path": "apps/mobile/src/lib/mine-data.ts",
+        "sha256": "86b63067fe9eb2f59e668230fd84612798ad481af08e861b6004ed038df3bfba"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "sha256": "e6cdae211eca1f515b53dbee281fd6c1dd11a054c00547b24b132fb0fb9ed7ac"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-reply.ts",
+        "sha256": "61597af6b20f93452ec7664e88e6d730d2ccd391c363a98cc09085fef64002b5"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.task.ts",
+        "sha256": "a7213e5514ab0bb7708f6dcf1d073841ec0477ed2f390e4e15ded456937c7add"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+        "sha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.task.spec.ts",
+        "sha256": "26035bf36ca8c1a2bb44fa423702350232584037c9a3a06bd6ca44f975d15208"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.spec.ts",
+        "sha256": "b09c8cd7f2b1b6339717c2e9cd7593330081ee8e5d3ed4be74e7b4119bba3431"
+      },
+      {
+        "path": "apps/server/src/modules/user/user.module.ts",
+        "sha256": "df286cabda81c758a3dcc9b3e8839336a31fadf426fc3a3550179b1c8809c258"
+      },
+      {
+        "path": "apps/server/src/modules/im/im-callback.controller.ts",
+        "sha256": "72d9413d0245b098cfbf58bb64173eadcb2be6c9cd13c13d677f56b68628c187"
+      },
+      {
+        "path": "apps/server/src/modules/im/im-callback.privacy.spec.ts",
+        "sha256": "c3f5041b28c6d9d055ae46f4b2aa683910cddfcb90ccad541ce793fa54b55cb7"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.service.ts",
+        "sha256": "b27070ad6e2d5b49a184cce723bdd65782c7bfbf2aaf8f9d9a30730711808da0"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+        "sha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "sha256": "ee5181af3733a3b4adae5230353ec094fbfa709d066da484252faff3927e5554"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+        "sha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.spec.ts",
+        "sha256": "a771684a1e797cd2542f4d36c862cecaf96ed0208d056a106b76239cd66e59bb"
+      },
+      {
+        "path": "apps/server/prisma/migrations-deploy/full-baseline.sql",
+        "sha256": "211dac19aac7e2a733f985051a6f8841b1588392271be665099376d6a8e9a4b2"
+      },
+      {
+        "path": "apps/server/prisma/migrations/manual_z_20261002_01_circle_post_reward_notice/migration.sql",
+        "sha256": "fa9af2c9585696874fd31ac4c7fd45210cc45a809fa9393f17970716435ea5aa"
+      },
+      {
+        "path": "apps/server/src/modules/circle/circle.module.ts",
+        "sha256": "9b91f4dbcef271deaf6e4fec942cace5ce51e30ac90cdd414005af9801e24fb9"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
+        "sha256": "1a581cc4079ae3b3aa067a95ca2dec5485c272cf4300b66efefdf3839378b220"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+        "sha256": "4fa588a45e1913450be3434cc971ff6dc59c9fd3db15a66c8d11caa0ca0f7774"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts",
+        "sha256": "b4f663ece1ac9376e26625f1a2d262f7700d6cd572788bdd03ce758d4b9946c6"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.spec.ts",
+        "sha256": "563ea21be3190867969a457dc97b42e4ea8be62b51f81a98dab4851365c6b84e"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+        "sha256": "f6408ed1547ecd2a0067eb425aa56aa3e5b6b2ae112b9b076b14b27044ed164c"
+      },
+      {
+        "path": "apps/server/src/modules/notification/notification.service.ts",
+        "sha256": "32aa26b7711c07de89d311d5fcb772307fa3812411aa7bfb3b3a6baea5987cb5"
+      },
+      {
+        "path": "apps/server/src/modules/notification/notification.service.spec.ts",
+        "sha256": "601a0ffad240ca8911bf3a7d0daaa3528f5cda146070724323e1112dbc55aa8b"
+      },
+      {
+        "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+        "sha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+        "sha256": "9ab89ae6c20bdd89bf85ffe486a91a33c56647b149b6ba58ba56210e6f2a9f86"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "sha256": "1b34c96cc0b92c433e37eca55426152ce8ac9c35db51b6ea65f5bfc88ab783d2"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+        "sha256": "ce4efd134d84be5de1f141354be716d463c65896b50bcfca46312f69db4815bf"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+        "sha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+      },
+      {
+        "path": "apps/server/src/modules/circle/circle.service.spec.ts",
+        "sha256": "21475ea2e9754bbfd49a071ee44ae8b121097c5755218dcca359d64efc574c77"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-core.service.ts",
+        "sha256": "ee34c28a0b5cf182b5135786d8b209e06092c10ff9fa67ddc3ad1926d074e63d"
+      },
+      {
+        "path": "apps/server/src/modules/circle/circle.controller.ts",
+        "sha256": "4103041e15110a592341927140ff72f53b347fc66d7a8a7947ff2edb7ddfce1f"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-detail-privacy.spec.ts",
+        "sha256": "99b1c7797a4d5fe7c7f24be525b4984df0144ca014d85585fd7f15bfcf040362"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+        "sha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+      },
+      {
+        "path": "apps/server/prisma/migrations/manual_z_20261002_02_circle_membership_expiry_notice/migration.sql",
+        "sha256": "6ab6dad9bb56dfa4a5e36c5a4c410a0eea5506e4adcf5c5795decdb12623f32e"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership-expiry-notification.task.ts",
+        "sha256": "2c8423d1d52e6490a1db4a7c23d4ea835112a6b5456ffc82bf7c7be19874ad77"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership-expiry-notification.task.spec.ts",
+        "sha256": "ccff2c2c0ea1473908ab349480b791540a759615bb1a4fc25e7c83e34d4e5f29"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+        "sha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+      },
+      {
+        "path": "apps/server/src/redis/redis.service.ts",
+        "sha256": "d6e6ae69cef9c8098059e93d1c24110a05d5dcdf76ac05d473eacfb7f13eb2c8"
+      },
+      {
+        "path": "apps/server/src/redis/redis.service.spec.ts",
+        "sha256": "cf2f2c2a0beb3a09816e26bceaba58e4612a8ca894a500f8a00afb732f7c6e1f"
+      },
+      {
+        "path": "apps/server/prisma/migrations/manual_z_20261002_03_circle_governance_notice/migration.sql",
+        "sha256": "313f51de5b45e6ed1c2b6faa2f35bbe5622a6f2171fb2e4d004cb22570afc2b0"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance-notification.task.ts",
+        "sha256": "1acf38e7a8de1095c80b4306455a0eda6b15bc45d38e1c2e76be6a57dccbb0ee"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance-notification.task.spec.ts",
+        "sha256": "01461ab137141701800ccd891000170e84ecc15a883fa94ed88e35880c08c0b6"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+        "sha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership-cache.task.ts",
+        "sha256": "32d4c886da93b81b3ed8dadd7d70bcaa0810f542dec335afad030799d2a44a05"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership-cache.task.spec.ts",
+        "sha256": "df14fec6ff0461ae823261b0bc1efab14423d4a7d3d38ac6d9f2ef4a5f9d6e1f"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+        "sha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+      },
+      {
+        "path": "apps/server/src/redis/redis-circle-membership-cache.spec.ts",
+        "sha256": "5cb2d9ff85adc476ae22177aa0a2e9eb166cc5c427deda1fe3252ab87caf0b68"
+      },
+      {
+        "path": "apps/server/src/redis/redis.service.ts",
+        "sha256": "d6e6ae69cef9c8098059e93d1c24110a05d5dcdf76ac05d473eacfb7f13eb2c8"
+      },
+      {
+        "path": "apps/server/prisma/migrations/manual_z_20261002_04_circle_membership_cache/migration.sql",
+        "sha256": "5d47e365ba3163d38dc39a37c2d31788844e10d94d4399936fc34747bba9718a"
+      },
+      {
+        "path": "apps/server/src/modules/shop/circle-fulfillment.ts",
+        "sha256": "8f86b4269b2ea0c82d65a64c4fdaee9d0f492c435f54ae07f2b34039a87ef025"
+      },
+      {
+        "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+        "sha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+      },
+      {
+        "path": "apps/server/src/modules/shop/shop-payment.service.ts",
+        "sha256": "81d8986b73ab494c4941747cbc9025010f671ac7f1fa958ad1e8e4f36526e5ae"
+      },
+      {
+        "path": "apps/server/src/modules/shop/shop-order-lifecycle.service.ts",
+        "sha256": "88684cc7b305d6313c6908e72af6c04ffefd93b98bd29d312d6a483b882b1c6a"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+        "sha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-monthly-recovery.spec.ts",
+        "sha256": "2cbf3fdef6accddd23aa150c2198447e5db5309538e91ab98153140590f97e54"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+        "sha256": "3c1b564ba2fba7ddd2ecc1535159116af2eb473113cca5f05dafb1fe0e07b919"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.module.ts",
+        "sha256": "7f08feee2537c2f7c01b9c7e59eb06144175c7ce4c82419f658600e6abde7a19"
+      }
+    ],
+    "sourceBindingEntryCount": 69,
+    "uniqueSourceFileCount": 68,
+    "baselineWarnings": [
+      {
+        "path": "apps/server/src/modules/member/member-benefit.service.ts",
+        "line": 98,
+        "parentEquivalent": true
+      }
+    ],
+    "realRedis": false,
+    "production": false,
+    "formalDockerfileImage": false,
+    "checkedAt": "2026-10-02T15:32:07.942Z"
+  },
+  "ci": {
+    "runId": 37026952796,
+    "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+    "passed": 9009,
+    "skipped": 392,
+    "jobsPassed": 8
+  },
+  "currentMonthRecoveryCompleteInIsolation": true,
+  "couponCollisionPolicyUnchanged": true,
+  "N5OverallComplete": false,
+  "N4OverallComplete": false,
+  "migrationCount": 132,
+  "newMigration": false,
+  "production": false,
+  "formalDockerfileImage": false,
+  "newPhoneTest": false,
+  "releaseReady": false,
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（本批限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "receipt": {
+    "parent": "13686abd92a027914b74ac0992d6dd861a7dc939",
+    "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+    "files": [
+      "apps/server/src/modules/member/member-grant.service.ts",
+      "apps/server/src/modules/member/member-benefit.service.ts",
+      "apps/server/src/modules/member/member-monthly-recovery.spec.ts",
+      "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts"
+    ],
+    "localPassed": 390,
+    "suites": 21,
+    "newCases": 20,
+    "newPostgresCases": 8,
+    "compiledPassed": 20,
+    "actualNestSchedulerRegistered": true,
+    "skipped": 0,
+    "typecheckExit": 0,
+    "buildExit": 0,
+    "lintErrors": 0,
+    "existingAnyWarnings": 1,
+    "newMigration": false,
+    "migrationCount": 132,
+    "currentMonthOnly": true,
+    "serverCalendarRetained": true,
+    "firstDayNineAMRetained": true,
+    "historicalBackfill": false,
+    "couponCollisionPolicyUnchanged": true,
+    "production": false,
+    "realRedisThisBatch": false,
+    "releaseReady": false,
+    "checkedAt": "2026-10-02T15:26:02.415Z",
+    "businessCommit": "dc46ce10403fb42fa910174442ea95f61f5c9512",
+    "testFixtureCommits": [
+      "eb882aeb9cf161124d3c396f833195d781b4c9f6",
+      "4d5dc15ef4d316101fe7dc6fc312729c20152dcd"
+    ],
+    "productSourceEquivalent": true,
+    "fixtureDirectionalPassed": 41,
+    "fixtureTypecheckExit": 0,
+    "fixtureLintErrors": 0
+  },
+  "compiled": {
+    "passed": 20,
+    "realPostgresCases": 8,
+    "schedulerAndUnitCases": 12,
+    "skipped": 0,
+    "compiledRuntime": true,
+    "actualNestSchedulerRegistered": true,
+    "realPostgres": true,
+    "realRedis": false,
+    "production": false,
+    "historicalBackfill": false,
+    "formalDockerfileImage": false,
+    "bindings": [
+      {
+        "path": "modules/member/member-grant.service",
+        "sourceSha256": "e205b81713531f5a6b307dc1d4ec111c7148a0ab9a02bcbb51d2c215ccae7df6",
+        "compiledSha256": "a736eeb4f3c69555a737e54224cc438e886551546402a40de9b856798dd87226"
+      },
+      {
+        "path": "modules/member/member-benefit.service",
+        "sourceSha256": "b27070ad6e2d5b49a184cce723bdd65782c7bfbf2aaf8f9d9a30730711808da0",
+        "compiledSha256": "9e6debea54f382ab2e226c66aac93a56504a50a45bce5f3b8e5abecaa8e9a686"
+      },
+      {
+        "path": "modules/member/member.module",
+        "sourceSha256": "2b3f7525561cf46584044da5247d66f9c9a4de52ff574049f314e1a36a61f92f",
+        "compiledSha256": "83b735f5a6154742471e0f3cec1c6b8f957c7cf041c8549e4bb0d75e162d5069"
+      }
+    ],
+    "checkedAt": "2026-10-02T15:25:24.443Z"
+  },
+  "methodBoundaries": {
+    "boundary": [
+      {
+        "file": "apps/server/src/modules/member/member-grant.service.ts",
+        "changed": [
+          "monthlyGrantCron",
+          "runMonthlyGrant",
+          "monthlyGrantRecoveryCron",
+          "runScheduledMonthlyGrant"
+        ],
+        "otherMethodsEquivalent": true
+      },
+      {
+        "file": "apps/server/src/modules/member/member-benefit.service.ts",
+        "changed": [
+          "grantMonthlyBenefits",
+          "grantMonthlyBenefitsWithTx"
+        ],
+        "otherMethodsEquivalent": true
+      }
+    ],
+    "grantPolicyTailEquivalent": true,
+    "paymentRefundCircleFrontendUnchanged": true,
+    "newMigration": false
+  },
+  "firstLinuxFailure": {
+    "runId": 37024523015,
+    "sourceCommit": "dc46ce10403fb42fa910174442ea95f61f5c9512",
+    "verificationCommit": "98fdbe7ff62c31413119ee08fbb1148c9eae13ab",
+    "passed": 749,
+    "failed": 8,
+    "failures": [
+      {
+        "file": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+        "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 同一旧快照的两个结案请求，CAS 仅允许一个写入与通知",
+        "message": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 1\nReceived: 0\n    at Object.<anonymous> (/home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/user/feedback-notification.postgres.spec.ts:206:74)"
+      },
+      {
+        "file": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+        "name": "当前月恢复真实PG事务 错过月初原调度，当月恢复自动发一次，重复调度不重复加余额",
+        "message": "Error: thrown: \"Exceeded timeout of 30000 ms for a test.\nAdd a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.\"\n    at /home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:102:3\n    at _dispatchDescribe (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/index.js:91:26)\n    at describe (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/index.js:55:5)\n    at Object.<anonymous> (/home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:20:37)\n    at Runtime._execModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)\n    at Runtime._loadModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)\n    at Runtime.requireModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)\n    at jestAdapter (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:77:13)\n    at processTicksAndRejecti"
+      },
+      {
+        "file": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+        "name": "当前月恢复真实PG事务 原cron与恢复并发，逐用户锁仍只发一次",
+        "message": "Error: thrown: \"Exceeded timeout of 30000 ms for a test.\nAdd a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.\"\n    at /home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:110:3\n    at _dispatchDescribe (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/index.js:91:26)\n    at describe (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/index.js:55:5)\n    at Object.<anonymous> (/home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:20:37)\n    at Runtime._execModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)\n    at Runtime._loadModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)\n    at Runtime.requireModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)\n    at jestAdapter (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:77:13)\n    at processTicksAndRejecti"
+      },
+      {
+        "file": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+        "name": "当前月恢复真实PG事务 真实流水写入故障，恢复前无部分到账，下一次调度恢复",
+        "message": "Error: thrown: \"Exceeded timeout of 30000 ms for a test.\nAdd a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.\"\n    at /home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:117:3\n    at _dispatchDescribe (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/index.js:91:26)\n    at describe (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/index.js:55:5)\n    at Object.<anonymous> (/home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:20:37)\n    at Runtime._execModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)\n    at Runtime._loadModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)\n    at Runtime.requireModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)\n    at jestAdapter (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:77:13)\n    at processTicksAndRejecti"
+      },
+      {
+        "file": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+        "name": "当前月恢复真实PG事务 仅当月标记；过去月份已有记录不被重发",
+        "message": "PrismaClientUnknownRequestError: \nInvalid `db.pointsRecord.create()` invocation in\n/home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:140:27\n\n  137 it(\"仅当月标记；过去月份已有记录不被重发\", async () => {\n  138   await config();\n  139   const id = await member();\n→ 140   await db.pointsRecord.create(\nError occurred during query execution:\nConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: \"P0001\", message: \"synthetic monthly restore failure\", severity: \"ERROR\", detail: None, column: None, hint: None }), transient: false })\n    at ei.handleRequestError (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.9.3__typescript@5.9.3/node_modules/@prisma/client/src/runtime/RequestHandler.ts:237:13)\n    at ei.handleAndLogRequestError (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.9.3__typescript@5.9.3/node_modules/@prisma/client/src/runtime/RequestHandler.ts:174:12)\n    at ei.request (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.9.3__typescript@5.9.3/node_modules/@prisma/client/src/runtime/RequestHandler.ts:143:12)\n    at a (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_typescript@5.9.3__typescript@5.9.3/node_modules/@prisma/client/src/runtime/getPrismaClient.ts:833:24)\n   "
+      },
+      {
+        "file": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+        "name": "当前月恢复真实PG事务 等待用户锁跨月，旧批次不能在锁内继续写入",
+        "message": "Error: thrown: \"Exceeded timeout of 30000 ms for a test.\nAdd a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.\"\n    at /home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:158:3\n    at _dispatchDescribe (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/index.js:91:26)\n    at describe (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/index.js:55:5)\n    at Object.<anonymous> (/home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:20:37)\n    at Runtime._execModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)\n    at Runtime._loadModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)\n    at Runtime.requireModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)\n    at jestAdapter (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:77:13)\n    at processTicksAndRejecti"
+      },
+      {
+        "file": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+        "name": "当前月恢复真实PG事务 过期与已撤销会员不恢复，零积分方案只写防重标记",
+        "message": "Error: thrown: \"Exceeded timeout of 30000 ms for a test.\nAdd a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.\"\n    at /home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:197:3\n    at _dispatchDescribe (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/index.js:91:26)\n    at describe (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/index.js:55:5)\n    at Object.<anonymous> (/home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:20:37)\n    at Runtime._execModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)\n    at Runtime._loadModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)\n    at Runtime.requireModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)\n    at jestAdapter (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:77:13)\n    at processTicksAndRejecti"
+      },
+      {
+        "file": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+        "name": "当前月恢复真实PG事务 同模板已有未用券仍安全回滚，不擅自改为仅赠积分或多发券",
+        "message": "Error: thrown: \"Exceeded timeout of 30000 ms for a test.\nAdd a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.\"\n    at /home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:208:3\n    at _dispatchDescribe (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/index.js:91:26)\n    at describe (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/index.js:55:5)\n    at Object.<anonymous> (/home/runner/work/guoxue-platform/guoxue-platform/candidate/apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts:20:37)\n    at Runtime._execModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1439:24)\n    at Runtime._loadModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1022:12)\n    at Runtime.requireModule (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:882:12)\n    at jestAdapter (/home/runner/work/guoxue-platform/guoxue-platform/candidate/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:77:13)\n    at processTicksAndRejecti"
+      }
+    ],
+    "fixtureOnlyFix": true,
+    "productSourceChanged": false,
+    "localDirectionalPassed": 41,
+    "linuxRecheckPending": true
+  },
+  "realRedisThisBatch": false,
+  "transportSignatureAndRealChannelCovered": false,
+  "cleanup": {
+    "port": 55462,
+    "shared5433Unmodified": true,
+    "dataPreserved": true,
+    "stopped": true,
+    "shared6379Unmodified": true,
+    "checkedAt": "2026-10-02T15:40:16.0287104Z",
+    "production": false
+  },
+  "nextPractitionerAudit": {
+    "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+    "results": [
+      {
+        "kind": "renew",
+        "callbackResults": [
+          true,
+          true
+        ],
+        "paidOrders": 2,
+        "grantLedgers": 2,
+        "expiry": "2030-02-28T20:00:00.000Z",
+        "expectedDoubleExpiry": "2030-03-28T20:00:00.000Z",
+        "initialSingleExpiry": "2030-02-28T20:00:00.000Z",
+        "bugConfirmed": true,
+        "realCallbackService": true,
+        "realPostgres": true,
+        "verifiedWebhookSignature": false,
+        "realRedis": false,
+        "realChannel": false
+      },
+      {
+        "kind": "first",
+        "callbackResults": [
+          true,
+          true
+        ],
+        "paidOrders": 1,
+        "grantLedgers": 1,
+        "expiry": "2026-11-02T15:29:43.030Z",
+        "bugConfirmed": true,
+        "realCallbackService": true,
+        "realPostgres": true,
+        "verifiedWebhookSignature": false,
+        "realRedis": false,
+        "realChannel": false
+      }
+    ],
+    "production": false,
+    "fundsTouched": false,
+    "checkedAt": "2026-10-02T15:29:43.101Z"
+  },
+  "checkedAt": "2026-10-02T15:44:56.903Z"
+}

@@ -1,0 +1,31 @@
+{
+  "nodes": [
+    {
+      "node": "guoxue2",
+      "instanceId": "ins-0sen8yvf",
+      "invocationId": "inv-c9emuggrhp",
+      "taskId": "invt-c9emuggrhq",
+      "hostname": "VM-0-10-ubuntu",
+      "observedUtc": "2026-10-03T07:32:49Z",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordSha256": "c0bf291db4e00c5223092d44a0c6856a307da875e044db6c1dbcb4551fd21f85"
+    },
+    {
+      "node": "guoxue1",
+      "instanceId": "ins-n0sqc627",
+      "invocationId": "inv-a9emvwgiq6",
+      "taskId": "invt-a9emvwgiq7",
+      "hostname": "VM-0-14-ubuntu",
+      "observedUtc": "2026-10-03T07:34:21Z",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordSha256": "bff342b80b058748e70c7402af13f80a12a50bd423879fcdb7736d5ed1251a17"
+    }
+  ],
+  "cloudBusinessReadOnly": true,
+  "productionDeployment": false,
+  "credentialsPrinted": false
+}

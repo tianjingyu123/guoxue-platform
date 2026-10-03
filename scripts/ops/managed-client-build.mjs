@@ -1,0 +1,32 @@
+import {readFileSync,writeFileSync,mkdirSync,cpSync,mkdtempSync,symlinkSync,readdirSync} from 'node:fs';
+import {resolve,join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {spawnSync,execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+const repo=fileURLToPath(new URL('../../',import.meta.url)),mobile=resolve(repo,'apps/mobile');
+const [path,platform]=process.argv.slice(2);
+if(!path||!['h5','mp-weixin','app'].includes(platform))throw new Error('用法：node scripts/ops/managed-client-build.mjs 公开开通配置.json h5|mp-weixin|app');
+const config=JSON.parse(readFileSync(resolve(path),'utf8'));
+if(!config||typeof config!=='object'||Array.isArray(config)||Object.keys(config).some(key=>!['applicationId','clientKey','name','apiOrigin','channel','versionName','versionCode','uniAppId','wechatAppId','packageName'].includes(key)))throw new Error('构建配置仅接受公开开通信息，禁止凭据或未知字段');
+for(const key of['applicationId','clientKey'])if(typeof config[key]!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(config[key]))throw new Error('须固定已登记的应用与客户端选择器');
+if(!['local-candidate','formal'].includes(config.channel)||typeof config.name!=='string'||!config.name.trim()||config.name.length>60||/[<>\r\n]/.test(config.name)||typeof config.apiOrigin!=='string')throw new Error('渠道、名称或公开地址无效');
+if(config.apiOrigin){const url=new URL(config.apiOrigin);if(url.username||url.password||url.search||url.hash||url.pathname!=='/'||!(url.protocol==='https:'||(config.channel==='local-candidate'&&url.protocol==='http:'&&['127.0.0.1','localhost'].includes(url.hostname))))throw new Error('API只能为无凭据的HTTPS源站，本地候选可用显式loopback');}
+if(config.channel==='formal'&&!config.apiOrigin)throw new Error('正式渠道必须显式提供自己的API源站');
+if(typeof config.versionName!=='string'||!/^\d+\.\d+\.\d+$/.test(config.versionName)||!Number.isSafeInteger(config.versionCode)||config.versionCode<1)throw new Error('版本名称与版本号须显式约定');
+if(config.channel==='formal'&&platform==='mp-weixin'&&!/^wx[a-f0-9]{16}$/.test(config.wechatAppId||''))throw new Error('正式小程序缺本应用真实登记AppID');
+if(config.channel==='formal'&&platform==='app'&&(!/^__UNI__[A-F0-9]{7}$/.test(config.uniAppId||'')||config.uniAppId==='__UNI__0000000'||!/^([a-z][a-z0-9_]*\.)+[a-z][a-z0-9_]*$/.test(config.packageName||'')))throw new Error('正式App缺本应用实际登记和包标识，不能借用平台AppID');
+const runtime=resolve(repo,'pilots/managed-tenancy/.runtime/managed-build');mkdirSync(runtime,{recursive:true});const dir=mkdtempSync(join(runtime,platform+'-')),input=join(dir,'input'),output=join(dir,'dist');
+cpSync(resolve(mobile,'managed'),input,{recursive:true});symlinkSync(resolve(mobile,'node_modules'),join(input,'node_modules'),'junction');
+const manifest=JSON.parse(readFileSync(join(input,'manifest.json'),'utf8'));Object.assign(manifest,{name:config.name,appid:config.uniAppId||'__UNI__0000000',versionName:config.versionName,versionCode:String(config.versionCode)});manifest['mp-weixin'].appid=config.wechatAppId||'';
+if(config.packageName)manifest['app-plus'].distribute={android:{packagename:config.packageName},ios:{appid:config.packageName}};
+writeFileSync(join(input,'manifest.json'),JSON.stringify(manifest,null,2));
+writeFileSync(join(input,'index.html'),'<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+config.name.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'</title></head><body><div id="app"></div><script type="module" src="/main.ts"></script></body></html>');
+const env={...process.env,VITE_ROOT_DIR:input,UNI_INPUT_DIR:input,UNI_OUTPUT_DIR:output,VITE_MANAGED_API_ORIGIN:config.apiOrigin.replace(/\/$/,''),VITE_APP_CLIENT_KEY:config.clientKey,VITE_APP_APPLICATION_ID:config.applicationId,VITE_MANAGED_BUILD:String(config.versionCode),VITE_MANAGED_RESOURCE:String(config.versionCode)};
+const args=[resolve(mobile,'node_modules/@dcloudio/vite-plugin-uni/bin/uni.js'),'build','-p',platform,'--config',resolve(mobile,'vite.managed.config.ts')];
+const built=spawnSync(process.execPath,args,{cwd:mobile,env,encoding:'utf8',windowsHide:true,timeout:180000,maxBuffer:8*1024*1024});writeFileSync(join(dir,'build.log'),(built.stdout||'')+(built.stderr||''));
+if(built.status!==0||built.error){console.error(JSON.stringify({built:false,platform,log:join(dir,'build.log')}));process.exit(1);}
+const sha=file=>createHash('sha256').update(readFileSync(file)).digest('hex');
+const walk=base=>readdirSync(base,{withFileTypes:true}).filter(item=>item.name!=='node_modules').flatMap(item=>item.isDirectory()?walk(join(base,item.name)):[join(base,item.name)]);
+const lock=resolve(repo,'pilots/managed-tenancy/.runtime/mobile-deps/pnpm-lock.yaml');
+const receipt={dependencyLockSha256:sha(lock),version:1,head:execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8'}).trim(),workingTreeDirty:!!execFileSync('git',['status','--porcelain'],{cwd:repo,encoding:'utf8'}).trim(),applicationId:config.applicationId,platform,channel:config.channel,presentation:{profileId:'managed-presentation-v1',nativeBuild:String(config.versionCode),resourceVersion:String(config.versionCode),components:['notice','richtext','entry-grid'],capabilityRegistrationRequired:true},sources:Object.fromEntries([...walk(resolve(mobile,'managed')),resolve(mobile,'vite.managed.config.ts'),resolve(repo,'packages/shared/src/client-presentation.ts'),fileURLToPath(import.meta.url)].map(file=>[file.slice(repo.length).replaceAll('\\','/'),sha(file)])),files:Object.fromEntries(walk(output).map(file=>[file.slice(output.length+1).replaceAll('\\','/'),sha(file)])),production:false,limits:['共享客户源码的渠道资源编译，不代表真实登记、证书签名、真机安装或商店上架','本构建不包含平台登录、支付、埋点、热更新或供应商SDK','本地候选使用合成AppID；正式配置仍须已有登记证据和发布授权']};
+writeFileSync(join(dir,'receipt.json'),JSON.stringify(receipt,null,2));console.log(JSON.stringify({built:true,platform,output,receipt:join(dir,'receipt.json')}));

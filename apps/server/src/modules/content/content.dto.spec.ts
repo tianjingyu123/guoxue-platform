@@ -4,6 +4,19 @@ import { CreateContentDto, UpdateContentDto, ContentType } from "./content.dto";
 
 describe("Content DTO 校验", () => {
   describe("CreateContentDto", () => {
+    it("草稿状态经过白名单校验后仍然保留", async () => {
+      const dto = Object.assign(new CreateContentDto(), {
+        title: "后台草稿", type: ContentType.ARTICLE, body: "正文", status: "DRAFT",
+      });
+      expect(await validate(dto, { whitelist: true })).toHaveLength(0);
+      expect(dto.status).toBe("DRAFT");
+    });
+    it("拒绝未知创建状态", async () => {
+      const dto = Object.assign(new CreateContentDto(), {
+        title: "后台草稿", type: ContentType.ARTICLE, body: "正文", status: "INVALID",
+      });
+      expect((await validate(dto)).some(error => error.property === "status")).toBe(true);
+    });
     it("完整合法输入通过", async () => {
       const dto = Object.assign(new CreateContentDto(), {
         title: "论语注疏", type: ContentType.CLASSIC, author: "孔子", dynasty: "春秋",

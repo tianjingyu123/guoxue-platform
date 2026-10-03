@@ -1,0 +1,59 @@
+{
+  "sourceCommit": "7e2fc4cae3525951004a826a9f95812b0309a372",
+  "recordedAtUtc": "2026-09-30T20:29:15.430048+00:00",
+  "install": {
+    "sourceCommit": "7e2fc4cae3525951004a826a9f95812b0309a372",
+    "scope": "existing-253-native-shell-current-js-not-final-cloud-native",
+    "appResourceFiles": 489,
+    "resourceHashesMatch": true,
+    "certificateMatches247": true,
+    "v1AndV2Verified": true,
+    "apkBytes": 30784914,
+    "apkSha256": "f3aeb1f490b2263019136eda0983fa3b07090ab92358438a41af4e15a0228fdb",
+    "previousApkSha256": "7b31b2a8ae8fd7bde94bbc7dc7cf449964ca9a4e50b6f4b29515268756667d0d",
+    "installedReadbackMatches": true,
+    "deviceCount": 1,
+    "deviceModel": "OnePlus 9R LE2100",
+    "dataCleared": false,
+    "uninstalled": false,
+    "cloudPackagingCalls": 0,
+    "realPaymentOperations": 0,
+    "realMessagesSent": 0
+  },
+  "screenshots": [
+    {
+      "file": "android-7e2fc4ca-friendly-conversations.png",
+      "bytes": 60749,
+      "sha256": "fe2468d3c9e0b2b29fa46c031dfbf2d1478b33a23e565a906e9c5b748510e6dc",
+      "visuallyInspected": true
+    },
+    {
+      "file": "android-7e2fc4ca-friendly-resume.png",
+      "bytes": 60679,
+      "sha256": "20495030eabf8be9eefa0dc27d6a7f41b8d2280be1784e5fc2f68fb8f110c6f7",
+      "visuallyInspected": true
+    },
+    {
+      "file": "android-7e2fc4ca-friendly-return-home.png",
+      "bytes": 937953,
+      "sha256": "476e55a44e55dc5459db06df2c5adbd77874dc463c19cf3a9f8dee08a70f5e23",
+      "visuallyInspected": true
+    }
+  ],
+  "passedPaths": [
+    "home-to-notices-to-private-conversations",
+    "friendly-visible-load-error-without-api-path",
+    "retry",
+    "background-and-launcher-resume",
+    "return-to-notices-and-home"
+  ],
+  "errorText": "暂时无法加载私信，请稍后重试",
+  "backendCondition": "公网旧版 /api/v1/im/capabilities 缺失；验证真实失败恢复路径，非正常会话成功链路",
+  "realPaymentOperations": 0,
+  "realMessagesSent": 0,
+  "finalNativePackage": false,
+  "newNativeIconAndPluginsNotCovered": true,
+  "normalChatAndPaymentNotCovered": true,
+  "scope": "OnePlus9R-existing253-native-shell-current489-js-resources",
+  "passed": true
+}

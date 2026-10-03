@@ -6,7 +6,7 @@
  *   GET  /solar-term/my          （登录）
  * 页面只 import 本文件导出的 solarTermApi / 类型 / 纯工具（成就文案），禁止 import mock。
  */
-import { apiGet, apiPost } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 
 /** 当期节气内容（节气日才有；字段均为一句式文化内容） */
 export interface SolarTermCurrent {
@@ -82,7 +82,7 @@ export function achievementLabel(code: string): string {
 export const solarTermApi = {
   /** 今日节气（是否节气日/当期内容/下一节气/我是否已参与）。可选登录，token 自动携带 */
   today(): Promise<SolarTermToday> {
-    return apiGet<SolarTermToday>('/solar-term/today')
+    return apiGetOptionalAuth<SolarTermToday>('/solar-term/today')
   },
 
   /** 参与今日节气仪式（登录·仅节气日当天可参与；业务异常由页面 catch 走 toast） */

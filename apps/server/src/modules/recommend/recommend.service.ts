@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import {
   RecommendContext,
+  RecommendScene,
   RecommendResponse,
   RecommendLogDto,
 } from "./recommend.dto";
@@ -15,6 +16,21 @@ import { AbTestService } from "./services/ab-test.service";
 import { RecommendSceneService } from "./services/recommend-scene.service";
 import { RecommendInsertService } from "./services/recommend-insert.service";
 import { RecommendSelectService } from "./services/recommend-select.service";
+import { isPublicContentQuarantined, publicQuarantinedIds } from "../../common/public-content-quarantine";
+import type { AbTestAssignment } from "./ab-test.dto";
+
+const TRACKING_CONTEXT_TTL = 7 * 86400;
+
+interface RecommendTrackingContext {
+  userId?: string;
+  scene: string;
+  abTests: AbTestAssignment[];
+  items: Record<string, {
+    strategies: string[];
+    position: number;
+  }>;
+}
+
 
 /**
  * 推荐服务（facade·2026-07-05 P2-5 按域拆分）
@@ -67,18 +83,24 @@ export class RecommendService {
   // ═══════════════════════════════════════════
 
   async getRecommendations(ctx: RecommendContext): Promise<RecommendResponse> {
+    const isSameCity = ctx.scene === RecommendScene.SAME_CITY;
     // 构建缓存键
     const cacheKey = this.cacheKey(ctx);
 
     // 读缓存
     const cached = await this.redis.getJson<RecommendResponse>(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      await this.rememberTrackingContext(cached, ctx).catch((err) =>
+        this.logger.warn(`推荐追踪上下文补写失败: ${(err as Error).message}`),
+      );
+      return cached;
+    }
 
     // P3: 冷启动检测
-    const isColdStart = ctx.userId ? await this.coldStart.isColdStart(ctx.userId).catch((err: Error) => { this.logger.warn("冷启动检测失败", err.message); return false; }) : false;
+    const isColdStart = ctx.userId && !isSameCity ? await this.coldStart.isColdStart(ctx.userId).catch((err: Error) => { this.logger.warn("冷启动检测失败", err.message); return false; }) : false;
 
     // 按场景分发
-    let items: RecommendItem[] = await this.sceneSvc.dispatch(ctx);
+    const items: RecommendItem[] = await this.sceneSvc.dispatch(ctx);
 
     // 去重
     const dedupSet = ctx.userId
@@ -107,17 +129,20 @@ export class RecommendService {
 
     // P2: 分区强插 — 运营插入指定内容到指定位置
     try {
-      filtered = await this.insertSvc.applyInsertRules(ctx.scene, filtered);
+      if (!isSameCity) filtered = await this.insertSvc.applyInsertRules(ctx.scene, filtered);
     } catch (e) {
       this.logger.warn(`分区强插失败: ${e instanceof Error ? e.message : String(e)}`);
     }
 
     // P2: 站长精选注入 — 分站站长配置的精选内容按固定位插入
     try {
-      filtered = await this.insertSvc.applyStationPicks(ctx, filtered);
+      if (!isSameCity) filtered = await this.insertSvc.applyStationPicks(ctx, filtered);
     } catch (e) {
       this.logger.warn(`站长精选注入失败: ${e instanceof Error ? e.message : String(e)}`);
     }
+
+    // 公开内容卫生兜底：覆盖召回、冷启动、运营强插和站长精选四条来源。
+    filtered = filtered.filter((item) => !isPublicContentQuarantined(item.type, item.id));
 
     // 分页切片
     const start = (ctx.page - 1) * ctx.pageSize;
@@ -137,6 +162,9 @@ export class RecommendService {
     // 写缓存
     const ttl = ctx.userId ? 300 : 120;
     await this.redis.setJson(cacheKey, response, ttl);
+    await this.rememberTrackingContext(response, ctx).catch((err) =>
+      this.logger.warn(`推荐追踪上下文写入失败: ${(err as Error).message}`),
+    );
 
     return response;
   }
@@ -176,20 +204,47 @@ export class RecommendService {
   // 推荐日志回传
   // ═══════════════════════════════════════════
 
-  async logInteractions(dto: RecommendLogDto) {
-    const logs = dto.interactions.map((i) => ({
-      recommendId: dto.recommendId,
-      itemType: i.itemType,
-      itemId: i.itemId,
-      position: i.position,
-      isClick: i.action === "CLICK",
-      staySeconds: i.staySeconds,
-      strategy: "",
-      scene: "",
-    }));
+  async logInteractions(dto: RecommendLogDto, userId?: string) {
+    const context = await this.redis
+      .getJson<RecommendTrackingContext>(this.trackingKey(dto.recommendId))
+      .catch(() => null);
+    if (!context) return { success: true, accepted: 0, ignored: "CONTEXT_EXPIRED" };
+    if (context.userId && context.userId !== userId) {
+      return { success: true, accepted: 0, ignored: "CONTEXT_MISMATCH" };
+    }
 
-    await this.prisma.recommendLog.createMany({ data: logs }).catch((err) => this.logger.warn("推荐日志写入失败", err));
-    return { success: true };
+    const abTokens = context.abTests.map((assignment) =>
+      `ab:${assignment.experimentId}:${assignment.group}`,
+    );
+    const seen = new Set<string>();
+    const logs = dto.interactions.flatMap((interaction) => {
+      const itemKey = `${interaction.itemType}:${interaction.itemId}`;
+      const tracked = context.items[itemKey];
+      const eventKey = `${itemKey}:${interaction.action}`;
+      if (!tracked || seen.has(eventKey)) return [];
+      seen.add(eventKey);
+      const strategy = [...new Set([...tracked.strategies, ...abTokens])].join("|");
+      return [{
+        userId: context.userId ?? userId ?? null,
+        recommendId: dto.recommendId,
+        itemType: interaction.itemType,
+        itemId: interaction.itemId,
+        position: tracked.position,
+        isClick: interaction.action === "CLICK",
+        staySeconds: interaction.staySeconds,
+        strategy,
+        scene: context.scene,
+      }];
+    });
+
+    if (logs.length === 0) return { success: true, accepted: 0 };
+    try {
+      await this.prisma.recommendLog.createMany({ data: logs });
+      return { success: true, accepted: logs.length };
+    } catch (err) {
+      this.logger.warn("推荐日志写入失败", err);
+      return { success: false, accepted: 0 };
+    }
   }
 
   // ═══════════════════════════════════════════
@@ -211,7 +266,7 @@ export class RecommendService {
   async related(contentId: string) {
     const article = await this.prisma.article.findUnique({
       where: { id: contentId },
-      select: { tags: true },
+      select: { circleId: true, tags: true },
     });
     if (!article) throw new BusinessException(ErrorCode.NOT_FOUND, "文章不存在");
 
@@ -219,7 +274,15 @@ export class RecommendService {
     if (tags.length === 0) return [];
 
     return this.prisma.article.findMany({
-      where: { id: { not: contentId }, auditStatus: "APPROVED", tags: { hasSome: tags } },
+      where: {
+        id: { not: contentId, notIn: publicQuarantinedIds("article") },
+        auditStatus: "APPROVED",
+        tags: { hasSome: tags },
+        OR: [
+          { circleId: article.circleId },
+          { visibility: "PLATFORM" },
+        ],
+      },
       select: this.selectSvc.articleSelect(),
       take: 5,
       orderBy: [{ viewCount: "desc" }, { likeCount: "desc" }],
@@ -244,7 +307,7 @@ export class RecommendService {
     if (tags.length === 0) return [];
 
     return this.prisma.article.findMany({
-      where: { id: { notIn: interactedIds }, auditStatus: "APPROVED", tags: { hasSome: tags } },
+      where: { id: { notIn: [...interactedIds, ...publicQuarantinedIds("article")] }, auditStatus: "APPROVED", visibility: "PLATFORM", tags: { hasSome: tags } },
       select: this.selectSvc.articleSelect(),
       take: 5,
       orderBy: [{ viewCount: "desc" }, { likeCount: "desc" }],
@@ -256,7 +319,7 @@ export class RecommendService {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const byViews = await this.prisma.article.findMany({
-      where: { createdAt: { gte: sevenDaysAgo }, auditStatus: "APPROVED" },
+      where: { id: { notIn: publicQuarantinedIds("article") }, createdAt: { gte: sevenDaysAgo }, auditStatus: "APPROVED", visibility: "PLATFORM" },
       select: this.selectSvc.articleSelect(),
       take: 10,
       orderBy: { viewCount: "desc" },
@@ -274,7 +337,7 @@ export class RecommendService {
     const sortedIds = [...engagementMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([id]) => id);
     const byEngagement = sortedIds.length > 0
       ? await this.prisma.article.findMany({
-          where: { id: { in: sortedIds }, auditStatus: "APPROVED" },
+          where: { id: { in: sortedIds, notIn: publicQuarantinedIds("article") }, auditStatus: "APPROVED", visibility: "PLATFORM" },
           select: this.selectSvc.articleSelect(),
         })
       : [];
@@ -341,12 +404,52 @@ export class RecommendService {
 
   private cacheKey(ctx: RecommendContext): string {
     const params = [ctx.contentId, ctx.paipanType, ctx.listType, ctx.page, ctx.pageSize].join(":");
-    return `recommend:${ctx.scene}:${ctx.userId ?? "anonymous"}:${params}:v1`;
+    if (ctx.scene === RecommendScene.SAME_CITY) {
+      // 城市与分站参与缓存隔离；新版本不复用旧全国兜底或错误目标 ID。
+      const scope = JSON.stringify([ctx.city?.trim() ?? "", ctx.stationId ?? null]);
+      return `recommend:${ctx.scene}:${ctx.userId ?? "anonymous"}:${params}:${encodeURIComponent(scope)}:v3`;
+    }
+    return `recommend:${ctx.scene}:${ctx.userId ?? "anonymous"}:${params}:v2`;
   }
 
   private generateRecommendId(): string {
     return `rec_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   }
+  private trackingKey(recommendId: string): string {
+    return `recommend:tracking:${recommendId}`;
+  }
+
+  private async rememberTrackingContext(
+    response: RecommendResponse,
+    ctx: RecommendContext,
+  ): Promise<void> {
+    const rawAssignments = response.extra?.abTests;
+    const abTests = Array.isArray(rawAssignments)
+      ? rawAssignments.filter((value): value is AbTestAssignment => {
+          if (!value || typeof value !== "object") return false;
+          const assignment = value as Partial<AbTestAssignment>;
+          return typeof assignment.experimentId === "string"
+            && (assignment.group === "control" || assignment.group === "experiment")
+            && typeof assignment.bucket === "number";
+        })
+      : [];
+    const items = Object.fromEntries(response.items.map((item, position) => [
+      `${item.type}:${item.id}`,
+      { strategies: Array.isArray(item.strategies) ? item.strategies : [], position },
+    ]));
+    const context: RecommendTrackingContext = {
+      userId: ctx.userId,
+      scene: ctx.scene,
+      abTests,
+      items,
+    };
+    await this.redis.setJson(
+      this.trackingKey(response.recommendId),
+      context,
+      TRACKING_CONTEXT_TTL,
+    );
+  }
+
 
   async getRecommendStats(params: { startDate?: string; endDate?: string; scene?: string }) {
     const where: any = {};
@@ -356,14 +459,16 @@ export class RecommendService {
       if (params.endDate) where.createdAt.lte = new Date(params.endDate);
     }
     if (params.scene) where.scene = params.scene;
+    const impressionWhere = { ...where, isClick: false };
+    const clickWhere = { ...where, isClick: true };
 
     const [totalImpressions, totalClicks, byScene, bySceneClicks, byStrategy, byStrategyClicks] = await Promise.all([
-      this.prisma.recommendLog.count({ where }),
-      this.prisma.recommendLog.count({ where: { ...where, isClick: true } }),
-      this.prisma.recommendLog.groupBy({ by: ["scene"], where, _count: { id: true } }),
-      this.prisma.recommendLog.groupBy({ by: ["scene"], where: { ...where, isClick: true }, _count: { id: true } }),
-      this.prisma.recommendLog.groupBy({ by: ["strategy"], where, _count: { id: true } }),
-      this.prisma.recommendLog.groupBy({ by: ["strategy"], where: { ...where, isClick: true }, _count: { id: true } }),
+      this.prisma.recommendLog.count({ where: impressionWhere }),
+      this.prisma.recommendLog.count({ where: clickWhere }),
+      this.prisma.recommendLog.groupBy({ by: ["scene"], where: impressionWhere, _count: { id: true } }),
+      this.prisma.recommendLog.groupBy({ by: ["scene"], where: clickWhere, _count: { id: true } }),
+      this.prisma.recommendLog.groupBy({ by: ["strategy"], where: impressionWhere, _count: { id: true } }),
+      this.prisma.recommendLog.groupBy({ by: ["strategy"], where: clickWhere, _count: { id: true } }),
     ]);
 
     const clickMap = Object.fromEntries(bySceneClicks.map(s => [s.scene, s._count.id]));
@@ -372,8 +477,13 @@ export class RecommendService {
     const days = 7;
     const since = new Date();
     since.setDate(since.getDate() - days);
+    const requestedCreatedAt = where.createdAt ?? {};
+    const trendCreatedAt = { ...requestedCreatedAt };
+    if (!(trendCreatedAt.gte instanceof Date) || trendCreatedAt.gte < since) {
+      trendCreatedAt.gte = since;
+    }
     const recentLogs = await this.prisma.recommendLog.findMany({
-      where: { ...where, createdAt: { gte: since } },
+      where: { ...where, createdAt: trendCreatedAt },
       select: { createdAt: true, isClick: true },
     });
 
@@ -381,8 +491,8 @@ export class RecommendService {
     for (const log of recentLogs) {
       const day = log.createdAt.toISOString().slice(0, 10);
       if (!dailyMap[day]) dailyMap[day] = { impressions: 0, clicks: 0 };
-      dailyMap[day].impressions++;
       if (log.isClick) dailyMap[day].clicks++;
+      else dailyMap[day].impressions++;
     }
 
     return {

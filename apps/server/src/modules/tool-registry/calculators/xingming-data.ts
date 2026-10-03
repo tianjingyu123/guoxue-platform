@@ -1,7 +1,76 @@
+import { strokeOf, strokeOfOrNull, charWuXingOf as sharedCharWuXing } from "@guoxue/shared/paipan";
 // ── 姓名学共享数据 ──
+/**
+ * ⚠️ 八十一数理的措辞编辑准则（2026-09-19）
+ *
+ * 决策人早前定过红线：**不得预言生死、寿命、绝症**。
+ * 姓名学的使用场景多是**给婴儿取名**，用笔画数告诉家长孩子会夭折，
+ * 是这条红线里最重的一种。
+ *
+ * 处理原则**不是把凶数改成吉数**——典籍的归类（吉/半吉/凶/大凶）照旧保留，
+ * 传统意象（破家、非命、残菊逢霜）也保留，因为那是这门术自己的语言。
+ * 改的只有一类：**把生死寿命当作事实陈述的句子**。
+ *
+ * 已改：
+ * · 数理20「破家亡身」→「古称破家之数，主家缘单薄、内外多阻」
+ *   （保留「破家之数」这个名目与凶的归类，去掉「亡身」）
+ * · 数理34 事业提示「短命」→「多阻难成」
+ * · 所有 `jianKang:"大凶"` →「宜多留意」
+ *   （健康栏直接写「大凶」等于下病危判断，而笔画数给不出这个结论）
+ *
+ * 未改（属传统术语或程度提示，非生死断言）：
+ * 「多病」「衰弱」「多厄」「凄凉」「漂泊」「败落」等，
+ * 以及八星名中的「绝命」——那是方位名不是断语。
+ *
+ * 前端 `pkg-paipan2/lib/xingming-engine.ts` 数理4 还写着「凶变夭折」，
+ * 归前端窗口处理，已同步。
+ */
 // 康熙笔画表 + 81数理表，供 wuge / xingming-jiexi 等计算器共用
 
 /** 81数理吉凶表（索引0=数理1） */
+/**
+ * ══ 八十一数理：基准版本与争议数 ══（2026-09-19，决策人经前端窗口授权拍板）
+ *
+ * **基准取五格剖象法创始者熊崎健翁的原版体系**，报告中须注明出处。
+ *
+ * 理由是这轮反复踩坑换来的：**要有可考出处**——
+ * 选一个有名有姓的源头，胜过拼一张来路不明的表。
+ * 本轮吃的亏都是同一类：八宅游年表手抄八行错七行、
+ * 姓名笔画拿 Unicode 码点现算、罗盘穿山龙把六十甲子顺排当排布，
+ * 全都是「没有出处的数据」。
+ *
+ * ══ 争议数显式标注，不静默取舍 ══
+ *
+ * 八十一数理里有几个数各家判定出入较大，典型是 **26、27、28、43**。
+ * 断语里须显式写「此数各家判定有异，本报告采 ×× 说」，**不要藏起分歧**——
+ * 这类数本就无统一答案，写明既诚实，也让专业用户自行判断；
+ * 藏起来反而显得外行。本表当前取值见 `DISPUTED_SHU_LI`。
+ *
+ * ══ 权重：81 数理在「理」内部不宜过高 ══
+ *
+ * 它是五格里争议最大、最易被批评为附会的一层；
+ * 三才配置（五行生克）与人格/总格解释力更强、分歧更少，应占主要权重。
+ *
+ * ══ 硬约束：吉凶标签必须与正文一致 ══
+ *
+ * 旧版存在自相矛盾的条目——「数理卦象·地格」正文尽是负面
+ * （朝三暮四、夜不归宿），结尾却标「(大吉)」。这种绝不照抄。
+ * 本表已逐条机检，**0 条不一致**（见 `xingming-redline.spec.ts`）。
+ */
+
+/**
+ * 各家判定有异的数理。值为本表所采之说与主要异说，供断语生成时显式标注。
+ */
+export const DISPUTED_SHU_LI: Record<number, { taken: string; note: string }> = {
+  26: { taken: "凶", note: "英雄运，波澜重叠。一说为大凶（万难之数），一说为吉中带险的英雄格" },
+  27: { taken: "半吉", note: "中折之数。一说吉凶参半可成大业，一说主中途挫折" },
+  28: { taken: "凶", note: "豪杰气概但四海飘泊。一说为凶（遭难之数），一说为波澜中见豪杰" },
+  43: { taken: "凶", note: "散财之数。一说主外华内虚，一说可藉才艺自立" },
+};
+
+/** 该数是否属各家判定有异者 */
+export const isDisputedShuLi = (n: number): boolean => n in DISPUTED_SHU_LI;
+
 export const SHU_LI_81: { name: string; jiXiong: string; meaning: string; poem: string; hints: { jiYe: string; jiaTing: string; jianKang: string } }[] = [
   { name:"太极之数", jiXiong:"大吉", meaning:"万物开泰，生发无穷，利禄亨通。", poem:"太极开天数，包含万物先。阳和阴协理，福禄自绵绵。", hints:{ jiYe:"天官、文昌、技艺", jiaTing:"圆满和谐", jianKang:"健康长寿" }},
   { name:"两仪之数", jiXiong:"凶", meaning:"混沌未定，进退失据，志望难达。", poem:"混沌未分时，吉凶两不知。若能守宁静，灾祸亦难施。", hints:{ jiYe:"无成", jiaTing:"疏离不和", jianKang:"体弱多病" }},
@@ -36,7 +105,7 @@ export const SHU_LI_81: { name: string; jiXiong: string; meaning: string; poem: 
   { name:"春日之数", jiXiong:"大吉", meaning:"春日花开，智勇得志，博得名利。", poem:"春日花开早，龙飞得志时。智仁兼勇义，统领万人师。", hints:{ jiYe:"首领、文昌", jiaTing:"圆满", jianKang:"健康长寿" }},
   { name:"宝马之数", jiXiong:"大吉", meaning:"侥幸多望，贵人得助，财帛丰盈。", poem:"宝马载金鞍，荣华享万端。贵人相辅助，财帛自盘桓。", hints:{ jiYe:"财禄、福星", jiaTing:"隆昌", jianKang:"健康" }},
   { name:"旭日之数", jiXiong:"大吉", meaning:"旭日升天，鸾凤相会，名闻天下。", poem:"旭日升天上，鸾凰自会鸣。名闻天下日，富贵享遐龄。", hints:{ jiYe:"首领、文昌", jiaTing:"家运极盛", jianKang:"健康" }},
-  { name:"破家之数", jiXiong:"大凶", meaning:"破家亡身，家缘极薄，辛苦困难。", poem:"破家无可说，血泪染衣襟。骨肉分离后，孤身冷落深。", hints:{ jiYe:"败落", jiaTing:"破灭", jianKang:"大凶" }},
+  { name:"破家之数", jiXiong:"大凶", meaning:"古称破家之数，主家缘单薄、内外多阻，行事辛苦难成。", poem:"破家无可说，血泪染衣襟。骨肉分离后，孤身冷落深。", hints:{ jiYe:"败落", jiaTing:"破灭", jianKang:"宜多留意" }},
   { name:"高楼之数", jiXiong:"大吉", meaning:"温和平静，智达通畅，文昌技艺。", poem:"高楼望月明，智达自通亨。技艺文昌显，功成享太平。", hints:{ jiYe:"文昌", jiaTing:"圆满", jianKang:"健康" }},
   { name:"波澜之数", jiXiong:"半吉", meaning:"波澜重叠，沉浮万状，侠义高洁。", poem:"波澜重叠处，侠义见英雄。虽是风波恶，功成亦显荣。", hints:{ jiYe:"豪杰", jiaTing:"多波折", jianKang:"中平" }},
   { name:"权威之数", jiXiong:"大吉", meaning:"权威显达，热诚忠信，宜著雅量。", poem:"权威显达人，忠信自通神。雅量能容物，荣华及此身。", hints:{ jiYe:"官禄、文昌", jiaTing:"家运隆昌", jianKang:"健康" }},
@@ -57,7 +126,7 @@ export const SHU_LI_81: { name: string; jiXiong: string; meaning: string; poem: 
   { name:"达眼之数", jiXiong:"半吉", meaning:"先见之明，理想实现，名利双收。", poem:"慧眼观千里，先知觉后知。若能持卓识，名利两相宜。", hints:{ jiYe:"技艺", jiaTing:"渐进", jianKang:"中平" }},
   { name:"曲卷之数", jiXiong:"凶", meaning:"曲卷难伸，忧愁困苦，时运不济。", poem:"曲卷难为用，忧愁苦自缠。若能安己分，待运莫争先。", hints:{ jiYe:"困苦", jiaTing:"不和", jianKang:"多病" }},
   { name:"石上之数", jiXiong:"半吉", meaning:"石上栽松，虽有根蒂，难得成功。", poem:"石上松难长，根基亦有名。时来方得力，运去事无成。", hints:{ jiYe:"迟发", jiaTing:"难安", jianKang:"中平" }},
-  { name:"凶亡之数", jiXiong:"大凶", meaning:"惨淡经营，难免贫困，终身困苦。", poem:"惨淡苦经营，贫寒困此身。不如安旧业，何必枉劳神。", hints:{ jiYe:"败落", jiaTing:"困苦", jianKang:"大凶" }},
+  { name:"凶亡之数", jiXiong:"大凶", meaning:"惨淡经营，难免贫困，终身困苦。", poem:"惨淡苦经营，贫寒困此身。不如安旧业，何必枉劳神。", hints:{ jiYe:"败落", jiaTing:"困苦", jianKang:"宜多留意" }},
   { name:"浪翻之数", jiXiong:"凶", meaning:"浪翻波涌，浮沉不定，危机四伏。", poem:"浪翻兼波涌，扁舟去路危。纵然多智略，险处亦难施。", hints:{ jiYe:"波折", jiaTing:"浮沉", jianKang:"多病" }},
   { name:"日照之数", jiXiong:"半吉", meaning:"日照春松，资性刚毅，晚景维艰。", poem:"日照春松秀，虽刚不耐寒。晚来风更急，枝叶恐凋残。", hints:{ jiYe:"起落", jiaTing:"晚景凄凉", jianKang:"晚弱" }},
   { name:"风浪之数", jiXiong:"凶", meaning:"风浪不静，波澜万丈，孤单到老。", poem:"风浪何曾静，波澜万丈深。纵然能立世，晚景独萧森。", hints:{ jiYe:"飘零", jiaTing:"孤独", jianKang:"多病" }},
@@ -73,7 +142,7 @@ export const SHU_LI_81: { name: string; jiXiong: string; meaning: string; poem: 
   { name:"顺水之数", jiXiong:"大吉", meaning:"顺水行舟，一帆风顺，兴家立业，名利双收。", poem:"顺水挂轻帆，东风送我还。兴家兼立业，名利两相安。", hints:{ jiYe:"将星、技藝", jiaTing:"兴隆", jianKang:"健康" }},
   { name:"非业之数", jiXiong:"凶", meaning:"坐立不安，常陷逆境，动辄得咎，事事难成。", poem:"非业蹙愁眉，时运总不齐。守成方是策，进取恐多危。", hints:{ jiYe:"无成", jiaTing:"冷落", jianKang:"多病" }},
   { name:"残菊之数", jiXiong:"凶", meaning:"残菊逢霜，寂寞无聊，晚年凄凉，需防不测。", poem:"残菊傲霜枝，凄凉晚岁知。若能持晚节，淡泊养心时。", hints:{ jiYe:"凋零", jiaTing:"冷落", jianKang:"多病" }},
-  { name:"非命之数", jiXiong:"大凶", meaning:"骨肉分离，内外不调，多灾多难。", poem:"骨肉分离苦，多灾厄运临。若能修德善，或可免悲吟。", hints:{ jiYe:"短命", jiaTing:"离散", jianKang:"大凶" }},
+  { name:"非命之数", jiXiong:"大凶", meaning:"骨肉分离，内外不调，多灾多难。", poem:"骨肉分离苦，多灾厄运临。若能修德善，或可免悲吟。", hints:{ jiYe:"多阻难成", jiaTing:"离散", jianKang:"宜多留意" }},
   { name:"石中玉之数", jiXiong:"半吉", meaning:"石中藏玉，有志竟成，豁然贯通。", poem:"石中藏美玉，磨砺出精光。一旦逢良匠，珍奇耀四方。", hints:{ jiYe:"晚成", jiaTing:"迟发", jianKang:"中平" }},
   { name:"凤毛之数", jiXiong:"大吉", meaning:"凤毛济美，才艺超群，名扬四方。", poem:"凤毛真济美，德艺自超群。一展光华后，声名四海闻。", hints:{ jiYe:"文昌", jiaTing:"昌隆", jianKang:"健康" }},
   { name:"星云之数", jiXiong:"半吉", meaning:"星云密布，虚有其表，内里空虚。", poem:"星云暗掩光，外表似荣昌。内里空无物，终须自主张。", hints:{ jiYe:"虚名", jiaTing:"表面好", jianKang:"内虚" }},
@@ -110,16 +179,42 @@ export const KANGXI_STROKES: Record<string, [number, number]> = {
 const STROKE_WU_XING = ["水","木","木","火","火","土","土","金","金","水"];
 
 /** 查询汉字康熙笔画 */
+/**
+ * 查康熙笔画。
+ *
+ * 🔴 2026-09-19 改走共享包的 20992 字康熙表，并**删掉码点兜底**。
+ *
+ * 原实现查不到时执行：
+ * ```ts
+ * return Math.min(24, Math.max(1, Math.ceil((code - 0x4e00) / 1200) + 3));
+ * ```
+ * **Unicode 码点与笔画数毫无关系**——汉字在 CJK 区按部首与历史排序，
+ * 跟笔画多少没有任何函数关系。这是把「编造」伪装成「计算」：
+ * 返回值总落在 1–24、看着像模像样，调用方无从察觉。
+ *
+ * 实测 77 个常用姓名用字里 **28 个（36%）走的正是这条兜底**——
+ * 张得 7 画（康熙「張」11）、刘得 4 画（康熙「劉」15）、军得 4 画（康熙 9）。
+ * 而五格剖象整个建立在笔画上，笔画错一画，五格、三才、八十一数理全盘皆错。
+ *
+ * 本地那张 `KANGXI_STROKES`（1114 条）另有问题：名为康熙、实存简体——
+ * 陈存 11（康熙「陳」16）、涛存 10（康熙「濤」18）。故一并弃用，只留作历史。
+ *
+ * 现在查不到就**抛错**，让缺字变成显式失败而不是一副看着正常的假五格。
+ */
 export function getKangXiStroke(char: string): number {
-  const entry = KANGXI_STROKES[char];
-  if (entry) return entry[0];
-  const code = char.charCodeAt(0);
-  if (code >= 0x4e00 && code <= 0x9fff) return Math.min(24, Math.max(1, Math.ceil((code - 0x4e00) / 1200) + 3));
-  return 1;
+  return strokeOf(char);
+}
+
+/** 查康熙笔画，查不到返回 null（供需要自行降级的调用方） */
+export function getKangXiStrokeOrNull(char: string): number | null {
+  return strokeOfOrNull(char);
 }
 
 /** 查询汉字五行 */
 export function getCharWuXing(char: string): string {
+  // 共享表带部首五行，优先用它；本地表只在共享表未收时兜底
+  const shared = sharedCharWuXing(char);
+  if (shared) return shared;
   const entry = KANGXI_STROKES[char];
   if (entry) {
     const wxMap = ["","金","木","水","火","土"];

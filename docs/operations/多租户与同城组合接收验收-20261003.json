@@ -1,0 +1,485 @@
+{
+  "checkedAt": "2026-10-03T12:40:30.134Z",
+  "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+  "reviewBase": "faccb63bf0613e14959695b2c233e3512969d185",
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "migrationCount": 144,
+  "schemaSha256": "48b69ca3e103c16a6813ef66480c4ac4fac1f006bcd24d1e3498a0408510e99e",
+  "provider": {
+    "candidate": "96ef90f56276dcf5e0d3b131d41b7072a5a8997e",
+    "receivedCommit": "6106351c3222a7ebcfd8128ac4fcec05bc424286",
+    "privacyFix": "138471896851bbd5af978cf8ed5cd0b0f1bac362",
+    "ciCompatibilityFix": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+    "originalPlatformContractKept": true,
+    "localHttp": 28,
+    "boundedStream": 9,
+    "compiledPg": 12,
+    "fullLeaseHttpAndRls": false,
+    "source33SuitesHistoricalOnly": true,
+    "evidenceSeal": {
+      "sourceCommit": "138471896851bbd5af978cf8ed5cd0b0f1bac362",
+      "sealedAt": "2026-10-03T11:09:06.622Z",
+      "fileCount": 32,
+      "package": "pilots/managed-tenancy/.runtime/provider-intake-20261003/provider-evidence-1791025746436.tar.gz",
+      "packageBytes": 152363,
+      "packageSha256": "edf62995a475cdfef1e457d67da93324aa88f23d5e6b232a688b9487f3980852",
+      "manifestSha256": "ba3939ace28b0eec88f59128e20d6e8cf9c6030875447e42f49fef9bd1311102",
+      "freshExtractionAllMatch": true,
+      "localArchiveOnly": true,
+      "remotePersistentArchive": false,
+      "production": false
+    }
+  },
+  "combination": {
+    "merge": "972d3f45d9ffef9622623af9c443d576ec2b8b03",
+    "regression": {
+      "source": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+      "suites": 8,
+      "passed": 200,
+      "skipped": 0,
+      "rerunWithMissingFetchSandbox": true
+    },
+    "ownClientChecks": 11,
+    "serverRuntimeInputsUnchanged": true,
+    "mainReviewReceived": true,
+    "stagingReceived": true
+  },
+  "ci": {
+    "conclusion": "success",
+    "formalDockerImage": false,
+    "shards": [
+      {
+        "log": "combined-official-job-111200632849.log",
+        "name": "单元测试 (1/3)",
+        "skipped": 241,
+        "total": 3185,
+        "passed": 2944,
+        "sha256": "3fa282a12a80830fa900ab2e82d0163f97fcaa28e9f6dcf6d819bbf022ee80b2",
+        "id": 111200632849
+      },
+      {
+        "log": "combined-official-job-111200632893.log",
+        "name": "单元测试 (2/3)",
+        "skipped": 226,
+        "total": 3284,
+        "passed": 3058,
+        "sha256": "587b373142a13702f4ddc9255a229b5d817e2e21040316d049514e521ab41b6a",
+        "id": 111200632893
+      },
+      {
+        "log": "combined-official-job-111200632909.log",
+        "name": "单元测试 (3/3)",
+        "skipped": 164,
+        "total": 3318,
+        "passed": 3154,
+        "sha256": "cbe60210a12c12a46e0569fd9f792a1ffe8714d92bf43434f6d54104caeb6ec1",
+        "id": 111200632909
+      }
+    ],
+    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37122191101",
+    "passed": 9156,
+    "realChannels": false,
+    "artifacts": [
+      {
+        "extracted": "combined-official-11273912820",
+        "sha256": "5b657b481b72f217a79bd21c9b5e6a96ed420c7f448113670fe5c1df3d01f472",
+        "name": "server-build",
+        "id": 11273912820,
+        "zip": "combined-official-11273912820.zip",
+        "bytes": 7667280,
+        "officialDigest": "sha256:5b657b481b72f217a79bd21c9b5e6a96ed420c7f448113670fe5c1df3d01f472",
+        "digestVerified": true
+      }
+    ],
+    "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+    "skipped": 631,
+    "checkedAt": "2026-10-03T12:34:44.522439Z",
+    "production": false,
+    "runId": 37122191101,
+    "jobs": [
+      {
+        "conclusion": "success",
+        "name": "TypeScript 类型检查",
+        "id": 111200347476
+      },
+      {
+        "conclusion": "success",
+        "name": "迁移与上线代码门禁",
+        "id": 111200347566
+      },
+      {
+        "conclusion": "success",
+        "name": "ESLint + Prettier",
+        "id": 111200347572
+      },
+      {
+        "conclusion": "success",
+        "name": "单元测试 (1/3)",
+        "id": 111200632849
+      },
+      {
+        "conclusion": "success",
+        "name": "单元测试 (2/3)",
+        "id": 111200632893
+      },
+      {
+        "conclusion": "success",
+        "name": "单元测试 (3/3)",
+        "id": 111200632909
+      },
+      {
+        "conclusion": "success",
+        "name": "构建产物",
+        "id": 111202830010
+      },
+      {
+        "conclusion": "success",
+        "name": "测试结果汇总",
+        "id": 111202830020
+      }
+    ]
+  },
+  "products": {
+    "h5": {
+      "files": 1183,
+      "bytes": 11165559
+    },
+    "mp-weixin": {
+      "files": 2766,
+      "bytes": 11145688
+    },
+    "app": {
+      "files": 492,
+      "bytes": 12888409
+    },
+    "app-harmony": {
+      "files": 491,
+      "bytes": 12560040
+    }
+  },
+  "mp": {
+    "mainBytes": 1707540,
+    "platformOverheadEstimateBytes": 294912,
+    "reserveBytes": 94700,
+    "requiredReserveBytes": 81920,
+    "subpackages": 33,
+    "maxSubpackageBytes": 1764521,
+    "pages": 451,
+    "componentReferences": 1320,
+    "missingPageOutputs": [],
+    "unresolvedReferences": [],
+    "actualUpload": false
+  },
+  "buildInputs": {
+    "publicVariables": {
+      "VITE_API_URL": "https://api.rebugx.cn",
+      "VITE_PUBLIC_H5_URL": "https://gx.yrydai.com/h5/",
+      "VITE_PUBLIC_ASSET_ORIGIN": "https://static.rebugx.cn",
+      "VITE_RELEASE_CHANNEL": "formal",
+      "VITE_MANAGED_BRAND_ENTRY": "false"
+    },
+    "origin": "命令行显式环境；与受跟踪 vite.config.ts 正式环境校验相符",
+    "envProductionCopied": false,
+    "viteSha256": "197f88cefdc3a3fa787984d6475b1a3e74c1ddb56743f63367a1c06d77ccb8ad",
+    "managedBrandEntryEnabled": false,
+    "dnsOrProductionIdentityProved": false
+  },
+  "ui": {
+    "brandBrowser": 6,
+    "sameCityBrowser": 19,
+    "sameCityVue": 11,
+    "syntheticHttp": true,
+    "realDevice": false
+  },
+  "database": {
+    "baselineAndChecks": {
+      "checkedAt": "2026-10-03T11:45:56.915Z",
+      "sourceCommit": "9960d850bbb3c1b775bf88d2e65f359dd9b361b5",
+      "workingTreeDirty": false,
+      "oldSource": "faccb63bf0613e14959695b2c233e3512969d185",
+      "database": "qa_final_baseline_20261003_1791027950296",
+      "owner": "qa_voice",
+      "port": 55462,
+      "actualPgBaselineAppliedInTransaction": true,
+      "tableCount": 414,
+      "existingPlatformStatementsUnchanged": 1724,
+      "managedAddedStatements": 71,
+      "existingMigrationFilesUnchanged": 136,
+      "baselineGitLfSha256": "b914f882c44619dcdecd91c46a7057a4e36da51ca6ef4dce65734cbefcf36cd8",
+      "schemaSha256": "48b69ca3e103c16a6813ef66480c4ac4fac1f006bcd24d1e3498a0408510e99e",
+      "schemaDiffExit": 0,
+      "checkConstraints": [
+        {
+          "name": "ManagedBrandRequest_order_shape",
+          "definition": "CHECK (((((\"orderKind\")::text = 'PRODUCT'::text) AND (\"courseId\" IS NULL) AND (\"productId\" IS NOT NULL) AND (\"addressId\" IS NOT NULL) AND (quantity > 0)) OR (((\"orderKind\")::text = 'COURSE'::text) AND (\"courseId\" IS NOT NULL) AND (\"productId\" IS NULL) AND (\"addressId\" IS NULL) AND (quantity = 1) AND (\"skuId\" IS NULL) AND (\"couponId\" IS NULL))))"
+        },
+        {
+          "name": "ManagedLeaseWriteFence_epoch_check",
+          "definition": "CHECK ((epoch > 0))"
+        },
+        {
+          "name": "ManagedLeaseWriteFence_state_check",
+          "definition": "CHECK (((state)::text = ANY ((ARRAY['ACTIVE'::character varying, 'FROZEN'::character varying])::text[])))"
+        }
+      ],
+      "checkDefinitionsMatchPrior136To144Upgrade": true,
+      "actualCheckRejections": [
+        "无效写围栏状态",
+        "零围栏修订",
+        "负围栏修订",
+        "商品缺收货地址",
+        "商品数量为零",
+        "课程混入商品",
+        "课程数量非一",
+        "课程混入优惠券",
+        "课程混入规格"
+      ],
+      "validShapeInserts": 4,
+      "fullBootstrapLedgerNotActuallyRun": true,
+      "productionMigration": false,
+      "production103Upgrade": false,
+      "old136To144UpgradeHistoricalOnly": true,
+      "production": false
+    },
+    "noopFault": {
+      "sourceCommit": "b338a8a035697ccba44d3e3eb812d510e0b26402",
+      "checkedAt": "2026-10-03T11:53:44.706Z",
+      "actualRepositoryScript": true,
+      "realEmptyPg": true,
+      "syntheticPsqlExitZeroWithoutDdl": true,
+      "missingTablesRejectedBeforeLedger": true,
+      "ledgerNotCreated": true,
+      "production": false
+    },
+    "linuxBootstrap": {
+      "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+      "verificationCommit": "b559eb72bd83e0e1867a2ae0f51b582a6ad6f570",
+      "checkedAt": "2026-10-03T12:32:20.314Z",
+      "production": false,
+      "production103Upgrade": false,
+      "candidateSchemaMigrations": 144,
+      "passed": true,
+      "actualRepositoryScript": true,
+      "models": 414,
+      "ledgerEntries": 144,
+      "rawMigrationChecksumsMatch": true,
+      "checks": [
+        {
+          "conname": "ManagedBrandRequest_order_shape",
+          "definition": "CHECK (((((\"orderKind\")::text = 'PRODUCT'::text) AND (\"courseId\" IS NULL) AND (\"productId\" IS NOT NULL) AND (\"addressId\" IS NOT NULL) AND (quantity > 0)) OR (((\"orderKind\")::text = 'COURSE'::text) AND (\"courseId\" IS NOT NULL) AND (\"productId\" IS NULL) AND (\"addressId\" IS NULL) AND (quantity = 1) AND (\"skuId\" IS NULL) AND (\"couponId\" IS NULL))))"
+        },
+        {
+          "conname": "ManagedLeaseWriteFence_epoch_check",
+          "definition": "CHECK ((epoch > 0))"
+        },
+        {
+          "conname": "ManagedLeaseWriteFence_state_check",
+          "definition": "CHECK (((state)::text = ANY ((ARRAY['ACTIVE'::character varying, 'FROZEN'::character varying])::text[])))"
+        }
+      ],
+      "vectorVersion": "0.8.6",
+      "operationalIndexes": [
+        {
+          "name": "Article_tags_gin_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"Article_tags_gin_idx\" ON public.\"Article\" USING gin (tags)"
+        },
+        {
+          "name": "Article_title_trgm_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"Article_title_trgm_idx\" ON public.\"Article\" USING gin (title gin_trgm_ops)"
+        },
+        {
+          "name": "CircleKnowledge_embedding_hnsw_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"CircleKnowledge_embedding_hnsw_idx\" ON public.\"CircleKnowledge\" USING hnsw (embedding vector_cosine_ops) WHERE (embedding IS NOT NULL)"
+        },
+        {
+          "name": "Circle_name_trgm_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"Circle_name_trgm_idx\" ON public.\"Circle\" USING gin (name gin_trgm_ops)"
+        },
+        {
+          "name": "Circle_tags_gin_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"Circle_tags_gin_idx\" ON public.\"Circle\" USING gin (tags)"
+        },
+        {
+          "name": "ClassicBook_title_trgm_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"ClassicBook_title_trgm_idx\" ON public.\"ClassicBook\" USING gin (title gin_trgm_ops)"
+        },
+        {
+          "name": "Content_tags_gin_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"Content_tags_gin_idx\" ON public.\"Content\" USING gin (tags)"
+        },
+        {
+          "name": "Content_title_trgm_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"Content_title_trgm_idx\" ON public.\"Content\" USING gin (title gin_trgm_ops)"
+        },
+        {
+          "name": "Course_tags_gin_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"Course_tags_gin_idx\" ON public.\"Course\" USING gin (tags)"
+        },
+        {
+          "name": "Course_title_trgm_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"Course_title_trgm_idx\" ON public.\"Course\" USING gin (title gin_trgm_ops)"
+        },
+        {
+          "name": "Product_tags_gin_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"Product_tags_gin_idx\" ON public.\"Product\" USING gin (tags)"
+        },
+        {
+          "name": "Product_title_trgm_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"Product_title_trgm_idx\" ON public.\"Product\" USING gin (title gin_trgm_ops)"
+        },
+        {
+          "name": "Video_tags_gin_idx",
+          "valid": true,
+          "definition": "CREATE INDEX \"Video_tags_gin_idx\" ON public.\"Video\" USING gin (tags)"
+        },
+        {
+          "name": "idx_article_fts",
+          "valid": true,
+          "definition": "CREATE INDEX idx_article_fts ON public.\"Article\" USING gin (to_tsvector('simple'::regconfig, ((COALESCE(title, ''::text) || ' '::text) || COALESCE(excerpt, ''::text)))) WHERE (\"auditStatus\" = 'APPROVED'::text)"
+        },
+        {
+          "name": "idx_circle_fts",
+          "valid": true,
+          "definition": "CREATE INDEX idx_circle_fts ON public.\"Circle\" USING gin (to_tsvector('simple'::regconfig, ((COALESCE(name, ''::text) || ' '::text) || COALESCE(intro, ''::text)))) WHERE (status = 'ACTIVE'::\"CircleStatus\")"
+        },
+        {
+          "name": "idx_classic_book_fts",
+          "valid": true,
+          "definition": "CREATE INDEX idx_classic_book_fts ON public.\"ClassicBook\" USING gin (to_tsvector('simple'::regconfig, ((((COALESCE(title, ''::text) || ' '::text) || COALESCE(author, ''::text)) || ' '::text) || COALESCE(intro, ''::text)))) WHERE (status = 'PUBLISHED'::text)"
+        },
+        {
+          "name": "idx_content_fts",
+          "valid": true,
+          "definition": "CREATE INDEX idx_content_fts ON public.\"Content\" USING gin (to_tsvector('simple'::regconfig, ((((COALESCE(title, ''::text) || ' '::text) || COALESCE(author, ''::text)) || ' '::text) || COALESCE(excerpt, ''::text)))) WHERE (status = 'PUBLISHED'::text)"
+        },
+        {
+          "name": "idx_course_fts",
+          "valid": true,
+          "definition": "CREATE INDEX idx_course_fts ON public.\"Course\" USING gin (to_tsvector('simple'::regconfig, ((COALESCE(title, ''::text) || ' '::text) || COALESCE(intro, ''::text)))) WHERE (\"auditStatus\" = 'APPROVED'::text)"
+        },
+        {
+          "name": "idx_product_fts",
+          "valid": true,
+          "definition": "CREATE INDEX idx_product_fts ON public.\"Product\" USING gin (to_tsvector('simple'::regconfig, ((COALESCE(title, ''::text) || ' '::text) || COALESCE(intro, ''::text)))) WHERE (status = 'ON_SALE'::text)"
+        },
+        {
+          "name": "idx_user_fts",
+          "valid": true,
+          "definition": "CREATE INDEX idx_user_fts ON public.\"User\" USING gin (to_tsvector('simple'::regconfig, COALESCE(nickname, ''::text))) WHERE (status = 'ACTIVE'::\"UserStatus\")"
+        },
+        {
+          "name": "idx_video_fts",
+          "valid": true,
+          "definition": "CREATE INDEX idx_video_fts ON public.\"Video\" USING gin (to_tsvector('simple'::regconfig, COALESCE(title, ''::text))) WHERE (status = 'PUBLISHED'::text)"
+        }
+      ],
+      "vectorColumns": [
+        {
+          "table_name": "AiCacheEntry",
+          "column_name": "queryVector",
+          "type": "vector(1536)"
+        },
+        {
+          "table_name": "CircleKnowledge",
+          "column_name": "embedding",
+          "type": "vector(1536)"
+        }
+      ],
+      "schemaDiffExit": 2,
+      "schemaUnexpectedDrift": false,
+      "diffContainsOnlyVerifiedExternalObjects": true,
+      "diffSqlExecuted": false,
+      "nonemptyRejected": true,
+      "sourceSha256": "7f07455d663283bd8140f71fc37fb4cff72bb630033ec7d96aef2270138a54c5",
+      "schemaSha256": "db37c68d65937d56705e3b9eb3d3d18f8d86466de5d6ce17ccdc0ca9a81b8789",
+      "runId": 37123147302,
+      "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37123147302",
+      "artifactId": 11274102426,
+      "artifactZip": "official-37123147302-11274102426.zip",
+      "artifactSha256": "005feffca75367a914ac7e1ab94b11107acde8fa066bc153404a22faed777b35",
+      "digestVerified": true,
+      "canonicalSourceAndSchemaMatch": true,
+      "ownPgCheckDefinitionsMatch": true,
+      "originalFailedVerificationRuns": [
+        37122466545,
+        37122897315
+      ]
+    },
+    "production103Upgrade": false,
+    "old136SqlUnchanged": true
+  },
+  "evidenceSeal": {
+    "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+    "sealedAt": "2026-10-03T12:38:52.042Z",
+    "fileCount": 8779,
+    "package": "pilots/managed-tenancy/.runtime/provider-intake-20261003/combined-evidence-1791031125981.tar.gz",
+    "packageBytes": 27391353,
+    "packageSha256": "1be7c6f09cacdb9dc9ab779f984ea0022e058995aa5941699f840616c3b3d76a",
+    "manifestSha256": "2b4453f085d49f447318a1fa67935bd4aa8a0bb643faeb5f02151151aff87b62",
+    "freshExtractionAllMatch": true,
+    "localArchiveOnly": true,
+    "remotePersistentArchive": false,
+    "production": false
+  },
+  "phone": {
+    "checkedAt": "2026-10-03T12:37:35.251Z",
+    "method": "官方 adb 系统版本只读",
+    "package": "com.rebu.apprebu",
+    "versionCode": 253,
+    "candidateMatching": false,
+    "realPayment": false,
+    "journeyTested": false
+  },
+  "externalSystemWriter": "修复微信点击支付白屏",
+  "production": false,
+  "deployed": false,
+  "realNotificationSent": false,
+  "realFundChange": false,
+  "notCovered": [
+    "原来源33套完整回归本任务重新运行",
+    "全部客户独立HTTP与RLS、Linux UID/cgroup/网络隔离",
+    "最新正式数据副本103→144升级及锁时长",
+    "最终固定Linux运行包与两节点同版",
+    "当前源码签名Android/iOS/鸿蒙包、小程序上传体积和同版真机",
+    "真实支付退款权益、微信分享接收、手机号取号与AI/语音/直播媒体",
+    "F1/F3/F4/F5/N5及七类发布门槛"
+  ],
+  "fourWindowReview": {
+    "aiLateCandidate": "f563ace689ae9671f844d7b95a7df46231e5a45d",
+    "equivalentReceived": "99427380d0eae021466d97e29d54fa7bdb75589a",
+    "reapply": false,
+    "fourthThread": "01a0ccb2-9bff-7101-aba8-bcb6f5ea90d1",
+    "fourthThreadNewestNoNewCode": true,
+    "sharedPostCommitPushAllConfirmed": true,
+    "localCommitsUseTaskEmptyHooks": true
+  },
+  "actualCodeIntake": {
+    "rollbackRef": "codex/rollback-tenant-combination-20261003",
+    "stagingReceived": true,
+    "mainReviewReceived": true,
+    "production": false,
+    "checkedAt": "2026-10-03T12:39:38.3315582Z",
+    "base": "faccb63bf0613e14959695b2c233e3512969d185",
+    "masterMerged": false,
+    "conflicts": false,
+    "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e"
+  }
+}

@@ -289,7 +289,18 @@ export function calculateDongGong(input: Record<string, unknown>): DongGongResul
   const startMonth = (input.startMonth as number) ?? 1;
   const endMonth = (input.endMonth as number) ?? 12;
 
-  const purposeGuide = PURPOSE_GUIDE[purpose];
+  /**
+   * 🔴 2026-09-20：原为 `PURPOSE_GUIDE[purpose]` 直接取用，
+   * 传入表外用途（如「嫁娶」——表里写的是「婚嫁」）即
+   * `Cannot read properties of undefined (reading 'bestMonths')` **直接崩溃**。
+   *
+   * `purpose` 的默认值虽然写了 `?? "其他"`，但那只在**未传**时生效；
+   * **传了一个不在表内的值**时 `??` 不会兜底。同义词在这个领域极常见
+   * （嫁娶/婚嫁、开市/开业、安床/搬迁），调用方很容易踩中。
+   *
+   * 表里本来就有「其他」这一档，落回它即可，不必凭空造一份配置。
+   */
+  const purposeGuide = PURPOSE_GUIDE[purpose] ?? PURPOSE_GUIDE["其他"];
   const bonus = purposeGuide.bestMonths;
   const allDays: DongGongDay[] = [];
 

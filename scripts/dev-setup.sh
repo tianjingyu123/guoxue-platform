@@ -29,26 +29,26 @@ else
 fi
 echo "  系统: $OS ($DISTRO)"
 
-# ───── 1. Node.js >= 20 ─────
+# ───── 1. Node.js 22/24 LTS ─────
 echo ""
 echo -e "${YELLOW}[1/7] 安装 Node.js${NC}"
 if command -v node >/dev/null 2>&1; then
   NODE_VER=$(node -v | sed 's/v//' | cut -d. -f1)
-  if [ "$NODE_VER" -ge 20 ]; then
+  if [ "$NODE_VER" -eq 22 ] || [ "$NODE_VER" -eq 24 ]; then
     echo -e "  ${GREEN}Node.js $(node -v) 已就绪${NC}"
   else
-    echo -e "  ${RED}Node.js $(node -v) < 20，请升级${NC}"
+    echo -e "  ${RED}Node.js $(node -v) 不受支持，请升级到 22 或 24 LTS${NC}"
     exit 1
   fi
 else
   case "$DISTRO" in
     ubuntu|debian)
-      echo "  通过 NodeSource 安装 Node.js 22 LTS..."
-      curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+      echo "  通过 NodeSource 安装 Node.js 24 LTS..."
+      curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
       sudo apt-get install -y nodejs
       ;;
     macos)
-      brew install node@22
+      brew install node@24
       ;;
   esac
   echo -e "  ${GREEN}Node.js $(node -v) 安装完成${NC}"

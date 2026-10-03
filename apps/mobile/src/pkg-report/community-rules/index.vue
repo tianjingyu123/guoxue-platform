@@ -24,7 +24,7 @@
           </view>
         </view>
 
-        <text class="intro">儒布社区是国学爱好者学习与交流的家园。为维护良好的社区环境，请所有成员遵守以下规范。</text>
+        <text class="intro">热卜社区是国学爱好者学习与交流的家园。为维护良好的社区环境，请所有成员遵守以下规范。</text>
 
         <!-- 鼓励的行为 -->
         <view class="section">
@@ -126,7 +126,8 @@ export default {
 
 <style lang="scss" scoped>
 .page {
-  min-height: 100vh;
+  /* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+  height: 100vh;
   background: #faf8f5;
   display: flex;
   flex-direction: column;
@@ -160,6 +161,7 @@ export default {
 .body {
   flex: 1;
   height: 0;
+  min-height: 0;
 }
 .content {
   padding: 48rpx 32rpx 160rpx;

@@ -16,7 +16,12 @@
       style="margin-bottom:12px"
     >
       <template #title>
-        <span style="font-size:13px">展示位置：通过路径（如 <b>/promo/spring</b>）在小程序中独立展示。可嵌入轮播、秒杀、拼团、商品等组件。发布后用户可见。</span>
+        <div style="font-size:13px;line-height:1.7">
+          <div><b>微页面 = 独立的促销/活动页</b>，通过路径（如 <b>/promo/spring</b>）在小程序中独立展示，可嵌入轮播、秒杀、拼团、商品、大卡等区块。</div>
+          <div style="color:#8b4513">
+            使用流程：① 点「创建微页面」填名称与路径 → ② 进入「编辑」拖入组件 → ③ 点「预览」查看效果 → ④ 点「发布」用户即可见；如需临时隐藏点「下线」回到草稿。
+          </div>
+        </div>
       </template>
     </el-alert>
     <el-alert
@@ -55,15 +60,28 @@
       </el-table-column>
       <el-table-column
         label="状态"
-        width="90"
+        width="110"
       >
         <template #default="{ row }">
           <el-tag
-            :type="row.status === 'PUBLISHED' ? 'success' : 'info'"
+            v-if="row.status === 'PUBLISHED'"
+            type="success"
             size="small"
           >
-            {{ row.status === 'PUBLISHED' ? '已发布' : '草稿' }}
+            已发布 · 用户可见
           </el-tag>
+          <el-tooltip
+            v-else
+            content="草稿状态用户不可见。曾发布后「下线」也会回到草稿状态。点「发布」即可上线。"
+            placement="top"
+          >
+            <el-tag
+              type="info"
+              size="small"
+            >
+              草稿 · 未上线
+            </el-tag>
+          </el-tooltip>
         </template>
       </el-table-column>
       <el-table-column
@@ -96,18 +114,11 @@
             编辑
           </el-button>
           <el-button
-            v-if="row.status === 'PUBLISHED'"
             size="small"
             type="warning"
             @click="openPreview(row)"
           >
             预览
-          </el-button>
-          <el-button
-            size="small"
-            @click="openVersions(row)"
-          >
-            版本
           </el-button>
           <el-button
             v-if="row.status !== 'PUBLISHED'"
@@ -116,6 +127,26 @@
             @click="doPublish(row)"
           >
             发布
+          </el-button>
+          <el-popconfirm
+            v-if="row.status === 'PUBLISHED'"
+            title="下线后用户将无法访问此页面，确定下线？"
+            @confirm="doUnpublish(row)"
+          >
+            <template #reference>
+              <el-button
+                size="small"
+                type="info"
+              >
+                下线
+              </el-button>
+            </template>
+          </el-popconfirm>
+          <el-button
+            size="small"
+            @click="openVersions(row)"
+          >
+            版本
           </el-button>
           <el-popconfirm
             title="确定删除此页面？"
@@ -223,7 +254,7 @@
               v-model="form.entryIcon"
               placeholder="emoji或图标URL"
               style="width:200px"
-            /><span style="margin-left:8px;font-size:20px">{{ form.entryIcon || '🎯' }}</span>
+            /><span class="entry-glyph">{{ form.entryIcon || '荐' }}</span>
           </el-form-item>
           <el-form-item label="排序权重">
             <el-input-number
@@ -931,9 +962,203 @@
                 />
               </el-form-item>
 
+              <!-- ═══ 首页原生块：公告条 ═══ -->
+              <template v-if="vePropForm.type === 'notice'">
+                <el-form-item label="公告文字">
+                  <el-input
+                    v-model="vePropForm.noticeText"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="公告内容（留空则用上方标题）"
+                  />
+                </el-form-item>
+                <el-form-item label="跳转链接">
+                  <el-input
+                    v-model="vePropForm.noticeLink"
+                    placeholder="可选，如 /pages/xxx 或 https://"
+                  />
+                </el-form-item>
+              </template>
+
+              <!-- ═══ 首页原生块：金刚区（图标导航·可增删项）═══ -->
+              <template v-if="vePropForm.type === 'kingkong'">
+                <el-form-item label="图标项">
+                  <div style="width:100%">
+                    <div
+                      v-for="(it, i) in vePropForm.kkItems"
+                      :key="i"
+                      style="border:1px solid #eee;border-radius:6px;padding:8px;margin-bottom:8px;position:relative"
+                    >
+                      <div style="display:flex;gap:6px;margin-bottom:6px">
+                        <el-select
+                          v-model="it.icon"
+                          filterable
+                          allow-create
+                          placeholder="图标名"
+                          size="small"
+                          style="flex:1"
+                        >
+                          <el-option
+                            v-for="ic in KINGKONG_ICONS"
+                            :key="ic"
+                            :label="ic"
+                            :value="ic"
+                          />
+                        </el-select>
+                        <el-color-picker
+                          v-model="it.color"
+                          size="small"
+                        />
+                        <el-button
+                          size="small"
+                          type="danger"
+                          @click="vePropForm.kkItems.splice(i, 1)"
+                        >
+                          删
+                        </el-button>
+                      </div>
+                      <el-input
+                        v-model="it.label"
+                        placeholder="文字标签"
+                        size="small"
+                        style="margin-bottom:6px"
+                      />
+                      <el-input
+                        v-model="it.link"
+                        placeholder="跳转链接，如 /pages/xxx"
+                        size="small"
+                      />
+                    </div>
+                    <el-button
+                      size="small"
+                      type="primary"
+                      plain
+                      style="width:100%"
+                      @click="vePropForm.kkItems.push({ icon: 'grid', label: '', color: '#C41E3A', link: '' })"
+                    >
+                      + 添加图标
+                    </el-button>
+                  </div>
+                </el-form-item>
+              </template>
+
+              <!-- ═══ 首页原生块：横滑专栏（可增删卡片）═══ -->
+              <template v-if="vePropForm.type === 'rail'">
+                <el-form-item label="更多链接">
+                  <el-input
+                    v-model="vePropForm.railMoreLink"
+                    placeholder="可选，专栏右上角「更多」跳转"
+                    size="small"
+                  />
+                </el-form-item>
+                <el-form-item label="专栏卡片">
+                  <div style="width:100%">
+                    <div
+                      v-for="(it, i) in vePropForm.railItems"
+                      :key="i"
+                      style="border:1px solid #eee;border-radius:6px;padding:8px;margin-bottom:8px"
+                    >
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                        <span style="font-size:12px;color:#999">卡片 {{ i + 1 }}</span>
+                        <el-button
+                          size="small"
+                          type="danger"
+                          @click="vePropForm.railItems.splice(i, 1)"
+                        >
+                          删
+                        </el-button>
+                      </div>
+                      <el-input
+                        v-model="it.cover"
+                        placeholder="封面图 URL"
+                        size="small"
+                        style="margin-bottom:6px"
+                      />
+                      <el-input
+                        v-model="it.title"
+                        placeholder="卡片标题"
+                        size="small"
+                        style="margin-bottom:6px"
+                      />
+                      <div style="display:flex;gap:6px;margin-bottom:6px">
+                        <el-input
+                          v-model="it.sub"
+                          placeholder="副标题（可选）"
+                          size="small"
+                        />
+                        <el-input
+                          v-model="it.price"
+                          placeholder="价格（可选）"
+                          size="small"
+                        />
+                      </div>
+                      <el-input
+                        v-model="it.link"
+                        placeholder="跳转链接"
+                        size="small"
+                      />
+                    </div>
+                    <el-button
+                      size="small"
+                      type="primary"
+                      plain
+                      style="width:100%"
+                      @click="vePropForm.railItems.push({ cover: '', title: '', sub: '', price: '', link: '' })"
+                    >
+                      + 添加卡片
+                    </el-button>
+                  </div>
+                </el-form-item>
+              </template>
+
+              <!-- ═══ 首页原生块：2:1 大卡 ═══ -->
+              <template v-if="vePropForm.type === 'bigCard'">
+                <el-form-item label="封面图">
+                  <el-input
+                    v-model="vePropForm.bigCover"
+                    placeholder="封面图 URL"
+                    size="small"
+                  />
+                </el-form-item>
+                <el-form-item label="副标题">
+                  <el-input
+                    v-model="vePropForm.bigSubtitle"
+                    placeholder="可选"
+                    size="small"
+                  />
+                </el-form-item>
+                <el-form-item label="价格">
+                  <el-input
+                    v-model="vePropForm.bigPrice"
+                    placeholder="可选，如 99"
+                    size="small"
+                  />
+                </el-form-item>
+                <el-form-item label="角标">
+                  <el-input
+                    v-model="vePropForm.bigTag"
+                    placeholder="可选，如 限时"
+                    size="small"
+                  />
+                </el-form-item>
+                <el-form-item label="跳转链接">
+                  <el-input
+                    v-model="vePropForm.bigLink"
+                    placeholder="点击大卡跳转"
+                    size="small"
+                  />
+                </el-form-item>
+                <el-alert
+                  title="大卡主标题使用上方「标题」字段"
+                  type="info"
+                  :closable="false"
+                  style="margin-bottom:8px"
+                />
+              </template>
+
               <!-- 其他类型：保留JSON配置 -->
               <el-form-item
-                v-if="!['FLASHSALE','GROUPBUY','COUPON','PRODUCT_LIST','FLASHSALE_INDEPENDENT','GROUPBUY_INDEPENDENT'].includes(vePropForm.type)"
+                v-if="!['FLASHSALE','GROUPBUY','COUPON','PRODUCT_LIST','FLASHSALE_INDEPENDENT','GROUPBUY_INDEPENDENT','notice','kingkong','rail','bigCard'].includes(vePropForm.type)"
                 label="配置JSON"
               >
                 <el-input
@@ -1142,7 +1367,7 @@
                 v-if="comp.type === 'CAROUSEL'"
                 class="pp-mock-carousel"
               >
-                📷 轮播图 Banner
+                轮播图 Banner
               </div>
               <!-- 倒计时 -->
               <div
@@ -1177,35 +1402,35 @@
                 v-else-if="comp.type === 'GROUPBUY'"
                 class="pp-mock-groupbuy"
               >
-                👥 2人拼团 ¥19.9
+                2人拼团 ¥19.9
               </div>
               <!-- 优惠券 -->
               <div
                 v-else-if="comp.type === 'COUPON'"
                 class="pp-mock-coupon"
               >
-                🎫 满100减20
+                满100减20
               </div>
               <!-- 商品列表 -->
               <div
                 v-else-if="comp.type === 'PRODUCT_LIST'"
                 class="pp-mock-productlist"
               >
-                🛍️ 精选商品网格
+                精选商品网格
               </div>
               <!-- 图片 -->
               <div
                 v-else-if="comp.type === 'IMAGE'"
                 class="pp-mock-image"
               >
-                📷 {{ comp.title || '图片展示' }}
+                {{ comp.title || '图片展示' }}
               </div>
               <!-- 文本 -->
               <div
                 v-else-if="comp.type === 'TEXT'"
                 class="pp-mock-textblock"
               >
-                📝 {{ comp.title || '文本内容区域' }}
+                {{ comp.title || '文本内容区域' }}
               </div>
               <!-- 推荐 -->
               <div
@@ -1219,7 +1444,7 @@
                 v-else-if="comp.type === 'TABS'"
                 class="pp-mock-tabs"
               >
-                📑 选项卡内容
+                选项卡内容
               </div>
               <!-- 独立秒杀 -->
               <div
@@ -1243,11 +1468,11 @@
                 v-else-if="comp.type === 'GROUPBUY_INDEPENDENT'"
                 class="pp-mock-groupbuy"
               >
-                👥 {{ comp.config?.minMembers || 2 }}人拼团 ¥{{ comp.config?.groupPrice || '19.9' }}
+                {{ comp.config?.minMembers || 2 }}人拼团 ¥{{ comp.config?.groupPrice || '19.9' }}
               </div>
               <!-- 通用 -->
               <div v-else>
-                📦 {{ compTypeMap[comp.type] || comp.type }}
+                {{ compTypeMap[comp.type] || comp.type }}
               </div>
             </div>
           </div>
@@ -1265,15 +1490,17 @@ import ProductPicker from '@/components/ProductPicker.vue'
 
 // axios 错误体
 interface ApiError { response?: { data?: { message?: string } } }
-// 微页面组件：config/audience 为任意 JSON 配置（无固定结构），值类型保留 any
+// 微页面配置由运营人员自由组合，动态字段集中在这一处兼容旧数据。
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DynamicPageConfig = Record<string, any>
 interface PageComponent {
   id?: string
   type: string
   title?: string
-  config?: Record<string, any>
+  config?: DynamicPageConfig
   startTime?: string | null
   endTime?: string | null
-  audience?: Record<string, any> | null
+  audience?: DynamicPageConfig | null
   sortOrder?: number
   _key?: string
 }
@@ -1331,7 +1558,14 @@ const compTitlePlaceholder = computed(() => {
 })
 
 const compConfigPlaceholder = computed(() => {
-  const m: Record<string, string> = { CAROUSEL: '{"images":[{"url":"...","link":"..."}]}', COUNTDOWN: '{"targetTime":"2026-12-31 23:59:59"}', IMAGE: '{"url":"...","link":"..."}', TEXT: '{"content":"HTML内容"}', TABS: '{"tabs":[{"title":"标签1","type":"PRODUCT_LIST"}]}', RECOMMEND: '{"algorithm":"popular","limit":10}' }
+  const m: Record<string, string> = {
+    CAROUSEL: '{"images":[{"url":"...","link":"..."}]}', COUNTDOWN: '{"targetTime":"2026-12-31 23:59:59"}', IMAGE: '{"url":"...","link":"..."}', TEXT: '{"content":"HTML内容"}', TABS: '{"tabs":[{"title":"标签1","type":"PRODUCT_LIST"}]}', RECOMMEND: '{"algorithm":"popular","limit":10}',
+    // 首页原生块建议在可视化编辑器中配置，此处为 JSON 结构参考
+    notice: '{"text":"公告文字","link":"/pages/xxx"}',
+    kingkong: '{"items":[{"icon":"book-open","label":"课程","color":"#C41E3A","link":"/pages/xxx"}]}',
+    rail: '{"moreLink":"","items":[{"cover":"图URL","title":"标题","sub":"","price":"","link":""}]}',
+    bigCard: '{"cover":"图URL","subtitle":"","price":"","tag":"","link":""}',
+  }
   return m[compForm.type] || '{}'
 })
 
@@ -1367,7 +1601,19 @@ const previewPageVis = ref(false); const previewPageTitle = ref(''); const previ
 // 可视化编辑器状态
 const veVis = ref(false); const veSaving = ref(false); const vePageTitle = ref('')
 const veComponents = ref<PageComponent[]>([]); const veSelectedIdx = ref<number | null>(null); const dragOver = ref(false)
-const vePropForm = reactive({ type: 'CAROUSEL', title: '', configStr: '{}', activityIds: [] as string[], productIds: [] as string[], startTime: '' as string, endTime: '' as string, audienceStr: '', independentProductId: '', independentPrice: 9.9, independentStock: 100, independentLimit: 1 })
+// 首页块子项类型
+interface KingkongItem { icon: string; label: string; color: string; link: string }
+interface RailItem { cover: string; title: string; sub: string; price: string; link: string }
+const vePropForm = reactive({
+  type: 'CAROUSEL', title: '', configStr: '{}', activityIds: [] as string[], productIds: [] as string[],
+  startTime: '' as string, endTime: '' as string, audienceStr: '',
+  independentProductId: '', independentPrice: 9.9, independentStock: 100, independentLimit: 1,
+  // ── 首页原生块字段 ──
+  noticeText: '', noticeLink: '',                                   // notice
+  kkItems: [] as KingkongItem[],                                   // kingkong
+  railMoreLink: '', railItems: [] as RailItem[],                   // rail
+  bigCover: '', bigSubtitle: '', bigPrice: '', bigTag: '', bigLink: '', // bigCard（title 复用 vePropForm.title）
+})
 
 const routePresets = [
   { label: '促销活动 /promo/sale', value: '/promo/sale' },
@@ -1387,15 +1633,24 @@ const compTypeMap: Record<string, string> = {
   GROUPBUY: '拼团专区', COUPON: '优惠券', PRODUCT_LIST: '商品列表',
   RECOMMEND: '推荐', IMAGE: '图片', TEXT: '文本', TABS: '选项卡',
   FLASHSALE_INDEPENDENT: '独立秒杀', GROUPBUY_INDEPENDENT: '独立拼团',
+  // ── 首页原生块（type 为小写，与 H5 block-renderer 对齐）──
+  notice: '公告条', kingkong: '金刚区', rail: '横滑专栏', bigCard: '大卡2:1',
 }
+
+// 金刚区可选图标（H5 app-icon 支持的图标名）
+const KINGKONG_ICONS = [
+  'graduation-cap', 'book-open', 'shopping-bag', 'video', 'radio',
+  'users', 'bot', 'compass', 'grid', 'star', 'gift', 'heart',
+]
 
 function compIcon(type: string): string {
   const icons: Record<string, string> = {
-    CAROUSEL: '🖼️', COUNTDOWN: '⏰', FLASHSALE: '⚡', GROUPBUY: '👥',
-    COUPON: '🎫', PRODUCT_LIST: '🛍️', RECOMMEND: '⭐', IMAGE: '📷',
-    TEXT: '📝', TABS: '📑', FLASHSALE_INDEPENDENT: '⚡', GROUPBUY_INDEPENDENT: '👥',
+    CAROUSEL: '轮', COUNTDOWN: '时', FLASHSALE: '秒', GROUPBUY: '拼',
+    COUPON: '券', PRODUCT_LIST: '品', RECOMMEND: '荐', IMAGE: '图',
+    TEXT: '文', TABS: '签', FLASHSALE_INDEPENDENT: '秒', GROUPBUY_INDEPENDENT: '拼',
+    notice: '告', kingkong: '导', rail: '列', bigCard: '卡',
   }
-  return icons[type] || '📦'
+  return icons[type] || '组'
 }
 
 let veCompKey = 0
@@ -1406,17 +1661,16 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 async function fetchList() {
   loading.value = true
   error.value = false
-  try { const { data } = await marketingApi.listPages(); list.value = data.items || data.pages || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
+  try {
+    const { data } = await marketingApi.listPages()
+    // 后端 listPages 返回裸数组（经拦截器解包后 data 即数组）；同时兼容分页包裹结构
+    const rows = Array.isArray(data) ? data : (data.items || data.pages || data.data || [])
+    list.value = rows
+    total.value = Array.isArray(data) ? rows.length : (data.total || rows.length)
+  } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', route: '', description: '', entryVisible: false, entryTitle: '', entryIcon: '', entrySort: 0 }); vis.value = true }
-function openEdit(row: PageRow) {
-  editingId.value = row.id
-  const ec = row.entryConfig || {}
-  Object.assign(form, { name: row.name || row.title || '', route: row.route || row.path || '', description: row.description || '', entryVisible: row.entryVisible || false, entryTitle: ec.title || '', entryIcon: ec.icon || '', entrySort: ec.sort || 0 })
-  vis.value = true
-}
-
 async function save() {
   if (!form.name) { ElMessage.warning('请输入页面名称'); return }
   if (!form.route) { ElMessage.warning('请输入路由路径（如 /promo），用户通过此路径访问页面'); return }
@@ -1455,12 +1709,6 @@ async function del(id: string) {
 }
 
 // ───────── 组件管理（列表模式） ─────────
-async function openComponents(row: PageRow) {
-  currentPageId.value = row.id
-  try { const { data } = await marketingApi.getPage(row.id); components.value = data.items || data.components || [] } catch { components.value = [] }
-  compVis.value = true
-}
-
 function openCompCreate() {
   compEditingId.value = ''
   Object.assign(compForm, { type: 'CAROUSEL', title: '', configStr: '{}', activityIds: [], productIds: [], startTime: '', endTime: '', audienceStr: '', independentProductId: '', independentPrice: 9.9, independentStock: 100, independentLimit: 1 })
@@ -1565,7 +1813,7 @@ async function doSort() {
 // ───────── 可视化编辑器 ─────────
 async function openVisualEditor(row: PageRow) {
   currentPageId.value = row.id
-  vePageTitle.value = row.title ?? ''
+  vePageTitle.value = row.title ?? row.name ?? ''
   try {
     const { data } = await marketingApi.getPage(row.id)
     veComponents.value = ((data.components || []) as PageComponent[]).map((c: PageComponent) => ({ ...c, _key: `comp_${veCompKey++}` }))
@@ -1597,6 +1845,21 @@ function veSelectComp(idx: number) {
     independentPrice: cfg.flashPrice || cfg.groupPrice || 9.9,
     independentStock: cfg.stock || 100,
     independentLimit: cfg.limitPerUser || cfg.minMembers || 1,
+    // ── 首页原生块回填 ──
+    noticeText: cfg.text || '',
+    noticeLink: cfg.link || '',
+    kkItems: Array.isArray(cfg.items)
+      ? cfg.items.map((it: DynamicPageConfig) => ({ icon: it.icon || 'grid', label: it.label || '', color: it.color || '#C41E3A', link: it.link || '' }))
+      : [],
+    railMoreLink: cfg.moreLink || '',
+    railItems: Array.isArray(cfg.items)
+      ? cfg.items.map((it: DynamicPageConfig) => ({ cover: it.cover || it.image || '', title: it.title || '', sub: it.sub || it.subtitle || '', price: it.price || '', link: it.link || '' }))
+      : [],
+    bigCover: cfg.cover || cfg.image || '',
+    bigSubtitle: cfg.subtitle || '',
+    bigPrice: cfg.price || '',
+    bigTag: cfg.tag || '',
+    bigLink: cfg.link || '',
   })
   fetchActivityOptions()
 }
@@ -1616,6 +1879,11 @@ function veSyncProps() {
   else if (t === 'PRODUCT_LIST') comp.config = { productIds: vePropForm.productIds }
   else if (t === 'FLASHSALE_INDEPENDENT') comp.config = { productId: vePropForm.independentProductId, flashPrice: vePropForm.independentPrice, stock: vePropForm.independentStock, limitPerUser: vePropForm.independentLimit }
   else if (t === 'GROUPBUY_INDEPENDENT') comp.config = { productId: vePropForm.independentProductId, groupPrice: vePropForm.independentPrice, stock: vePropForm.independentStock, minMembers: vePropForm.independentLimit }
+  // ── 首页原生块：产出与 H5 block-renderer 对齐的 config ──
+  else if (t === 'notice') comp.config = { text: vePropForm.noticeText, link: vePropForm.noticeLink }
+  else if (t === 'kingkong') comp.config = { items: vePropForm.kkItems.map(it => ({ icon: it.icon, label: it.label, color: it.color, link: it.link })) }
+  else if (t === 'rail') comp.config = { moreLink: vePropForm.railMoreLink, items: vePropForm.railItems.map(it => ({ cover: it.cover, title: it.title, sub: it.sub, price: it.price, link: it.link })) }
+  else if (t === 'bigCard') comp.config = { cover: vePropForm.bigCover, title: vePropForm.title, subtitle: vePropForm.bigSubtitle, price: vePropForm.bigPrice, tag: vePropForm.bigTag, link: vePropForm.bigLink }
   else { try { comp.config = JSON.parse(vePropForm.configStr) } catch { /* keep old */ } }
   comp.startTime = vePropForm.startTime || null
   comp.endTime = vePropForm.endTime || null
@@ -1628,9 +1896,14 @@ watch([() => vePropForm.type, () => vePropForm.title, () => vePropForm.configStr
   () => vePropForm.activityIds, () => vePropForm.productIds,
   () => vePropForm.startTime, () => vePropForm.endTime, () => vePropForm.audienceStr,
   () => vePropForm.independentProductId, () => vePropForm.independentPrice,
-  () => vePropForm.independentStock, () => vePropForm.independentLimit], () => {
+  () => vePropForm.independentStock, () => vePropForm.independentLimit,
+  // ── 首页原生块字段（深度监听 items 数组）──
+  () => vePropForm.noticeText, () => vePropForm.noticeLink,
+  () => vePropForm.kkItems, () => vePropForm.railMoreLink, () => vePropForm.railItems,
+  () => vePropForm.bigCover, () => vePropForm.bigSubtitle, () => vePropForm.bigPrice,
+  () => vePropForm.bigTag, () => vePropForm.bigLink], () => {
   veSyncProps()
-})
+}, { deep: true })
 
 function veDeleteComp(idx: number) {
   veComponents.value.splice(idx, 1)
@@ -1692,12 +1965,25 @@ async function veSave() {
       })
     }
     ElMessage.success('已保存')
+    // 保存组件后刷新列表，使「组件数」等信息立即更新
+    fetchList()
   } catch { ElMessage.error('保存失败') } finally { veSaving.value = false }
 }
 
 async function vePublish() {
   await veSave()
   try { await marketingApi.publishPage(currentPageId.value); ElMessage.success('已发布'); fetchList() } catch { ElMessage.error('发布失败') }
+}
+
+// 下线/停用：把已发布页改回草稿态，用户即不可见
+async function doUnpublish(row: PageRow) {
+  try {
+    await marketingApi.updatePage(row.id, { status: 'DRAFT' })
+    ElMessage.success('已下线，用户不再可见')
+    fetchList()
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || '下线失败')
+  }
 }
 
 // 渲染预览组件
@@ -1710,12 +1996,81 @@ function veRenderComp(comp: PageComponent) {
   if (type === 'TABS') return veTabsComp
   if (type === 'FLASHSALE_INDEPENDENT') return veFlashIndependentComp
   if (type === 'GROUPBUY_INDEPENDENT') return veGroupIndependentComp
+  if (type === 'notice') return veNoticeComp
+  if (type === 'kingkong') return veKingkongComp
+  if (type === 'rail') return veRailComp
+  if (type === 'bigCard') return veBigCardComp
   return veGenericComp
 }
 
-const veFlashIndependentComp: any = {
+// ── 首页原生块预览 ──
+type PreviewRenderContext = { comp?: PageComponent }
+
+const veNoticeComp = {
   props: ['comp'],
-  render(ctx: any) {
+  render(ctx: PreviewRenderContext) {
+    const cfg = ctx.comp?.config || {}
+    return h('div', { style: { margin: '8px 12px', padding: '10px 14px', background: 'rgba(201,169,110,0.14)', borderRadius: '8px', color: '#8A6D3B', fontSize: '13px' } },
+      ctx.comp?.title || cfg.text || '公告文字')
+  },
+}
+const veKingkongComp = {
+  props: ['comp'],
+  render(ctx: PreviewRenderContext) {
+    const cfg = ctx.comp?.config || {}
+    const items = Array.isArray(cfg.items) ? cfg.items : []
+    return h('div', { style: { padding: '12px 8px' } }, [
+      ctx.comp?.title ? h('div', { style: { fontSize: '13px', fontWeight: 700, padding: '0 8px 8px' } }, ctx.comp.title) : null,
+      h('div', { style: { display: 'flex', flexWrap: 'wrap' } },
+        (items.length ? items : [null, null, null, null, null]).map((it: DynamicPageConfig | null) =>
+          h('div', { style: { width: '20%', textAlign: 'center', marginBottom: '10px', fontSize: '11px' } }, [
+            h('div', { style: { width: '38px', height: '38px', margin: '0 auto 4px', borderRadius: '10px', background: (it?.color || '#C41E3A') + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: it?.color || '#C41E3A' } }, it?.icon ? '●' : ''),
+            h('div', { style: { color: '#333' } }, it?.label || '图标'),
+          ])
+        )
+      ),
+    ])
+  },
+}
+const veRailComp = {
+  props: ['comp'],
+  render(ctx: PreviewRenderContext) {
+    const cfg = ctx.comp?.config || {}
+    const items = Array.isArray(cfg.items) ? cfg.items : []
+    return h('div', { style: { padding: '8px 0' } }, [
+      h('div', { style: { fontSize: '13px', fontWeight: 700, padding: '0 12px 8px' } }, ctx.comp?.title || '横滑专栏'),
+      h('div', { style: { display: 'flex', gap: '8px', overflowX: 'auto', padding: '0 12px' } },
+        (items.length ? items : [null, null]).map((it: DynamicPageConfig | null) =>
+          h('div', { style: { flexShrink: 0, width: '110px', background: '#fff', borderRadius: '8px', boxShadow: '0 1px 6px rgba(0,0,0,0.08)', overflow: 'hidden' } }, [
+            h('div', { style: { width: '100%', height: '80px', background: '#f2efea', backgroundImage: it?.cover ? `url(${it.cover})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' } }),
+            h('div', { style: { padding: '6px 8px', fontSize: '12px', color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, it?.title || '卡片标题'),
+            it?.price ? h('div', { style: { padding: '0 8px 6px', fontSize: '12px', color: '#C41E3A', fontWeight: 700 } }, `¥${it.price}`) : null,
+          ])
+        )
+      ),
+    ])
+  },
+}
+const veBigCardComp = {
+  props: ['comp'],
+  render(ctx: PreviewRenderContext) {
+    const cfg = ctx.comp?.config || {}
+    const cover = cfg.cover || cfg.image || ''
+    return h('div', { style: { margin: '8px 12px', position: 'relative', borderRadius: '10px', overflow: 'hidden', height: '120px', background: '#f2efea', backgroundImage: cover ? `url(${cover})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' } }, [
+      h('div', { style: { position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(20,15,10,0.7), transparent 60%)' } }),
+      cfg.tag ? h('span', { style: { position: 'absolute', top: '8px', left: '8px', fontSize: '11px', color: '#fff', background: 'rgba(180,140,70,0.95)', borderRadius: '5px', padding: '2px 8px' } }, cfg.tag) : null,
+      h('div', { style: { position: 'absolute', left: '12px', right: '12px', bottom: '10px', color: '#fff' } }, [
+        h('div', { style: { fontSize: '16px', fontWeight: 700 } }, ctx.comp?.title || cfg.title || '大卡标题'),
+        cfg.price ? h('span', { style: { fontSize: '15px', fontWeight: 700, color: '#FFD98A' } }, `¥${cfg.price}`) : null,
+        cfg.subtitle ? h('span', { style: { fontSize: '12px', marginLeft: '8px', opacity: 0.9 } }, cfg.subtitle) : null,
+      ]),
+    ])
+  },
+}
+
+const veFlashIndependentComp = {
+  props: ['comp'],
+  render(ctx: PreviewRenderContext) {
     const cfg = ctx.comp?.config || {}
     return h('div', { class: 've-mock ve-mock-countdown' }, [
       h('span', { style: { fontWeight: 'bold' } }, `⚡ 独立秒杀 — ¥${cfg.flashPrice || '?'}`),
@@ -1723,12 +2078,12 @@ const veFlashIndependentComp: any = {
     ])
   },
 }
-const veGroupIndependentComp: any = {
+const veGroupIndependentComp = {
   props: ['comp'],
-  render(ctx: any) {
+  render(ctx: PreviewRenderContext) {
     const cfg = ctx.comp?.config || {}
     return h('div', { class: 've-mock', style: { background: 'linear-gradient(135deg, #fff8f0, #ffeedd)', color: '#e67e22' } }, [
-      h('span', { style: { fontWeight: 'bold' } }, `👥 独立拼团 — ¥${cfg.groupPrice || '?'}`),
+      h('span', { style: { fontWeight: 'bold' } }, `独立拼团 — ¥${cfg.groupPrice || '?'}`),
       h('span', { style: { fontSize: '10px', display: 'block', marginTop: '4px' } }, `${cfg.minMembers || 2}人成团 | 库存${cfg.stock || 0}`),
     ])
   },
@@ -1736,13 +2091,14 @@ const veGroupIndependentComp: any = {
 
 const veCarouselComp = { render() { return h('div', { class: 've-mock ve-mock-carousel' }, [h('span', '轮播图 — Banner轮播')]) } }
 const veCountdownComp = { render() { return h('div', { class: 've-mock ve-mock-countdown' }, [h('span', '⏰ 倒计时组件')]) } }
-const veImageComp = { render() { return h('div', { class: 've-mock ve-mock-image' }, [h('span', '📷 图片组件')]) } }
-const veTextComp = { render() { return h('div', { class: 've-mock ve-mock-text' }, [h('span', '📝 文本内容区域')]) } }
-const veTabsComp = { render() { return h('div', { class: 've-mock ve-mock-tabs' }, [h('span', '📑 选项卡切换')]) } }
-const veGenericComp: any = {
+const veImageComp = { render() { return h('div', { class: 've-mock ve-mock-image' }, [h('span', '图片组件')]) } }
+const veTextComp = { render() { return h('div', { class: 've-mock ve-mock-text' }, [h('span', '文本内容区域')]) } }
+const veTabsComp = { render() { return h('div', { class: 've-mock ve-mock-tabs' }, [h('span', '选项卡切换')]) } }
+const veGenericComp = {
   props: ['comp'],
-  render(ctx: any) {
-    const label = compTypeMap[ctx.comp?.type] || ctx.comp?.type || '未知组件'
+  render(ctx: PreviewRenderContext) {
+    const type = ctx.comp?.type || ''
+    const label = compTypeMap[type] || type || '未知组件'
     return h('div', { class: 've-mock ve-mock-generic' }, [
       h('span', `${compIcon(ctx.comp?.type || '')} ${label}`),
       h('span', { style: { fontSize: '10px', color: '#999', display: 'block' } }, ctx.comp?.title || ''),
@@ -1772,7 +2128,7 @@ async function doRollback(versionId: string) {
 
 // ───────── 用户端预览 ─────────
 async function openPreview(row: PageRow) {
-  previewPageTitle.value = row.title ?? ''
+  previewPageTitle.value = row.title ?? row.name ?? ''
   previewPageComps.value = []
   previewPageVis.value = true
   try {
@@ -1783,41 +2139,42 @@ async function openPreview(row: PageRow) {
 </script>
 
 <style scoped>
-.page { padding: 16px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
+.page { padding: 0; }
+.entry-glyph { display: inline-grid; width: 30px; height: 30px; margin-left: 8px; place-items: center; border-radius: 9px; color: #8a6331; background: rgba(184,137,63,.1); font-size: 14px; font-weight: 700; }
+.toolbar { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-bottom: 18px; padding-left: 13px; border-left: 4px solid var(--color-primary); }
+.toolbar h3 { margin: 0; font-size: 25px; font-weight: 680; letter-spacing: -.025em; color: var(--color-text-title); }
 
 /* ═══ 可视化编辑器 ═══ */
-.ve-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: var(--color-bg-card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 10; }
+.ve-toolbar { display: flex; justify-content: space-between; align-items: center; min-height: 64px; padding: 10px 18px; background: rgba(255,255,255,.94); border-bottom: 1px solid var(--color-divider); box-shadow: 0 6px 18px rgba(16,34,55,.05); backdrop-filter: blur(16px); position: sticky; top: 0; z-index: 10; }
 .ve-tbar-left { display: flex; align-items: center; gap: 12px; }
-.ve-page-name { font-size: 16px; font-weight: 600; color: var(--color-text-title); }
+.ve-page-name { max-width: 360px; overflow: hidden; font-size: 17px; font-weight: 680; color: var(--color-text-title); text-overflow: ellipsis; white-space: nowrap; }
 .ve-tbar-right { display: flex; gap: 8px; }
 
-.ve-body { display: flex; height: calc(100vh - 56px); overflow: hidden; }
+.ve-body { display: flex; height: calc(100vh - 64px); overflow: hidden; }
 
 /* 左侧组件库 */
-.ve-left { width: 180px; background: #fafafa; border-right: 1px solid #eee; overflow-y: auto; flex-shrink: 0; }
-.ve-left-title { padding: 12px 12px 8px; font-size: 13px; color: var(--color-text-secondary); font-weight: 500; }
-.ve-comp-lib { padding: 0 8px; }
-.ve-comp-item { display: flex; align-items: center; gap: 8px; padding: 10px 8px; margin-bottom: 4px; border-radius: 6px; cursor: grab; background: var(--color-bg-card); border: 1px solid #eee; transition: all 0.15s; user-select: none; }
-.ve-comp-item:hover { border-color: var(--color-text-title); box-shadow: 0 2px 8px rgba(139,69,19,0.1); }
+.ve-left { width: 208px; background: #f4f6f8; border-right: 1px solid var(--color-divider); overflow-y: auto; flex-shrink: 0; }
+.ve-left-title { padding: 17px 14px 9px; font-size: 12px; color: var(--color-text-secondary); font-weight: 650; }
+.ve-comp-lib { padding: 0 10px 16px; }
+.ve-comp-item { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 8px 10px; margin-bottom: 5px; border-radius: 10px; cursor: grab; background: rgba(255,255,255,.82); border: 1px solid #e2e7ed; transition: border-color .15s, background .15s, box-shadow .15s; user-select: none; }
+.ve-comp-item:hover { border-color: #aebbc8; background: #fff; box-shadow: 0 5px 14px rgba(19,38,60,.07); }
 .ve-comp-item:active { cursor: grabbing; }
-.ve-comp-icon { font-size: 18px; }
-.ve-comp-label { font-size: 12px; color: #666; }
+.ve-comp-icon { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 7px; background: #edf1f4; font-size: 15px; }
+.ve-comp-label { font-size: 12px; color: #4d596b; }
 
 /* 中间预览区 */
-.ve-center { flex: 1; display: flex; justify-content: center; align-items: flex-start; padding: 20px; background: #f0f0f0; overflow-y: auto; }
-.ve-phone-frame { width: 375px; background: var(--color-bg-card); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; }
-.ve-phone-status { background: #8b4513; color: #fff; text-align: center; padding: 8px; font-size: 12px; }
+.ve-center { flex: 1; display: flex; justify-content: center; align-items: flex-start; padding: 28px; background-color: #e9edf1; background-image: linear-gradient(rgba(56,76,98,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(56,76,98,.055) 1px, transparent 1px); background-size: 24px 24px; overflow-y: auto; }
+.ve-phone-frame { width: min(375px, 100%); background: var(--color-bg-card); border: 8px solid #19283a; border-radius: 28px; box-shadow: 0 24px 56px rgba(17,34,55,.22), 0 0 0 1px rgba(255,255,255,.8); overflow: hidden; }
+.ve-phone-status { background: #19283a; color: rgba(255,255,255,.88); text-align: center; padding: 8px; font-size: 11px; }
 .ve-phone-body { min-height: 500px; padding: 0; position: relative; }
-.ve-phone-body.ve-drag-over { outline: 2px dashed #8b4513; outline-offset: -2px; background: rgba(201,169,110,0.03); }
+.ve-phone-body.ve-drag-over { outline: 2px dashed var(--color-primary); outline-offset: -3px; background: rgba(180,35,62,.025); }
 .ve-drop-hint { display: flex; align-items: center; justify-content: center; height: 400px; color: var(--color-text-placeholder); font-size: 13px; text-align: center; line-height: 1.8; }
 
 .ve-render-comp { position: relative; border-bottom: 1px dashed #eee; cursor: pointer; transition: all 0.15s; }
-.ve-render-comp:hover { background: rgba(201,169,110,0.02); }
-.ve-render-comp.ve-selected { outline: 2px solid #8b4513; outline-offset: -2px; background: rgba(201,169,110,0.05); }
+.ve-render-comp:hover { background: rgba(82,120,157,.035); }
+.ve-render-comp.ve-selected { outline: 2px solid var(--color-primary); outline-offset: -2px; background: rgba(180,35,62,.035); }
 .ve-comp-actions { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: rgba(0,0,0,0.03); }
-.ve-comp-idx { width: 18px; height: 18px; border-radius: 50%; background: #8b4513; color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+.ve-comp-idx { width: 20px; height: 20px; border-radius: 6px; background: var(--color-ink); color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center; }
 .ve-comp-type-tag { font-size: 11px; color: var(--color-text-secondary); flex: 1; }
 .ve-comp-body { padding: 0; }
 
@@ -1831,8 +2188,8 @@ async function openPreview(row: PageRow) {
 .ve-mock-generic { background: #fafafa; min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 
 /* 右侧属性面板 */
-.ve-right { width: 300px; background: var(--color-bg-card); border-left: 1px solid #eee; overflow-y: auto; padding: 12px; flex-shrink: 0; }
-.ve-right-title { font-size: 14px; font-weight: 600; color: var(--color-text-title); margin-bottom: 12px; }
+.ve-right { width: 326px; background: #fbfcfd; border-left: 1px solid var(--color-divider); overflow-y: auto; padding: 18px; flex-shrink: 0; }
+.ve-right-title { font-size: 15px; font-weight: 680; color: var(--color-text-title); margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--color-divider); }
 .ve-right-hint { display: flex; align-items: center; justify-content: center; height: 200px; color: var(--color-text-placeholder); font-size: 13px; text-align: center; line-height: 1.8; }
 
 /* 预览手机框 */
@@ -1857,10 +2214,24 @@ async function openPreview(row: PageRow) {
 .pp-mock-textblock { padding: 16px; text-align: center; font-size: 13px; color: var(--color-text-secondary); }
 .pp-mock-recommend { background: #f0f5ff; padding: 16px; text-align: center; border-radius: 6px; font-size: 13px; color: #2f54eb; }
 .pp-mock-tabs { border-top: 3px solid #8b4513; padding: 16px; text-align: center; font-size: 13px; color: var(--color-text-secondary); }
+
+@media (max-width: 900px) {
+  .toolbar { align-items: flex-start; flex-direction: column; }
+  .ve-toolbar { align-items: flex-start; flex-direction: column; }
+  .ve-tbar-left, .ve-tbar-right { width: 100%; flex-wrap: wrap; }
+  .ve-body { height: calc(100vh - 112px); flex-direction: column; overflow: auto; }
+  .ve-left { width: 100%; overflow: visible; border-right: 0; border-bottom: 1px solid var(--color-divider); }
+  .ve-left-title { padding: 10px 12px 6px; }
+  .ve-comp-lib { display: flex; gap: 6px; padding: 0 10px 10px; overflow-x: auto; }
+  .ve-comp-item { min-width: 122px; margin-bottom: 0; }
+  .ve-center { min-height: 640px; flex: 0 0 auto; padding: 18px; }
+  .ve-right { width: 100%; overflow: visible; border-top: 1px solid var(--color-divider); border-left: 0; }
+}
 </style>
 
 <!-- global styles for fullscreen dialog -->
 <style>
+.visual-editor-dlg.el-dialog { max-height: 100vh; border: 0; border-radius: 0 !important; }
 .visual-editor-dlg .el-dialog__header { display: none; }
-.visual-editor-dlg .el-dialog__body { padding: 0; }
+.visual-editor-dlg .el-dialog__body { padding: 0; overflow: hidden; }
 </style>

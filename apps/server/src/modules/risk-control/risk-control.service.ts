@@ -448,16 +448,25 @@ export class RiskControlService {
   //  6. 设备指纹
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  async listDeviceFingerprints(params: { userId?: string; deviceId?: string }) {
+  async listDeviceFingerprints(params: { userId?: string; deviceId?: string; page?: number; pageSize?: number }) {
     const { userId, deviceId } = params;
+    // 向后兼容：前端未接分页时默认取 200（与其 MAX_DISPLAY 客户端上限一致），避免从"全量"缩到 20；
+    // 前端接入 page/pageSize 后走真实分页（NO_PAGE_LIMIT 不钳大页上限）
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize ?? 200, NO_PAGE_LIMIT);
     const where: Prisma.DeviceFingerprintWhereInput = {};
     if (userId) where.userId = userId;
     if (deviceId) where.deviceId = deviceId;
 
-    return this.prisma.deviceFingerprint.findMany({
-      where,
-      orderBy: { lastSeenAt: "desc" },
-    });
+    const [data, total] = await Promise.all([
+      this.prisma.deviceFingerprint.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { lastSeenAt: "desc" },
+      }),
+      this.prisma.deviceFingerprint.count({ where }),
+    ]);
+    return { data, total, page, pageSize };
   }
 
   async getDeviceFingerprintsByUser(userId: string) {

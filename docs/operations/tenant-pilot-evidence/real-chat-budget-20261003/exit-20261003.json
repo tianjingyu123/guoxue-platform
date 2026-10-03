@@ -1,0 +1,43 @@
+{
+  "head": "a1d37c4a2cfd0167a4474798a47a4cb6706e6c69",
+  "workingTreeDirty": false,
+  "sources": {
+    "scripts/ops/managed-exit-verify.mjs": "07d8a53d2c40fae148dbd920b97374b0cb7e2027f72214fb4d44f8a254ef02ea",
+    "apps/server/src/modules/managed-tenancy/managed-lease-export.ts": "625e0489e6b3002e4d1679d4e55051451d20171ae9b48a055fe35720d4b5296a",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "c089154278f7be496c25694cde7f4eb44494cdb286b1749383adb911597cce93",
+    "pilots/managed-tenancy/verify-exit-postgres.mjs": "1e654a9945d42a87b3800b796979dcac0dc719fab398da3ef8f9404acf2cfe0e"
+  },
+  "checks": [
+    {
+      "name": "新版完整退出快照含本地附件原始字节、商品正文和应用来源，逐页规范化摘要与原内容一致",
+      "status": "PASS"
+    },
+    {
+      "name": "成员、帖子、角色和会话历史均可退出；固定字段不导出内部prompt、密码、令牌或供应商请求标识",
+      "status": "PASS"
+    },
+    {
+      "name": "普通成员及同客户另一应用即使拿到下载凭据，也不能读取原应用管理员的退出快照",
+      "status": "PASS"
+    },
+    {
+      "name": "实际HTTP下载全部22类分页后，离线只读验真器核对总清单、每页和附件摘要；篡改附件拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "冻结前建立的快照仍可凭原应用有效授权只读下载；响应明确未记录新审计，冻结期间不能新建快照",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 6,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "真实本地客户库和HTTP退出数据；媒体仅数据库PNG/JPEG，不包含外部COS或供应商端内容",
+    "完整字段受控导出与数据库全量备份用途不同；手机号脱敏、内部认证凭据不向客户导出"
+  ]
+}

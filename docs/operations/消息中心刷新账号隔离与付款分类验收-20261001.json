@@ -1,0 +1,569 @@
+{
+  "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+  "receivedCommits": [
+    "9ae158bd9d756010fad07ab93e60ec1ed8719d89",
+    "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b"
+  ],
+  "actualFormalMain": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+  "mainline": {
+    "state": "open",
+    "checkedAt": "2026-10-01T14:50:29.9935495Z",
+    "base": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "deployed": false,
+    "draft": true,
+    "head": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b"
+  },
+  "reception": {
+    "checkedAt": "2026-10-01T14:51:07.001Z",
+    "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "finalHead": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "records": [
+      {
+        "before": "2a0881e3e56416bd574805e96fc94ca086c677fe",
+        "commit": "9ae158bd9d756010fad07ab93e60ec1ed8719d89",
+        "conflicts": [],
+        "method": "ff-only"
+      },
+      {
+        "before": "9ae158bd9d756010fad07ab93e60ec1ed8719d89",
+        "commit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+        "conflicts": [],
+        "method": "ff-only"
+      }
+    ],
+    "clean": true,
+    "masterMerged": false,
+    "deployed": false
+  },
+  "conflicts": [],
+  "status": [
+    "代码候选完成",
+    "隔离验证完成",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "batches": [
+    {
+      "commit": "9ae158bd9d756010fad07ab93e60ec1ed8719d89",
+      "scope": "消息中心返回/前台刷新、隐藏/卸载释放、账号与已读响应隔离、胶囊避让及加载返回",
+      "before": {
+        "tests": 8,
+        "passed": 1,
+        "failed": 7
+      },
+      "after": {
+        "tests": 8,
+        "passed": 8
+      },
+      "intermediateCi": "36874967681及36874980297被后续b2源码推送取代后自动取消，不计完整通过"
+    },
+    {
+      "commit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+      "scope": "后端实际PURCHASE支付成功类型归入交易消息及订单标签",
+      "before": {
+        "tests": 7,
+        "passed": 5,
+        "failed": 2
+      },
+      "after": {
+        "clientGate": 319,
+        "skipped": 0
+      }
+    }
+  ],
+  "ci": {
+    "runId": 36876135118,
+    "jobsPassed": 8,
+    "testsPassed": 8912,
+    "checkedAt": "2026-10-01T14:48:49.1689965Z",
+    "suitesSkipped": 26,
+    "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "testsSkipped": 133,
+    "status": "success",
+    "logs": [
+      {
+        "name": "单元测试 (2/3)",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "tests": "Tests:       50 skipped, 3027 passed, 3077 total",
+        "sha256": "3ff28a8ec05200950fa8e8bdf1ed3639dabdd08bbad19099709a89bfcd41c92b",
+        "jobId": 110416843096
+      },
+      {
+        "name": "单元测试 (3/3)",
+        "suites": "Test Suites: 10 skipped, 219 passed, 219 of 229 total",
+        "tests": "Tests:       39 skipped, 3046 passed, 3085 total",
+        "sha256": "d8b207238e8225609b51352513c507e5cad87bd5bda7e8c0fda8536bb6b11ba5",
+        "jobId": 110416843105
+      },
+      {
+        "name": "单元测试 (1/3)",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "tests": "Tests:       44 skipped, 2839 passed, 2883 total",
+        "sha256": "37f75aadfb928d059658b090664fcfea9cdf279cdd374b773a88b9c9fd59c51e",
+        "jobId": 110416843521
+      }
+    ],
+    "suitesPassed": 663
+  },
+  "image": {
+    "realChannels": false,
+    "artifact": {
+      "id": 11171045397,
+      "bytes": 56805,
+      "officialDigestMatches": true,
+      "sha256": "ec7a451e4430a88be65a9b0e24781b65801a8da3a9546d48f28ea3c594a70b38"
+    },
+    "runId": 36878393374,
+    "cleanupAllConfirmed": true,
+    "runtimeReportSha256": "32767732184c33bff4da45346b214774d4ebd38505ee494d1bc43bba6514380d",
+    "image": "sha256:7fa0ce00395f20a5fbec95765f0bbeb00164afc035d3a69bcb32627626ab7e5a",
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry",
+      "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions"
+    ],
+    "businessSource": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "checksPassed": 24,
+    "passed": true,
+    "checkedAt": "2026-10-01T14:49:01.5583658Z",
+    "verificationSource": "0a07d311b9e917673aae0f922322388fbb4114b2",
+    "sourceArchiveSha256": "049e837137b8b79e8814751ad6b95850b114af5aeb908535817639bdd122b95d",
+    "production": false
+  },
+  "preview": {
+    "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "officialCli": "preview",
+    "published": false,
+    "reviewSubmitted": false,
+    "productionUpload": false,
+    "totalBytes": 12654732,
+    "mainBytes": 1905697,
+    "mainRemainingBytes": 191455,
+    "subpackageCount": 33,
+    "largestSubpackage": {
+      "name": "/pkg-paipan/",
+      "size": 1950310
+    },
+    "largestRemainingBytes": 146842,
+    "identicalInputFiles": 2757,
+    "cleanProject": "artifacts/channel-intake-20260930/mp-preview-clean-b2f5ece09",
+    "repeatIdentical": true,
+    "originalPathPreview": {
+      "mainBytes": 2227780,
+      "failedMainLimit": true,
+      "rootCauseProven": false
+    },
+    "infoSha256": "fbfd51f97d486cf0e1f23025133ccb02ae3ca6ca91dbe20eb89b7eb9cee6a921",
+    "repeatInfoSha256": "fbfd51f97d486cf0e1f23025133ccb02ae3ca6ca91dbe20eb89b7eb9cee6a921",
+    "postPreviewAndExportClientFingerprintsUnchanged": true,
+    "qrIncluded": false,
+    "realDevice": false
+  },
+  "client": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T14:32:13.390Z",
+    "releaseId": "launch-20261001-b2f5ece09",
+    "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "auditFile": "artifacts/channel-intake-20260930/package-b2f5ece09/client-artifacts.json",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5424,
+      "bytes": 54172345,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 505,
+        "bytes": 6487585,
+        "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1180,
+        "bytes": 11139772,
+        "contentSha256": "44c964e947598f7ccb7c95991734295347878a1fc4a184f160eb20c74b28d2f3",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2757,
+        "bytes": 11121296,
+        "contentSha256": "84523ac6dcc854e7ff236dbbd14d7ddd90ab49eb05c656d5dd809be5376a7172",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 492,
+        "bytes": 12892094,
+        "contentSha256": "57b67d822e882fbc79ae6a12e7bd02b6f69a61791360fe66980474a8dfa50419",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12531598,
+        "contentSha256": "352bb68dd7afa01497517c34261f26ab51d66adca9d5e2f2831687f55f5ce83f",
+        "matches": true
+      }
+    ],
+    "errors": []
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T14:32:27.431Z",
+    "archive": "gx-deploy-91-launch-20261001-b2f5ece09.tar.gz",
+    "sha256": "049e837137b8b79e8814751ad6b95850b114af5aeb908535817639bdd122b95d",
+    "releaseId": "launch-20261001-b2f5ece09",
+    "commit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "expectedCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "fileCount": 4438,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "hbuilder": {
+    "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "checkedAt": "2026-10-01T14:38:13.675Z",
+    "webAudit": {
+      "success": true,
+      "errors": [],
+      "files": 489,
+      "changedFiles": [
+        "app-service.js",
+        "manifest.json"
+      ],
+      "appId": "__UNI__277B108",
+      "versionCode": "254",
+      "genericBundleSha256": "8ced7d3b9c53bbc7b87ef7d8cfa882b189daed470f63e536db2cc08025e5a7d4",
+      "officialBundleSha256": "e88e6b840568e7fc5a1738e7fadfae59509b1aa2fd8c2da279588e9f68d4593f",
+      "spaceBound": true
+    },
+    "nativeChecks": [
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/config.json",
+        "bytes": 70,
+        "sha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+        "genericSha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+        "exact": true,
+        "allowedDifference": null
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/libs/rebu-resource-updater.aar",
+        "bytes": 33238,
+        "sha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+        "genericSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+        "exact": true,
+        "allowedDifference": null
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/src/index.kt",
+        "bytes": 1149,
+        "sha256": "3738ba28858b91aa73b429c8d0b706bcfb78afe968fd986615b68e73a40685d9",
+        "genericSha256": "1eb3b1bdf674ed3eb982615f065c5b06bdada4504d287aae27f91c1d9b164606",
+        "exact": false,
+        "allowedDifference": "仅空间绑定新增 import io.dcloud.unicloud.*"
+      }
+    ],
+    "files": 492,
+    "bytes": 12885564,
+    "contentSha256": "55c351145abc00b066c573ba00837f30a4ee913a150dbe9c51f1f32e47b3b3d2",
+    "archive": "artifacts/releases/android254-hbuilder-b2f5ece09-resources.tar.gz",
+    "archiveBytes": 2876628,
+    "archiveSha256": "d76028442f790883d1458adcce7bb551cc86e671dd7a4f9e349e930942f05e14",
+    "archiveExtractedAllFilesExact": true,
+    "signedApk": false,
+    "paidPackaging": false,
+    "oneClickEnabled": false
+  },
+  "draftArchive": {
+    "releaseId": 401053676,
+    "tag": "launch-20261001-b2f5ece09",
+    "assets": [
+      {
+        "assetId": 603447882,
+        "bytes": 15743315,
+        "officialDigestMatches": true,
+        "sha256": "049e837137b8b79e8814751ad6b95850b114af5aeb908535817639bdd122b95d",
+        "name": "gx-deploy-91-launch-20261001-b2f5ece09.tar.gz"
+      },
+      {
+        "assetId": 603448295,
+        "bytes": 112,
+        "officialDigestMatches": true,
+        "sha256": "fe3dde364e3902ae26857c60454934c333b80c5a1faab72c8caf5e0f4f07402e",
+        "name": "gx-deploy-91-launch-20261001-b2f5ece09.tar.gz.sha256"
+      }
+    ],
+    "published": false,
+    "checkedAt": "2026-10-01T14:33:51.0104605Z",
+    "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "draft": true
+  },
+  "resourceArchive": {
+    "published": false,
+    "officialDigestMatches": true,
+    "files": 492,
+    "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "name": "android254-hbuilder-b2f5ece09-resources.tar.gz",
+    "releaseId": 401053676,
+    "checkedAt": "2026-10-01T14:40:34.6168311Z",
+    "draft": true,
+    "sha256": "d76028442f790883d1458adcce7bb551cc86e671dd7a4f9e349e930942f05e14",
+    "assetId": 603459962,
+    "bytes": 2876628,
+    "archiveExtractedAllFilesExact": true
+  },
+  "h5": {
+    "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "realDevice": false,
+    "scope": "本地H5实际渲染及合成通知API，未验证真实登录或微信WebView",
+    "outboundAllowed": 0,
+    "realBusinessWrites": 0,
+    "authenticationChanged": false,
+    "checks": [
+      {
+        "width": 320,
+        "passed": true,
+        "loadingBackVisible": true,
+        "actionWithinViewport": true,
+        "transactionNoticeVisible": true,
+        "actualPaymentType": "PURCHASE",
+        "markAllMocked": 1,
+        "getCalls": 2,
+        "uncaughtErrors": 0
+      },
+      {
+        "width": 390,
+        "passed": true,
+        "loadingBackVisible": true,
+        "actionWithinViewport": true,
+        "transactionNoticeVisible": true,
+        "actualPaymentType": "PURCHASE",
+        "markAllMocked": 1,
+        "getCalls": 2,
+        "uncaughtErrors": 0
+      },
+      {
+        "width": 768,
+        "passed": true,
+        "loadingBackVisible": true,
+        "actionWithinViewport": true,
+        "transactionNoticeVisible": true,
+        "actualPaymentType": "PURCHASE",
+        "markAllMocked": 1,
+        "getCalls": 2,
+        "uncaughtErrors": 0
+      }
+    ],
+    "passed": 3,
+    "failed": 0
+  },
+  "backendInputsEquivalentTo": "80850d34ca3770cf39b57da891b96eee8b12af18",
+  "uncovered": [
+    "微信/App真实登录后的通知点击及账号切换",
+    "同版Android/iOS/Harmony正式签名包与真机",
+    "旧工程路径多计体积的具体根因；正式upload体积须再次实测",
+    "独立权益到账/课程开通/所有客服回复完整触发与持久通知崩溃补偿",
+    "一键登录云端接通、真实渠道及目标两节点候选身份",
+    "正式主线接收、维护备份/迁移/发布及运营内容清理"
+  ],
+  "rollback": [
+    "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "9ae158bd9d756010fad07ab93e60ec1ed8719d89",
+    "之后按既有总账逆序；纯文档独立"
+  ],
+  "evidence": [
+    {
+      "file": "artifacts/channel-intake-20260930/notification-refresh-baseline-final-fixtures.log",
+      "bytes": 6867,
+      "sha256": "0409c8b41e5e5575b1cd3fbb783eab4ab1fc28d48d417d751af67e749491b6d7"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-refresh-before.log",
+      "bytes": 5843,
+      "sha256": "ed47deb7dc75546477239b3a3932aecc15113fa42f53dc5067382ce431a5655d"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-refresh-first.log",
+      "bytes": 2784,
+      "sha256": "44740e08d559ba53fe60ed0586cc851c7f27574c0923bda61e29132d9fadc27b"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-refresh-final.log",
+      "bytes": 1474,
+      "sha256": "0bd0a09f6b999beab9cc88c58e7e401c064787aac48c6130c69ae03cedf1dbec"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-refresh-client-gate-final.log",
+      "bytes": 34538,
+      "sha256": "70446b12c0f2018a67d52369f83d0f3d4c16160b76e5303c331b95d3cf098289"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-refresh-ci-current.json",
+      "bytes": 2819,
+      "sha256": "88a7d39b2c8ccd6c21b62c0a46dfff85b372dce9cad37263065f7021bfb9e475"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-before.log",
+      "bytes": 3664,
+      "sha256": "2e0dd235223b468e2221cf65e304c90a6b63a347b0c31f826d39ba64409765ca"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-client-gate.log",
+      "bytes": 34710,
+      "sha256": "e97f21858787383a204e31e61c83724c35a75816e6741f28aa71adfb6dba3e96"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-eslint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-build-status.json",
+      "bytes": 226,
+      "sha256": "f5e35acb7b5c410228e9fa0ec3bb77e8a04af4a3dfdec1bfa139768fcf51ee7a"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-refresh-h5-9ae158bd9/runtime-report.json",
+      "bytes": 1028,
+      "sha256": "b426b6ac06063ea11b17160d05fac2b55b268b0fba49b53585efa055a58e4e39"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-refresh-h5-b2f5ece09/runtime-report.json",
+      "bytes": 1145,
+      "sha256": "c059e49cd3a85456cf90f91cf00280b88f594f7f57e92eccf50eab3c9cc13208"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-ci-verified.json",
+      "bytes": 1221,
+      "sha256": "06cd153fc39ef52839dae0ed74db34658b89a3220eda68d4bf98c1d19edf3e2c"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-image-verified.json",
+      "bytes": 2332,
+      "sha256": "fa9ba5159544f99c0236d5340b725f13ae8fa710f904149ccd1b8e32dae6cf28"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-image-b2f5ece09/runtime-verification.json",
+      "bytes": 61609,
+      "sha256": "32767732184c33bff4da45346b214774d4ebd38505ee494d1bc43bba6514380d"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-image-b2f5ece09/course-expiry-reminder-runtime.json",
+      "bytes": 1940,
+      "sha256": "181329c86e9b2a6c1fd04f403802c83a7517a46fe5214e85a622f5a608482b72"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-image-b2f5ece09/image-identity.json",
+      "bytes": 278,
+      "sha256": "71109543a87e4e2c7f353eff2d356d0ed3f81554d24b411397268d3f9b344de8"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-preview-info.json",
+      "bytes": 2575,
+      "sha256": "0fd974ad2c08c94275c689bc3a984fff6420743a09185bdd2aaa2e40b6a1a09e"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-clean-preview-info.json",
+      "bytes": 2575,
+      "sha256": "fbfd51f97d486cf0e1f23025133ccb02ae3ca6ca91dbe20eb89b7eb9cee6a921"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-clean-preview-repeat-info.json",
+      "bytes": 2575,
+      "sha256": "fbfd51f97d486cf0e1f23025133ccb02ae3ca6ca91dbe20eb89b7eb9cee6a921"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-preview-verified.json",
+      "bytes": 927,
+      "sha256": "b59062b1e677cb20ca09c96dab9de98e421da2f8674230ecb5ffd460c1bdf23e"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-final-client-fingerprints.json",
+      "bytes": 1520,
+      "sha256": "fa7be27fb5ace66f1554955edea31b5776797d4bc703586514d1b9f4e5290f11"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-staging-reception.json",
+      "bytes": 613,
+      "sha256": "cfc1b56bd5c7c61699273e3ae2d4c67f0d01ecd15089242008ce2896705cc86f"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-mainline-readonly.json",
+      "bytes": 223,
+      "sha256": "f351dbb7360f3bfc543ce5e20043ee9c6f099e124e1844cce70c0380155bdeb8"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-draft-archive.json",
+      "bytes": 757,
+      "sha256": "0108511043b68881e1461116b51612d3d87f75271a02f844f5d234801159db33"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/notification-purchase-resource-archive.json",
+      "bytes": 465,
+      "sha256": "64a262cae4f0cd414cd63c6c79c8006d9b1f029ddcd9f3eef05e204fbec1f2e9"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/package-b2f5ece09/client-config.json",
+      "bytes": 440,
+      "sha256": "bfa9dcc3eb47879fbc40e170679cea05ce28a33f8e72b91d575b26137f9f6a22"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/package-b2f5ece09/client-artifacts-verified.json",
+      "bytes": 1520,
+      "sha256": "e6c6170ebe8579a4ec0a97bf718d68dda1781ff046ab3217df01e8b9b62159ea"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/package-b2f5ece09/fixed-package-verified.json",
+      "bytes": 513,
+      "sha256": "cf989f2a1e10a4fa1a1dc3e1983264a883d99a16cd6eea7e0dd77b376dfd1897"
+    }
+  ],
+  "evidenceArchive": {
+    "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+    "files": 32,
+    "published": false,
+    "checkedAt": "2026-10-01T15:02:12.3393161Z",
+    "draft": true,
+    "bytes": 71838,
+    "name": "message-center-evidence-b2f5ece09.tar.gz",
+    "officialDigestMatches": true,
+    "sha256": "7863491e34fc29054c83af954f20b08a355b21d8e2eef8086206f2de2fa854ea",
+    "reextractAllHashesExact": true,
+    "releaseId": 401053676,
+    "assetId": 603502210
+  }
+}

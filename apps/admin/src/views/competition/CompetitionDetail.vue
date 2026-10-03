@@ -90,7 +90,7 @@
               </el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="评分模型">
-              {{ ({ A: "全自动评分", B: "AI+评委混合", C: "纯评委评分", D: "对弈引擎" } as Record<string, string>)[detail?.scoringModel] || detail?.scoringModel }}
+              {{ scoringModelLabel(detail?.scoringModel) }}
             </el-descriptions-item>
             <el-descriptions-item label="状态">
               <el-tag
@@ -101,7 +101,7 @@
               </el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="报名费">
-              {{ detail?.entryFee > 0 ? (detail.entryFee / 100).toFixed(2) + '元' : '免费' }}
+              {{ detail?.entryFee > 0 ? formatMoney(detail.entryFee) : '免费' }}
             </el-descriptions-item>
             <el-descriptions-item label="人数上限">
               {{ detail?.maxParticipants > 0 ? detail.maxParticipants + '人' : '不限' }}
@@ -116,7 +116,7 @@
               {{ detail?.minLevel > 0 ? 'Lv.' + detail.minLevel : '不限' }}
             </el-descriptions-item>
             <el-descriptions-item label="总奖金池">
-              {{ detail?.totalPrize > 0 ? (detail.totalPrize / 100).toFixed(2) + '元' : '未设置' }}
+              {{ detail?.totalPrize > 0 ? formatMoney(detail.totalPrize) : '未设置' }}
             </el-descriptions-item>
             <el-descriptions-item label="奖品类型">
               {{ ({ CASH: "现金奖金", PHYSICAL: "实物奖品", VIRTUAL: "虚拟商品", MIXED: "混合" } as any)[detail?.prizeType] || "现金" }}
@@ -151,7 +151,7 @@
                     </el-tag>
                   </template>
                   <template v-else>
-                    <span style="color:#C41E3A;font-weight:bold">¥{{ ((item.prize || 0) / 100).toFixed(0) }}</span>
+                    <span style="color:#C41E3A;font-weight:bold">{{ formatMoney(item.prize || 0) }}</span>
                   </template>
                   <span
                     v-if="item.description"
@@ -192,19 +192,19 @@
           </el-descriptions>
 
           <el-divider>赛事描述</el-divider>
-          <div
+          <SafeHtml
             class="markdown-body"
             style="min-height:40px"
-            v-html="sanitize(detail?.description || '暂无描述')"
+            :html="renderMarkdown(detail?.description || '暂无描述')"
           />
 
           <el-divider v-if="detail?.rules">
             赛事规则
           </el-divider>
-          <div
+          <SafeHtml
             v-if="detail?.rules"
             class="markdown-body"
-            v-html="sanitize(detail?.rules || '')"
+            :html="renderMarkdown(detail?.rules || '')"
           />
         </el-card>
       </el-tab-pane>
@@ -248,7 +248,7 @@
                 :type="row.roundType === 'FINAL' ? 'danger' : row.roundType === 'SEMIFINAL' ? 'warning' : 'info'"
                 size="small"
               >
-                {{ ({ PRELIMINARY: '初赛', SEMIFINAL: '复赛', FINAL: '决赛', CUSTOM: '自定义' } as Record<string, string>)[row.roundType] || row.roundType || '-' }}
+                {{ roundTypeLabel(row.roundType) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -367,7 +367,7 @@
             width="100"
           >
             <template #default="{ row }">
-              {{ ({ SINGLE_CHOICE: '单选', MULTI_CHOICE: '多选', FILL_IN: '填空', SCALE: '量表', SUBJECTIVE: '主观', ESSAY: '论述', JUDGMENT: '判断', CODE: '代码', UPLOAD: '上传', MATCHING: '配对' } as Record<string, string>)[row.type] || row.type }}
+              {{ questionTypeLabel(row.type) }}
             </template>
           </el-table-column>
           <el-table-column
@@ -508,10 +508,10 @@
           >
             <template #default="{ row }">
               <el-tag
-                :type="({ PENDING: 'warning', QUALIFIED: 'success', DISQUALIFIED: 'danger', CANCELLED: 'info' } as Record<string, string>)[row.status] || 'info'"
+                :type="registrationStatusType(row.status)"
                 size="small"
               >
-                {{ ({ PENDING: '待审核', QUALIFIED: '已确认', DISQUALIFIED: '已拒绝', CANCELLED: '已取消' } as Record<string, string>)[row.status] || row.status }}
+                {{ registrationStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -520,7 +520,7 @@
             width="80"
           >
             <template #default="{ row }">
-              {{ row.paidFee > 0 ? (row.paidFee / 100).toFixed(2) + '元' : '免费' }}
+              {{ row.paidFee > 0 ? formatMoney(row.paidFee) : '免费' }}
             </template>
           </el-table-column>
           <el-table-column
@@ -631,21 +631,21 @@
                 type="danger"
                 size="small"
               >
-                🥇 1
+                第 1 名
               </el-tag>
               <el-tag
                 v-else-if="row.rank === 2"
                 type="warning"
                 size="small"
               >
-                🥈 2
+                第 2 名
               </el-tag>
               <el-tag
                 v-else-if="row.rank === 3"
                 type="success"
                 size="small"
               >
-                🥉 3
+                第 3 名
               </el-tag>
               <span v-else>{{ row.rank }}</span>
             </template>
@@ -676,10 +676,10 @@
           >
             <template #default="{ row }">
               <el-tag
-                :type="({ CHAMPION: 'danger', RUNNER_UP: 'warning', THIRD_PLACE: 'success', ELIMINATED: 'info' } as Record<string, string>)[row.status] || 'info'"
+                :type="rankingStatusType(row.status)"
                 size="small"
               >
-                {{ ({ CHAMPION: '冠军', RUNNER_UP: '亚军', THIRD_PLACE: '季军', ELIMINATED: '淘汰' } as Record<string, string>)[row.status] || row.status }}
+                {{ rankingStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -1063,6 +1063,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import SafeHtml from "@/components/SafeHtml.vue";
 import { sanitize } from "@/utils/sanitize";
 import { competitionApi, api } from "@/api";
 
@@ -1113,15 +1114,119 @@ const statusLabels: Record<string, { text: string; type: string }> = {
   FINISHED: { text: "已结束", type: "" },
 };
 
+const scoringModelLabels: Record<string, string> = {
+  A: "全自动评分",
+  B: "AI+评委混合",
+  C: "纯评委评分",
+  D: "对弈引擎",
+};
+const roundTypeLabels: Record<string, string> = {
+  PRELIMINARY: "初赛",
+  SEMIFINAL: "复赛",
+  FINAL: "决赛",
+  CUSTOM: "自定义",
+};
+const questionTypeLabels: Record<string, string> = {
+  SINGLE_CHOICE: "单选",
+  MULTI_CHOICE: "多选",
+  FILL_IN: "填空",
+  SCALE: "量表",
+  SUBJECTIVE: "主观",
+  ESSAY: "论述",
+  JUDGMENT: "判断",
+  CODE: "代码",
+  UPLOAD: "上传",
+  MATCHING: "配对",
+};
+const registrationStatusLabels: Record<string, string> = {
+  PENDING: "待审核",
+  QUALIFIED: "已确认",
+  DISQUALIFIED: "已拒绝",
+  CANCELLED: "已取消",
+};
+const registrationStatusTypes: Record<string, "warning" | "success" | "danger" | "info"> = {
+  PENDING: "warning",
+  QUALIFIED: "success",
+  DISQUALIFIED: "danger",
+  CANCELLED: "info",
+};
+const rankingStatusLabels: Record<string, string> = {
+  CHAMPION: "冠军",
+  RUNNER_UP: "亚军",
+  THIRD_PLACE: "季军",
+  ELIMINATED: "淘汰",
+};
+const rankingStatusTypes: Record<string, "danger" | "warning" | "success" | "info"> = {
+  CHAMPION: "danger",
+  RUNNER_UP: "warning",
+  THIRD_PLACE: "success",
+  ELIMINATED: "info",
+};
+
+const labelOrFallback = (labels: Record<string, string>, value?: string) =>
+  value ? labels[value] || value : "-";
+const scoringModelLabel = (model?: string) => labelOrFallback(scoringModelLabels, model);
+const roundTypeLabel = (type?: string) => labelOrFallback(roundTypeLabels, type);
+const questionTypeLabel = (type?: string) => labelOrFallback(questionTypeLabels, type);
+const registrationStatusLabel = (status?: string) => labelOrFallback(registrationStatusLabels, status);
+const registrationStatusType = (status?: string) =>
+  (status && registrationStatusTypes[status]) || "info";
+const rankingStatusLabel = (status?: string) => labelOrFallback(rankingStatusLabels, status);
+const rankingStatusType = (status?: string) => (status && rankingStatusTypes[status]) || "info";
+
 // ─── 基本信息 ───
 const loading = ref(false);
 const error = ref(false);
 const statusChanging = ref(false);
-const detail = ref<any>(null); // 详情对象，模板大量按 detail?.type 索引标签表，保留 any
+// 详情接口仍是历史动态结构；待服务端 DTO 固化后再收紧。
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const detail = ref<any>(null);
 
 function formatDate(d: string) {
   if (!d) return "-";
   return new Date(d).toLocaleString("zh-CN");
+}
+
+/** 金额：后端以「分」存储（entryFee/totalPrize/prize/paidFee），统一转元、千分位两位小数 */
+function formatMoney(fen: number) {
+  return "¥" + (fen / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * 轻量 Markdown 渲染（标题/加粗/斜体/无序列表/换行）。
+ * 项目无 markdown 依赖（package.json 已核实），不为此引新库；输出经 sanitize 消毒防 XSS。
+ */
+function renderMarkdown(md: string): string {
+  const escaped = md
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  const lines = escaped.split(/\r?\n/);
+  const out: string[] = [];
+  let inList = false;
+  for (const line of lines) {
+    const inline = (s: string) => s
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    const heading = line.match(/^(#{1,4})\s+(.*)$/);
+    const listItem = line.match(/^\s*[-*]\s+(.*)$/);
+    if (listItem) {
+      if (!inList) { out.push("<ul>"); inList = true; }
+      out.push(`<li>${inline(listItem[1])}</li>`);
+      continue;
+    }
+    if (inList) { out.push("</ul>"); inList = false; }
+    if (heading) {
+      const level = Math.min(heading[1].length + 2, 6); // #→h3 起，避免盖过页面标题层级
+      out.push(`<h${level}>${inline(heading[2])}</h${level}>`);
+    } else if (line.trim() === "") {
+      out.push("<br>");
+    } else {
+      out.push(`<p>${inline(line)}</p>`);
+    }
+  }
+  if (inList) out.push("</ul>");
+  return sanitize(out.join(""));
 }
 
 async function fetchDetail() {
@@ -1137,17 +1242,24 @@ async function fetchDetail() {
 
 async function changeStatus(action: string) {
   if (statusChanging.value) return;
+  // 状态流转均为影响全平台用户的操作：发布/开始/结束都先确认
+  try {
+    if (action === "publish") {
+      await ElMessageBox.confirm("发布后赛事将对全平台用户可见并开放报名，确定发布？", "发布确认", { type: "warning" });
+    } else if (action === "start") {
+      await ElMessageBox.confirm("开始后赛事进入进行中状态，报名截止、选手开始比赛，确定开始？", "开始确认", { type: "warning" });
+    } else if (action === "finish") {
+      await ElMessageBox.confirm("确定结束该赛事？结束后不可恢复。", "结束确认", { type: "warning" });
+    }
+  } catch { return; /* 用户取消 */ }
   statusChanging.value = true;
   try {
     if (action === "publish") { await competitionApi.publish(competitionId); }
     else if (action === "start") { await competitionApi.start(competitionId); }
-    else if (action === "finish") {
-      await ElMessageBox.confirm("确定结束该赛事？", "提示", { type: "warning" });
-      await competitionApi.finish(competitionId);
-    }
+    else if (action === "finish") { await competitionApi.finish(competitionId); }
     ElMessage.success("操作成功");
     fetchDetail();
-  } catch { /* 取消或接口拦截器已提示 */ } finally { statusChanging.value = false }
+  } catch { /* 接口拦截器已提示 */ } finally { statusChanging.value = false }
 }
 
 // ─── 赛程管理 ───
@@ -1272,9 +1384,8 @@ function openQuestionDialog(row?: QuestionRow) {
 }
 
 async function saveQuestion() {
-  // options/answer 为用户输入的动态 JSON，结构不定，保留 any
-  let options: any = undefined;
-  let answer: any = undefined;
+  let options: unknown = undefined;
+  let answer: unknown = undefined;
   try {
     if (optionsJson.value.trim()) options = JSON.parse(optionsJson.value);
     if (answerJson.value.trim()) answer = JSON.parse(answerJson.value);
@@ -1340,11 +1451,28 @@ async function fetchRegistrations() {
 }
 
 async function handleRegAction(regId: string, status: string) {
+  // L2：拒绝报名属驳回类操作，理由必填（后端 UpdateRegistrationDto 暂只消费 status，
+  // reason 会被 whitelist 剥离；前端先行收集并随请求带上，后端补契约后即留痕）
+  let reason: string | undefined;
+  if (status === "DISQUALIFIED") {
+    try {
+      const { value } = await ElMessageBox.prompt("请填写拒绝理由（将用于告知选手）：", "拒绝报名", {
+        type: "warning",
+        confirmButtonText: "确认拒绝",
+        confirmButtonClass: "el-button--danger",
+        inputPlaceholder: "如：资料不全 / 不符合参赛条件",
+        inputValidator: (v: string) => (v && v.trim().length > 0) || "拒绝理由必填",
+      });
+      reason = value.trim();
+    } catch { return; /* 用户取消 */ }
+  }
   try {
-    await competitionApi.updateRegistration(competitionId, regId, { status });
+    await competitionApi.updateRegistration(competitionId, regId, { status, ...(reason ? { reason } : {}) });
     ElMessage.success(status === "QUALIFIED" ? "已确认" : "已拒绝");
     fetchRegistrations();
-  } catch { /* */ }
+  } catch {
+    ElMessage.error("操作失败，请重试");
+  }
 }
 
 // ─── 排名管理 ───
@@ -1416,17 +1544,19 @@ function parseCSVLine(line: string): string[] {
 async function doBatchImport() {
   batchImporting.value = true;
   try {
-    // questions/q 为用户导入的动态题目数据，字段随导入格式而定，保留 any
-    let questions: any[];
+    let questions: Record<string, unknown>[];
     if (batchFormat.value === "json") {
-      questions = JSON.parse(batchContent.value);
-      if (!Array.isArray(questions)) throw new Error("JSON必须是数组格式");
+      const parsed: unknown = JSON.parse(batchContent.value);
+      if (!Array.isArray(parsed) || !parsed.every(item => item && typeof item === "object" && !Array.isArray(item))) {
+        throw new Error("JSON必须是对象数组格式");
+      }
+      questions = parsed as Record<string, unknown>[];
     } else {
       const lines = batchContent.value.trim().split("\n");
       const headers = parseCSVLine(lines[0]);
       questions = lines.slice(1).filter(l => l.trim()).map(line => {
         const vals = parseCSVLine(line);
-        const q: any = { competitionId };
+        const q: Record<string, unknown> = { competitionId };
         headers.forEach((h, i) => {
           if (h === "options" || h === "answer") {
             q[h] = vals[i] ? JSON.parse(vals[i]) : undefined;

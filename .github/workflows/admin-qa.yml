@@ -1,0 +1,59 @@
+name: 后台独立 Linux 验收
+
+# 仅手动运行选定分支的测试，不连接预发布节点，不部署，不使用生产凭据。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: admin-qa-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  isolated-admin-qa:
+    name: 隔离数据库、队列和后台构建
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      COMPOSE_PROJECT_NAME: guoxue-admin-qa-${{ github.run_id }}-${{ github.run_attempt }}
+      COMPOSE_FILE: docker/docker-compose.test.yml
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: 校验隔离编排并构建测试镜像
+        run: |
+          set -euo pipefail
+          docker compose -p "$COMPOSE_PROJECT_NAME" config --quiet
+          docker compose -p "$COMPOSE_PROJECT_NAME" build test
+
+      - name: 真实空库基线、运维对象、队列与接口测试
+        run: |
+          set -euo pipefail
+          docker compose -p "$COMPOSE_PROJECT_NAME" up -d postgres redis
+          docker compose -p "$COMPOSE_PROJECT_NAME" run --rm test
+
+      - name: 服务端构建、管理端零警告检查与类型构建
+        run: |
+          set -euo pipefail
+          docker compose -p "$COMPOSE_PROJECT_NAME" run --rm --no-deps test /bin/sh -ec '
+            pnpm --dir apps/server build
+            pnpm --dir apps/admin lint --max-warnings 0
+            pnpm --dir apps/admin build
+          '
+
+      - name: 记录隔离服务状态
+        if: always()
+        run: |
+          docker compose -p "$COMPOSE_PROJECT_NAME" ps -a
+          docker compose -p "$COMPOSE_PROJECT_NAME" logs --no-color --tail 80 postgres redis
+
+      - name: 清理本次 CI 的临时容器与数据卷
+        if: always()
+        run: |
+          set -euo pipefail
+          [[ "$COMPOSE_PROJECT_NAME" =~ ^guoxue-admin-qa-[0-9]+-[0-9]+$ ]]
+          docker compose -p "$COMPOSE_PROJECT_NAME" down --volumes --remove-orphans

@@ -1,0 +1,10 @@
+/var/log/guoxue/nginx/*.log {
+    daily
+    maxsize 100M
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

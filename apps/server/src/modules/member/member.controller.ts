@@ -13,6 +13,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RequireFeature } from "../../common/feature-flag.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("会员")
 @Controller("member")
@@ -107,8 +108,17 @@ export class MemberController {
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
-  getAdminPurchases(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.memberService.getAdminPurchases(+page, +pageSize);
+  @ApiQuery({ name: "type", required: false, description: "会员类型：MONTHLY/QUARTERLY/YEARLY/LIFETIME" })
+  @ApiQuery({ name: "startDate", required: false, description: "购买起始日（含，YYYY-MM-DD）" })
+  @ApiQuery({ name: "endDate", required: false, description: "购买截止日（含，YYYY-MM-DD）" })
+  getAdminPurchases(
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+    @Query("type") type?: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+  ) {
+    return this.memberService.getAdminPurchases(+page, +pageSize, { type, startDate, endDate });
   }
 
   @Get("admin/stats")
@@ -124,6 +134,7 @@ export class MemberController {
   }
 
   @Post("admin/grant")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
@@ -133,7 +144,7 @@ export class MemberController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   async grantMember(@Body() dto: GrantMemberDto, @Req() req: Request) {
-    const result = await this.memberService.grantMember(dto.userId, dto.level, dto.durationDays ?? 30);
+    const result = await this.memberService.grantMember(dto.userId, dto.level, dto.durationDays ?? 30, req.user.id);
     this.systemService.logAudit({
       userId: req.user?.id,
       action: "GRANT_MEMBER",
@@ -146,6 +157,7 @@ export class MemberController {
   }
 
   @Post("admin/revoke/:userId")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()

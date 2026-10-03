@@ -7,7 +7,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ContentType } from "./content.dto";
 
 const mockPrisma = {
-  content: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
+  content: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn(), delete: jest.fn() },
 };
 const mockRedis = {
   getJson: jest.fn(),
@@ -38,6 +38,24 @@ describe("ContentService", () => {
   });
 
   describe("create", () => {
+    it.each([undefined, "DRAFT"] as const)("创建状态 %s 安全落为草稿，不触发发布通知", async status => {
+      const dto = { title: "测试草稿", type: ContentType.ARTICLE, body: "正文", status };
+      mockPrisma.content.create.mockResolvedValue({ id: "draft", ...dto, status: "DRAFT" });
+      await svc.create(dto);
+      expect(mockPrisma.content.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ status: "DRAFT" }),
+      });
+      expect(mockWebhook.fire).not.toHaveBeenCalled();
+    });
+    it("显式发布才保存为 PUBLISHED 并发送发布通知", async () => {
+      const dto = { title: "明确发布", type: ContentType.ARTICLE, body: "正文", status: "PUBLISHED" as const };
+      mockPrisma.content.create.mockResolvedValue({ id: "published", ...dto });
+      await svc.create(dto);
+      expect(mockPrisma.content.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ status: "PUBLISHED" }),
+      });
+      expect(mockWebhook.fire).toHaveBeenCalledWith("CONTENT_PUBLISHED", expect.objectContaining({ contentId: "published" }));
+    });
     it("创建内容成功", async () => {
       const dto = { title: "论语", type: ContentType.CLASSIC, body: "学而时习之", tags: ["儒家"] };
       mockPrisma.content.create.mockResolvedValue({ id: "c1", ...dto });
@@ -56,6 +74,10 @@ describe("ContentService", () => {
       const result = await svc.list({});
       expect(result.data).toHaveLength(1);
       expect(result.total).toBe(1);
+      expect(mockPrisma.content.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ status: "PUBLISHED", stationId: null, deletedAt: null }),
+      }));
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
     });
     it("按 type 过滤", async () => {
       mockPrisma.content.findMany.mockResolvedValue([]);
@@ -79,15 +101,74 @@ describe("ContentService", () => {
   });
 
   describe("detail", () => {
+    it("访客不能读取未发布内容", async () => {
+      mockPrisma.content.findUnique.mockResolvedValue({ id: "draft", status: "DRAFT" });
+      await expect(svc.detail("draft")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.content.update).not.toHaveBeenCalled();
+    });
+    it("管理员先读入缓存的草稿也不能泄露给访客", async () => {
+      mockRedis.getJson.mockResolvedValue({ id: "draft", status: "DRAFT" });
+      await expect(svc.detail("draft")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.content.update).not.toHaveBeenCalled();
+    });
+    it("内容管理者可以回读草稿", async () => {
+      mockRedis.getJson.mockResolvedValue({ id: "draft", status: "DRAFT" });
+      mockPrisma.content.update.mockResolvedValue({});
+      await expect(svc.detail("draft", true)).resolves.toMatchObject({ status: "DRAFT" });
+    });
     it("返回内容详情（并发放大浏览数）", async () => {
-      mockPrisma.content.findUnique.mockResolvedValue({ id: "c1", title: "论语", viewCount: 10 });
+      mockPrisma.content.findFirst.mockResolvedValue({ id: "c1", title: "论语", viewCount: 10 });
       mockPrisma.content.update.mockResolvedValue({});
       const result = await svc.detail("c1");
       expect(result.title).toBe("论语");
+      expect(mockPrisma.content.findFirst).toHaveBeenCalledWith({ where: expect.objectContaining({
+        id: "c1", status: "PUBLISHED", deletedAt: null, stationId: null,
+      }) });
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
     });
     it("不存在抛出 NotFoundException", async () => {
-      mockPrisma.content.findUnique.mockResolvedValue(null);
+      mockPrisma.content.findFirst.mockResolvedValue(null);
       await expect(svc.detail("invalid")).rejects.toThrow(BusinessException);
+    });
+    it("匿名不能借 status/stationId 查询草稿和分站内容，后台可以", async () => {
+      mockPrisma.content.findMany.mockResolvedValue([]);
+      mockPrisma.content.count.mockResolvedValue(0);
+      await svc.list({ status: "DRAFT", stationId: "s1" }, false);
+      expect(mockPrisma.content.findMany.mock.calls[0][0].where).toMatchObject({
+        status: "PUBLISHED", stationId: null, deletedAt: null,
+      });
+      await svc.list({ status: "DRAFT", stationId: "s1" }, true);
+      expect(mockPrisma.content.findMany.mock.calls[1][0].where).toMatchObject({
+        status: "DRAFT", stationId: "s1",
+      });
+    });
+    it("仅后台审核身份可查看未发布内容，且不复用公开缓存", async () => {
+      mockPrisma.content.findUnique.mockResolvedValue({ id: "draft", status: "DRAFT", title: "草稿" });
+      expect((await svc.detail("draft", true)).title).toBe("草稿");
+      expect(mockPrisma.content.findUnique).toHaveBeenCalledWith({ where: { id: "draft" } });
+      expect(mockRedis.setJson).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("其他公开内容入口", () => {
+    it("精选、随机和每日诗词只查询当前公开平台内容", async () => {
+      mockPrisma.content.findMany.mockResolvedValue([{ id: "p1", type: "POEM", body: "诗句" }]);
+      mockPrisma.content.count.mockResolvedValue(1);
+      await svc.getFeatured();
+      await svc.getRandomPoem();
+      await svc.getDailyPoem();
+      for (const [args] of mockPrisma.content.findMany.mock.calls) {
+        expect(args.where).toMatchObject({ status: "PUBLISHED", deletedAt: null, stationId: null });
+        expect(args.where.OR[1].scheduledAt.lte).toBeInstanceOf(Date);
+      }
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+    });
+    it("诗词鉴赏不从旧缓存回传已撤回正文", async () => {
+      mockPrisma.content.findFirst.mockResolvedValue(null);
+      await expect(svc.getPoemAppreciation("hidden")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.content.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ id: "hidden", type: "POEM", status: "PUBLISHED", deletedAt: null, stationId: null }),
+      }));
     });
   });
 

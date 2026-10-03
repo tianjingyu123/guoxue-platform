@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body, Param, Query, UseGuards, UsePipes, Req, BadRequestException, Logger } from "@nestjs/common";
+import { Controller, Post, Get, Put, Body, Param, Query, UseGuards, UsePipes, Req, BadRequestException, Logger, Header } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
 import { WechatService } from "./wechat.service";
@@ -9,18 +9,23 @@ import {
   SmsLoginDto,
   SendCodeDto,
   WechatLoginDto,
+  AppleLoginDto,
   MiniPhoneLoginDto,
+  UniverifyCallbackDto,
   UpdateProfileDto,
   ChangePasswordDto,
   RegisterDeviceDto,
   BindPhoneDto,
   ForgotPasswordDto,
+  OaOpenidDto,
+  BindWechatDto,
 } from "./auth.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { SanitizePipe } from "../../common/sanitize.pipe";
 import { maskPhone } from "../../common/crypto.util";
 import { Request } from "express";
+import { UniverifyBridgeService } from "./univerify-bridge.service";
 
 @ApiTags("认证")
 @Controller("auth")
@@ -30,6 +35,7 @@ export class AuthController {
     private auth: AuthService,
     private wechat: WechatService,
     private systemService: SystemService,
+    private univerifyBridge: UniverifyBridgeService,
   ) {}
 
   @Post("register/phone")
@@ -126,13 +132,44 @@ export class AuthController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "redirectUri", description: "授权后回调地址", example: "https://example.com/callback" })
   @ApiQuery({ name: "scope", description: "授权范围", example: "snsapi_userinfo", required: false })
+  @ApiQuery({ name: "state", description: "前端生成的一次性 OAuth state", required: false })
   getWechatOAuthUrl(
     @Query("redirectUri") redirectUri: string,
     @Query("scope") scope?: string,
+    @Query("clientKey") clientKey?: string,
+    @Query("state") state?: string,
   ) {
     if (!redirectUri) throw new BadRequestException("redirectUri 参数必填");
-    const url = this.wechat.buildOAuthUrl(redirectUri, (scope || "snsapi_userinfo") as "snsapi_base" | "snsapi_userinfo");
+    const url = this.wechat.buildOAuthUrl(
+      redirectUri,
+      (scope || "snsapi_userinfo") as "snsapi_base" | "snsapi_userinfo",
+      clientKey,
+      state,
+    );
     return { url };
+  }
+
+  @Get("wechat/payment-identity")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiBearerAuth()
+  @Header("Cache-Control", "no-store")
+  @ApiOperation({ summary: "读取本人当前支付公众号的已登录身份，缺失时仍须网页授权" })
+  paymentIdentity(@Req() req: Request) {
+    return this.auth.getWechatPaymentIdentity(req.user.id);
+  }
+
+  @Post("wechat/oa-openid")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "公众号网页授权 code 换 openid（微信内 JSAPI 支付用）",
+    description: "已登录用户在公众号内 H5 完成 snsapi_base 静默授权后，用 code 换取公众号 openid。仅返回 openid，不落库、不影响登录态与已绑定的小程序微信记录。",
+  })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  async oaOpenid(@Body() dto: OaOpenidDto) {
+    const { openId } = await this.wechat.exchangeOAuthCode(dto.code, dto.clientKey);
+    return { openid: openId };
   }
 
   @Post("login/wechat")
@@ -144,6 +181,15 @@ export class AuthController {
     return this.auth.wechatLogin(dto);
   }
 
+  @Post("login/apple")
+  @ApiOperation({ summary: "通过 Apple 登录", description: "验证 Apple identityToken 并登录或创建内部账号" })
+  @ApiResponse({ status: 201, description: "登录成功" })
+  @ApiResponse({ status: 400, description: "Apple 授权无效" })
+  @UseGuards(StrictRedisThrottleGuard)
+  appleLogin(@Body() dto: AppleLoginDto) {
+    return this.auth.appleLogin(dto);
+  }
+
   @Post("login/mini-phone")
   @ApiOperation({ summary: "小程序手机号快速登录", description: "微信小程序一键登录：wx.login + getPhoneNumber 获取手机号后自动登录/注册" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -151,6 +197,20 @@ export class AuthController {
   @UseGuards(StrictRedisThrottleGuard)
   miniPhoneLogin(@Body() dto: MiniPhoneLoginDto) {
     return this.auth.miniPhoneLogin(dto);
+  }
+
+  @Post("internal/univerify")
+  @Header("Cache-Control", "no-store")
+  @ApiOperation({ summary: "云函数交换运营商已核验手机号；拒绝客户端直接传手机号登录" })
+  async univerifyExchange(@Body() dto: UniverifyCallbackDto, @Req() req: Request) {
+    const result = await this.univerifyBridge.exchange(dto);
+    this.systemService.logAudit({
+      userId: result.user.id,
+      action: "LOGIN",
+      detail: "App 本机号码授权登录",
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("快捷登录审计写入失败", err));
+    return result;
   }
 
   @Get("me")
@@ -171,6 +231,25 @@ export class AuthController {
   async refresh(@Body("refreshToken") refreshToken: string) {
     if (!refreshToken) throw new BadRequestException("refreshToken 参数必填");
     return this.auth.refreshToken(refreshToken);
+  }
+
+  @Post("handoff/issue")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "签发跨端无感登录握手码", description: "登录态签发一次性短时码（60s·绑定本人），用于后台跳 C 端等跨端无感登录，避免 token 进 URL" })
+  @ApiResponse({ status: 201, description: "签发成功" })
+  issueHandoff(@Req() req: Request) {
+    return this.auth.issueHandoffCode(req.user.id);
+  }
+
+  @Post("handoff/exchange")
+  @UseGuards(StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "握手码换会话", description: "用一次性握手码换取新的 accessToken + refreshToken（用后即焚）" })
+  @ApiResponse({ status: 201, description: "换取成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  async exchangeHandoff(@Body("code") code: string) {
+    if (!code) throw new BadRequestException("code 参数必填");
+    return this.auth.exchangeHandoffCode(code);
   }
 
   @Put("profile")
@@ -248,7 +327,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  bindWechat(@Req() req: Request, @Body("code") code: string) {
-    return this.auth.bindWechat(req.user.id, code);
+  bindWechat(@Req() req: Request, @Body() dto: BindWechatDto) {
+    return this.auth.bindWechat(req.user.id, dto.code, (dto.loginType || "h5") as "h5" | "miniprogram" | "app", dto.clientKey, dto.expectedUserId);
   }
 }

@@ -7,6 +7,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { SendEmailDto, SendVerifyCodeDto, TestEmailDto, CreateEmailTemplateDto, UpdateEmailTemplateDto, SendTemplateDto, UnsubscribeDto, ResubscribeDto } from "./email.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("邮件")
 @Controller("email")
@@ -14,6 +15,7 @@ export class EmailController {
   constructor(private email: EmailService) {}
 
   @Post("send")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "发送邮件（管理员）" })
@@ -27,6 +29,7 @@ export class EmailController {
   }
 
   @Post("send-verify-code")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "发送邮件验证码" })
   @ApiResponse({ status: 201, description: "发送成功" })
@@ -36,6 +39,7 @@ export class EmailController {
   }
 
   @Post("test")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "测试邮件配置" })
@@ -94,6 +98,7 @@ export class EmailController {
   }
 
   @Delete("templates/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除邮件模板" })
@@ -108,6 +113,7 @@ export class EmailController {
   }
 
   @Post("send-template")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "使用模板发送邮件" })
@@ -125,6 +131,7 @@ export class EmailController {
   // ───────── 退订管理 ─────────
 
   @Post("unsubscribe")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "退订邮件" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -134,6 +141,7 @@ export class EmailController {
   }
 
   @Post("resubscribe")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "重新订阅（管理员）" })

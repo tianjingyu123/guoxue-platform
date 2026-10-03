@@ -3,38 +3,38 @@
   <view v-else-if="error" class="load-state">
     <text class="load-state-text">{{ error }}</text>
     <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+    <view class="retry-btn" @tap="goBack"><text class="retry-text">返回上一页</text></view>
   </view>
   <view v-else class="page">
     <!-- 导航栏 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="navbar" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
       <view class="nav-left">
         <view class="icon-btn" @tap="goBack">
-          <AppIcon name="arrow-left" :size="20" color="#2c2c2c" />
+          <AppIcon name="arrow-left" :size="40" color="#2c2c2c" />
         </view>
         <view class="target-info">
           <view class="target-avatar-wrap">
             <image lazy-load class="target-avatar" :src="target.avatar" mode="aspectFill" />
-            <view v-if="target.isOnline" class="online-dot" />
           </view>
           <view class="target-text">
+            <!-- 在线状态诚实降级：TIM Web 封装无在线状态查询，原恒显"离线"是假数据，只留昵称 -->
             <text class="target-name">{{ target.remark || target.nickname }}</text>
-            <text class="target-status">{{ target.isOnline ? '在线' : target.lastActiveAt || '离线' }}</text>
           </view>
         </view>
       </view>
-      <view class="icon-btn" @tap="showHeaderMenu = !showHeaderMenu">
-        <AppIcon name="more-vertical" :size="20" color="#2c2c2c" />
+      <view class="icon-btn icon-btn-veil" @tap="showHeaderMenu = !showHeaderMenu">
+        <AppIcon name="more-vertical" :size="40" color="#2c2c2c" />
       </view>
       <!-- 顶部下拉菜单 -->
       <view v-if="showHeaderMenu" class="header-menu">
-        <text class="header-menu-item">查看主页</text>
-        <text class="header-menu-item">清空聊天记录</text>
-        <text class="header-menu-item header-menu-danger">{{ target.isBlocked ? '移出黑名单' : '加入黑名单' }}</text>
+        <text class="header-menu-item" @tap="openProfile">查看主页</text>
+        <text class="header-menu-item" @tap="clearHistory">清空聊天记录</text>
+        <text class="header-menu-item header-menu-danger" @tap="toggleBlock">{{ target.isBlocked ? '移出黑名单' : '加入黑名单' }}</text>
       </view>
     </view>
 
-    <!-- 消息列表 -->
-    <scroll-view class="msg-scroll" scroll-y :scroll-into-view="'msg-end'">
+    <!-- 消息列表（scrollAnchor 清空再置回触发重新滚底，常量不会重触发） -->
+    <scroll-view class="msg-scroll" scroll-y :scroll-into-view="scrollAnchor">
       <view class="msg-list">
         <view v-for="(message, index) in messages" :key="message.id">
           <!-- 时间标签 -->
@@ -53,6 +53,7 @@
                   message.type === 'card' ? 'bubble-card' : '',
                   message.isWithdrawn ? 'bubble-withdrawn' : '',
                 ]"
+                @longpress="openMessageMenu(message)"
               >
                 <!-- 撤回 -->
                 <text v-if="message.isWithdrawn" class="withdrawn-text">消息已撤回</text>
@@ -74,8 +75,8 @@
                   <view class="product-body">
                     <text class="product-title">{{ message.product?.title }}</text>
                     <view class="product-price-row">
-                      <text class="product-price">¥{{ message.product?.price }}</text>
-                      <text v-if="message.product?.originalPrice" class="product-origin">¥{{ message.product?.originalPrice }}</text>
+                      <text class="product-price">¥{{ formatPrice(message.product?.price) }}</text>
+                      <text v-if="message.product?.originalPrice" class="product-origin">¥{{ formatPrice(message.product?.originalPrice) }}</text>
                     </view>
                   </view>
                 </view>
@@ -107,8 +108,9 @@
       </view>
 
       <view class="input-row">
-        <view class="icon-btn" @tap="toggleMorePanel">
-          <AppIcon name="plus" :size="20" :color="showMorePanel ? '#c41e3a' : '#2c2c2c'" :style="showMorePanel ? 'transform:rotate(45deg)' : ''" />
+        <!-- "+"面板现仅承载发图（相册/拍照），无图片权限时整个入口隐藏，不留空面板 -->
+        <view v-if="canSendImage" class="icon-btn icon-btn-veil" @tap="toggleMorePanel">
+          <AppIcon name="plus" :size="40" :color="showMorePanel ? '#c41e3a' : '#2c2c2c'" :style="showMorePanel ? 'transform:rotate(45deg)' : ''" />
         </view>
         <view class="input-wrap">
           <input
@@ -121,30 +123,30 @@
           />
         </view>
         <view v-if="inputText.trim()" class="send-btn" :class="{ 'send-btn-disabled': submitting }" @tap="handleSendText">
-          <AppIcon name="send" :size="20" color="#ffffff" />
+          <AppIcon name="send" :size="36" color="#ffffff" />
         </view>
-        <view v-else class="icon-btn">
-          <AppIcon name="mic" :size="20" color="#2c2c2c" />
-        </view>
+        <!-- 语音消息未实现：空输入时不再展示无响应的话筒占位按钮（照群聊页先例） -->
       </view>
 
-      <!-- 更多功能面板 -->
-      <view v-if="showMorePanel && permission.canSend" class="more-panel">
-        <view class="more-item">
-          <view class="more-icon"><AppIcon name="image" :size="20" color="#c41e3a" /></view>
+      <!-- 更多功能面板（相册/拍照真连发图；语音/商品未实现照群聊范式隐藏，不留死按钮） -->
+      <view v-if="showMorePanel && canSendImage" class="more-panel">
+        <view class="more-item" @tap="handleChooseImage('album')">
+          <view class="more-icon"><AppIcon name="image" :size="44" color="#c41e3a" /></view>
           <text class="more-label">相册</text>
         </view>
-        <view class="more-item">
-          <view class="more-icon"><AppIcon name="camera" :size="20" color="#c41e3a" /></view>
+        <view class="more-item" @tap="handleChooseImage('camera')">
+          <view class="more-icon"><AppIcon name="camera" :size="44" color="#c41e3a" /></view>
           <text class="more-label">拍照</text>
         </view>
-        <view class="more-item">
-          <view class="more-icon"><AppIcon name="mic" :size="20" color="#c41e3a" /></view>
-          <text class="more-label">语音</text>
-        </view>
-        <view class="more-item">
-          <view class="more-icon"><AppIcon name="shopping-bag" :size="20" color="#c41e3a" /></view>
-          <text class="more-label">商品</text>
+      </view>
+    </view>
+
+    <!-- 消息长按操作菜单（照群聊页范式；撤回需 TIM 封装 revokeMessage，当前未暴露，仅提供复制） -->
+    <view v-if="selectedMessage" class="menu-mask" @tap="selectedMessage = null">
+      <view class="menu-pop" @tap.stop>
+        <view class="menu-btn" @tap="handleCopy(selectedMessage.content)">
+          <AppIcon name="copy" :size="32" color="#2c2c2c" />
+          <text class="menu-label">复制</text>
         </view>
       </view>
     </view>
@@ -152,9 +154,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onShow, onHide, onUnload } from '@dcloudio/uni-app'
+import { createVisiblePoller } from '@/utils/visible-poller'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import {
   imApi,
   formatMessageTime,
@@ -164,7 +168,11 @@ import {
   type ChatMessage,
   type ChatPermission,
 } from '@/lib/im-data'
-import { useTim, type TimMessage } from '@/composables/useTim'
+import { mineApi } from '@/lib/mine-data'
+import { useTim } from '@/composables/useTim'
+import { formatPrice } from '@/utils/format'
+import { uploadImage } from '@/utils/request'
+import { getUserInfo } from '@/utils/storage'
 
 // name/avatar 由跳转来源（会话列表/用户主页私信按钮）经 query 传入做对端展示；无则从收到的消息补齐
 // 兼容两种入参：?targetId=（直连完整路径）与 ?id=（utils/router DYNAMIC_ROUTES /im/chat/:id 与用户主页私信按钮传的都是 id）
@@ -172,6 +180,7 @@ const props = defineProps<{ targetId?: string; id?: string; name?: string; avata
 const peerId = computed(() => props.targetId || props.id || '')
 
 const statusBarHeight = ref(0)
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 const tim = useTim()
 
 // 数据状态
@@ -179,7 +188,6 @@ const tim = useTim()
 const target = ref<any>({
   nickname: props.name ? decodeURIComponent(props.name) : '对方',
   avatar: props.avatar ? decodeURIComponent(props.avatar) : '',
-  isOnline: false,
   isBlocked: false,
 })
 const messages = ref<ChatMessage[]>([])
@@ -191,65 +199,125 @@ const submitting = ref(false)
 const inputText = ref('')
 const showMorePanel = ref(false)
 const showHeaderMenu = ref(false)
+const selectedMessage = ref<ChatMessage | null>(null)
+
+// scroll-into-view 需变化才触发滚动：清空一帧再置回锚点值，实现"新消息自动滚底"
+const scrollAnchor = ref('msg-end')
+async function scrollToBottom(isCurrent = poller.capture()) {
+  scrollAnchor.value = ''
+  await nextTick()
+  if (isCurrent()) scrollAnchor.value = 'msg-end'
+}
 
 let unsubscribe: (() => void) | null = null
+const imMode = ref<'TENCENT' | 'FALLBACK'>('FALLBACK')
+let loaded = false
+let blacklistLoaded = false
 
-async function loadData() {
-  loading.value = true
-  error.value = ''
+const poller = createVisiblePoller(async (isCurrent) => {
+  if (!loaded) { loading.value = true; error.value = '' }
   if (!peerId.value) {
     error.value = '未指定聊天对象'
     loading.value = false
     return
   }
   try {
-    // 登录 TIM（user-sig + account import + login）→ 拉单聊历史
-    await tim.ensureLogin()
-    const res = await tim.getC2CHistory(peerId.value)
-    messages.value = res.messageList.map(timToChatMessage)
-    fillTargetFromMessages(res.messageList)
-    await tim.setC2CRead(peerId.value)
-  } catch (e) {
-    error.value = (e as Error)?.message || '连接消息服务失败，请重试'
+    await imApi.getCapabilities(true)
+    if (!isCurrent()) return
+    const res = await imApi.getC2CHistory(peerId.value)
+    if (!isCurrent()) return
+    const changedMode = imMode.value !== res.mode
+    if (changedMode) releaseSubscription()
+    imMode.value = res.mode
+    // 切换消息源后使用该源的历史；普通刷新只追加新消息，保留本页刚发送的消息。
+    const firstLoad = !loaded
+    let hasNewMessages = firstLoad || changedMode
+    if (firstLoad || changedMode) messages.value = res.messages
+    else hasNewMessages = appendMessages(res.messages).length > 0
+    fillTargetFromMessages(res.messages)
+    loaded = true
+    subscribeMessages(isCurrent)
+    // 已读失败不把已成功获取的历史变成整页错误。
+    await imApi.markC2CRead(peerId.value).catch(() => {})
+    if (!isCurrent()) return
+    await refreshPermission(isCurrent)
+    if (!isCurrent()) return
+    if (!blacklistLoaded) {
+      const list = await mineApi.getBlacklist().catch(() => null)
+      if (!isCurrent()) return
+      if (list) {
+        target.value.isBlocked = list.some((b) => String(b.userId) === peerId.value)
+        blacklistLoaded = true
+      }
+    }
     loading.value = false
-    return
+    await nextTick()
+    if (isCurrent() && hasNewMessages) await scrollToBottom(isCurrent)
+  } catch {
+    if (isCurrent() && !loaded) error.value = '暂时无法连接消息服务，请稍后重试'
+  } finally {
+    if (isCurrent()) loading.value = false
   }
-  // 订阅实时新消息（仅本会话对端发来的）
-  unsubscribe = tim.onMessage((msgs) => {
-    const mine = msgs.filter((m) => m.conversationID === `C2C${peerId.value}`)
-    if (!mine.length) return
-    messages.value.push(...mine.map(timToChatMessage))
-    fillTargetFromMessages(mine)
-    tim.setC2CRead(peerId.value)
+}, () => imMode.value === 'FALLBACK' ? 3_000 : 30_000)
+
+function loadData() { poller.refresh() }
+function appendMessages(items: ChatMessage[]) {
+  const known = new Set(messages.value.map((item) => item.id))
+  const fresh = items.filter((item) => {
+    if (known.has(item.id)) return false
+    known.add(item.id)
+    return true
   })
-  // 私信权限真连后端 /im/relation/:id；单独获取，失败保守降级（禁止发送）不阻塞整页
-  await refreshPermission()
-  loading.value = false
+  messages.value.push(...fresh)
+  return fresh
+}
+function releaseSubscription() {
+  unsubscribe?.()
+  unsubscribe = null
+}
+function subscribeMessages(isCurrent: () => boolean) {
+  // 订阅实时新消息（仅本会话对端发来的；flow==='in' 过滤掉 REST 发图 SyncOtherMachine 回传的自己消息，避免重复入列）
+  if (imMode.value === 'TENCENT' && !unsubscribe) {
+    unsubscribe = tim.onMessage((msgs) => {
+      if (!isCurrent() || imMode.value !== 'TENCENT') return
+      const mine = msgs.filter((m) => m.conversationID === `C2C${peerId.value}` && m.flow === 'in')
+      const mapped = appendMessages(mine.map(timToChatMessage))
+      if (!mapped.length) return
+      fillTargetFromMessages(mapped)
+      void imApi.markC2CRead(peerId.value).catch(() => {})
+      void refreshPermission(isCurrent)
+      void scrollToBottom(isCurrent)
+    })
+  }
 }
 
 // 对端昵称/头像：优先 query 传入，否则从收到的消息补齐（无独立资料端点时的诚实来源）
-function fillTargetFromMessages(msgs: TimMessage[]) {
-  const incoming = msgs.find((m) => m.flow === 'in')
+function fillTargetFromMessages(msgs: ChatMessage[]) {
+  const incoming = msgs.find((m) => !m.isSelf)
   if (!incoming) return
-  if (!props.name && incoming.nick) target.value.nickname = incoming.nick
-  if (!props.avatar && incoming.avatar) target.value.avatar = incoming.avatar
+  if (!props.name && incoming.senderName) target.value.nickname = incoming.senderName
+  if (!props.avatar && incoming.senderAvatar) target.value.avatar = incoming.senderAvatar
 }
 
 // 拉取与目标用户的私信关系权限（驱动输入框可用态与提示）
-async function refreshPermission() {
+let permissionRequestId = 0
+async function refreshPermission(isCurrent = poller.capture()) {
+  const requestId = ++permissionRequestId
   try {
-    permission.value = toChatPermission(await imApi.getRelationPolicy(peerId.value))
+    const policy = await imApi.getRelationPolicy(peerId.value)
+    if (isCurrent() && requestId === permissionRequestId) permission.value = toChatPermission(policy)
   } catch {
-    permission.value = { state: 'blocked', canSend: false, hint: '暂时无法确认会话权限，请稍后重试', reason: 'error' }
+    if (isCurrent() && requestId === permissionRequestId) permission.value = { state: 'blocked', canSend: false, hint: '暂时无法确认会话权限，请稍后重试', reason: 'error' }
   }
 }
 
-onMounted(() => {
-  loadData()
-})
-onUnmounted(() => {
-  if (unsubscribe) unsubscribe()
-})
+function pauseRefresh() { poller.stop(); releaseSubscription() }
+function disposeRefresh() { poller.dispose(); releaseSubscription() }
+onMounted(() => poller.start())
+onShow(() => poller.start())
+onHide(pauseRefresh)
+onUnload(disposeRefresh)
+onUnmounted(disposeRefresh)
 
 function isMine(m: ChatMessage) {
   return !!m.isSelf
@@ -279,7 +347,7 @@ const inputPlaceholder = computed(() => {
     case 'waiting_reply':
       return '等待对方回复...'
     case 'blocked':
-      return '已加入黑名单'
+      return permission.value.reason === 'error' ? '暂时无法发送' : '已加入黑名单'
     case 'can_greet':
       return '发送一条打招呼消息...'
     default:
@@ -295,6 +363,70 @@ function toggleMorePanel() {
   showMorePanel.value = !showMorePanel.value
 }
 
+// 图片发送权限：后端 RelationPolicy.mediaPerms.image（陌生人 NO_MEDIA 时整个"+"入口隐藏）
+const canSendImage = computed(() => imMode.value === 'TENCENT' && permission.value.canSend && !!permission.value.media?.image)
+
+// ───────── 顶部"···"菜单三项 ─────────
+
+/** 查看主页 → 对方公开主页（DYNAMIC_ROUTES /user/:id → pkg-circle/user/profile） */
+function openProfile() {
+  showHeaderMenu.value = false
+  navigateTo(`/user/${peerId.value}`)
+}
+
+/** 清空聊天记录：TIM SDK deleteConversation（会话与本地记录一并删除），确认后执行 */
+function clearHistory() {
+  showHeaderMenu.value = false
+  uni.showModal({
+    title: '清空聊天记录',
+    content: '确定要清空与对方的聊天记录吗？此操作不可恢复。',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await imApi.deleteConversation(`C2C${peerId.value}`)
+        messages.value = []
+        uni.showToast({ title: '已清空', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+      }
+    },
+  })
+}
+
+/** 拉黑/移出黑名单：真连 /users/:id/block（写库驱动 /im/relation 权限），乐观更新+失败回滚 */
+function toggleBlock() {
+  showHeaderMenu.value = false
+  const blocking = !target.value.isBlocked
+  uni.showModal({
+    title: blocking ? '加入黑名单' : '移出黑名单',
+    content: blocking ? '拉黑后对方将无法向你发送私信，确定拉黑？' : '确定将对方移出黑名单？',
+    success: async (res) => {
+      if (!res.confirm) return
+      target.value.isBlocked = blocking // 乐观更新
+      try {
+        if (blocking) await mineApi.blockUser(peerId.value)
+        else await mineApi.unblockUser(peerId.value)
+        uni.showToast({ title: blocking ? '已加入黑名单' : '已移出黑名单', icon: 'none' })
+        await refreshPermission() // 拉黑影响私信权限，立即刷新输入区状态
+      } catch (e) {
+        target.value.isBlocked = !blocking // 失败回滚
+        uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+      }
+    },
+  })
+}
+
+// ───────── 长按消息菜单（照群聊页范式，仅文字可复制；撤回需 TIM 封装暴露 revokeMessage，暂不提供）─────────
+
+function openMessageMenu(m: ChatMessage) {
+  if (m.isWithdrawn || m.type !== 'text') return
+  selectedMessage.value = m
+}
+function handleCopy(content: string) {
+  uni.setClipboardData({ data: content, success: () => uni.showToast({ title: '已复制', icon: 'none' }) })
+  selectedMessage.value = null
+}
+
 // 发送文字消息：走 TIM SDK sendMessage（实时下发对端）
 async function handleSendText() {
   if (!inputText.value.trim() || !permission.value.canSend || submitting.value) return
@@ -302,8 +434,9 @@ async function handleSendText() {
   inputText.value = ''
   submitting.value = true
   try {
-    const sdkMsg = await tim.sendText(peerId.value, content)
-    messages.value.push(timToChatMessage(sdkMsg))
+    const message = await imApi.sendC2CText(peerId.value, content)
+    if (!messages.value.some((item) => item.id === message.id)) messages.value.push(message)
+    scrollToBottom()
     // 发送成功后刷新权限：未互关时剩余条数会随发送递减
     await refreshPermission()
   } catch (e) {
@@ -312,6 +445,63 @@ async function handleSendText() {
   } finally {
     submitting.value = false
   }
+}
+
+// ───────── 发图（相册/拍照）：uni.chooseImage → uploadImage → POST /im/c2c/image ─────────
+
+/** 读取图片宽高（供 TIM ImageInfo；失败不阻塞，后端缺省 0） */
+function getImageSize(path: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    uni.getImageInfo({
+      src: path,
+      success: (r) => resolve({ width: r.width || 0, height: r.height || 0 }),
+      fail: () => resolve({ width: 0, height: 0 }),
+    })
+  })
+}
+
+async function handleChooseImage(source: 'album' | 'camera') {
+  if (!canSendImage.value || submitting.value) return
+  showMorePanel.value = false
+  uni.chooseImage({
+    count: 1,
+    sourceType: [source],
+    success: async (res) => {
+      const path = Array.isArray(res.tempFilePaths) ? res.tempFilePaths[0] : (res.tempFilePaths as unknown as string)
+      if (!path) return
+      submitting.value = true
+      uni.showLoading({ title: '发送中...', mask: true })
+      try {
+        const [url, size] = await Promise.all([uploadImage(path), getImageSize(path)])
+        await imApi.sendC2CImage(peerId.value, url, size.width, size.height)
+        // REST 发送不回落 SDK 本端消息流，本地乐观入列（对端与多端由后端 sendmsg 下发）
+        const me = getUserInfo<{ nickname?: string; avatar?: string }>() || {}
+        messages.value.push({
+          id: `local-img-${Date.now()}`,
+          senderId: '',
+          senderName: me.nickname || '',
+          senderAvatar: me.avatar || '',
+          type: 'image',
+          content: '[图片]',
+          image: { url, width: size.width, height: size.height },
+          status: 'sent',
+          isWithdrawn: false,
+          createdAt: formatMessageTime(Date.now()),
+          timestamp: Date.now(),
+          isSelf: true,
+        })
+        scrollToBottom()
+        await refreshPermission()
+        uni.hideLoading()
+      } catch (e) {
+        // hideLoading 必须先于 showToast：二者共用原生层，后 hide 会把 toast 一并关掉
+        uni.hideLoading()
+        uni.showToast({ title: (e as Error)?.message || '图片发送失败，请重试', icon: 'none' })
+      } finally {
+        submitting.value = false
+      }
+    },
+  })
 }
 </script>
 
@@ -340,12 +530,20 @@ async function handleSendText() {
   align-items: center;
   gap: 16rpx;
 }
+/* 图标按钮：≥88rpx 触达区（X5 防御：容器 relative 承载内容层） */
 .icon-btn {
-  width: 72rpx;
-  height: 72rpx;
+  position: relative;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+/* 输入区/导航操作位加浅色圆底衬，提示可点击 */
+.icon-btn-veil {
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.04);
 }
 .target-info {
   display: flex;
@@ -361,16 +559,6 @@ async function handleSendText() {
   border-radius: 50%;
   background: #f2ece1;
 }
-.online-dot {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 20rpx;
-  height: 20rpx;
-  border-radius: 50%;
-  background: #22c55e;
-  border: 4rpx solid #faf8f5;
-}
 .target-text {
   display: flex;
   flex-direction: column;
@@ -379,10 +567,6 @@ async function handleSendText() {
   font-size: 28rpx;
   font-weight: 500;
   color: #2c2c2c;
-}
-.target-status {
-  font-size: 22rpx;
-  color: #8a8178;
 }
 .header-menu {
   position: absolute;
@@ -679,6 +863,37 @@ async function handleSendText() {
   justify-content: center;
 }
 .more-label {
+  font-size: 22rpx;
+  color: #2c2c2c;
+}
+
+/* 长按消息菜单（照群聊页范式） */
+.menu-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.2);
+  z-index: 50;
+}
+.menu-pop {
+  position: absolute;
+  bottom: 200rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #faf8f5;
+  border-radius: 20rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.16);
+  padding: 16rpx;
+  display: flex;
+  gap: 8rpx;
+}
+.menu-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  padding: 16rpx 24rpx;
+}
+.menu-label {
   font-size: 22rpx;
   color: #2c2c2c;
 }

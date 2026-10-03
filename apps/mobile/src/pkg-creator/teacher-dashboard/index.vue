@@ -12,7 +12,6 @@
         <view class="td-right">
           <view class="td-icon-btn td-bell" @tap="go('/notifications')">
             <AppIcon name="bell" :size="20" color="#fff" />
-            <view class="td-dot" />
           </view>
           <view class="td-icon-btn" @tap="go('/pkg-creator/my-qualifications/index')">
             <AppIcon name="award" :size="20" color="#fff" />
@@ -112,10 +111,10 @@
         </view>
         <view class="td-stat">
           <view class="td-stat-label">
-            <AppIcon name="clock" :size="16" color="#999" />
-            <text class="td-stat-label-text">审核中</text>
+            <AppIcon name="eye" :size="16" color="#999" />
+            <text class="td-stat-label-text">仅自己可见</text>
           </view>
-          <text class="td-stat-num">{{ stats.pending }}</text>
+          <text class="td-stat-num">{{ stats.selfOnly }}</text>
         </view>
       </view>
 
@@ -151,8 +150,9 @@
                 <text class="td-list-title">{{ course.title }}</text>
                 <text
                   class="td-draft-tag"
-                  :style="{ color: courseStatus(course.auditStatus).color, background: courseStatus(course.auditStatus).bg }"
-                >{{ courseStatus(course.auditStatus).label }}</text>
+                  :style="{ color: courseStatus(course).color, background: courseStatus(course).bg }"
+                  @tap.stop="onStatusTagTap(course)"
+                >{{ courseStatus(course).label }}</text>
               </view>
               <view class="td-course-meta">
                 <view class="td-meta-item">
@@ -200,6 +200,7 @@ import TeacherInfluenceCard from '@/components/common/teacher-influence-card.vue
 import { navigateTo, goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { teacherApi, buildTeacherCardTitle, buildTeacherCardStats, type CertStatus, type TeacherPublicProfile } from '@/lib/teacher-data'
 import { courseApi, type CreatedCourse } from '@/lib/course-data'
 
@@ -224,8 +225,8 @@ const stats = computed(() => {
   return {
     studentCount: list.reduce((s, c) => s + (c.studentCount || 0), 0),
     courseCount: list.length,
-    published: list.filter((c) => c.auditStatus === 'APPROVED').length,
-    pending: list.filter((c) => c.auditStatus === 'PENDING').length,
+    published: list.filter((c) => c.auditStatus === 'APPROVED' && c.visibility !== 'SELF_ONLY').length,
+    selfOnly: list.filter((c) => c.visibility === 'SELF_ONLY').length,
   }
 })
 
@@ -255,7 +256,7 @@ const cardStats = computed(() =>
 )
 /** 二维码 = 我的公开主页 H5 链接（withRef 带本人 ref 归因·扫码进页完成推荐闭环） */
 const cardLink = computed(() =>
-  withRef(`https://api.rebugx.cn/h5/#/pkg-creator/teacher-profile/index?userId=${encodeURIComponent(myUserId.value)}`),
+  withRef(buildH5Url('pkg-creator/teacher-profile/index', { userId: myUserId.value })),
 )
 
 async function openPoster() {
@@ -283,14 +284,35 @@ onShareAppMessage(() => toAppMessage({
   cover: posterProfile.value?.avatar,
 }))
 
+// 审核无感化（20260711 第八节）：去「审核中/未通过」感知——存量 PENDING 显「未上架」；SELF_ONLY 优先显「仅自己可见」
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
   DRAFT: { label: '草稿', color: '#6b7280', bg: '#f3f4f6' },
-  PENDING: { label: '审核中', color: '#ea580c', bg: '#fff7ed' },
+  PENDING: { label: '未上架', color: '#6b7280', bg: '#f3f4f6' },
   APPROVED: { label: '已发布', color: '#16a34a', bg: '#f0fdf4' },
-  REJECTED: { label: '未通过', color: '#ef4444', bg: '#fef2f2' },
+  REJECTED: { label: '已下架', color: '#ef4444', bg: '#fef2f2' },
 }
-function courseStatus(s: string) {
-  return STATUS_MAP[s] || STATUS_MAP.PENDING
+const SELF_ONLY_TAG = { label: '仅自己可见', color: '#8c8c8c', bg: '#f0f0f0' }
+function courseStatus(course: CreatedCourse) {
+  if (course.visibility === 'SELF_ONLY') return SELF_ONLY_TAG
+  return STATUS_MAP[course.auditStatus] || STATUS_MAP.PENDING
+}
+/** 点状态标：仅自己可见/已下架给说明与申诉指引 */
+function onStatusTagTap(course: CreatedCourse) {
+  if (course.visibility === 'SELF_ONLY') {
+    uni.showModal({
+      title: '仅自己可见',
+      content: '该课程经系统复核暂时调整为仅自己可见，其他用户看不到，不影响您查看和管理。如有疑问，请联系客服申诉，我们会尽快为您复核。',
+      showCancel: false,
+      confirmText: '知道了',
+    })
+  } else if (course.auditStatus === 'REJECTED') {
+    uni.showModal({
+      title: '已下架',
+      content: '该课程因涉及违规内容已被下架，具体原因可在消息中心查看。如有疑问，请联系客服申诉。',
+      showCancel: false,
+      confirmText: '知道了',
+    })
+  }
 }
 
 async function loadData() {
@@ -401,16 +423,6 @@ onLoad(() => {
   align-items: center;
   gap: 8rpx;
 }
-.td-dot {
-  position: absolute;
-  top: 8rpx;
-  right: 8rpx;
-  width: 14rpx;
-  height: 14rpx;
-  background: #ff3b30;
-  border-radius: 50%;
-}
-
 /* 身份卡 */
 .td-identity {
   display: flex;
@@ -638,35 +650,6 @@ onLoad(() => {
   background: rgba(196, 30, 58, 0.1);
   color: var(--brand);
   border-radius: 20rpx;
-}
-
-/* 收入图表 */
-.td-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 16rpx;
-  height: 240rpx;
-}
-.td-bar-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10rpx;
-  height: 100%;
-  justify-content: flex-end;
-}
-.td-bar {
-  width: 100%;
-  border-radius: 8rpx 8rpx 0 0;
-  background: rgba(196, 30, 58, 0.3);
-}
-.td-bar-active {
-  background: var(--brand);
-}
-.td-bar-label {
-  font-size: 22rpx;
-  color: #999;
 }
 
 /* 课程 */

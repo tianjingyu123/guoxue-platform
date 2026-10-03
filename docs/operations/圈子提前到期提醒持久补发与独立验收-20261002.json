@@ -1,0 +1,409 @@
+{
+  "checkedAt": "2026-10-02T07:16:09.608Z",
+  "sourceCommit": "e0e0590b347f054e689958ec2468582d2247654e",
+  "parentHead": "4c562d45ea0c4c41014185f795ac0bc412614eb9",
+  "receivedCommits": [
+    "e0e0590b347f054e689958ec2468582d2247654e"
+  ],
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（提醒限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "local": {
+    "passed": 80,
+    "failed": 0,
+    "skipped": 0,
+    "suites": 5,
+    "newTests": 19
+  },
+  "linux": {
+    "sourceCommit": "e0e0590b347f054e689958ec2468582d2247654e",
+    "verificationCommit": "27a7950423028f612fbe094fb7a5724a3c0f8b14",
+    "runId": 36975879701,
+    "artifactId": 11213830415,
+    "artifactDigest": "sha256:2ea43e7dde8ecb3ec4c63307ce2ee641041720c4ddd6280fb347de503801ee85",
+    "officialDigestVerified": true,
+    "sourceBindings": [
+      {
+        "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
+        "sha256": "e0e8933425f69dc71ead6eab089a5bdf62bc8919db1f8e6deb45e6a3716ae1b3"
+      },
+      {
+        "path": "apps/server/src/modules/entitlement/entitlement.controller.ts",
+        "sha256": "1008f232f1bd0592c57f7db1b1a1b55528f64a6ea84e4fd913ad5111ef10d54a"
+      },
+      {
+        "path": "apps/mobile/src/pkg-mine/memberships/index.vue",
+        "sha256": "4699b9b4587b28ba2b239498be304c214f46eb4ca7b9a89c9073f062611a2343"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.service.ts",
+        "sha256": "b86371048153c7f6f6146e50b7ce3a23f4c8b3bc4b6f00206baf83801acd867b"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.controller.ts",
+        "sha256": "b071e9b9b56f9c2119956815c8487ef0f411ad07d07d4a1f3ad7239295f8b2e8"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.dto.ts",
+        "sha256": "832467dd50bf8f8b4e557aca088a9a754c57927205eda68237431b4ff869bc61"
+      },
+      {
+        "path": "apps/server/prisma/schema.prisma",
+        "sha256": "c4d0ccc52e68c234e3e61e6e82369bbdc8e9fbb8bc54eb9d24e66ca69ba4c040"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-grant.service.ts",
+        "sha256": "2048876e2551047b8281146b62f7809759d58a5a2f0ab1a92f4c348aab637c7f"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+        "sha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+      },
+      {
+        "path": "apps/mobile/src/lib/im-data.ts",
+        "sha256": "8af6322ddb816573a9735c7e0567e427b6f893e0d4056cdaff67c8a4537221e3"
+      },
+      {
+        "path": "apps/mobile/src/lib/mine-data.ts",
+        "sha256": "86b63067fe9eb2f59e668230fd84612798ad481af08e861b6004ed038df3bfba"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "sha256": "e6cdae211eca1f515b53dbee281fd6c1dd11a054c00547b24b132fb0fb9ed7ac"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-reply.ts",
+        "sha256": "61597af6b20f93452ec7664e88e6d730d2ccd391c363a98cc09085fef64002b5"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.task.ts",
+        "sha256": "a7213e5514ab0bb7708f6dcf1d073841ec0477ed2f390e4e15ded456937c7add"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+        "sha256": "81dfadcfc6569ba836816ed2c46ada7aa1c78680bf3089ee887926db1ac85218"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.task.spec.ts",
+        "sha256": "26035bf36ca8c1a2bb44fa423702350232584037c9a3a06bd6ca44f975d15208"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.spec.ts",
+        "sha256": "b09c8cd7f2b1b6339717c2e9cd7593330081ee8e5d3ed4be74e7b4119bba3431"
+      },
+      {
+        "path": "apps/server/src/modules/user/user.module.ts",
+        "sha256": "df286cabda81c758a3dcc9b3e8839336a31fadf426fc3a3550179b1c8809c258"
+      },
+      {
+        "path": "apps/server/src/modules/im/im-callback.controller.ts",
+        "sha256": "72d9413d0245b098cfbf58bb64173eadcb2be6c9cd13c13d677f56b68628c187"
+      },
+      {
+        "path": "apps/server/src/modules/im/im-callback.privacy.spec.ts",
+        "sha256": "c3f5041b28c6d9d055ae46f4b2aa683910cddfcb90ccad541ce793fa54b55cb7"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.service.ts",
+        "sha256": "df8492d322ced1e97ebed34ca9b196454892cf951bd969871246e5844f24ca31"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+        "sha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "sha256": "d4e8d8faf9ad0eb5c55c79ffc6eecc412d31dd97645357d7c868d615944e4d1b"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+        "sha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.spec.ts",
+        "sha256": "a771684a1e797cd2542f4d36c862cecaf96ed0208d056a106b76239cd66e59bb"
+      }
+    ],
+    "passed": 359,
+    "failed": 0,
+    "skipped": 0,
+    "suites": 22,
+    "newCircleChecks": 19,
+    "postgres": "18.4",
+    "circleBaselineWarnings": [
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "line": 70,
+        "rule": "@typescript-eslint/no-explicit-any",
+        "unchanged": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "line": 92,
+        "rule": "@typescript-eslint/no-explicit-any",
+        "unchanged": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "line": 111,
+        "rule": "@typescript-eslint/no-explicit-any",
+        "unchanged": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "line": 186,
+        "rule": "@typescript-eslint/no-explicit-any",
+        "unchanged": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "line": 237,
+        "rule": "@typescript-eslint/no-explicit-any",
+        "unchanged": true
+      }
+    ],
+    "newCircleLintErrors": 0,
+    "newCircleLintWarnings": 0,
+    "formalDockerImage": false,
+    "production": false,
+    "realChannels": false
+  },
+  "compiled": {
+    "sourceCommit": "e0e0590b347f054e689958ec2468582d2247654e",
+    "passed": 17,
+    "sourceHash": "bf0125a90afdad7cef0ef1c850d90eca814feb786f6a7f33d1535f39bc95991b",
+    "compiledHash": "80a5a1b699b5061b1731c38882aa30109f0b07f00ec41f1887289efb2bd97fc5",
+    "childProcessesLoadDist": true,
+    "cronEveryMinute": "*/1 * * * *",
+    "formalLinuxImage": false,
+    "production": false
+  },
+  "scope": {
+    "baseline": "4c562d45ea0c4c41014185f795ac0bc412614eb9",
+    "warningsUnchanged": 5,
+    "newLintErrors": 0,
+    "newLintWarnings": 0,
+    "expiryCleanupUnchanged": true,
+    "clientAndSchemaUnchanged": true
+  },
+  "baselineProof": {
+    "baseline": "4c562d45ea0c4c41014185f795ac0bc412614eb9",
+    "realPostgres": true,
+    "duplicateNotices": 2,
+    "noRealChannels": true,
+    "production": false
+  },
+  "ci": {
+    "runId": 36975867250,
+    "source": "e0e0590b347f054e689958ec2468582d2247654e",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "status": "completed",
+        "name": "迁移与上线代码门禁",
+        "conclusion": "success",
+        "id": 110739447542
+      },
+      {
+        "status": "completed",
+        "name": "ESLint + Prettier",
+        "conclusion": "success",
+        "id": 110739447608
+      },
+      {
+        "status": "completed",
+        "name": "TypeScript 类型检查",
+        "conclusion": "success",
+        "id": 110739447775
+      },
+      {
+        "status": "completed",
+        "name": "单元测试 (2/3)",
+        "conclusion": "success",
+        "id": 110739870150
+      },
+      {
+        "status": "completed",
+        "name": "单元测试 (3/3)",
+        "conclusion": "success",
+        "id": 110739870208
+      },
+      {
+        "status": "completed",
+        "name": "单元测试 (1/3)",
+        "conclusion": "success",
+        "id": 110739870256
+      },
+      {
+        "status": "completed",
+        "name": "构建产物",
+        "conclusion": "success",
+        "id": 110743549226
+      },
+      {
+        "status": "completed",
+        "name": "测试结果汇总",
+        "conclusion": "success",
+        "id": 110743549242
+      }
+    ],
+    "counts": {
+      "shards": [
+        {
+          "skipped": 50,
+          "id": 110739870150,
+          "summary": "2026-10-02T06:59:45.0336555Z Tests:       50 skipped, 3069 passed, 3119 total",
+          "passed": 3069,
+          "name": "单元测试 (2/3)"
+        },
+        {
+          "skipped": 72,
+          "id": 110739870208,
+          "summary": "2026-10-02T06:59:03.8915914Z Tests:       72 skipped, 3056 passed, 3128 total",
+          "passed": 3056,
+          "name": "单元测试 (3/3)"
+        },
+        {
+          "skipped": 92,
+          "id": 110739870256,
+          "summary": "2026-10-02T07:10:49.9946906Z Tests:       92 skipped, 2832 passed, 2924 total",
+          "passed": 2832,
+          "name": "单元测试 (1/3)"
+        }
+      ],
+      "production": false,
+      "runId": 36975867250,
+      "sourceCommit": "e0e0590b347f054e689958ec2468582d2247654e",
+      "fullCIComplete": true,
+      "passed": 8957,
+      "checkedAt": "2026-10-02T07:14:48.5967628Z",
+      "skipped": 214,
+      "jobsPassed": 8
+    },
+    "prPreviousRun": {
+      "id": 36975873816,
+      "conclusion": "cancelled",
+      "reason": "草稿PR文档HEAD更新后由既有并发配置自动取消；不是业务回归失败",
+      "currentPRChecksNotAssumedPassed": true
+    }
+  },
+  "key": "<userId>:CIRCLE_EXPIRING:<membershipId>:<精确UTC到期时刻>:<7|3|1>",
+  "calendarZone": "Asia/Shanghai",
+  "deliveryWindow": "北京10:00至当天结束，每分钟一批200；不补跨日过时文案",
+  "legacySameDayUnkeyedCompatible": true,
+  "noRedisClaim": true,
+  "categoryAndCircleAtomic": true,
+  "renewalExitAndUnpublishLocksSkip": true,
+  "memberCleanupUnchanged": true,
+  "governanceAndRewardUnchanged": true,
+  "internalGapStatus": {
+    "gaps": [
+      {
+        "id": "N1",
+        "priority": "先处理通知丢失",
+        "path": "apps/server/src/modules/member/member-grant.service.ts",
+        "method": "runAutoRenewRemind",
+        "fact": "setNX先保留8天占位，notification.create失败被catch吞掉，仍增加sent；没有失败释放或数据库通知幂等键",
+        "next": "定向故障反证后修复失败释放、数据库防重和真实成功统计；到期日与提醒窗口一起验证",
+        "runtimeFailureInjectionThisBatch": true,
+        "status": "代码候选完成、隔离验证完成（本轮范围）、线上状态未知、待发布决策",
+        "resolvedInIsolation": true,
+        "backendCommit": "1c2d4158eb374d95d91e7de70dda6cb675c28452",
+        "clientCommit": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+        "remaining": "真实Cron、正式两节点调度/时钟、手机点击与全日故障跨日策略未覆盖"
+      },
+      {
+        "id": "N2",
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "method": "adminUpdateStatus",
+        "fact": "新版公开回复随结案写入UUID事件；立即尝试和分钟扫描共用原子SQL、用户限定与数据库唯一键。旧V1/内部备注不历史补发。",
+        "next": "正式Cron、同版镜像与真机目标页验证；回退保留新版回复读取兼容层",
+        "runtimeFailureInjectionThisBatch": true,
+        "resolvedInIsolation": true,
+        "status": "代码候选完成、隔离验证完成（真实库/JWT/本机成品范围）、线上状态未知、待发布决策",
+        "backendCommit": "9d0a15f241c469af09a44fd4bc0f6bd11b1e28f2",
+        "compatibilityCommit": "d6015091c726d2f0f30eec2c882eac7b456c0dea"
+      },
+      {
+        "id": "N3",
+        "paths": [
+          "apps/mobile/src/pkg-agent/agent/customer-service.vue",
+          "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+          "apps/server/src/modules/im/im-callback.controller.ts"
+        ],
+        "fact": "转人工实际提供工单、企业微信二维码和电话；AI服务是即时回答。一般IM回调仅推Socket消息，不能据此宣称人工客服会话统一通知已接入",
+        "next": "工单补发已收口；企业微信会话回流、归属和渠道接通仍独立核验，AI回答/普通私信不自动当人工客服通知",
+        "externalEnterpriseWechatStatus": "未知",
+        "resolvedInIsolation": false,
+        "workOrderRecoveryCompletedInIsolation": true
+      },
+      {
+        "id": "N4",
+        "paths": [
+          "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+          "apps/server/src/modules/circle/services/circle-membership.service.ts",
+          "apps/server/src/modules/circle/services/circle-post.service.ts"
+        ],
+        "fact": "当前成员状态驱动的7/3/1自然日提前提醒已修，分钟重试与数据库唯一键；治理、成员删除后的过期通知及打赏提交后恢复仍分别待办",
+        "next": "治理、删除后的到期通知、打赏三个持久事件单元；提醒正式Cron和同版真机目标页，控制旧任务混跑",
+        "runtimeFailureInjectionThisBatch": true,
+        "resolvedInIsolation": false,
+        "backendReminderCommit": "e0e0590b347f054e689958ec2468582d2247654e",
+        "expirationReminderRecoveredInIsolation": true
+      },
+      {
+        "id": "N5",
+        "priority": "权益原子性单独核验",
+        "paths": [
+          "apps/server/src/modules/member/member-benefit.service.ts",
+          "apps/server/src/modules/member/member-grant.service.ts"
+        ],
+        "fact": "逐用户事务与User行锁覆盖判重、积分、券库存和记录；零积分写0额当月防重记录；购买沿用父事务，cron使用锁内最新等级。缺券跳过原政策保留。",
+        "next": "每月一次cron失败后的当月自动补偿时限、已有同模板UNUSED券时的产品处理口径、正式支付入口与最终镜像仍需收口；不自动补历史部分发放",
+        "runtimeFailureInjectionThisBatch": true,
+        "resolvedInIsolation": false,
+        "atomicityFixedInIsolation": true,
+        "backendCommit": "b45b46a187f10f21d1f3ed5df3f33d5c89548122"
+      },
+      {
+        "id": "N6",
+        "path": "apps/server/src/modules/im/im-callback.controller.ts",
+        "fact": "IM回调日志改为固定事件语义，不记录正文、原账户/群号、未知命令或错误原文；消息正文正常转发不截断。",
+        "next": "正式运行环境日志与全链路隐私审计；本批仅收口指定控制器，不宣称全仓敏感日志清零",
+        "runtimeFailureInjectionThisBatch": true,
+        "resolvedInIsolation": true,
+        "backendCommit": "51077ffe38e84db4e5c9c75985880e4a7dd18c35"
+      }
+    ],
+    "allClosed": false
+  },
+  "clientSchemaAndMigrationsUnchanged": true,
+  "newClientBuilds": 0,
+  "newPhoneTests": 0,
+  "formalImagePending": true,
+  "previousFormalImageSource": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+  "rollbackOrder": [
+    "e0e0590b347f054e689958ec2468582d2247654e"
+  ],
+  "rollbackRestoresReminderGap": true,
+  "production": false,
+  "deployed": false,
+  "realFunds": false,
+  "realNotifications": false,
+  "miniSubmitted": false,
+  "cleanup": {
+    "dataRetained": true,
+    "port": 55462,
+    "ownedPostgresDirectory": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-intake-review-20260930\\gx-deploy-91\\artifacts\\channel-intake-20260930\\voice-quota-real-db-9695462de\\data",
+    "stopped": true,
+    "temporarySpecsRemoved": true,
+    "shared5433Or6379Operated": false,
+    "checkedAt": "2026-10-02T07:03:27.6846454Z"
+  },
+  "officialMaster": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb"
+}

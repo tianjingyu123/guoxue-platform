@@ -1,15 +1,65 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsArray, Min, Max } from "class-validator";
-import { ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsIn,
+  ValidateNested,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+} from "class-validator";
+import { Type } from "class-transformer";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { OperationState } from "./operation.util";
+
+export const FEATURE_FLAG_KEY_PATTERN = /^[a-z][a-z0-9._-]{1,63}$/;
+
+/** 仅用于管理员模拟，不改变登录账号、发布内容或业务接口身份。 */
+export class FeaturePreviewContextDto {
+  @IsOptional() @IsString() @Matches(/^\d{1,15}$/) resourceVersion?: string;
+  @IsOptional() @IsString() @MaxLength(80) clientKey?: string;
+  @IsOptional() @IsString() @MaxLength(100) userId?: string;
+  @IsOptional() @IsString() @Matches(/^\d{1,15}$/) nativeBuild?: string;
+}
+
+export class OperationRuleDto {
+  @IsString() @Matches(/^[a-z][a-z0-9-]{1,47}$/) applicationId: string;
+  @IsString() @IsIn(["android", "ios", "harmony"]) platform: string;
+  @IsString() @Matches(/^[a-z][a-z0-9-]{1,47}$/) channelId: string;
+  @IsString() @IsIn(["UNOPENED", "OPEN", "MAINTENANCE", "READ_ONLY"]) state: OperationState;
+  @IsOptional() @IsInt() @Min(0) @Max(100) percentage?: number;
+  @IsOptional() @IsArray() @ArrayMaxSize(500) @IsString({ each: true }) targetUserIds?: string[];
+  @IsOptional() @IsString() @Matches(/^\d{1,15}$/) minNativeBuild?: string;
+  @IsOptional() @IsString() @Matches(/^\d{1,15}$/) maxNativeBuild?: string;
+}
 
 export class UpsertFeatureFlagDto {
+  @IsOptional() @IsString() @MaxLength(500) changeReason?: string;
+  @IsOptional()
+  @IsString()
+  @IsIn(["UNOPENED", "OPEN", "MAINTENANCE", "READ_ONLY"])
+  operationState?: OperationState;
+  @IsOptional() @IsBoolean() emergencyDisabled?: boolean;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => OperationRuleDto)
+  scopeRules?: OperationRuleDto[];
   @ApiPropertyOptional({ description: "名称" })
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   name?: string;
 
   @ApiPropertyOptional({ description: "描述" })
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   description?: string;
 
   @ApiPropertyOptional({ description: "是否启用" })
@@ -27,6 +77,16 @@ export class UpsertFeatureFlagDto {
   @ApiPropertyOptional({ description: "白名单用户ID列表" })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(500)
   @IsString({ each: true })
   targetUserIds?: string[];
+}
+
+export class CreateFeatureFlagDto extends UpsertFeatureFlagDto {
+  @ApiProperty({ description: "开关标识键；客户端可见开关使用 client_ 前缀" })
+  @IsString()
+  @Matches(FEATURE_FLAG_KEY_PATTERN, {
+    message: "key 必须以小写字母开头，且只能包含小写字母、数字、点、下划线或短横线，长度 2-64",
+  })
+  key: string;
 }

@@ -2,7 +2,7 @@
   <div
     v-if="visible"
     class="anomaly-alert"
-    :class="'anomaly-' + level"
+    :class="'anomaly-' + normalizedLevel"
   >
     <span class="anomaly-dot" />
     <span class="anomaly-text"><slot />{{ text }}</span>
@@ -14,12 +14,23 @@
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{
+import { computed } from 'vue'
+
+const props = withDefaults(defineProps<{
   text?: string
   count?: number
-  level?: 'critical' | 'warning' | 'info'
+  /** 兼容后端大写枚举（WARN/DANGER/CRITICAL）与前端小写（critical/warning/info），内部统一归一 */
+  level?: string
   visible?: boolean
 }>(), { text: '', count: 0, level: 'warning', visible: true })
+
+/** 级别归一：大小写容错 + 别名映射（DANGER→critical / WARN→warning），未知值兜底 warning，保证药丸永远有底色 */
+const normalizedLevel = computed<'critical' | 'warning' | 'info'>(() => {
+  const l = String(props.level || '').toLowerCase()
+  if (l === 'critical' || l === 'danger') return 'critical'
+  if (l === 'info') return 'info'
+  return 'warning'
+})
 </script>
 
 <style scoped>

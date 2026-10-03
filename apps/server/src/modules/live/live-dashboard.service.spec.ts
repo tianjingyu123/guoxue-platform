@@ -61,6 +61,41 @@ describe("LiveDashboardService", () => {
       expect(result.peakOnline).toBe(80);
       expect(result.commentCount).toBe(20);
       expect(result.likeCount).toBe(30);
+      expect(mockPrisma.order.aggregate).toHaveBeenCalledWith({
+        where: {
+          type: "PRODUCT",
+          sourceContentType: "LIVE",
+          sourceContentId: "r1",
+          status: { in: ["PAID", "SHIPPED", "COMPLETED"] },
+        },
+        _sum: { amount: true },
+        _count: true,
+      });
+    });
+  });
+
+  describe("getProducts", () => {
+    it("商品销量只统计该直播间来源订单，不混入同商品的商城与其他直播销量", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: HOST });
+      mockPrisma.liveProduct.findMany.mockResolvedValue([{ productId: "p1", sortOrder: 0 }]);
+      mockPrisma.product.findMany.mockResolvedValue([{ id: "p1", title: "测试商品", price: 99, images: [] }]);
+      mockPrisma.order.groupBy.mockResolvedValue([{ targetId: "p1", _sum: { amount: 198, quantity: 3 }, _count: 2 }]);
+
+      const result = await svc.getProducts("r1", HOST);
+
+      expect(result.products[0]).toMatchObject({ productId: "p1", sales: 3, revenue: 198 });
+      expect(mockPrisma.order.groupBy).toHaveBeenCalledWith({
+        by: ["targetId"],
+        where: {
+          type: "PRODUCT",
+          targetId: { in: ["p1"] },
+          sourceContentType: "LIVE",
+          sourceContentId: "r1",
+          status: { in: ["PAID", "SHIPPED", "COMPLETED"] },
+        },
+        _sum: { amount: true, quantity: true },
+        _count: true,
+      });
     });
   });
 

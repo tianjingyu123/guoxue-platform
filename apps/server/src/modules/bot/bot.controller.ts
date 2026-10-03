@@ -1,10 +1,34 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, UseGuards, Logger } from "@nestjs/common";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { RequireFeature } from "../../common/feature-flag.decorator";
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+  Logger,
+} from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Response, Request } from "express";
 import { BotService } from "./bot.service";
 import { CozeService } from "./coze.service";
 import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
-import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDto, AddBotKnowledgeItemDto, UpdateBotKnowledgeItemDto, RunWorkflowDto } from "./bot.dto";
+import {
+  CreateBotDto,
+  UpdateBotDto,
+  BindBotToCircleDto,
+  AddKnowledgeDto,
+  ChatDto,
+  AddBotKnowledgeItemDto,
+  UpdateBotKnowledgeItemDto,
+  RunWorkflowDto,
+} from "./bot.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -12,6 +36,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { SkipFormat } from "../../common/skip-format.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 /**
  * 智能体管理控制器
@@ -34,7 +59,11 @@ import { SkipFormat } from "../../common/skip-format.decorator";
 @Controller("bots")
 export class BotController {
   private readonly logger = new Logger(BotController.name);
-  constructor(private svc: BotService, private cozeSvc: CozeService, private sse: StreamUnifierService) {}
+  constructor(
+    private svc: BotService,
+    private cozeSvc: CozeService,
+    private sse: StreamUnifierService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -51,6 +80,7 @@ export class BotController {
 
   /** 通过 Coze API 一键创建+发布智能体，并同步到本地 BotConfig */
   @Post("create-coze")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "Coze 创建智能体并同步" })
@@ -59,14 +89,29 @@ export class BotController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  async createOnCoze(@Body() body: {
-    name: string; description?: string; prompt?: string; type?: string;
-    isFree?: boolean; dailyLimit?: number;
-    modelConfig?: Record<string, unknown>; pluginIds?: string[]; workflowIds?: string[];
-    onboarding?: Record<string, unknown>; voiceId?: string;
-  }) {
+  async createOnCoze(
+    @Body()
+    body: {
+      name: string;
+      description?: string;
+      prompt?: string;
+      type?: string;
+      isFree?: boolean;
+      dailyLimit?: number;
+      modelConfig?: Record<string, unknown>;
+      pluginIds?: string[];
+      workflowIds?: string[];
+      onboarding?: Record<string, unknown>;
+      voiceId?: string;
+    },
+  ) {
     const apiKey = process.env.COZE_API_KEY || "";
-    if (!apiKey) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "COZE_API_KEY 未配置");
+    // 配了 Coze OAuth 时令牌由 CozeService 内部换取，无需全局 PAT
+    if (!apiKey && !this.cozeSvc.isOAuthConfigured())
+      throw new BusinessException(
+        ErrorCode.INTERNAL_ERROR,
+        "COZE_API_KEY 未配置且未配置 Coze OAuth",
+      );
 
     // 1. 在 Coze 平台创建智能体
     const botData = await this.cozeSvc.createBot({
@@ -101,6 +146,21 @@ export class BotController {
   @ApiQuery({ name: "type", required: false, type: String, description: "智能体类型" })
   list(@Query("type") type?: string) {
     return this.svc.list(type);
+  }
+
+  @Get("admin/list")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({
+    summary: "管理端智能体列表（含占位凭证/全状态·apiKey 只回掩码 sk_***后4位 + isConfigured）",
+  })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "type", required: false, type: String, description: "智能体类型" })
+  adminList(@Query("type") type?: string) {
+    return this.svc.adminList(type);
   }
 
   @Get("ranking")
@@ -156,6 +216,7 @@ export class BotController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除智能体" })
@@ -182,6 +243,18 @@ export class BotController {
     return this.svc.bindToCircle(id, dto, req.user.id);
   }
 
+  @Delete(":id/unbind-circle/:circleId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "解绑智能体与圈子（管理端）" })
+  @ApiResponse({ status: 200, description: "解绑成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  unbindFromCircle(@Param("circleId") circleId: string) {
+    return this.svc.unbindCircle(circleId);
+  }
+
   @Get("circle/:circleId")
   @ApiOperation({ summary: "获取圈子绑定的智能体" })
   @ApiResponse({ status: 200, description: "成功" })
@@ -203,6 +276,7 @@ export class BotController {
   }
 
   @Delete("knowledge/:knowledgeId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除知识库条目" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -226,13 +300,18 @@ export class BotController {
   }
 
   @Post(":id/purchase-uses")
-  @UseGuards(JwtAuthGuard)
+  @RequireFeature("client_agent_purchase", { whenConfigured: true, writes: true })
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
   @ApiOperation({ summary: "购买追问包（10次/包·扣国学币）" })
   @ApiResponse({ status: 201, description: "购买成功" })
   @ApiResponse({ status: 400, description: "余额不足或该智能体免费" })
   @ApiBearerAuth()
-  purchaseUses(@Req() req: Request, @Param("id") id: string) {
-    return this.svc.purchaseUses(id, req.user.id);
+  purchaseUses(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body("requestId") requestId?: string,
+  ) {
+    return this.svc.purchaseUses(id, req.user.id, requestId);
   }
 
   @Post(":id/chat")
@@ -242,12 +321,25 @@ export class BotController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  chat(
+  async chat(
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
     @Param("id") id: string,
     @Body() dto: ChatDto,
   ) {
-    return this.svc.chat(id, req.user.id, dto);
+    const { quotaUse, ...reply } = await this.svc.chat(id, req.user.id, dto);
+    // 仅在 HTTP 响应写完后确认消耗；连接提前关闭则释放，进程中断由超时预留回收。
+    let finished = false;
+    res.once("finish", () => {
+      finished = true;
+      void this.svc
+        .markDeliveredQuota(quotaUse)
+        .catch((err: Error) => this.logger.error(`智能体额度确认异常 [${id}]: ${err.message}`));
+    });
+    res.once("close", () => {
+      if (!finished) void this.svc.releaseFailedQuotaSafely(id, req.user.id, quotaUse);
+    });
+    return reply;
   }
 
   @Post(":id/chat/stream")
@@ -264,25 +356,22 @@ export class BotController {
     @Param("id") id: string,
     @Body() dto: ChatDto,
   ) {
-    // AI 计费：额度检查先于 SSE 头，耗尽时以普通错误响应返回购买引导
-    await this.svc.consumeQuota(id, req.user.id);
-    const bot = await this.svc.getBotForChat(id);
+    // 门控与非流式 chat 完全同参（每日限次 + AI 计费额度），且先于 SSE 头发送，
+    // 额度耗尽时以普通错误响应返回购买引导
+    const bot = await this.svc.precheckChat(id, req.user.id, dto.conversationId);
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // 生产 nginx 反代禁缓冲，保证逐块下发
+    res.flushHeaders();
 
-    const obs = this.svc.chatStream(
-      bot.botId,
-      bot.apiKey,
-      req.user.id,
-      dto.query,
-      dto.conversationId,
-    );
+    // 富事件流：chunk 文本增量 + meta（conversationId 续聊/免责声明/软性导流），审计落库在 service 内闭环
+    const obs = this.svc.chatStreamRich(bot, req.user.id, dto);
 
-    obs.subscribe({
-      next: (chunk: string) => {
-        res.write(this.sse.encode({ type: "chunk", content: chunk }));
+    const subscription = obs.subscribe({
+      next: (ev) => {
+        res.write(this.sse.encode(ev));
       },
       error: (err: Error) => {
         this.logger.warn(`智能体SSE流错误 [${id}]: ${err.message}`);
@@ -294,6 +383,10 @@ export class BotController {
         res.end();
       },
     });
+    // 手机切后台或网络断开时停止上游请求；首字尚未产生则由 service 归还本次额度。
+    res.once("close", () => {
+      if (!res.writableEnded) subscription.unsubscribe();
+    });
   }
 
   @Get(":id/chat-history/:conversationId")
@@ -304,10 +397,11 @@ export class BotController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getChatHistory(
+    @Req() req: Request,
     @Param("id") id: string,
     @Param("conversationId") conversationId: string,
   ) {
-    return this.svc.getChatHistory(id, conversationId);
+    return this.svc.getChatHistory(id, conversationId, req.user.id);
   }
 
   // ───────── 语音通话 ─────────
@@ -319,10 +413,7 @@ export class BotController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  createVoiceRoom(
-    @Req() req: Request,
-    @Param("id") id: string,
-  ) {
+  createVoiceRoom(@Req() req: Request, @Param("id") id: string) {
     return this.svc.createVoiceRoom(id, req.user.id);
   }
 
@@ -407,14 +498,12 @@ export class BotController {
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
-  getBotApprovalList(
-    @Query("page") page = "1",
-    @Query("pageSize") pageSize = "20",
-  ) {
+  getBotApprovalList(@Query("page") page = "1", @Query("pageSize") pageSize = "20") {
     return this.svc.getBotApprovalList(Number(page), Number(pageSize));
   }
 
   @Post("manage/approvals/:circleId/approve")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批准圈主助理开通" })
@@ -425,6 +514,20 @@ export class BotController {
   @ApiBearerAuth()
   approveBot(@Param("circleId") circleId: string) {
     return this.svc.approveBot(circleId);
+  }
+
+  @Post("manage/approvals/:circleId/reject")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "驳回圈主助理开通" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  rejectBot(@Param("circleId") circleId: string, @Body() body: { reason?: string }) {
+    return this.svc.rejectBot(circleId, body?.reason);
   }
 
   @Get("manage/knowledge/:circleId")
@@ -454,10 +557,7 @@ export class BotController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  addBotKnowledge(
-    @Param("circleId") circleId: string,
-    @Body() dto: AddBotKnowledgeItemDto,
-  ) {
+  addBotKnowledge(@Param("circleId") circleId: string, @Body() dto: AddBotKnowledgeItemDto) {
     return this.svc.addBotKnowledge(circleId, dto);
   }
 
@@ -478,6 +578,7 @@ export class BotController {
   }
 
   @Delete("manage/knowledge/:knowledgeId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除圈主助理知识库条目" })

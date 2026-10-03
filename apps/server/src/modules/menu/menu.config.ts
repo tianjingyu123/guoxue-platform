@@ -346,6 +346,7 @@ export const MENU_CONFIG: MenuItem[] = [
     children: [
       { title: "Banner管理", path: "/banners" },
       { title: "系统设置", path: "/system-settings" },
+      { title: "运营反馈", path: "/system/feedback", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       { title: "敏感词管理", path: "/system/sensitive-words" },
       { title: "合规扫描", path: "/system/compliance-scan", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       { title: "任务池", path: "/system/ops-tasks", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },

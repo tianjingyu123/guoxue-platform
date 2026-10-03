@@ -13,7 +13,7 @@ for (const rel of ['../../.env', '../.env']) {
 const { PrismaClient } = require('@prisma/client')
 const p = new PrismaClient()
 
-const MERCHANT_PHONE = '13912340099' // 测试商家账号（密码 Test1234）
+const MERCHANT_PHONE = '13912340099' // 测试商家账号；登录凭据由受控环境单独管理
 
 async function userByPhone(phone) {
   const u = await p.user.findFirst({ where: { phone } })
@@ -215,6 +215,6 @@ async function main() {
     settlements: await p.merchantSettlement.count({ where: { merchantId: merchant.id } }),
   }
   console.log('商家注入完成:', JSON.stringify(counts))
-  console.log('测试商家:', MERCHANT_PHONE, '/ Test1234  merchantId=', merchant.id.slice(0, 8), 'status=', merchant.status)
+  console.log('测试商家:', MERCHANT_PHONE, 'merchantId=', merchant.id.slice(0, 8), 'status=', merchant.status)
 }
 main().then(() => process.exit(0)).catch((e) => { console.error('ERR:', e.message); process.exit(1) })

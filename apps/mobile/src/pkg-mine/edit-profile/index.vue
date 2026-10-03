@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
@@ -7,7 +8,7 @@
         <text class="nav-back-text">返回</text>
       </view>
       <text class="nav-title">编辑资料</text>
-      <view class="nav-save" :class="{ 'nav-save-disabled': saving }" @tap="handleSave">
+      <view class="nav-save" :class="{ 'nav-save-disabled': saving || avatarUploading }" @tap="handleSave">
         <AppIcon v-if="saving" name="loader-2" :size="36" color="#c41e3a" class="spin" />
         <text v-else class="nav-save-text">保存</text>
       </view>
@@ -29,18 +30,15 @@
     <template v-else>
       <!-- 头像区 -->
       <view class="avatar-section">
-        <view class="avatar-btn" @tap="showAvatarSheet = true">
+        <view class="avatar-btn" @tap="openAvatarSheet">
           <view class="avatar-box">
-            <image lazy-load v-if="profile.avatar" class="avatar-img" :src="profile.avatar" mode="aspectFill" />
-            <view v-else class="avatar-fallback">
-              <text class="avatar-fallback-text">{{ profile.nickname.charAt(0) || '?' }}</text>
-            </view>
+            <smart-avatar :src="profile.avatar" :name="profile.nickname" class="avatar-img" />
           </view>
           <view class="avatar-camera">
-            <AppIcon name="camera" :size="32" color="#ffffff" />
+            <AppIcon :name="avatarUploading ? 'loader-2' : 'camera'" :size="32" color="#ffffff" :class="{ spin: avatarUploading }" />
           </view>
         </view>
-        <text class="avatar-tip">点击更换头像</text>
+        <text class="avatar-tip">{{ avatarUploading ? '头像上传中…' : '点击更换头像' }}</text>
       </view>
 
       <!-- 表单 -->
@@ -109,10 +107,10 @@
     <view v-if="showAvatarSheet" class="sheet">
       <view class="sheet-handle" />
       <view class="sheet-body">
-        <view class="sheet-btn" @tap="handleChooseAvatar">
+        <view class="sheet-btn" @tap="handleChooseAvatar('camera')">
           <text class="sheet-btn-text">拍照</text>
         </view>
-        <view class="sheet-btn" @tap="handleChooseAvatar">
+        <view class="sheet-btn" @tap="handleChooseAvatar('album')">
           <text class="sheet-btn-text">从相册选择</text>
         </view>
       </view>
@@ -124,9 +122,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { mineApi } from '@/lib/mine-data'
+import { getToken, getUserInfo, setUserInfo } from '@/utils/storage'
+import { uploadImage } from '@/utils/request'
+import { INTEREST_THEMES, hydrateConfirmedInterestSave } from '@/utils/interests'
 
 interface UserProfile {
   avatar: string
@@ -135,18 +137,14 @@ interface UserProfile {
   interests: string[]
 }
 
-const defaultInterests = [
-  '易经', '风水', '八字', '梅花易数', '六爻',
-  '奇门遁甲', '紫微斗数', '面相', '手相', '姓名学',
-  '择日', '阴宅', '阳宅', '命理', '占卜',
-  '国学', '道学', '佛学', '儒学', '周易',
-]
-
 const profile = ref<UserProfile>({ avatar: '', nickname: '', bio: '', interests: [] })
+// 新选择与首次引导共用主题；历史细分标签保留，用户可主动移除，不静默丢弃。
+const defaultInterests = computed(() => [...new Set([...INTEREST_THEMES.map((theme) => theme.label), ...profile.value.interests])])
 const loading = ref(true)
 const loadError = ref('')
 const saving = ref(false)
 const showAvatarSheet = ref(false)
+const avatarUploading = ref(false)
 const errors = ref<Record<string, string>>({})
 
 onMounted(() => {
@@ -200,12 +198,29 @@ function toggleInterest(interest: string) {
   }
 }
 
-function handleChooseAvatar() {
+function openAvatarSheet() {
+  if (avatarUploading.value) return
+  showAvatarSheet.value = true
+}
+
+function handleChooseAvatar(sourceType: 'camera' | 'album') {
+  if (avatarUploading.value) return
   showAvatarSheet.value = false
   uni.chooseImage({
     count: 1,
-    success: (res) => {
-      profile.value.avatar = res.tempFilePaths[0]
+    sourceType: [sourceType],
+    success: async (res) => {
+      const filePath = res.tempFilePaths?.[0]
+      if (!filePath) return
+      avatarUploading.value = true
+      try {
+        profile.value.avatar = await uploadImage(filePath)
+        uni.showToast({ title: '头像上传完成，请保存', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '头像上传失败，请重试', icon: 'none' })
+      } finally {
+        avatarUploading.value = false
+      }
     },
   })
 }
@@ -221,15 +236,28 @@ function validate() {
 
 // 保存用户资料 —— PUT /users/profile（nickname/avatar/bio/兴趣品类）
 async function handleSave() {
-  if (saving.value) return
+  if (saving.value || avatarUploading.value) return
   if (!validate()) return
+  const account = getUserInfo<{ id?: string }>()
+  const token = getToken()
+  if (!token || !account?.id) return
   saving.value = true
   try {
-    await mineApi.updateProfile({
+    const saved = await mineApi.updateProfile({
       nickname: profile.value.nickname,
       avatar: profile.value.avatar,
       bio: profile.value.bio,
       interestCategories: profile.value.interests,
+      interestGuideCompleted: true,
+    })
+    if (getToken() !== token || getUserInfo<{ id?: string }>()?.id !== account.id) return
+    hydrateConfirmedInterestSave(saved, account.id)
+    // 回写本地 userInfo 缓存，使全站（海报/证书/IM/短视频等）用 getUserInfo() 的展示位即时同步新昵称/头像/简介
+    setUserInfo({
+      ...(getUserInfo() || {}),
+      ...(typeof saved.nickname === 'string' ? { nickname: saved.nickname } : {}),
+      ...(typeof saved.avatar === 'string' ? { avatar: saved.avatar } : {}),
+      ...(typeof saved.bio === 'string' ? { bio: saved.bio } : {}),
     })
     uni.showToast({ title: '保存成功', icon: 'none' })
     setTimeout(() => uni.navigateBack(), 600)
@@ -251,7 +279,7 @@ async function handleSave() {
 /* 导航 */
 .nav {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 10;
   display: flex;
   align-items: center;

@@ -1,11 +1,14 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma, FundApproval } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
-export type FundApprovalType = "DIVIDEND" | "REFUND" | "RECHARGE" | "COMMISSION_CONFIG" | "COIN_REFUND";
+export type FundApprovalType = "DIVIDEND" | "REFUND" | "RECHARGE" | "COMMISSION_CONFIG" | "MEMBER_CONFIG" | "COIN_REFUND" | "HUIFU_SPLIT";
+
+/** amount 存"币数"的审批类型（其余均为人民币元）——前端显示单位以 amountUnit 为准，防止把币数当成元 */
+const COIN_AMOUNT_TYPES: readonly string[] = ["RECHARGE", "COIN_REFUND"];
 
 /**
  * 资金审批核心服务（仅依赖 Prisma，无业务模块依赖）。
@@ -27,8 +30,9 @@ export class FundApprovalService {
     amount?: number | null;
     summary: string;
     requestedBy: string;
-  }) {
-    const record = await this.model.create({
+  }, tx?: Prisma.TransactionClient) {
+    // 业务发起方可传入现有事务，余额占用与审批记录共同提交或回滚。
+    const record = await (tx ?? this.prisma).fundApproval.create({
       data: {
         type: input.type,
         payload: input.payload as Prisma.InputJsonValue,
@@ -46,20 +50,30 @@ export class FundApprovalService {
     };
   }
 
-  /** 待审 / 按状态分页列表 */
-  async list(rawPage = 1, rawPageSize = 20, status = "PENDING") {
+  /** 待审 / 按状态分页列表。status=ALL（或留空）返回全部状态 */
+  async list(reviewerId: string, rawPage = 1, rawPageSize = 20, status = "PENDING") {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
-    const where = status ? { status } : {};
-    const [items, total] = await Promise.all([
-      this.model.findMany({
-        where,
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: "desc" },
-      }),
-      this.model.count({ where }),
-    ]);
-    return { items, total, page, pageSize };
+    const normalized = (status || "").trim().toUpperCase();
+    const where = !normalized || normalized === "ALL" ? {} : { status: normalized };
+    return this.prisma.$transaction(async tx => {
+      await this.assertCurrentReviewer(tx, reviewerId);
+      const [items, total] = await Promise.all([
+        tx.fundApproval.findMany({
+          where,
+          skip,
+          take: pageSize,
+          orderBy: { createdAt: "desc" },
+        }),
+        tx.fundApproval.count({ where }),
+      ]);
+      // amountUnit：RECHARGE/COIN_REFUND 的 amount 是币数（coin.service 直接把 amountCoin 落进 amount），
+      // 其余类型是人民币元。不带单位前端会把"充值 1000 币"显示成"¥1000"。
+      const withUnit = items.map((i) => ({
+        ...i,
+        amountUnit: COIN_AMOUNT_TYPES.includes(i.type) ? "COIN" : "CNY",
+      }));
+      return { items: withUnit, total, page, pageSize };
+    });
   }
 
   async findById(id: string) {
@@ -88,6 +102,62 @@ export class FundApprovalService {
       },
     });
     return res.count === 1;
+  }
+
+  private async assertCurrentReviewer(tx: Prisma.TransactionClient, reviewerId: string) {
+    const accounts = await tx.$queryRaw<Array<{ id: string; status: string }>>`
+      SELECT id, status::text AS status FROM "User" WHERE id=${reviewerId} FOR SHARE`;
+    if (accounts[0]?.status !== "ACTIVE")
+      throw new BusinessException(ErrorCode.FORBIDDEN, "审核账号当前不可用");
+    const roles = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM "UserRole" WHERE "userId"=${reviewerId}
+      AND "roleType" IN ('SUPER_ADMIN', 'FINANCE_ADMIN') ORDER BY id FOR SHARE`;
+    if (!roles.length)
+      throw new BusinessException(ErrorCode.FORBIDDEN, "当前平台权限不足，不能审核资金操作");
+  }
+
+  /** 审核入口：在同一事务复核当前账号/角色和当前审批单，返回实际认领的载荷。 */
+  async claimForReview(
+    id: string, toStatus: "APPROVED" | "REJECTED", reviewerId: string, reviewNote: string | undefined,
+    expected: Pick<FundApproval, "type" | "requestedBy" | "payload" | "amount" | "summary">,
+    transaction?: Prisma.TransactionClient,
+  ) {
+    const claim = async (tx: Prisma.TransactionClient) => {
+      await this.assertCurrentReviewer(tx, reviewerId);
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "fund_approval" WHERE id=${id} FOR UPDATE`;
+      if (!locked[0]) throw new BusinessException(ErrorCode.NOT_FOUND, "审批单不存在");
+      const approval = await tx.fundApproval.findUnique({ where: { id } });
+      if (!approval) throw new BusinessException(ErrorCode.NOT_FOUND, "审批单不存在");
+      if (approval.status !== "PENDING")
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "该审批单已处理");
+      if (approval.requestedBy && approval.requestedBy === reviewerId)
+        throw new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己发起的资金操作，请由其他审批人处理");
+      if (approval.requestedBy !== expected.requestedBy || approval.type !== expected.type || approval.summary !== expected.summary || approval.amount?.toString() !== expected.amount?.toString() || JSON.stringify(approval.payload) !== JSON.stringify(expected.payload))
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "审批内容已变化，请重新查询后审核");
+      const updated = await tx.fundApproval.updateMany({
+        where: { id, status: "PENDING", requestedBy: approval.requestedBy, type: approval.type },
+        data: { status: toStatus, reviewedBy: reviewerId, reviewNote: reviewNote ?? null, processedAt: new Date() },
+      });
+      if (updated.count !== 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "该审批单已处理");
+      // 后续执行使用这里核验的载荷；传入事务时权限锁保持到该事务提交。
+      return approval;
+    };
+    return transaction ? claim(transaction) : this.prisma.$transaction(claim);
+  }
+
+  /** 本地分配、币操作及配置与认领共同提交；外部出款不能进入这个事务。 */
+  async executeLocalReview<T>(
+    id: string, reviewerId: string, reviewNote: string | undefined,
+    expected: Pick<FundApproval, "type" | "requestedBy" | "payload" | "amount" | "summary">,
+    execute: (approval: FundApproval, tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    return this.prisma.$transaction(async tx => {
+      const approval = await this.claimForReview(id, "APPROVED", reviewerId, reviewNote, expected, tx);
+      if (!["DIVIDEND", "RECHARGE", "COIN_REFUND", "MEMBER_CONFIG", "COMMISSION_CONFIG"].includes(approval.type))
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已核验的本地资金类型使用此执行事务");
+      return execute(approval, tx);
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   /** 执行失败时回滚为 PENDING，避免出现"已通过但未执行"的资金空档 */

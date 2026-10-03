@@ -1,409 +1,303 @@
 <template>
-  <!-- 加载骨架屏 -->
-  <view v-if="loading" class="skeleton-page">
-    <view class="skeleton-header" />
-    <view class="skeleton-main">
-      <view class="skeleton-left">
-        <view class="skeleton-stats" />
-        <view class="skeleton-tab" />
-      </view>
-      <view class="skeleton-right" />
+  <!-- 加载骨架屏（深色 shimmer） -->
+  <view v-if="loading" class="sk-page">
+    <view class="sk-topbar" :style="topbarSafeStyle">
+      <view class="sk sk-pill sk-w96" />
+      <view class="sk sk-pill sk-w180" />
+      <view class="sk sk-pill sk-w96 sk-ml-auto" />
+    </view>
+    <view class="sk-stats">
+      <view class="sk sk-stat" />
+      <view class="sk sk-stat" />
+      <view class="sk sk-stat" />
+      <view class="sk sk-stat" />
+    </view>
+    <view class="sk-danmu">
+      <view class="sk-dm-row"><view class="sk sk-av" /><view class="sk sk-dm-bd sk-w280" /></view>
+      <view class="sk-dm-row"><view class="sk sk-av" /><view class="sk sk-dm-bd sk-w340" /></view>
+      <view class="sk-dm-row"><view class="sk sk-av" /><view class="sk sk-dm-bd sk-w240" /></view>
+    </view>
+    <view class="sk-opbar" :style="opbarSafeStyle">
+      <view class="sk sk-op" /><view class="sk sk-op" /><view class="sk sk-op" /><view class="sk sk-op" /><view class="sk sk-op" />
     </view>
   </view>
+
   <!-- 错误状态 -->
   <view v-else-if="error" class="error-state">
     <text class="error-text">{{ error }}</text>
     <view class="retry-btn" @tap="fetchData">重试</view>
   </view>
-  <!-- 正常内容 -->
+
+  <!-- 正常内容（直播中驾驶舱·深色） -->
   <view v-else class="page">
-    <!-- 顶部控制栏 -->
-    <view class="header">
-      <view class="header-left">
-        <view class="nav-btn" @tap="goBack">
-          <AppIcon name="chevron-left" :size="40" color="#2C2C2C" />
+    <!-- ── 顶部状态条 ── -->
+    <view class="topbar" :style="topbarSafeStyle">
+      <view class="live">
+        <view class="dot" />
+        <text class="live-txt">直播中</text>
+      </view>
+      <text class="mono time-txt">{{ formatTime(liveTime) }}</text>
+      <view class="qtag" :class="{ warn: remainWarn }">
+        <text class="qtag-txt">{{ qualityStatusLabel }}</text>
+      </view>
+      <view v-if="isHostCompanion" class="modebtn" @tap="returnToHost">
+        <text class="modebtn-txt">返回直播间</text>
+      </view>
+      <view class="endbtn" @tap="showEndDialog = true">
+        <text class="endbtn-txt">下播</text>
+      </view>
+    </view>
+
+    <view class="studio-strip">
+      <view>
+        <text class="studio-strip-kicker">REBUGX LIVE STUDIO</text>
+        <text class="studio-strip-title">主播运营台</text>
+      </view>
+      <view class="studio-strip-right">
+        <view class="studio-health" /><text class="studio-sync">公屏与数据每 3 秒同步</text>
+      </view>
+    </view>
+
+    <!-- 手机主播画面由上一层 .nvue TRTC 页面持续采集，本页只处理数据与运营控制。 -->
+    <view v-if="isHostCompanion" class="preview compact">
+      <view class="preview-unavailable">
+        <text class="preview-unavailable-title">直播画面正在后台持续推送</text>
+        <text class="preview-unavailable-sub">操作完成后返回直播间查看画面和公屏</text>
+      </view>
+      <view class="preview-actions">
+        <view class="preview-action preview-action--primary" @tap="returnToHost">返回直播间</view>
+      </view>
+    </view>
+
+    <!-- ── 数据看板四格 ── -->
+    <view v-if="consoleMode || isObsMode" class="stats">
+      <view class="stat">
+        <text class="mono stat-n">{{ formatNum(stats.onlineCount) }}</text>
+        <text class="stat-l">在线人数</text>
+      </view>
+      <view class="stat">
+        <text class="mono stat-n">{{ formatNum(stats.totalViews) }}</text>
+        <text class="stat-l">累计观看</text>
+      </view>
+      <view class="stat">
+        <text class="mono stat-n">{{ stats.newFollowersAvailable ? formatNum(stats.newFollowers) : '--' }}</text>
+        <text class="stat-l">开播后新增</text>
+      </view>
+      <view class="stat">
+        <text class="mono stat-n gold">¥{{ formatPrice(stats.totalSales) }}</text>
+        <text class="stat-l">成交额</text>
+      </view>
+    </view>
+    <view v-if="consoleMode || isObsMode" class="secondary-stats">
+      <text class="secondary-stat">礼物 {{ formatNum(stats.totalGift) }} 国学币</text>
+      <text class="secondary-divider">·</text>
+      <text class="secondary-stat">峰值在线 {{ formatNum(stats.peakOnline) }}</text>
+    </view>
+
+    <!-- ── 时长警示横幅（剩余<15分钟） ── -->
+    <view v-if="remainWarn" class="banner">
+      <text class="banner-txt">{{ qualityLabel }}时长仅剩 {{ remainMinutes }} 分钟，耗尽后自动降为标清</text>
+      <text class="banner-link" @tap="onRenewDuration">立即续购 ›</text>
+    </view>
+
+    <!-- ── 弹幕流 ── -->
+    <view v-if="!consoleMode && !isObsMode" class="room-section-title">
+      <text>互动公屏</text>
+      <text class="room-section-meta">{{ formatNum(stats.onlineCount) }} 人在线</text>
+    </view>
+    <scroll-view v-if="danmakuList.length > 0" scroll-y class="danmu" :scroll-top="danmakuScrollTop" :scroll-with-animation="false">
+      <view class="sys">—— 以下为实时弹幕 ——</view>
+      <view
+        v-for="item in danmakuList"
+        :key="item.id"
+        class="dm"
+        @longpress="onDanmakuLongPress(item)"
+      >
+        <view class="av">
+          <text class="av-txt">{{ (item.user || '?').charAt(0) }}</text>
         </view>
-        <view class="title-group">
-          <view v-if="isLive" class="badge-live">
-            <AppIcon name="radio" :size="24" color="#fff" />
-            <text class="badge-live-txt">直播中</text>
-          </view>
-          <view v-else class="badge-ended">已结束</view>
-          <text class="room-name">{{ roomTitle }}</text>
+        <view class="bd">
+          <text class="bd-user" :class="{ vip: item.isVip }">{{ item.user }}</text>
+          <text class="bd-content">{{ item.content }}</text>
         </view>
       </view>
+    </scroll-view>
 
-      <view class="header-right">
-        <!-- 直播时长 -->
-        <view class="timer">
-          <AppIcon name="clock" :size="32" color="#999" />
-          <text class="timer-txt">{{ formatTime(liveTime) }}</text>
+    <!-- 弹幕空态（刚开播） -->
+    <view v-else class="danmu danmu-empty">
+      <text class="empty-title">直播已开始，观众正在路上</text>
+      <text class="empty-sub">分享直播间到圈子，召唤第一批观众</text>
+      <view class="sharebtn" @tap="onShareRoom">
+        <text class="sharebtn-txt">分享直播间</text>
+      </view>
+    </view>
+
+    <!-- ── 底部操作栏 ── -->
+    <view class="opbar" :style="opbarSafeStyle">
+      <view class="op" @tap="showProductSheet = true">
+        <view class="op-ic">
+          <AppIcon name="shopping-bag" :size="28" color="#A89FA8" />
+          <view v-if="products.length > 0" class="op-cnt">
+            <text class="op-cnt-txt">{{ products.length }}</text>
+          </view>
         </view>
-        <!-- 控制按钮 -->
-        <view class="ctrl-group">
-          <view class="ctrl-btn" @tap="isMuted = !isMuted">
-            <AppIcon :name="isMuted ? 'volume-x' : 'volume-2'" :size="32" color="#2C2C2C" />
+        <text class="op-txt">商品</text>
+      </view>
+      <view class="op" @tap="openMutedSheet">
+        <view class="op-ic"><AppIcon name="ban" :size="28" color="#A89FA8" /></view>
+        <text class="op-txt">禁言管理</text>
+      </view>
+      <view v-if="canUseLiveMic" class="op" @tap="openMicSheet">
+        <view class="op-ic">
+          <AppIcon name="mic" :size="28" color="#A89FA8" />
+          <view v-if="pendingMicCount > 0" class="op-cnt"><text class="op-cnt-txt">{{ pendingMicCount }}</text></view>
+        </view>
+        <text class="op-txt">连麦</text>
+      </view>
+      <view class="op" @tap="openInteractionRules">
+        <view class="op-ic"><AppIcon name="shield" :size="28" color="#A89FA8" /></view>
+        <text class="op-txt">互动规则</text>
+      </view>
+      <view class="op" @tap="onShareRoom">
+        <view class="op-ic"><AppIcon name="share-2" :size="28" color="#A89FA8" /></view>
+        <text class="op-txt">分享</text>
+      </view>
+    </view>
+
+    <!-- ── 下播二次确认弹窗（不透明纯色卡·X5安全） ── -->
+    <view v-if="showEndDialog" class="mask" @tap="showEndDialog = false" @touchmove.self.prevent>
+      <view class="dialog" @tap.stop @touchmove.stop>
+        <text class="dialog-title">确认结束本场直播？</text>
+        <text class="dialog-desc">已直播 {{ humanDuration }} · 累计 {{ formatNum(stats.totalViews) }} 人观看{{ '\n' }}结束后将自动生成回放</text>
+        <view class="dialog-btns">
+          <view class="dialog-btn cancel" @tap="showEndDialog = false">
+            <text class="dialog-btn-txt cancel-txt">继续直播</text>
           </view>
-          <view class="ctrl-btn" @tap="showTeleprompter = !showTeleprompter">
-            <AppIcon name="file-text" :size="32" color="#2C2C2C" />
-          </view>
-          <view class="ctrl-btn">
-            <AppIcon name="settings" :size="32" color="#2C2C2C" />
-          </view>
-          <view class="end-btn" @tap="showEndDialog = true">
-            <AppIcon name="stop-circle" :size="32" color="#fff" />
-            <text class="end-btn-txt">结束直播</text>
+          <view class="dialog-btn confirm" @tap="onConfirmEnd">
+            <text class="dialog-btn-txt confirm-txt">结束直播</text>
           </view>
         </view>
       </view>
     </view>
 
-    <view class="main">
-      <!-- 左侧：核心数据 + 弹幕/连麦 -->
-      <view class="left">
-        <!-- 核心数据区 -->
-        <view class="stats-area">
-          <view class="stats-grid">
-            <view class="stat-card blue">
-              <view class="stat-head">
-                <AppIcon name="users" :size="32" color="#3b82f6" />
-                <text class="stat-label">在线人数</text>
-              </view>
-              <view class="stat-value-row">
-                <text class="stat-value c-blue">{{ formatNum(stats.onlineCount) }}</text>
-                <text class="stat-delta">+12</text>
-              </view>
-            </view>
-
-            <view class="stat-card purple">
-              <view class="stat-head">
-                <AppIcon name="eye" :size="32" color="#a855f7" />
-                <text class="stat-label">累计观看</text>
-              </view>
-              <view class="stat-value-row">
-                <text class="stat-value c-purple">{{ formatNum(stats.totalViews) }}</text>
-              </view>
-            </view>
-
-            <view class="stat-card amber">
-              <view class="stat-head">
-                <AppIcon name="gift" :size="32" color="#f59e0b" />
-                <text class="stat-label">打赏收入</text>
-              </view>
-              <view class="stat-value-row">
-                <text class="stat-value c-amber">¥{{ formatNum(stats.totalGift) }}</text>
-              </view>
-            </view>
-
-            <view class="stat-card red">
-              <view class="stat-head">
-                <AppIcon name="shopping-bag" :size="32" color="#ef4444" />
-                <text class="stat-label">带货成交</text>
-              </view>
-              <view class="stat-value-row">
-                <text class="stat-value c-red">¥{{ formatNum(stats.totalSales) }}</text>
-              </view>
-            </view>
-          </view>
-
-          <!-- 次要数据 -->
-          <view class="sub-stats">
-            <text class="sub-item">峰值在线: <text class="sub-strong">{{ stats.peakOnline }}</text></text>
-            <text class="sub-item">新增粉丝: <text class="sub-strong c-green">+{{ stats.newFollowers }}</text></text>
-            <text class="sub-item">平均观看: <text class="sub-strong">{{ stats.avgWatchTime }}</text></text>
-            <text class="sub-item">互动率: <text class="sub-strong">{{ stats.interactionRate }}</text></text>
-          </view>
-        </view>
-
-        <!-- 弹幕/连麦 Tab区 -->
-        <view class="tab-area">
-          <view class="tab-bar">
-            <view class="tab" :class="{ active: activeTab === 'danmaku' }" @tap="activeTab = 'danmaku'">
-              <AppIcon name="message-circle" :size="28" :color="activeTab === 'danmaku' ? '#2C2C2C' : '#999'" />
-              <text class="tab-txt">实时弹幕</text>
-              <view class="tab-badge">{{ danmakuList.length }}</view>
-            </view>
-            <view class="tab" :class="{ active: activeTab === 'connect' }" @tap="activeTab = 'connect'">
-              <AppIcon name="phone" :size="28" :color="activeTab === 'connect' ? '#2C2C2C' : '#999'" />
-              <text class="tab-txt">连麦申请</text>
-              <view v-if="connectRequests.length > 0" class="tab-badge red">{{ connectRequests.length }}</view>
-            </view>
-          </view>
-
-          <!-- 弹幕列表 -->
-          <view v-show="activeTab === 'danmaku'" class="danmaku-panel">
-            <scroll-view scroll-y class="danmaku-list" :scroll-top="danmakuScrollTop" :scroll-with-animation="false">
-              <view v-for="item in danmakuList" :key="item.id" class="danmaku-item">
-                <view class="dm-level">{{ item.level }}</view>
-                <view class="dm-body">
-                  <view class="dm-head">
-                    <text class="dm-user" :class="{ vip: item.isVip }">
-                      <AppIcon v-if="item.isVip" name="crown" :size="24" color="#f59e0b" class="dm-crown" />{{ item.user }}
-                    </text>
-                    <text class="dm-time">{{ item.time }}</text>
-                  </view>
-                  <text class="dm-content">{{ item.content }}</text>
-                </view>
-                <view class="dm-actions">
-                  <view class="dm-act" @tap="onPinDanmaku(item.id)"><AppIcon name="pin" :size="24" color="#666" /></view>
-                  <view class="dm-act" @tap="onReplyDanmaku(item.id)"><AppIcon name="reply" :size="24" color="#666" /></view>
-                  <view class="dm-act" @tap="handleDeleteDanmaku(item.id)"><AppIcon name="trash-2" :size="24" color="#ef4444" /></view>
-                  <view class="dm-act" @tap="handleBanUser(item.id)"><AppIcon name="ban" :size="24" color="#ef4444" /></view>
-                </view>
-              </view>
-            </scroll-view>
-
-            <!-- 快捷回复 -->
-            <view class="danmaku-input-area">
-              <view class="input-row">
-                <input v-model="danmakuDraft" class="dm-input" placeholder="发送弹幕..." placeholder-class="dm-input-ph" />
-                <view class="send-btn" @tap="onSendDanmaku">
-                  <AppIcon name="send" :size="32" color="#fff" />
-                </view>
-              </view>
-              <view class="quick-replies">
-                <view v-for="text in quickReplies" :key="text" class="quick-reply" @tap="onQuickReply(text)">
-                  {{ text }}
-                </view>
-              </view>
-            </view>
-          </view>
-
-          <!-- 连麦申请 -->
-          <scroll-view v-show="activeTab === 'connect'" scroll-y class="connect-panel">
-            <view v-if="connectRequests.length === 0" class="connect-empty">
-              <AppIcon name="phone" :size="96" color="#ccc" />
-              <text class="empty-txt">暂无连麦申请</text>
-            </view>
-            <view v-else class="connect-list">
-              <view v-for="request in connectRequests" :key="request.id" class="connect-card">
-                <view class="connect-avatar">{{ request.user[0] }}</view>
-                <view class="connect-body">
-                  <view class="connect-head">
-                    <text class="connect-user">{{ request.user }}</text>
-                    <text class="connect-wait">等待 {{ request.waitTime }}</text>
-                  </view>
-                  <text class="connect-reason">{{ request.reason }}</text>
-                  <view class="connect-actions">
-                    <view class="connect-accept" @tap="handleAcceptConnect(request.id)">
-                      <AppIcon name="phone" :size="24" color="#fff" />
-                      <text class="connect-accept-txt">接通</text>
-                    </view>
-                    <view class="connect-reject" @tap="handleRejectConnect(request.id)">
-                      <AppIcon name="phone-off" :size="24" color="#2C2C2C" />
-                      <text class="connect-reject-txt">拒绝</text>
-                    </view>
-                  </view>
-                </view>
-              </view>
-            </view>
-          </scroll-view>
-        </view>
-      </view>
-
-      <!-- 右侧：商品管理 + 营销工具 + 提词器 -->
-      <view class="right">
-        <!-- 商品管理区 -->
-        <view class="product-area">
-          <view class="product-head">
-            <view class="product-head-left">
-              <AppIcon name="shopping-bag" :size="32" color="#C41E3A" />
-              <text class="product-head-title">商品管理</text>
-              <view class="product-count">{{ products.length }}件</view>
-            </view>
-            <view class="refresh-stock" @tap="onRefreshStock">
-              <AppIcon name="refresh-cw" :size="24" color="#666" />
-              <text class="refresh-stock-txt">刷新库存</text>
-            </view>
-          </view>
-
-          <!-- 当前讲解商品 -->
-          <view v-if="liveProduct" class="live-product">
-            <view class="live-product-tag">
-              <AppIcon name="radio" :size="24" color="#C41E3A" />
-              <text class="live-product-tag-txt">正在讲解</text>
-            </view>
-            <view class="live-product-row">
-              <view class="live-product-img">
-                <AppIcon name="package" :size="48" color="#ccc" />
-              </view>
-              <view class="live-product-info">
-                <text class="live-product-name">{{ liveProduct.name }}</text>
-                <view class="live-product-meta">
-                  <text class="live-product-price">¥{{ liveProduct.price }}</text>
-                  <text class="live-product-sold">已售{{ liveProduct.sold }}</text>
-                </view>
-              </view>
-              <view class="live-product-stop" @tap="handleProductLive(0)">结束讲解</view>
-            </view>
-          </view>
-
-          <!-- 商品列表 -->
-          <scroll-view scroll-y class="product-list">
-            <view v-for="product in offlineProducts" :key="product.id" class="product-item">
-              <view class="product-img">
-                <AppIcon name="package" :size="32" color="#ccc" />
-              </view>
-              <view class="product-info">
-                <view class="product-name-row">
-                  <text class="product-name">{{ product.name }}</text>
-                  <view v-if="product.isHot" class="product-hot">爆</view>
-                </view>
-                <view class="product-meta">
-                  <text class="product-price">¥{{ product.price }}</text>
-                  <text class="product-stock">库存: <text :class="{ 'c-red': product.stock <= 10 }">{{ product.stock }}</text></text>
-                </view>
-              </view>
-              <view class="product-on" @tap="handleProductLive(product.id)">上架讲解</view>
-            </view>
-          </scroll-view>
-
-          <!-- 库存预警 -->
-          <view v-if="lowStockCount > 0" class="stock-warn">
-            <AppIcon name="alert-triangle" :size="28" color="#d97706" />
-            <text class="stock-warn-txt">{{ lowStockCount }}件商品库存不足</text>
-            <text class="stock-warn-link" @tap="onRestock">去补货</text>
-          </view>
-        </view>
-
-        <!-- 营销工具 -->
-        <view class="marketing-area">
-          <view class="marketing-head">
-            <AppIcon name="sparkles" :size="32" color="#f59e0b" />
-            <text class="marketing-title">营销工具</text>
-          </view>
-          <view class="marketing-grid">
-            <view class="marketing-btn" @tap="showLotteryDialog = true">
-              <AppIcon name="gift" :size="40" color="#a855f7" />
-              <text class="marketing-btn-txt">发起抽奖</text>
-            </view>
-            <view class="marketing-btn" @tap="showCouponDialog = true">
-              <AppIcon name="ticket" :size="40" color="#ef4444" />
-              <text class="marketing-btn-txt">发放优惠券</text>
-            </view>
-            <view class="marketing-btn" @tap="onPushFlashSale">
-              <AppIcon name="zap" :size="40" color="#f59e0b" />
-              <text class="marketing-btn-txt">推送秒杀</text>
+    <!-- ── 商品半屏列表 ── -->
+    <view v-if="showProductSheet" class="mask sheet-mask" @tap="showProductSheet = false" @touchmove.self.prevent>
+      <view class="sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
+        <view class="sheet-head">
+          <text class="sheet-title">本场商品（{{ products.length }}）</text>
+          <view class="sheet-actions">
+            <view class="sheet-manage" @tap="goManageProducts">管理商品</view>
+            <view class="sheet-close" @tap="showProductSheet = false">
+              <AppIcon name="x" :size="32" color="#A89FA8" />
             </view>
           </view>
         </view>
-
-        <!-- 提词器 -->
-        <view v-if="showTeleprompter" class="teleprompter-area">
-          <view class="teleprompter-head">
-            <view class="teleprompter-head-left">
-              <AppIcon name="file-text" :size="32" color="#3b82f6" />
-              <text class="teleprompter-title">提词器</text>
-            </view>
-            <view class="teleprompter-collapse" @tap="showTeleprompter = false">
-              <AppIcon name="chevron-down" :size="32" color="#666" />
-            </view>
+        <scroll-view scroll-y class="sheet-body">
+          <view v-if="products.length === 0" class="sheet-empty">
+            <text class="sheet-empty-txt">本场暂未挂载商品</text>
+            <view class="sheet-empty-btn" @tap="goManageProducts">去添加商品</view>
           </view>
-          <scroll-view scroll-y class="teleprompter-list">
+          <view v-for="p in products" :key="p.id" class="prod">
+            <view class="prod-img">
+              <AppIcon name="package" :size="40" color="#6E6470" />
+            </view>
+            <view class="prod-info">
+              <view class="prod-name-row">
+                <text class="prod-name">{{ p.name }}</text>
+                <view v-if="p.isLive" class="prod-tag live-tag"><text class="prod-tag-txt">讲解中</text></view>
+                <view v-else-if="p.isHot" class="prod-tag hot-tag"><text class="prod-tag-txt">爆</text></view>
+              </view>
+              <view class="prod-meta">
+                <text class="prod-price">¥{{ formatPrice(p.price) }}</text>
+                <text class="prod-stock">库存 {{ p.stock }} · 已售 {{ p.sold }}</text>
+              </view>
+            </view>
             <view
-              v-for="item in script"
-              :key="item.id"
-              class="script-item"
-              :class="{ current: item.isCurrent, done: item.done }"
+              class="prod-explain"
+              :class="{ active: p.isLive, disabled: productBusyId === p.id }"
+              @tap.stop="toggleFeaturedProduct(p)"
             >
-              <view class="script-meta">
-                <text class="script-time" :class="{ current: item.isCurrent }">{{ item.time }}</text>
-                <view v-if="item.isCurrent" class="script-tag-current">当前</view>
-                <view v-if="item.done" class="script-tag-done">已完成</view>
+              {{ productBusyId === p.id ? '处理中…' : p.isLive ? '停止讲解' : '开始讲解' }}
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
+    <!-- ── 禁言管理半屏列表 ── -->
+    <view v-if="showMutedSheet" class="mask sheet-mask" @tap="showMutedSheet = false" @touchmove.self.prevent>
+      <view class="sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
+        <view class="sheet-head">
+          <text class="sheet-title">禁言名单（{{ mutedUsers.length }}）</text>
+          <view class="sheet-close" @tap="showMutedSheet = false">
+            <AppIcon name="x" :size="32" color="#A89FA8" />
+          </view>
+        </view>
+        <scroll-view scroll-y class="sheet-body">
+          <view v-if="mutedLoading" class="sheet-state">
+            <AppIcon name="loader-2" :size="34" color="#A89FA8" />
+            <text class="sheet-state-txt">正在加载禁言名单…</text>
+          </view>
+          <view v-else-if="mutedError" class="sheet-state">
+            <text class="sheet-state-txt error">{{ mutedError }}</text>
+            <view class="sheet-retry" @tap="loadMutedUsers">重新加载</view>
+          </view>
+          <view v-else>
+            <view v-if="mutedUsers.length === 0" class="sheet-empty">
+              <text class="sheet-empty-txt">当前没有被禁言的用户</text>
+            </view>
+            <view v-for="item in mutedUsers" :key="item.id" class="muted-row">
+              <view class="muted-avatar">
+                <image v-if="item.avatar" class="muted-avatar-img" :src="item.avatar" mode="aspectFill" />
+                <text v-else class="muted-avatar-txt">{{ (item.nickname || '用').charAt(0) }}</text>
               </view>
-              <text class="script-content" :class="{ current: item.isCurrent }">{{ item.content }}</text>
-            </view>
-          </scroll-view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 抽奖对话框 -->
-    <view v-if="showLotteryDialog" class="dialog-mask" @tap="showLotteryDialog = false">
-      <view class="dialog" @tap.stop>
-        <view class="dialog-header">
-          <text class="dialog-title">发起抽奖</text>
-          <text class="dialog-desc">设置抽奖规则和奖品</text>
-        </view>
-        <view class="dialog-body">
-          <view class="field">
-            <text class="field-label">奖品名称</text>
-            <input class="field-input" placeholder="如：八字精批课程" placeholder-class="field-ph" />
-          </view>
-          <view class="field-grid">
-            <view class="field">
-              <text class="field-label">中奖人数</text>
-              <input type="number" class="field-input" placeholder="1" placeholder-class="field-ph" />
-            </view>
-            <view class="field">
-              <text class="field-label">参与条件</text>
-              <input class="field-input" placeholder="如：发送弹幕" placeholder-class="field-ph" />
-            </view>
-          </view>
-          <view class="field">
-            <text class="field-label">开奖时间（分钟后）</text>
-            <input type="number" class="field-input" placeholder="5" placeholder-class="field-ph" />
-          </view>
-        </view>
-        <view class="dialog-footer">
-          <view class="dialog-btn outline" @tap="showLotteryDialog = false">取消</view>
-          <view class="dialog-btn primary" @tap="showLotteryDialog = false">开始抽奖</view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 优惠券对话框 -->
-    <view v-if="showCouponDialog" class="dialog-mask" @tap="showCouponDialog = false">
-      <view class="dialog" @tap.stop>
-        <view class="dialog-header">
-          <text class="dialog-title">发放优惠券</text>
-          <text class="dialog-desc">向直播间观众发放优惠券</text>
-        </view>
-        <view class="dialog-body">
-          <view class="field">
-            <text class="field-label">选择优惠券</text>
-            <view class="coupon-grid">
-              <view v-for="coupon in coupons" :key="coupon.name" class="coupon-card">
-                <text class="coupon-name">{{ coupon.name }}</text>
-                <text class="coupon-count">剩余{{ coupon.count }}张</text>
+              <view class="muted-info">
+                <text class="muted-name">{{ item.nickname }}</text>
+                <text class="muted-meta">{{ formatMutedStatus(item) }}</text>
+              </view>
+              <view
+                class="muted-action"
+                :class="{ disabled: unmutingUserId === item.userId }"
+                @tap="confirmUnmute(item)"
+              >
+                {{ unmutingUserId === item.userId ? '解除中…' : '解除禁言' }}
               </view>
             </view>
           </view>
-          <view class="field">
-            <text class="field-label">发放数量</text>
-            <input type="number" class="field-input" placeholder="10" placeholder-class="field-ph" />
-          </view>
-        </view>
-        <view class="dialog-footer">
-          <view class="dialog-btn outline" @tap="showCouponDialog = false">取消</view>
-          <view class="dialog-btn primary" @tap="showCouponDialog = false">立即发放</view>
-        </view>
+        </scroll-view>
       </view>
     </view>
 
-    <!-- 结束直播确认 -->
-    <view v-if="showEndDialog" class="dialog-mask" @tap="showEndDialog = false">
-      <view class="dialog" @tap.stop>
-        <view class="dialog-header">
-          <text class="dialog-title">确认结束直播？</text>
-          <text class="dialog-desc">本场直播已进行 {{ formatTime(liveTime) }}，累计观看 {{ stats.totalViews }} 人次</text>
-        </view>
-        <view class="dialog-body">
-          <view class="end-stats">
-            <view class="end-stat-card">
-              <text class="end-stat-value c-primary">{{ stats.newFollowers }}</text>
-              <text class="end-stat-label">新增粉丝</text>
-            </view>
-            <view class="end-stat-card">
-              <text class="end-stat-value c-amber">¥{{ stats.totalGift + stats.totalSales }}</text>
-              <text class="end-stat-label">总收入</text>
-            </view>
+    <view v-if="showMicSheet" class="mask sheet-mask" @tap="showMicSheet = false" @touchmove.self.prevent>
+      <view class="sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
+        <view class="sheet-head">
+          <text class="sheet-title">连麦管理（{{ micItems.length }}）</text>
+          <view class="sheet-close" @tap="showMicSheet = false">
+            <AppIcon name="x" :size="32" color="#A89FA8" />
           </view>
         </view>
-        <view class="dialog-footer">
-          <view class="dialog-btn outline" @tap="showEndDialog = false">继续直播</view>
-          <view class="dialog-btn danger" @tap="onConfirmEnd">确认结束</view>
-        </view>
+        <scroll-view scroll-y class="sheet-body">
+          <view v-if="micLoading" class="sheet-state"><text class="sheet-state-txt">正在加载连麦申请…</text></view>
+          <view v-else-if="micItems.length === 0" class="sheet-empty"><text class="sheet-empty-txt">暂无连麦申请</text></view>
+          <view v-for="item in micItems" :key="item.id" class="mic-row">
+            <view class="mic-user">
+              <text class="mic-user-name">麦位 {{ item.position }} · {{ item.nickname || shortUserId(item.userId) }}</text>
+              <text class="mic-user-state">{{ item.status === 'PENDING' && item.source === 'INVITE' ? '等待对方接受' : micStatusText(item.status) }}</text>
+            </view>
+            <view class="mic-actions">
+              <template v-if="item.status === 'PENDING'">
+                <view v-if="item.source !== 'INVITE'" class="mic-action mic-action--primary" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, 'ACCEPT')">接受</view>
+                <view class="mic-action" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, 'REJECT')">{{ item.source === 'INVITE' ? '取消邀请' : '拒绝' }}</view>
+              </template>
+              <template v-else>
+                <view class="mic-action" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, item.status === 'MUTED' ? 'UNMUTE' : 'MUTE')">
+                  {{ item.status === 'MUTED' ? '解除静音' : '静音' }}
+                </view>
+                <view class="mic-action mic-action--danger" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, 'KICK')">移出</view>
+              </template>
+            </view>
+          </view>
+        </scroll-view>
       </view>
     </view>
   </view>
@@ -411,29 +305,53 @@
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onBackPress, onLoad, onShow } from '@dcloudio/uni-app'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
-import {
-  liveApi,
-  consoleCoupons,
-  type ConsoleDanmaku,
-  type ConsoleConnectRequest,
-  type ConsoleProduct,
-  type ConsoleScript,
-} from '@/lib/live-data'
+import { goBack, navigateTo } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
+import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
+import { liveApi, type ConsoleDanmaku, type ConsoleProduct, type LiveMutedUserItem } from '@/lib/live-data'
+import { setFeaturedProduct } from './api'
+import { liveMicApi, type LiveMicItem } from '@/pkg-live/live-mic-data'
+import { isLiveTrtcSupported, joinLiveAudio, leaveLiveAudio } from '@/pkg-live/live-trtc-client'
 
-// ===== 三态UI =====
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _goBack = goBack // 保留返回工具（顶栏无返回键时用于兜底）
+
+// ===== 三态 UI =====
 const loading = ref(true)
 const error = ref('')
 const consoleId = ref('1')
 const roomTitle = ref('')
+const isObsMode = ref(false)
+const isHostCompanion = ref(false)
+const consoleMode = ref(false)
+const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
+const topbarSafeStyle = computed(() => ({
+  paddingTop: `${safeTop.value}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(28)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(28)}px`,
+}))
+const opbarSafeStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value}px`,
+  paddingLeft: `${safeLeft.value}px`,
+  paddingRight: `${safeRight.value}px`,
+}))
+const sheetSafeStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value}px`,
+  paddingLeft: `${safeLeft.value}px`,
+  paddingRight: `${safeRight.value}px`,
+}))
 
 // ===== 数据（由 API 异步获取）=====
 const stats = ref({
   onlineCount: 0,
   totalViews: 0,
   newFollowers: 0,
+  newFollowersAvailable: false,
   totalGift: 0,
   totalSales: 0,
   peakOnline: 0,
@@ -441,33 +359,44 @@ const stats = ref({
   interactionRate: '0%',
 })
 const danmakuList = ref<ConsoleDanmaku[]>([])
-const connectRequests = ref<ConsoleConnectRequest[]>([])
 const products = ref<ConsoleProduct[]>([])
-const script = ref<ConsoleScript[]>([])
-const coupons = ref(consoleCoupons)
+const productBusyId = ref('')
 
-// ===== UI 状态 ref =====
-const isLive = ref(true)
-const isMuted = ref(false)
-const showTeleprompter = ref(true)
-const activeTab = ref<'danmaku' | 'connect'>('danmaku')
-const liveTime = ref(3892) // 秒
-const showLotteryDialog = ref(false)
-const showCouponDialog = ref(false)
-const showEndDialog = ref(false)
-const danmakuDraft = ref('')
+// ===== UI 状态 =====
+const liveTime = ref(0) // 已播秒数
 const danmakuScrollTop = ref(0)
+const showEndDialog = ref(false)
+const showProductSheet = ref(false)
+const showMutedSheet = ref(false)
+const showMicSheet = ref(false)
+useOverlayScrollLock(() =>
+  showEndDialog.value || showProductSheet.value || showMutedSheet.value || showMicSheet.value,
+)
+const mutedUsers = ref<LiveMutedUserItem[]>([])
+const mutedLoading = ref(false)
+const mutedError = ref('')
+const unmutingUserId = ref('')
+const canUseLiveMic = isLiveTrtcSupported()
+const micItems = ref<LiveMicItem[]>([])
+const micLoading = ref(false)
+const micBusyUserId = ref('')
+const pendingMicCount = computed(() => micItems.value.filter((item) => item.status === 'PENDING').length)
+let hostRtcJoined = false
+let micPollTimer: ReturnType<typeof setInterval> | null = null
 
-const quickReplies = ['欢迎新朋友', '感谢关注', '稍后解答', '请耐心等待']
+// 画质档来自直播间；付费档剩余分钟来自额度账户。额度接口失败时只显示档位，不伪造 0。
+const quality = ref<'basic' | 'hd' | 'uhd'>('basic')
+const remainMinutes = ref(0)
+const quotaLoaded = ref(false)
+const qualityLabel = computed(() => quality.value === 'uhd' ? '超清' : quality.value === 'hd' ? '高清' : '标清')
+const qualityStatusLabel = computed(() =>
+  quality.value === 'basic' || !quotaLoaded.value ? qualityLabel.value : `${qualityLabel.value} · 剩余 ${remainMinutes.value} 分钟`,
+)
+const remainWarn = computed(() => quality.value !== 'basic' && quotaLoaded.value && remainMinutes.value > 0 && remainMinutes.value < 15)
 
-// 派生
-const liveProduct = computed(() => products.value.find((p) => p.isLive))
-const offlineProducts = computed(() => products.value.filter((p) => !p.isLive))
-const lowStockCount = computed(() => products.value.filter((p) => p.stock <= 10).length)
-
-// 格式化（与原型 toLocaleString / formatTime 一致）
+// ===== 格式化 =====
 function formatNum(n: number) {
-  return n.toLocaleString('en-US')
+  return (n || 0).toLocaleString('en-US')
 }
 function formatTime(seconds: number) {
   const h = Math.floor(seconds / 3600)
@@ -476,1102 +405,1164 @@ function formatTime(seconds: number) {
   const pad = (v: number) => v.toString().padStart(2, '0')
   return `${pad(h)}:${pad(m)}:${pad(s)}`
 }
+const humanDuration = computed(() => {
+  const h = Math.floor(liveTime.value / 3600)
+  const m = Math.floor((liveTime.value % 3600) / 60)
+  return h > 0 ? `${h}小时${m}分` : `${m}分`
+})
 
 // ===== API 数据获取 =====
-async function fetchData() {
-  loading.value = true
-  error.value = ''
+async function fetchData(silent = false) {
+  if (!silent) {
+    loading.value = true
+    error.value = ''
+  }
   try {
-    const res = await liveApi.getConsoleData(consoleId.value)
+    const [res, quota] = await Promise.all([
+      liveApi.getConsoleData(consoleId.value),
+      liveApi.getQuota().catch(() => null),
+    ])
     roomTitle.value = res.title || ''
     stats.value = res.stats
     danmakuList.value = res.danmaku
-    connectRequests.value = res.requests
     products.value = res.products
-    script.value = res.script
+    quality.value = res.quality
+    liveTime.value = res.liveDurationSeconds
+    quotaLoaded.value = quota !== null
+    remainMinutes.value = quota
+      ? (res.quality === 'uhd' ? quota.uhdMinutes : res.quality === 'hd' ? quota.hdMinutes : 0)
+      : 0
+    scrollDanmakuToBottom()
   } catch (e) {
-    error.value = (e as Error)?.message || '加载失败，请重试'
+    // 后台轮询失败时保留上一帧数据，避免弱网下反复弹 Toast 干扰主播操作。
+    if (!silent) error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
-// ===== 定时器：直播计时 =====
-let liveTimer: ReturnType<typeof setInterval> | null = null
-let danmakuTimer: ReturnType<typeof setInterval> | null = null
+const refreshAfterProductEdit = ref(false)
+function goManageProducts() {
+  showProductSheet.value = false
+  refreshAfterProductEdit.value = true
+  navigateTo(`/pkg-live/products/index?id=${consoleId.value}`)
+}
+onShow(() => {
+  if (!refreshAfterProductEdit.value) return
+  refreshAfterProductEdit.value = false
+  fetchData(true)
+})
 
 function scrollDanmakuToBottom() {
-  // uni scroll-view：改变 scroll-top 触发滚动到底部
   danmakuScrollTop.value = danmakuList.value.length * 9999
 }
 
-onLoad(async (options) => {
+// ===== 计时器 =====
+let liveTimer: ReturnType<typeof setInterval> | null = null
+let consolePollTimer: ReturnType<typeof setInterval> | null = null
+
+onLoad((options) => {
   if (options?.id) consoleId.value = String(options.id)
-  await fetchData()
+  isObsMode.value = options?.source === 'obs'
+  isHostCompanion.value = options?.source === 'host'
+  consoleMode.value = isObsMode.value || isHostCompanion.value
+  fetchData()
+  if (canUseLiveMic) {
+    void loadMics()
+    micPollTimer = setInterval(() => { void loadMics(true) }, 2500)
+  }
   liveTimer = setInterval(() => {
-    if (isLive.value) liveTime.value += 1
+    liveTime.value += 1
   }, 1000)
-  // 实时弹幕由直播推流/IM 推送，本地无实时流，仅展示真实初始弹幕（不再模拟假弹幕）
+  consolePollTimer = setInterval(() => { void fetchData(true) }, 3000)
 })
+
+// 主播页禁止直接返回造成「本地推流已停、服务端仍直播中」；统一走下播确认。
+onBackPress(() => {
+  if (isHostCompanion.value) {
+    return false
+  }
+  if (!showEndDialog.value) showEndDialog.value = true
+  return true
+})
+
+function forceCloseCurrentConsole() {
+  // #ifdef APP-PLUS
+  try {
+    (globalThis as any)?.plus?.webview?.currentWebview?.()?.close?.('auto')
+  } catch {
+    uni.showToast({ title: '返回直播间失败，请使用系统返回键重试', icon: 'none' })
+  }
+  // #endif
+}
+
+async function toggleFeaturedProduct(product: ConsoleProduct) {
+  if (productBusyId.value) return
+  productBusyId.value = product.id
+  try {
+    await setFeaturedProduct(consoleId.value, product.isLive ? null : product.id)
+    products.value = products.value.map((item) => ({
+      ...item,
+      isLive: product.isLive ? false : item.id === product.id,
+    }))
+    uni.showToast({ title: product.isLive ? '已停止讲解' : '已设为讲解商品', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    productBusyId.value = ''
+  }
+}
+
+function returnToHost() {
+  const stackDepth = getCurrentPages().length
+  uni.navigateBack({
+    delta: 1,
+    fail: forceCloseCurrentConsole,
+  })
+  setTimeout(() => {
+    const pages = getCurrentPages()
+    const topRoute = String(pages[pages.length - 1]?.route || '')
+    if (pages.length >= stackDepth && topRoute.includes('pkg-live/console/index')) {
+      forceCloseCurrentConsole()
+    }
+  }, 350)
+}
 
 onUnmounted(() => {
   if (liveTimer) clearInterval(liveTimer)
-  if (danmakuTimer) clearInterval(danmakuTimer)
+  if (micPollTimer) clearInterval(micPollTimer)
+  if (consolePollTimer) clearInterval(consolePollTimer)
+  if (!isHostCompanion.value) leaveLiveAudio()
 })
 
-// ===== 交互函数（UI 占位，业务逻辑由 Claude Code 对接）=====
-// @data-needs: 发送弹幕，入参 content，成功后清空 danmakuDraft 并追加到 danmakuList
-function onSendDanmaku() {}
-function onQuickReply(_text: string) {}
-// @data-needs: 置顶弹幕，入参 弹幕 id
-function onPinDanmaku(_id: number) {}
-// @data-needs: 回复弹幕，入参 弹幕 id
-function onReplyDanmaku(_id: number) {}
-// 删除弹幕（纯前端移除）
-function handleDeleteDanmaku(id: number) {
-  danmakuList.value = danmakuList.value.filter((d) => d.id !== id)
+async function loadMics(silent = false) {
+  if (!canUseLiveMic || micLoading.value) return
+  if (!silent) micLoading.value = true
+  try {
+    micItems.value = await liveMicApi.list(consoleId.value)
+    if (hostRtcJoined && !micItems.value.some((item) => item.status === 'OCCUPIED' || item.status === 'MUTED')) {
+      leaveLiveAudio()
+      hostRtcJoined = false
+    }
+  } catch (error) {
+    if (!silent) uni.showToast({ title: (error as Error)?.message || '连麦列表加载失败', icon: 'none' })
+  } finally {
+    if (!silent) micLoading.value = false
+  }
 }
-// @data-needs: 禁言用户，入参 userId
-function handleBanUser(_id: number) {}
-// 接受/拒绝连麦（纯前端移除，实际接通走后端 RTC）
-// @data-needs: 接通连麦，入参 申请 id，建立 RTC 连接
-function handleAcceptConnect(id: number) {
-  connectRequests.value = connectRequests.value.filter((r) => r.id !== id)
+
+function openMicSheet() {
+  showMicSheet.value = true
+  void loadMics()
 }
-function handleRejectConnect(id: number) {
-  connectRequests.value = connectRequests.value.filter((r) => r.id !== id)
+
+function shortUserId(userId: string) {
+  return userId.length > 8 ? userId.slice(-8) : userId
 }
-// 切换讲解商品（id=0 表示结束讲解）
-function handleProductLive(productId: number) {
-  products.value = products.value.map((p) => ({ ...p, isLive: p.id === productId }))
+
+function micStatusText(status: LiveMicItem['status']) {
+  if (status === 'PENDING') return '等待审批'
+  if (status === 'MUTED') return '连麦中 · 已静音'
+  return '连麦中'
 }
-// @data-needs: 刷新商品库存
-function onRefreshStock() {}
-// @data-needs: 跳转补货页
-function onRestock() {}
-// @data-needs: 推送秒杀活动
-function onPushFlashSale() {}
-// @data-needs: 结束直播接口，落库本场数据后跳转直播管理首页
-function onConfirmEnd() {
-  isLive.value = false
-  showEndDialog.value = false
-  goBack()
+
+async function ensureHostRtc() {
+  if (hostRtcJoined) return
+  const config = await liveMicApi.getRtcConfig(consoleId.value)
+  await joinLiveAudio(config)
+  hostRtcJoined = true
+}
+
+async function manageMic(item: LiveMicItem, action: 'ACCEPT' | 'REJECT' | 'MUTE' | 'UNMUTE' | 'KICK') {
+  if (micBusyUserId.value) return
+  micBusyUserId.value = item.userId
+  try {
+    // 先确保主播已进入 TRTC 房间，再放行观众，避免对方进房后无人接听。
+    // 手机主播页已在后台持有 TRTC 视频房间；控制台不能重复 enterRoom 破坏正在推送的画面。
+    // OBS 主播没有手机端 TRTC 会话，才由控制台建立语音接听链路。
+    if (action === 'ACCEPT' && !isHostCompanion.value) await ensureHostRtc()
+    await liveMicApi.manage(consoleId.value, item.userId, action, item.position)
+    await loadMics(true)
+    const message: Record<typeof action, string> = {
+      ACCEPT: '已接受连麦', REJECT: '已拒绝', MUTE: '已静音', UNMUTE: '已解除静音', KICK: '已移出连麦',
+    }
+    uni.showToast({ title: message[action], icon: 'none' })
+  } catch (error) {
+    uni.showToast({ title: (error as Error)?.message || '连麦操作失败', icon: 'none' })
+  } finally {
+    micBusyUserId.value = ''
+  }
+}
+
+// ===== 弹幕长按 → 连麦邀请/禁言/复制 =====
+function onDanmakuLongPress(item: ConsoleDanmaku) {
+  uni.showActionSheet({
+    itemList: ['邀请语音连麦', '邀请视频连麦', '禁言该用户', '复制内容'],
+    success: (res) => {
+      if (res.tapIndex === 0) inviteFromComment(item, 'AUDIO')
+      else if (res.tapIndex === 1) inviteFromComment(item, 'VIDEO')
+      else if (res.tapIndex === 2) confirmMute(item)
+      else if (res.tapIndex === 3) copyContent(item)
+    },
+  })
+}
+
+function inviteFromComment(item: ConsoleDanmaku, mediaMode: 'AUDIO' | 'VIDEO') {
+  if (!item.userId) {
+    uni.showToast({ title: '无法定位该用户', icon: 'none' })
+    return
+  }
+  const mediaLabel = mediaMode === 'VIDEO' ? '视频' : '语音'
+  uni.showModal({
+    title: `邀请${mediaLabel}连麦`,
+    content: `向「${item.user}」发送${mediaLabel}连麦邀请？对方主动接受后才会开启设备。`,
+    confirmText: '发送邀请',
+    success: async (result) => {
+      if (!result.confirm) return
+      try {
+        await liveMicApi.invite(consoleId.value, item.userId!, mediaMode)
+        await loadMics(true)
+        uni.showToast({ title: '邀请已发送', icon: 'success' })
+      } catch (cause) {
+        uni.showToast({ title: (cause as Error)?.message || '邀请发送失败', icon: 'none' })
+      }
+    },
+  })
+}
+
+function copyContent(item: ConsoleDanmaku) {
+  uni.setClipboardData({ data: item.content, success: () => uni.showToast({ title: '已复制', icon: 'none' }) })
+}
+
+// 禁言 — POST /live/rooms/:id/mute（房主或管理员）
+function confirmMute(item: ConsoleDanmaku) {
+  if (!item.userId) {
+    uni.showToast({ title: '无法定位该用户', icon: 'none' })
+    return
+  }
+  uni.showModal({
+    title: '禁言用户',
+    content: `确定禁言「${item.user}」吗？禁言后其将无法在本直播间发言。`,
+    confirmText: '禁言',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await liveApi.muteUser(consoleId.value, item.userId!)
+        uni.showToast({ title: '已禁言', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '禁言失败', icon: 'none' })
+      }
+    },
+  })
+}
+
+// ===== 禁言名单 =====
+async function loadMutedUsers() {
+  if (mutedLoading.value) return
+  mutedLoading.value = true
+  mutedError.value = ''
+  try {
+    mutedUsers.value = await liveApi.getMutedUsers(consoleId.value)
+  } catch (e) {
+    mutedError.value = (e as Error)?.message || '禁言名单加载失败，请重试'
+  } finally {
+    mutedLoading.value = false
+  }
+}
+
+function openMutedSheet() {
+  showMutedSheet.value = true
+  loadMutedUsers()
+}
+
+function formatMutedStatus(item: LiveMutedUserItem) {
+  if (item.isPermanent || !item.expiresAt) return '永久禁言'
+  const date = new Date(item.expiresAt)
+  if (Number.isNaN(date.getTime())) return '限时禁言'
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `禁言至 ${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function confirmUnmute(item: LiveMutedUserItem) {
+  if (unmutingUserId.value) return
+  uni.showModal({
+    title: '解除禁言',
+    content: `确定允许「${item.nickname}」重新在本直播间发言吗？`,
+    confirmText: '解除',
+    success: (res) => {
+      if (!res.confirm) return
+      unmutingUserId.value = item.userId
+      liveApi.unmuteUser(consoleId.value, item.userId)
+        .then(() => {
+          mutedUsers.value = mutedUsers.value.filter((muted) => muted.userId !== item.userId)
+          uni.showToast({ title: '已解除禁言', icon: 'success' })
+        })
+        .catch((e) => {
+          uni.showToast({ title: (e as Error)?.message || '解除失败，请重试', icon: 'none' })
+        })
+        .finally(() => {
+          unmutingUserId.value = ''
+        })
+    },
+  })
+}
+
+function buildShareUrl(): string {
+  return withRef(buildH5Url('pkg-live/watch/index', { id: consoleId.value }))
+}
+
+// ===== 分享直播间：H5 优先系统分享，不支持时复制可归因链接 =====
+async function onShareRoom() {
+  const url = buildShareUrl()
+  // #ifdef H5
+  const webNavigator = navigator as Navigator & {
+    share?: (data: { title?: string; url?: string }) => Promise<void>
+  }
+  if (typeof webNavigator.share === 'function') {
+    try {
+      await webNavigator.share({ title: roomTitle.value || '直播间', url })
+      return
+    } catch (e) {
+      if ((e as { name?: string })?.name === 'AbortError') return
+    }
+  }
+  // #endif
+  uni.setClipboardData({
+    data: url,
+    success: () => uni.showToast({ title: '直播链接已复制，可粘贴分享给好友', icon: 'none' }),
+  })
+}
+
+// ===== 时长续购：进入真实画质时长包购买页 =====
+function onRenewDuration() {
+  uni.navigateTo({ url: '/pkg-live/quality-packages/index' })
+}
+
+async function openInteractionRules() {
+  try {
+    const current = await liveApi.getModerationSettings(consoleId.value)
+    uni.showActionSheet({
+      itemList: [
+        `慢速模式：${current.slowModeSeconds ? `${current.slowModeSeconds} 秒` : '关闭'}`,
+        `${current.followersOnly ? '关闭' : '开启'}仅关注者评论`,
+      ],
+      success: (result) => {
+        if (result.tapIndex === 0) chooseSlowMode(current)
+        else if (result.tapIndex === 1) void saveInteractionRules({
+          ...current,
+          followersOnly: !current.followersOnly,
+        })
+      },
+    })
+  } catch (cause) {
+    uni.showToast({ title: (cause as Error)?.message || '互动规则加载失败', icon: 'none' })
+  }
+}
+
+function chooseSlowMode(current: { slowModeSeconds: number; followersOnly: boolean }) {
+  const values = [0, 3, 5, 10, 30]
+  uni.showActionSheet({
+    itemList: ['关闭慢速模式', '每 3 秒一条', '每 5 秒一条', '每 10 秒一条', '每 30 秒一条'],
+    success: (result) => void saveInteractionRules({ ...current, slowModeSeconds: values[result.tapIndex] || 0 }),
+  })
+}
+
+async function saveInteractionRules(settings: { slowModeSeconds: number; followersOnly: boolean }) {
+  try {
+    await liveApi.updateModerationSettings(consoleId.value, settings)
+    uni.showToast({ title: '互动规则已生效', icon: 'success' })
+  } catch (cause) {
+    uni.showToast({ title: (cause as Error)?.message || '互动规则保存失败', icon: 'none' })
+  }
+}
+
+// ===== 下播 — PUT /live/rooms/:id/end（房主本人有权）=====
+const ending = ref(false)
+async function onConfirmEnd() {
+  if (ending.value) return
+  ending.value = true
+  uni.showLoading({ title: '正在下播…' })
+  try {
+    await liveApi.endLive(consoleId.value)
+    leaveLiveAudio()
+    showEndDialog.value = false
+    uni.hideLoading()
+    if (isHostCompanion.value) {
+      const endedRoomId = consoleId.value
+      uni.navigateBack({
+        success: () => setTimeout(() => uni.$emit('live:host-ended', endedRoomId), 80),
+        fail: () => uni.redirectTo({ url: `/pkg-live/end/index?id=${endedRoomId}` }),
+      })
+      return
+    }
+    uni.redirectTo({ url: `/pkg-live/end/index?id=${consoleId.value}` })
+  } catch (e) {
+    uni.hideLoading()
+    uni.showToast({ title: (e as Error)?.message || '下播失败，请重试', icon: 'none' })
+  } finally {
+    ending.value = false
+  }
 }
 </script>
 
 <style scoped>
-/* 骨架屏 */
-.skeleton-page {
+/* ===== 深色 token ===== */
+.page {
   min-height: 100vh;
-  background: #f5f5f5;
+  height: 100vh;
+  background: #17141a;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+.studio-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 28rpx 18rpx;
+  border-bottom: 1rpx solid #2a2530;
+  background: linear-gradient(90deg, #17141a, #221c25);
+  flex-shrink: 0;
+}
+.studio-strip-kicker { display: block; color: #c9a96e; font-size: 17rpx; line-height: 1; letter-spacing: 3rpx; font-weight: 800; }
+.studio-strip-title { display: block; margin-top: 7rpx; color: #f5f0eb; font-size: 28rpx; font-weight: 700; }
+.studio-strip-right { display: flex; align-items: center; gap: 9rpx; }
+.studio-health { width: 12rpx; height: 12rpx; border-radius: 50%; background: #49c77a; box-shadow: 0 0 12rpx rgba(73,199,122,.65); }
+.studio-sync { color: #817784; font-size: 20rpx; }
+
+.mic-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid #2a2530;
+}
+.mic-user { flex: 1; min-width: 0; }
+.mic-user-name { display: block; color: #f2edf3; font-size: 27rpx; }
+.mic-user-state { display: block; margin-top: 8rpx; color: #938995; font-size: 23rpx; }
+.mic-actions { display: flex; gap: 12rpx; }
+.mic-action {
+  padding: 14rpx 20rpx;
+  border-radius: 14rpx;
+  color: #d7ced9;
+  background-color: #332d3a;
+  font-size: 24rpx;
+}
+.mic-action--primary { color: #fff; background-color: #3978f6; }
+.mic-action--danger { color: #ffaca8; background-color: #472b30; }
+.mic-action.disabled { opacity: 0.45; pointer-events: none; }
+
+/* ── 顶部状态条 ── */
+.topbar {
+  height: 104rpx;
+  display: flex;
+  align-items: center;
+  padding-left: 28rpx;
+  padding-right: 28rpx;
+  border-bottom: 2rpx solid #2a2530;
+  flex-shrink: 0;
+  box-sizing: content-box;
+}
+.live {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+  padding: 8rpx 20rpx;
+}
+.dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: #fff;
+  animation: breath 1.6s ease-in-out infinite;
+}
+@keyframes breath {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+.live-txt {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #fff;
+}
+.time-txt {
+  font-size: 24rpx;
+  color: #a89fa8;
+  margin-left: 20rpx;
+}
+.qtag {
+  background: #221e28;
+  border-radius: 999rpx;
+  padding: 8rpx 20rpx;
+  margin-left: 20rpx;
+}
+.qtag-txt {
+  font-size: 24rpx;
+  color: #c9a96e;
+}
+.qtag.warn {
+  background: #3a2417;
+  border: 2rpx solid #5a3a22;
+}
+.qtag.warn .qtag-txt {
+  color: #e8833a;
+  font-weight: 600;
+}
+.modebtn {
+  margin-left: auto;
+  border-radius: 999rpx;
+  padding: 10rpx 22rpx;
+  background: #302936;
+}
+.modebtn-txt { color: #f5f0eb; font-size: 23rpx; font-weight: 600; }
+.endbtn {
+  margin-left: 14rpx;
+  border: 2rpx solid #4a424f;
+  border-radius: 999rpx;
+  padding: 10rpx 28rpx;
+}
+.endbtn-txt {
+  font-size: 24rpx;
+  color: #a89fa8;
+}
+
+/* ── 主播画面：切换控制台时保留小窗，推流组件不销毁 ── */
+.preview {
+  height: 560rpx;
+  flex-shrink: 0;
+  background: #070709;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: height .2s ease;
+}
+.preview.compact { height: 230rpx; }
+.preview-unavailable { width: 100%; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx; }
+.preview-unavailable-title { color: #e8e1e9; font-size: 27rpx; }
+.preview-unavailable-sub { color: #817784; font-size: 23rpx; }
+.preview-status { order: -1; min-height: 48rpx; display: flex; align-items: center; gap: 10rpx; padding: 6rpx 22rpx; color: #e8e1e9; font-size: 22rpx; background: #100e12; }
+.preview-status.error { color: #ffb2ad; }
+.preview-dot { width: 13rpx; height: 13rpx; border-radius: 50%; background: #d18c33; }
+.preview-dot.connected { background: #33ca75; box-shadow: 0 0 12rpx rgba(51,202,117,.7); }
+.preview-actions { min-height: 70rpx; display: flex; justify-content: flex-end; align-items: center; gap: 12rpx; padding: 8rpx 18rpx; background: #100e12; }
+.preview-action { padding: 12rpx 18rpx; border-radius: 999rpx; color: #f5f0eb; font-size: 22rpx; background: rgba(23,20,26,.82); border: 1rpx solid rgba(255,255,255,.2); }
+.preview-action--retry { background: rgba(154,107,49,.92); border-color: #c8924c; font-weight: 600; }
+.preview-action--primary { background: rgba(196,30,58,.92); border-color: #c41e3a; font-weight: 600; }
+.room-section-title { display: flex; align-items: center; justify-content: space-between; padding: 22rpx 28rpx 10rpx; color: #f3edf4; font-size: 27rpx; font-weight: 600; }
+.room-section-meta { color: #8f8592; font-size: 22rpx; font-weight: 400; }
+
+/* ── 数据看板 ── */
+.stats {
+  display: flex;
+  gap: 16rpx;
+  padding: 24rpx 28rpx;
+  flex-shrink: 0;
+}
+.stat {
+  flex: 1;
+  background: #221e28;
+  border-radius: 24rpx;
+  padding: 20rpx 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.stat-n {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #f5f0eb;
+}
+.stat-n.gold {
+  color: #c9a96e;
+}
+.stat-l {
+  font-size: 20rpx;
+  color: #6e6470;
+  margin-top: 6rpx;
+}
+.secondary-stats {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14rpx;
+  margin: -8rpx 28rpx 18rpx;
+  padding: 14rpx 20rpx;
+  border-radius: 16rpx;
+  background: #1e1a23;
+  border: 1rpx solid #302936;
+}
+.secondary-stat {
+  color: #a89fa8;
+  font-size: 22rpx;
+}
+.secondary-divider {
+  color: #514858;
+  font-size: 22rpx;
+}
+
+/* ── 时长警示横幅 ── */
+.banner {
+  margin: 0 28rpx 16rpx;
+  background: #3a2417;
+  border: 2rpx solid #5a3a22;
+  border-radius: 20rpx;
+  padding: 16rpx 24rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+.banner-txt {
+  font-size: 24rpx;
+  color: #e8833a;
+}
+.banner-link {
+  font-size: 24rpx;
+  color: #f5f0eb;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* ── 弹幕流 ── */
+.danmu {
+  flex: 1;
+  height: 0;
+  padding: 8rpx 28rpx 24rpx;
+}
+.sys {
+  text-align: center;
+  font-size: 22rpx;
+  color: #5a525e;
+  padding: 12rpx 0;
+}
+.dm {
+  display: flex;
+  gap: 16rpx;
+  align-items: flex-start;
+  max-width: 86%;
+  margin-bottom: 16rpx;
+}
+.av {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background: #2e2836;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.av-txt {
+  font-size: 24rpx;
+  color: #a89fa8;
+}
+.bd {
+  background: #221e28;
+  border-radius: 8rpx 24rpx 24rpx 24rpx;
+  padding: 12rpx 20rpx;
+}
+.bd-user {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #8b7fa0;
+  display: block;
+}
+.bd-user.vip {
+  color: #c9a96e;
+}
+.bd-content {
+  font-size: 26rpx;
+  line-height: 1.5;
+  color: #f5f0eb;
+}
+
+/* 弹幕空态 */
+.danmu-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.empty-title {
+  font-size: 26rpx;
+  color: #a89fa8;
+  line-height: 2;
+}
+.empty-sub {
+  font-size: 24rpx;
+  color: #6e6470;
+  margin-bottom: 16rpx;
+}
+.sharebtn {
+  border: 2rpx solid #c41e3a;
+  border-radius: 999rpx;
+  padding: 12rpx 36rpx;
+}
+.sharebtn-txt {
+  font-size: 24rpx;
+  color: #c41e3a;
+}
+
+/* ── 底部操作栏 ── */
+.opbar {
+  height: 152rpx;
+  border-top: 2rpx solid #2a2530;
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  background: #17141a;
+  box-sizing: content-box;
+}
+.op {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+}
+.op-ic {
+  width: 56rpx;
+  height: 56rpx;
+  border: 2rpx solid #3a3440;
+  border-radius: 16rpx;
+  background: #221e28;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.op-cnt {
+  position: absolute;
+  top: -12rpx;
+  right: -18rpx;
+  background: #eb2f96;
+  border-radius: 999rpx;
+  padding: 2rpx 10rpx;
+  min-width: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.op-cnt-txt {
+  font-size: 18rpx;
+  color: #fff;
+}
+.op-txt {
+  font-size: 22rpx;
+  color: #a89fa8;
+}
+
+/* ── 弹窗（不透明纯色卡·X5 安全） ── */
+.mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.dialog {
+  width: 560rpx;
+  background: #221e28;
+  border: 2rpx solid #332d3a;
+  border-radius: 36rpx;
+  padding: 48rpx 40rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.dialog-title {
+  font-size: 32rpx;
+  color: #f5f0eb;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+.dialog-desc {
+  font-size: 24rpx;
+  color: #a89fa8;
+  line-height: 1.7;
+  text-align: center;
+  margin-bottom: 36rpx;
+}
+.dialog-btns {
+  display: flex;
+  gap: 20rpx;
+  width: 100%;
+}
+.dialog-btn {
+  flex: 1;
+  height: 84rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dialog-btn.cancel {
+  border: 2rpx solid #4a424f;
+  background: transparent;
+}
+.dialog-btn.confirm {
+  background: #c41e3a;
+}
+.dialog-btn-txt {
+  font-size: 28rpx;
+}
+.cancel-txt {
+  color: #a89fa8;
+}
+.confirm-txt {
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ── 商品/禁言半屏 ── */
+.sheet-mask {
+  align-items: flex-end;
+}
+.sheet {
+  width: 100%;
+  height: 70vh;
+  max-height: 70vh;
+  box-sizing: border-box;
+  background: #221e28;
+  border-top-left-radius: 32rpx;
+  border-top-right-radius: 32rpx;
   display: flex;
   flex-direction: column;
 }
-.skeleton-header {
-  height: 56px;
-  background: #fff;
-  border-bottom: 1px solid #eee;
-}
-.skeleton-main {
-  flex: 1;
+.sheet-head {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx;
+  border-bottom: 2rpx solid #332d3a;
 }
-.skeleton-left {
+.sheet-actions {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+.sheet-manage {
+  color: #c9a96e;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+.sheet-title {
+  font-size: 30rpx;
+  color: #f5f0eb;
+  font-weight: 600;
+}
+.sheet-close {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sheet-body {
+  box-sizing: border-box;
+  padding: 16rpx 28rpx 40rpx;
+  height: 0;
   flex: 1;
-  padding: 16px;
 }
-.skeleton-stats {
-  height: 160px;
-  background: #fff;
-  border-radius: 8px;
-  margin-bottom: 16px;
+.sheet-empty {
+  padding: 80rpx 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
 }
-.skeleton-tab {
+.sheet-empty-txt {
+  font-size: 26rpx;
+  color: #6e6470;
+}
+.sheet-empty-btn {
+  margin-top: 20rpx;
+  height: 64rpx;
+  padding: 0 28rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid #c9a96e;
+  color: #c9a96e;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+}
+.prod {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid #2a2530;
+}
+.prod-img {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 16rpx;
+  background: #2e2836;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.prod-info {
   flex: 1;
-  background: #fff;
-  border-radius: 8px;
+  min-width: 0;
 }
-.skeleton-right {
-  width: 300px;
-  background: #fff;
+.prod-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.prod-name {
+  font-size: 26rpx;
+  color: #f5f0eb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prod-tag {
+  border-radius: 6rpx;
+  padding: 2rpx 10rpx;
+  flex-shrink: 0;
+}
+.prod-tag.live-tag {
+  background: #c41e3a;
+}
+.prod-tag.hot-tag {
+  background: #eb2f96;
+}
+.prod-tag-txt {
+  font-size: 18rpx;
+  color: #fff;
+}
+.prod-meta {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 8rpx;
+}
+.prod-price {
+  font-size: 26rpx;
+  color: #c9a96e;
+  font-weight: 600;
+}
+.prod-stock {
+  font-size: 22rpx;
+  color: #6e6470;
+}
+.prod-explain {
+  min-width: 118rpx;
+  height: 64rpx;
+  padding: 0 18rpx;
+  border: 1rpx solid #6e6470;
+  border-radius: 999rpx;
+  color: #c7bdc8;
+  font-size: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.prod-explain.active {
+  border-color: #c9a96e;
+  color: #c9a96e;
+  background: #2e281f;
+}
+.prod-explain.disabled { opacity: .55; }
+
+.sheet-state {
+  min-height: 320rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20rpx;
+}
+.sheet-state-txt {
+  font-size: 25rpx;
+  color: #8e858f;
+  line-height: 1.5;
+  text-align: center;
+}
+.sheet-state-txt.error {
+  color: #c7bdc8;
+}
+.sheet-retry {
+  height: 64rpx;
+  padding: 0 30rpx;
+  border: 1rpx solid #c9a96e;
+  border-radius: 999rpx;
+  color: #c9a96e;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+}
+.muted-row {
+  min-height: 116rpx;
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  border-bottom: 2rpx solid #2a2530;
+}
+.muted-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #312b38;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.muted-avatar-img {
+  width: 100%;
+  height: 100%;
+}
+.muted-avatar-txt {
+  font-size: 28rpx;
+  color: #b8afb9;
+}
+.muted-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.muted-name {
+  color: #f5f0eb;
+  font-size: 27rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.muted-meta {
+  color: #746b76;
+  font-size: 22rpx;
+}
+.muted-action {
+  flex-shrink: 0;
+  color: #c9a96e;
+  font-size: 24rpx;
+  padding: 18rpx 0 18rpx 24rpx;
+}
+.muted-action.disabled {
+  color: #5f5661;
 }
 
-/* 错误状态 */
+/* ===== 错误态 ===== */
 .error-state {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: #17141a;
   padding: 48rpx;
 }
 .error-text {
   font-size: 28rpx;
-  color: #999;
+  color: #a89fa8;
   margin-bottom: 32rpx;
 }
 .retry-btn {
   padding: 20rpx 64rpx;
-  background: var(--brand);
+  background: #c41e3a;
   color: #fff;
-  border-radius: 24rpx;
+  border-radius: 999rpx;
   font-size: 28rpx;
 }
 
-.page {
+/* ===== 骨架屏（深色 shimmer） ===== */
+.sk-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  height: 100vh;
+  background: #17141a;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
-
-/* ===== 顶部控制栏 ===== */
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: #fff;
-  border-bottom: 1px solid #eee;
-  height: 56px;
+.sk {
+  background: linear-gradient(90deg, #221e28 25%, #2c2733 50%, #221e28 75%);
+  background-size: 200% 100%;
+  animation: sk 1.4s infinite;
+  border-radius: 16rpx;
+}
+@keyframes sk {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.sk-topbar {
+  height: 104rpx;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
+  gap: 16rpx;
+  padding-left: 28rpx;
+  padding-right: 28rpx;
+  border-bottom: 2rpx solid #2a2530;
+  box-sizing: content-box;
 }
-.header-left {
+.sk-pill {
+  height: 48rpx;
+  border-radius: 999rpx;
+}
+.sk-w96 { width: 160rpx; }
+.sk-w180 { width: 260rpx; }
+.sk-ml-auto { margin-left: auto; }
+.sk-stats {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  gap: 16rpx;
+  padding: 24rpx 28rpx;
 }
-.nav-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.title-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.badge-live {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: #ef4444;
-  border-radius: 499.5px;
-  padding: 3px 8px;
-}
-.badge-live-txt {
-  font-size: 11px;
-  color: #fff;
-}
-.badge-ended {
-  background: #eee;
-  color: #666;
-  border-radius: 499.5px;
-  padding: 3px 8px;
-  font-size: 11px;
-}
-.room-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.timer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  background: #f0f0f0;
-  border-radius: 499.5px;
-}
-.timer-txt {
-  font-size: 14px;
-  font-weight: 500;
-  font-family: monospace;
-  color: #2c2c2c;
-}
-.ctrl-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.ctrl-btn {
-  width: 32px;
-  height: 28px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-}
-.end-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 12px;
-  background: #ef4444;
-  border-radius: 6px;
-}
-.end-btn-txt {
-  font-size: 13px;
-  color: #fff;
-}
-
-/* ===== 主体左右分栏 ===== */
-.main {
+.sk-stat {
   flex: 1;
-  display: flex;
-  overflow: hidden;
+  height: 116rpx;
 }
-.left {
+.sk-danmu {
   flex: 1;
-  min-width: 0;
+  padding: 16rpx 28rpx;
+}
+.sk-dm-row {
   display: flex;
-  flex-direction: column;
-  border-right: 1px solid #eee;
-  background: #fff;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
 }
-.right {
-  width: 300px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  overflow: hidden;
-}
-
-/* ===== 核心数据区 ===== */
-.stats-area {
-  padding: 16px;
-  border-bottom: 1px solid #eee;
-}
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-.stat-card {
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid;
-}
-.stat-card.blue {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(6, 182, 212, 0.1));
-  border-color: rgba(59, 130, 246, 0.2);
-}
-.stat-card.purple {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(236, 72, 153, 0.1));
-  border-color: rgba(168, 85, 247, 0.2);
-}
-.stat-card.amber {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(249, 115, 22, 0.1));
-  border-color: rgba(245, 158, 11, 0.2);
-}
-.stat-card.red {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(236, 72, 153, 0.1));
-  border-color: rgba(239, 68, 68, 0.2);
-}
-.stat-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-.stat-label {
-  font-size: 11px;
-  color: #999;
-}
-.stat-value-row {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-.stat-value {
-  font-size: 22px;
-  font-weight: 700;
-}
-.c-blue {
-  color: #2563eb;
-}
-.c-purple {
-  color: #9333ea;
-}
-.c-amber {
-  color: #d97706;
-}
-.c-red {
-  color: #dc2626;
-}
-.stat-delta {
-  font-size: 11px;
-  color: #22c55e;
-}
-.sub-stats {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-.sub-item {
-  font-size: 11px;
-  color: #999;
-}
-.sub-strong {
-  color: #2c2c2c;
-  font-weight: 700;
-}
-.c-green {
-  color: #22c55e;
-}
-
-/* ===== 弹幕/连麦 Tab ===== */
-.tab-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.tab-bar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 16px;
-  height: 40px;
-  border-bottom: 1px solid #eee;
-}
-.tab {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  border-radius: 6px;
-}
-.tab.active {
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-}
-.tab-txt {
-  font-size: 12px;
-  color: #999;
-}
-.tab.active .tab-txt {
-  color: #2c2c2c;
-}
-.tab-badge {
-  font-size: 10px;
-  background: #eee;
-  color: #666;
-  border-radius: 4px;
-  padding: 1px 4px;
-}
-.tab-badge.red {
-  background: #ef4444;
-  color: #fff;
-}
-
-.danmaku-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.danmaku-list {
-  flex: 1;
-  padding: 12px;
-  height: 0;
-}
-.danmaku-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 8px;
-}
-.dm-level {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+.sk-av {
+  width: 52rpx;
+  height: 52rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #8b5cf6, #a855f7);
+}
+.sk-dm-bd {
+  height: 68rpx;
+}
+.sk-w280 { width: 400rpx; }
+.sk-w340 { width: 480rpx; }
+.sk-w240 { width: 340rpx; }
+.sk-opbar {
+  height: 152rpx;
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
+  gap: 24rpx;
+  padding-left: 28rpx;
+  padding-right: 28rpx;
+  border-top: 2rpx solid #2a2530;
 }
-.dm-body {
+.sk-op {
   flex: 1;
-  min-width: 0;
-}
-.dm-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.dm-user {
-  font-size: 12px;
-  font-weight: 500;
-  color: #999;
-  display: flex;
-  align-items: center;
-}
-.dm-user.vip {
-  color: #f59e0b;
-}
-.dm-crown {
-  margin-right: 2px;
-}
-.dm-time {
-  font-size: 10px;
-  color: #999;
-}
-.dm-content {
-  font-size: 14px;
-  color: #2c2c2c;
-  margin-top: 2px;
-  display: block;
-}
-.dm-actions {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.dm-act {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  height: 88rpx;
 }
 
-.danmaku-input-area {
-  padding: 12px;
-  border-top: 1px solid #eee;
-}
-.input-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.dm-input {
-  flex: 1;
-  height: 36px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 0 12px;
-  font-size: 13px;
-  background: #fff;
-}
-.dm-input-ph {
-  color: #999;
-}
-.send-btn {
-  width: 36px;
-  height: 36px;
-  background: var(--brand);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.quick-replies {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-.quick-reply {
-  height: 24px;
-  line-height: 22px;
-  padding: 0 8px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 10px;
-  color: #2c2c2c;
-  white-space: nowrap;
-}
-
-/* 连麦 */
-.connect-panel {
-  flex: 1;
-  padding: 12px;
-  height: 0;
-}
-.connect-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 0;
-}
-.empty-txt {
-  font-size: 14px;
-  color: #999;
-  margin-top: 8px;
-}
-.connect-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.connect-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid #eee;
-  border-radius: 8px;
-}
-.connect-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #f0f0f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  color: #666;
-  flex-shrink: 0;
-}
-.connect-body {
-  flex: 1;
-  min-width: 0;
-}
-.connect-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.connect-user {
-  font-size: 14px;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.connect-wait {
-  font-size: 12px;
-  color: #999;
-}
-.connect-reason {
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
-  display: block;
-}
-.connect-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-.connect-accept {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 12px;
-  background: var(--brand);
-  border-radius: 6px;
-}
-.connect-accept-txt {
-  font-size: 12px;
-  color: #fff;
-}
-.connect-reject {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: #fff;
-}
-.connect-reject-txt {
-  font-size: 12px;
-  color: #2c2c2c;
-}
-
-/* ===== 右侧商品管理 ===== */
-.product-area {
-  border-bottom: 1px solid #eee;
-}
-.product-head {
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.product-head-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.product-head-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.product-count {
-  font-size: 10px;
-  background: #eee;
-  color: #666;
-  border-radius: 4px;
-  padding: 1px 5px;
-}
-.refresh-stock {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 8px;
-}
-.refresh-stock-txt {
-  font-size: 12px;
-  color: #666;
-}
-.live-product {
-  padding: 12px;
-  background: rgba(196, 30, 58, 0.05);
-  border-bottom: 1px solid rgba(196, 30, 58, 0.2);
-}
-.live-product-tag {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-.live-product-tag-txt {
-  font-size: 12px;
-  color: var(--brand);
-  font-weight: 500;
-}
-.live-product-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.live-product-img {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
-  background: #f0f0f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.live-product-info {
-  flex: 1;
-  min-width: 0;
-}
-.live-product-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #2c2c2c;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.live-product-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-.live-product-price {
-  color: var(--brand);
-  font-weight: 700;
-  font-size: 14px;
-}
-.live-product-sold {
-  font-size: 12px;
-  color: #999;
-}
-.live-product-stop {
-  height: 28px;
-  line-height: 26px;
-  padding: 0 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 12px;
-  color: #2c2c2c;
-  background: #fff;
-  flex-shrink: 0;
-}
-.product-list {
-  height: 180px;
-  padding: 8px;
-}
-.product-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 8px;
-}
-.product-img {
-  width: 40px;
-  height: 40px;
-  border-radius: 6px;
-  background: #f0f0f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.product-info {
-  flex: 1;
-  min-width: 0;
-}
-.product-name-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.product-name {
-  font-size: 12px;
-  font-weight: 500;
-  color: #2c2c2c;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.product-hot {
-  font-size: 8px;
-  background: #ef4444;
-  color: #fff;
-  border-radius: 3px;
-  padding: 0 3px;
-  flex-shrink: 0;
-}
-.product-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  color: #999;
-  margin-top: 2px;
-}
-.product-price {
-  color: var(--brand);
-  font-weight: 500;
-}
-.product-stock {
-  font-size: 10px;
-  color: #999;
-}
-.product-on {
-  height: 24px;
-  line-height: 22px;
-  padding: 0 8px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 10px;
-  color: #2c2c2c;
-  background: #fff;
-  flex-shrink: 0;
-}
-.stock-warn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px;
-  background: rgba(245, 158, 11, 0.1);
-  border-top: 1px solid rgba(245, 158, 11, 0.2);
-}
-.stock-warn-txt {
-  font-size: 12px;
-  color: #d97706;
-  font-weight: 500;
-}
-.stock-warn-link {
-  font-size: 12px;
-  color: #d97706;
-}
-
-/* ===== 营销工具 ===== */
-.marketing-area {
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-}
-.marketing-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.marketing-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.marketing-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.marketing-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 12px 0;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: #fff;
-}
-.marketing-btn-txt {
-  font-size: 10px;
-  color: #2c2c2c;
-}
-
-/* ===== 提词器 ===== */
-.teleprompter-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.teleprompter-head {
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.teleprompter-head-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.teleprompter-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.teleprompter-collapse {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.teleprompter-list {
-  flex: 1;
-  height: 0;
-  padding: 12px;
-}
-.script-item {
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #eee;
-  margin-bottom: 8px;
-}
-.script-item.current {
-  background: rgba(196, 30, 58, 0.1);
-  border-color: var(--brand);
-}
-.script-item.done {
-  background: #f5f5f5;
-  opacity: 0.6;
-}
-.script-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-.script-time {
-  font-size: 10px;
-  font-family: monospace;
-  background: #eee;
-  color: #666;
-  border-radius: 4px;
-  padding: 2px 6px;
-}
-.script-time.current {
-  background: var(--brand);
-  color: #fff;
-}
-.script-tag-current {
-  font-size: 10px;
-  background: rgba(196, 30, 58, 0.2);
-  color: var(--brand);
-  border-radius: 4px;
-  padding: 1px 5px;
-}
-.script-tag-done {
-  font-size: 10px;
-  background: #eee;
-  color: #666;
-  border-radius: 4px;
-  padding: 1px 5px;
-}
-.script-content {
-  font-size: 14px;
-  color: #2c2c2c;
-  display: block;
-}
-.script-content.current {
-  font-weight: 500;
-}
-
-/* ===== 弹窗 ===== */
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 20px;
-}
-.dialog {
-  width: 100%;
-  max-width: 320px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-}
-.dialog-header {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.dialog-title {
-  font-size: 17px;
-  font-weight: 600;
-  color: #2c2c2c;
-}
-.dialog-desc {
-  font-size: 13px;
-  color: #999;
-}
-.dialog-body {
-  padding: 16px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.field-label {
-  font-size: 13px;
-  color: #2c2c2c;
-  font-weight: 500;
-}
-.field-input {
-  height: 36px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 0 12px;
-  font-size: 13px;
-  background: #fff;
-}
-.field-ph {
-  color: #999;
-}
-.field-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.coupon-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.coupon-card {
-  padding: 12px;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.coupon-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.coupon-count {
-  font-size: 11px;
-  color: #999;
-}
-.dialog-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-.dialog-btn {
-  height: 36px;
-  line-height: 34px;
-  padding: 0 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  text-align: center;
-}
-.dialog-btn.outline {
-  border: 1px solid #ddd;
-  color: #2c2c2c;
-  background: #fff;
-}
-.dialog-btn.primary {
-  background: var(--brand);
-  color: #fff;
-}
-.dialog-btn.danger {
-  background: #ef4444;
-  color: #fff;
-}
-.end-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  text-align: center;
-}
-.end-stat-card {
-  padding: 12px;
-  border: 1px solid #eee;
-  border-radius: 8px;
-}
-.end-stat-value {
-  font-size: 22px;
-  font-weight: 700;
-  display: block;
-}
-.c-primary {
-  color: var(--brand);
-}
-.c-amber {
-  color: #f59e0b;
-}
-.end-stat-label {
-  font-size: 11px;
-  color: #999;
-  margin-top: 4px;
-  display: block;
+/* ── 等宽字体 ── */
+.mono {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
 }
 </style>

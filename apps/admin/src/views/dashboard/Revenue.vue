@@ -6,6 +6,7 @@
  * Route meta roles: SUPER_ADMIN / OPERATION_ADMIN / FINANCE_ADMIN
  */
 import { ref, onMounted } from 'vue'
+import type { ChartOption } from '@/utils/chart'
 import { dashboardApi } from '@/api'
 import ChartCard from '@/components/ChartCard.vue'
 
@@ -19,9 +20,8 @@ const loadError = ref(false)
 const rows = ref<DailyRow[]>([])
 const summary = ref({ gmv30: 0, commission30: 0, member30: 0, orders30: 0 })
 
-// ECharts option 为复杂联合类型，保留 any
-const gmvOption = ref<any>(null)
-const memberOption = ref<any>(null)
+const gmvOption = ref<ChartOption | null>(null)
+const memberOption = ref<ChartOption | null>(null)
 
 function buildView() {
   const list = rows.value

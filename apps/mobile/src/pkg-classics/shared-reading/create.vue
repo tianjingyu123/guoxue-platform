@@ -6,6 +6,7 @@
  * 纯学习激励·无资金·R 安全。
  */
 import { ref, computed } from 'vue'
+import { buildH5Url } from '@/utils/share'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
@@ -86,9 +87,14 @@ async function onCreate() {
   }
 }
 
+/** 招募分享链接：优先后端 shareUrl；缺失时按真实 H5 招募路由兜底拼接，确保他人点开能落到招募页 */
+function shareLink(): string {
+  if (created.value?.shareUrl) return created.value.shareUrl
+  const token = created.value?.inviteToken || ''
+  return buildH5Url('pkg-classics/shared-reading/invite', { token })
+}
 function copyLink() {
-  const url = created.value?.shareUrl
-  if (!url) return
+  const url = shareLink()
   uni.setClipboardData({
     data: url,
     success: () => uni.showToast({ title: '链接已复制，发给好友即可', icon: 'none' }),
@@ -149,7 +155,13 @@ onShareTimeline(() => toTimeline({ title: shareTitle.value, path: sharePath() })
           <text class="ic-sub">《{{ createdTitle }}》· {{ durationDays }} 天共读已创建，把链接发给好友，满 {{ minMembers }} 人即可开读。</text>
           <view class="ic-url"><text class="ic-url-t">{{ created.shareUrl }}</text></view>
           <view class="ic-actions">
+            <!-- #ifdef MP-WEIXIN -->
             <button class="share-btn" open-type="share"><app-icon name="share-2" :size="30" color="#fff" /><text class="share-btn-t">分享招募</text></button>
+            <!-- #endif -->
+            <!-- #ifndef MP-WEIXIN -->
+            <!-- 非小程序端 open-type=share 不生效，改为复制链接（否则点击「无反应」） -->
+            <view class="share-btn" @tap="copyLink"><app-icon name="share-2" :size="30" color="#fff" /><text class="share-btn-t">分享招募</text></view>
+            <!-- #endif -->
             <view class="copy-btn" @tap="copyLink"><app-icon name="copy" :size="30" color="var(--brand)" /><text class="copy-btn-t">复制链接</text></view>
           </view>
         </view>
@@ -271,7 +283,7 @@ onShareTimeline(() => toTimeline({ title: shareTitle.value, path: sharePath() })
 <style scoped lang="scss">
 .page { min-height: 100vh; background: var(--bg-paper, #faf8f5); display: flex; flex-direction: column; }
 .hdr { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; padding: 16rpx 24rpx; background: var(--card, #fff); border-bottom: 2rpx solid var(--border, #eee); padding-top: calc(var(--status-bar-height, 0px) + 16rpx); }
-.hdr-back { padding: 6rpx; }
+.hdr-back { width: 88rpx; height: 88rpx; margin: -18rpx; display: flex; align-items: center; justify-content: center; } /* 触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
 .hdr-title { font-size: 32rpx; font-weight: 600; color: var(--text-ink, #2c2c2c); }
 .hdr-link { padding: 6rpx 12rpx; }
 .hdr-link-t { font-size: 24rpx; color: var(--brand); }

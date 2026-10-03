@@ -3,7 +3,7 @@
     <!-- 导航栏 (渐变) -->
     <view class="lv-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="lv-nav">
-        <view class="lv-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
+        <view class="lv-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <view class="lv-station">
           <text class="lv-station-name">分站直播</text>
         </view>

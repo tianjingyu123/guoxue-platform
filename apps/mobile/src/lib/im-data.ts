@@ -3,7 +3,9 @@
  * v0 迁移：会话列表/聊天/通知三页公用
  */
 import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
-import { useTim, type TimMessage, type TimConversation, type TimGroup, type TimGroupMember } from '@/composables/useTim'
+import { useTim, type TimMessage, type TimConversation, type TimGroup, type TimGroupMember, type TimFriendApplication } from '@/composables/useTim'
+import { getUserInfo } from '@/utils/storage'
+import { ENTITLEMENT_NOTIFICATION_ROUTE } from '@/lib/entitlement-presentation'
 
 export type ConversationType = 'private' | 'group' | 'service' | 'system'
 export type MessageType = 'text' | 'image' | 'voice' | 'video' | 'file' | 'system' | 'product'
@@ -134,22 +136,37 @@ export interface ChatMessage {
   isSelf?: boolean
 }
 
-/** 腾讯 IM SDK 消息 → 页面 ChatMessage（最小闭环：文本；其他类型占位提示） */
+/** SDK 图片消息 payload（TimMessage.payload 只声明了 text，这里按 SDK TIMImageElem 结构局部扩展） */
+interface TimImagePayload {
+  text?: string
+  imageInfoArray?: Array<{ url?: string; imageUrl?: string; width?: number; height?: number }>
+}
+
+/** 腾讯 IM SDK 消息 → 页面 ChatMessage（文本 + 图片；其他类型占位提示） */
 export function timToChatMessage(m: TimMessage): ChatMessage {
-  const isText = m.type === 'TIMTextElem'
-  return {
+  const base = {
     id: m.ID,
     senderId: m.from,
     senderName: m.nick || '',
     senderAvatar: m.avatar || '',
-    type: 'text',
-    content: isText ? (m.payload?.text || '') : '[暂不支持的消息类型]',
-    status: 'read',
+    status: 'read' as MessageStatus,
     isWithdrawn: false,
     createdAt: formatMessageTime(m.time * 1000),
     timestamp: m.time * 1000,
     isSelf: m.flow === 'out',
   }
+  if (m.type === 'TIMTextElem') {
+    return { ...base, type: 'text', content: m.payload?.text || '' }
+  }
+  if (m.type === 'TIMImageElem') {
+    // imageInfoArray[0]=原图（SDK 约定），url/imageUrl 字段随版本二选一
+    const info = (m.payload as TimImagePayload)?.imageInfoArray?.[0]
+    const url = info?.url || info?.imageUrl || ''
+    if (url) {
+      return { ...base, type: 'image', content: '[图片]', image: { url, width: info?.width || 0, height: info?.height || 0 } }
+    }
+  }
+  return { ...base, type: 'text', content: '[暂不支持的消息类型]' }
 }
 
 /** 消息时间标签格式化 */
@@ -186,6 +203,50 @@ export interface ChatPermission {
   canSend: boolean
   hint: string
   reason?: string
+  /** 富媒体发送权限（后端 RelationPolicy.mediaPerms 透传；缺省视为不可发） */
+  media?: { image: boolean; voice: boolean; file: boolean }
+}
+
+export interface ImCapabilities {
+  mode: 'TENCENT' | 'FALLBACK'
+  c2c: boolean
+  notifications: boolean
+  groups: boolean
+  friends: boolean
+  calls: boolean
+}
+
+interface FallbackMessage {
+  id: string
+  fromUserId: string
+  toUserId: string
+  type: string
+  content: string
+  payload?: unknown
+  createdAt: string
+  readAt?: string | null
+}
+
+let capabilitiesCache: ImCapabilities | null = null
+let capabilitiesCachedAt = 0
+
+function fallbackToChatMessage(m: FallbackMessage): ChatMessage {
+  const profile = getUserInfo<{ id?: string; userId?: string; nickname?: string; avatar?: string }>() || {}
+  const selfId = String(profile.id || profile.userId || '')
+  const timestamp = Date.parse(m.createdAt) || Date.now()
+  return {
+    id: m.id,
+    senderId: m.fromUserId,
+    senderName: m.fromUserId === selfId ? (profile.nickname || '我') : '',
+    senderAvatar: m.fromUserId === selfId ? (profile.avatar || '') : '',
+    type: 'text',
+    content: m.content,
+    status: m.readAt ? 'read' : 'sent',
+    isWithdrawn: false,
+    createdAt: formatMessageTime(timestamp),
+    timestamp,
+    isSelf: m.fromUserId === selfId,
+  }
 }
 
 // 注：旧的前端本地权限推断 getChatPermission 已删除，私信权限统一由后端 /im/relation/:id 判定（toChatPermission）
@@ -225,6 +286,7 @@ export function toChatPermission(p: RelationPolicy): ChatPermission {
       canSend: true,
       hint: p.hint,
       reason: p.reason,
+      media: p.mediaPerms,
     }
   }
   if (p.reason === 'waiting_reply') {
@@ -293,7 +355,7 @@ interface RawNotification {
 function mapNotifyType(t: string): NotifyType {
   const s = (t || '').toUpperCase()
   if (/COMMENT|REPLY|LIKE|COLLECT|FAVORITE|FOLLOW|MENTION/.test(s)) return 'interaction'
-  if (/EARN|INCOME|SETTLE|WITHDRAW|COMMISSION|REVENUE|ORDER|REFUND|LOGISTIC|SHIP|PAY|TRADE|DELIVER|RECHARGE/.test(s)) return 'transaction'
+  if (/ENTITLEMENT|EARN|INCOME|SETTLE|WITHDRAW|COMMISSION|REVENUE|ORDER|PURCHASE|REFUND|LOGISTIC|SHIP|PAY|TRADE|DELIVER|RECHARGE/.test(s)) return 'transaction'
   if (/SERVICE|SUPPORT|CUSTOMER|KEFU/.test(s)) return 'service'
   return 'system'
 }
@@ -302,9 +364,10 @@ function mapNotifyType(t: string): NotifyType {
 function notifyCategory(t: string): string {
   const s = (t || '').toUpperCase()
   const map: Record<string, string> = {
+    ENTITLEMENT: '权益',
     COMMENT: '评论', REPLY: '评论', LIKE: '点赞', COLLECT: '收藏', FAVORITE: '收藏',
     FOLLOW: '关注', MENTION: '提及',
-    ORDER: '订单', REFUND: '退款', LOGISTIC: '物流', RECHARGE: '充值', PAY: '支付',
+    ORDER: '订单', PURCHASE: '订单', REFUND: '退款', LOGISTIC: '物流', RECHARGE: '充值', PAY: '支付',
     EARN: '收益', INCOME: '收益', WITHDRAW: '提现', COMMISSION: '分成',
     SERVICE: '客服', SYSTEM: '系统',
   }
@@ -316,14 +379,35 @@ function notifyCategory(t: string): string {
 
 /** targetType/targetId → 站内跳转链接（已知类型才给，未知返回 undefined 诚实降级） */
 function notifyLink(targetType?: string | null, targetId?: string | null): string | undefined {
-  if (!targetType || !targetId) return undefined
+  if (!targetType || !targetId?.trim()) return undefined
   const t = targetType.toUpperCase()
-  if (t.includes('COURSE')) return `/pkg-course/detail?id=${targetId}`
-  if (t.includes('ARTICLE') || t.includes('POST')) return `/pkg-circle/articles/detail?id=${targetId}`
-  if (t.includes('ORDER')) return `/pkg-order/detail?id=${targetId}`
-  if (t.includes('CIRCLE')) return `/pkg-circle/detail?id=${targetId}`
-  if (t.includes('LIVE')) return `/pkg-live/vertical/index?id=${targetId}`
+  const id = encodeURIComponent(targetId)
+  if (t === 'FEEDBACK') return '/feedback?tab=history'
+  // 权益页只请求当前登录用户的数据，不接受通知里的 userId 作为查询条件。
+  if (t === 'ENTITLEMENT') return ENTITLEMENT_NOTIFICATION_ROUTE
+  if (t === 'POINTS') return '/mine/points'
+  if (t === 'COUPON') return '/shop/coupons'
+  // 续费页只读取本人会员状态，忽略通知中的用户标识。
+  if (t === 'MEMBER') return '/vip'
+  if (t.includes('COURSE')) return `/pkg-course/detail/index?id=${id}`
+  // POST 必须先于 ARTICLE/CIRCLE 判断：帖子(含 CIRCLE_POST)走帖子详情页，被当文章打开必空
+  if (t.includes('POST')) return `/pkg-circle/circles/post?id=${id}`
+  if (t.includes('ARTICLE')) return `/pkg-circle/articles/detail?id=${id}`
+  if (t.includes('ORDER')) return `/pkg-order/detail/index?id=${id}`
+  if (t.includes('CIRCLE')) return `/pkg-circle/circles/detail?id=${id}` // 原 /pkg-circle/detail 是死路由（pages.json 无此页）
+  if (t.includes('USER') || t.includes('FOLLOW')) return `/user/${id}` // 关注通知点头像进对方主页（DYNAMIC_ROUTES 现成映射）
+  if (t.includes('LIVE')) return `/pkg-live/watch/index?id=${id}` // 原指 vertical 半死页(products恒空)·改指真观看页
   return undefined
+}
+
+/**
+ * 内部运维/监控告警识别：依赖降级、探测异常、熔断、健康检查等技术黑话属系统内部监控，
+ * 误配到通知表后会刷屏普通用户消息中心（泄漏技术细节）。命中则从用户消息流过滤。
+ * 保守匹配运维专有语汇，避免误伤"会员降级/等级下调"等真实业务通知。
+ */
+function isInternalOpsAlert(n: RawNotification): boolean {
+  const s = `${n.type || ''} ${n.title || ''} ${n.content || ''}`
+  return /依赖降级|依赖.{0,6}降级|探测异常|连续探测|已自动降级|服务熔断|熔断降级|健康检查|OPS[_-]?ALERT|CIRCUIT[_-]?BREAK|HEALTH[_-]?CHECK|DEPENDENCY[_-]?DEGRAD/i.test(s)
 }
 
 /** 单条后端通知 → 前端展示模型 */
@@ -356,7 +440,7 @@ function buildUnreadCounts(list: NotifyMessage[], totalUnread: number): MessageU
 
 export const mockNotifyMessages: NotifyMessage[] = [
   // 系统通知
-  { id: 'm1', type: 'system', category: '直播', title: '直播开播提醒', content: '您关注的「张明远·易学研究员」正在直播《周易》六十四卦精讲，快去看看吧。', time: '10分钟前', isRead: false, link: '/pkg-live/vertical/index' },
+  { id: 'm1', type: 'system', category: '直播', title: '直播开播提醒', content: '您关注的「张明远·易学研究员」正在直播《周易》六十四卦精讲，快去看看吧。', time: '10分钟前', isRead: false, link: '/pkg-live/watch/index' },
   { id: 'm2', type: 'system', category: '课程', title: '课程更新通知', content: '您购买的《八字命理入门》已更新第12讲：泰卦与否卦，点击继续学习。', time: '2小时前', isRead: false, link: '/pkg-course/detail' },
   { id: 'm3', type: 'system', category: '系统', title: '账号安全提醒', content: '您的账号于01月15日 09:23在新设备登录，如非本人操作请及时修改密码。', time: '01月15日', isRead: true, link: '/pkg-mine/security' },
   { id: 'm4', type: 'system', category: '活动', title: '新春祈福活动开启', content: '甲辰龙年新春祈福活动现已开启，参与即可领取专属开运礼包。', time: '01月12日', isRead: true },
@@ -522,7 +606,7 @@ export function getGroupPermissions(myRole: GroupRole): GroupPermissions {
   const isAdmin = myRole === 'admin' || isOwner
   return {
     canInvite: true,
-    canRemoveMember: isAdmin,
+    canRemoveMember: isOwner,
     canSetAdmin: isOwner,
     canUpdateNotice: isAdmin,
     canDismiss: isOwner,
@@ -687,25 +771,15 @@ export interface FriendRequestsResponse {
   totalPending: number
 }
 
-/** 后端归一化待处理申请项（GET /im/friends/pending → { pending: ImPendingRaw[] }） */
-interface ImPendingRaw {
-  userId: string
-  nick: string
-  avatar: string
-  wording: string
-  /** 秒级时间戳 */
-  addTime: number
-}
-
-/** 后端待处理申请 → 前端 FriendRequestItem */
-function toFriendRequestItem(p: ImPendingRaw): FriendRequestItem {
-  const nickname = p.nick || p.userId.slice(0, 8)
+/** 腾讯 SDK 好友申请 → 前端 FriendRequestItem */
+function toFriendRequestItem(p: TimFriendApplication): FriendRequestItem {
+  const nickname = p.nick || p.userID.slice(0, 8)
   return {
-    id: p.userId,
-    fromUser: { id: p.userId, nickname, avatar: p.avatar || '' },
+    id: p.userID,
+    fromUser: { id: p.userID, nickname, avatar: p.avatar || '' },
     message: p.wording || undefined,
     status: 'pending',
-    createdAt: p.addTime ? formatMessageTime(p.addTime * 1000) : '',
+    createdAt: p.time ? formatMessageTime(p.time * 1000) : '',
   }
 }
 
@@ -726,6 +800,13 @@ export function getRequestStatusText(status: FriendRequestStatus): string {
 // ============ API 层 ============
 
 export const imApi = {
+  async getCapabilities(force = false): Promise<ImCapabilities> {
+    if (!force && capabilitiesCache && Date.now() - capabilitiesCachedAt < 30_000) return capabilitiesCache
+    capabilitiesCache = await apiGet<ImCapabilities>('/im/capabilities')
+    capabilitiesCachedAt = Date.now()
+    return capabilitiesCache
+  },
+
   /** 查询与目标用户的私信关系与权限（真连，错误向上抛由页面走三态，不回退假数据） */
   async getRelationPolicy(targetId: string): Promise<RelationPolicy> {
     return await apiGet<RelationPolicy>(`/im/relation/${targetId}`)
@@ -733,17 +814,33 @@ export const imApi = {
 
   /** 获取会话列表（TIM SDK 为真源：列表/未读/置顶/免打扰；错误向上抛走三态） */
   async getConversations(): Promise<ConversationItem[]> {
+    const capabilities = await this.getCapabilities()
+    if (capabilities.mode === 'FALLBACK') {
+      const list = await apiGet<ConversationItem[]>('/im/fallback/conversations')
+      return list.map((item) => ({
+        ...item,
+        lastMessage: { ...item.lastMessage, time: formatMessageTime(Date.parse(String(item.updatedAt))) },
+      }))
+    }
     const list = await useTim().getConversationList()
     return list.map(timConvToConversationItem).filter((c): c is ConversationItem => c !== null)
   },
 
   /** 置顶/取消置顶会话（TIM SDK） */
   async pinConversation(conversationID: string, isPinned: boolean): Promise<void> {
+    if (conversationID.startsWith('FALLBACK')) {
+      await apiPut(`/im/fallback/conversations/${conversationID.slice('FALLBACK'.length)}`, { isPinned })
+      return
+    }
     await useTim().pinConversation(conversationID, isPinned)
   },
 
   /** 会话免打扰开关（TIM SDK） */
   async muteConversation(conv: ConversationItem, mute: boolean): Promise<void> {
+    if (conv.id.startsWith('FALLBACK')) {
+      await apiPut(`/im/fallback/conversations/${conv.targetId}`, { isMuted: mute })
+      return
+    }
     await useTim().setConversationMute(
       { type: conv.type === 'group' ? 'GROUP' : 'C2C', id: conv.targetId },
       mute,
@@ -752,7 +849,51 @@ export const imApi = {
 
   /** 删除会话（TIM SDK，聊天记录一并清除） */
   async deleteConversation(conversationID: string): Promise<void> {
+    if (conversationID.startsWith('FALLBACK') || conversationID.startsWith('C2C')) {
+      const capabilities = await this.getCapabilities()
+      if (capabilities.mode === 'FALLBACK') {
+        const peerId = conversationID.replace(/^(FALLBACK|C2C)/, '')
+        await apiDelete(`/im/fallback/conversations/${peerId}`)
+        return
+      }
+    }
     await useTim().deleteConversation(conversationID)
+  },
+
+  async getC2CHistory(toUserId: string): Promise<{ messages: ChatMessage[]; mode: ImCapabilities['mode'] }> {
+    const capabilities = await this.getCapabilities()
+    if (capabilities.mode === 'FALLBACK') {
+      const res = await apiGet<{ messages: FallbackMessage[] }>(`/im/fallback/c2c/history?toUserId=${encodeURIComponent(toUserId)}&count=100`)
+      return { messages: (res.messages || []).map(fallbackToChatMessage), mode: 'FALLBACK' }
+    }
+    const res = await useTim().getC2CHistory(toUserId)
+    return { messages: res.messageList.map(timToChatMessage), mode: 'TENCENT' }
+  },
+
+  async sendC2CText(toUserId: string, content: string): Promise<ChatMessage> {
+    const capabilities = await this.getCapabilities()
+    if (capabilities.mode === 'FALLBACK') {
+      const message = await apiPost<FallbackMessage>('/im/fallback/c2c/send', { toUserId, text: content })
+      return fallbackToChatMessage(message)
+    }
+    return timToChatMessage(await useTim().sendText(toUserId, content))
+  },
+
+  async markC2CRead(toUserId: string): Promise<void> {
+    const capabilities = await this.getCapabilities()
+    if (capabilities.mode === 'FALLBACK') {
+      await apiPut(`/im/fallback/c2c/read/${toUserId}`)
+      return
+    }
+    await useTim().setC2CRead(toUserId)
+  },
+
+  /**
+   * 发送单聊图片消息（真连 POST /im/c2c/image，后端经 REST openim/sendmsg 下发对端并同步多端）。
+   * imageUrl 需为已上传的可访问 URL（先走 uploadImage）；宽高可选，后端缺省 0。
+   */
+  async sendC2CImage(toUserId: string, imageUrl: string, width?: number, height?: number): Promise<void> {
+    await apiPost('/im/c2c/image', { toUserId, imageUrl, width, height })
   },
 
   /** 获取通知消息列表（真连 /notifications，映射为前端展示模型；错误向上抛走三态，不回退假数据） */
@@ -760,8 +901,12 @@ export const imApi = {
     const res = await apiGet<{ notifications: RawNotification[]; total: number; unreadCount: number }>(
       '/notifications?page=1&pageSize=50',
     )
-    const list = (res.notifications || []).map(toNotifyMessage)
-    return { list, unreadCounts: buildUnreadCounts(list, res.unreadCount ?? 0) }
+    const raw = res.notifications || []
+    // 过滤内部运维告警，并从总未读中扣减被过滤掉的未读条数，避免 badge 显示幽灵未读
+    const removedUnread = raw.filter((n) => isInternalOpsAlert(n) && !n.isRead).length
+    const list = raw.filter((n) => !isInternalOpsAlert(n)).map(toNotifyMessage)
+    const total = Math.max(0, (res.unreadCount ?? 0) - removedUnread)
+    return { list, unreadCounts: buildUnreadCounts(list, total) }
   },
 
   /** 标记单条通知已读 */
@@ -807,9 +952,39 @@ export const imApi = {
     await useTim().setGroupRead(groupId)
   },
 
-  /** 退出群聊（TIM SDK quitGroup；群主不可退出，需解散） */
+  /** 用户主动退出群聊：严格透传 SDK 错误，禁止失败后仍显示成功 */
   async quitGroup(groupId: string): Promise<void> {
-    await useTim().quitGroup(groupId)
+    await useTim().quitGroupStrict(groupId)
+  },
+
+  /** 修改群名称或公告（TIM SDK） */
+  async updateGroupProfile(groupId: string, profile: { name?: string; notification?: string }): Promise<void> {
+    await useTim().updateGroupProfile(groupId, profile)
+  },
+
+  /** 修改本人群昵称（TIM SDK 群名片） */
+  async setMyGroupNickname(groupId: string, nickname: string): Promise<void> {
+    await useTim().setGroupMemberNameCard(groupId, nickname)
+  },
+
+  /** 设置或取消管理员（TIM SDK，仅群主） */
+  async setGroupMemberAdmin(groupId: string, userId: string, isAdmin: boolean): Promise<void> {
+    await useTim().setGroupMemberAdmin(groupId, userId, isAdmin)
+  },
+
+  /** 转让群主（TIM SDK，仅群主） */
+  async transferGroupOwner(groupId: string, newOwnerId: string): Promise<void> {
+    await useTim().changeGroupOwner(groupId, newOwnerId)
+  },
+
+  /** 移除群成员（TIM SDK，权限由腾讯服务端校验） */
+  async removeGroupMember(groupId: string, userId: string): Promise<void> {
+    await useTim().deleteGroupMember(groupId, userId)
+  },
+
+  /** 解散群聊（TIM SDK，仅群主） */
+  async dismissGroup(groupId: string): Promise<void> {
+    await useTim().dismissGroup(groupId)
   },
 
   /** 群会话置顶（TIM SDK；conversationID=GROUP{groupId}） */
@@ -824,6 +999,8 @@ export const imApi = {
 
   /** 获取群聊列表（TIM SDK 群名录 + 会话列表合并补齐未读/最后一条） */
   async getGroupList(): Promise<GroupListItem[]> {
+    const capabilities = await this.getCapabilities()
+    if (!capabilities.groups) throw new Error('群聊功能将在腾讯 IM 开通后启用')
     const tim = useTim()
     const [groups, convs] = await Promise.all([tim.getJoinedGroupList(), tim.getConversationList()])
     const convMap = new Map<string, TimConversation>()
@@ -854,32 +1031,42 @@ export const imApi = {
 
   /** 获取好友列表（真连 GET /im/friends；错误向上抛走三态，不回退假数据） */
   async getFriends(): Promise<FriendItem[]> {
+    const capabilities = await this.getCapabilities()
+    if (!capabilities.friends) throw new Error('IM 好友功能将在腾讯 IM 开通后启用；关注关系不受影响')
     const res = await apiGet<{ friends: ImFriendRaw[] }>('/im/friends')
     return (res.friends || []).map(toFriendItem)
   },
 
-  /** 获取好友请求列表（真连 GET /im/friends/pending；腾讯无历史，processed 恒空） */
+  /** 获取好友请求列表（腾讯客户端 SDK 真源；服务端 REST 不提供待申请拉取） */
   async getFriendRequests(): Promise<FriendRequestsResponse> {
-    const res = await apiGet<{ pending: ImPendingRaw[] }>('/im/friends/pending')
-    const pending = (res.pending || []).map(toFriendRequestItem)
+    const capabilities = await this.getCapabilities()
+    if (!capabilities.friends) throw new Error('好友申请功能将在腾讯 IM 开通后启用')
+    const tim = useTim()
+    const applications = await tim.getFriendApplications()
+    const pending = applications.map(toFriendRequestItem)
+    await tim.markFriendApplicationsRead()
     return { pending, processed: [], totalPending: pending.length }
   },
 
   /**
-   * 处理好友请求（同意/拒绝）。fromUserId = 申请人账号（FriendRequestItem.id）。
-   * 真连 POST /im/friends/approve | /im/friends/reject（body: { toUserId }）；失败抛错由页面处理。
+   * 处理好友请求（腾讯客户端 SDK）。fromUserId = 申请人账号（FriendRequestItem.id）。
+   * 同意时建立双向好友关系；失败抛错由页面处理。
    */
   async handleFriendRequest(fromUserId: string, action: 'approve' | 'reject'): Promise<void> {
-    await apiPost(`/im/friends/${action}`, { toUserId: fromUserId })
+    await useTim().handleFriendApplication(fromUserId, action)
   },
 
   /** 发起好友申请（真连 POST /im/friends）。toUserId = 对方账号；remark 可选备注 */
   async addFriend(toUserId: string, remark?: string): Promise<void> {
+    const capabilities = await this.getCapabilities()
+    if (!capabilities.friends) throw new Error('好友功能将在腾讯 IM 开通后启用，可先关注对方或发送站内私信')
     await apiPost('/im/friends', { toUserId, remark })
   },
 
   /** 删除好友（真连 DELETE /im/friends/:toUserId） */
   async removeFriend(toUserId: string): Promise<void> {
+    const capabilities = await this.getCapabilities()
+    if (!capabilities.friends) throw new Error('好友功能尚未启用')
     await apiDelete(`/im/friends/${toUserId}`)
   },
 

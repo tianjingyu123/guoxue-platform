@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsInt, IsNumber, IsArray, IsBoolean, Min, Max, ValidateNested, MinLength, IsIn } from "class-validator";
-import { Type } from "class-transformer";
+import { IsString, IsOptional, IsInt, IsNumber, IsArray, IsBoolean, Min, Max, ValidateNested, MinLength, IsIn, IsUrl, ArrayMinSize, ArrayMaxSize, MaxLength } from "class-validator";
+import { Type, Transform } from "class-transformer";
 
 export class CreateVideoDto {
   @ApiPropertyOptional({ description: "关联圈子ID" })
@@ -24,8 +24,11 @@ export class CreateVideoDto {
   @IsOptional() @IsString()
   coverUrl?: string;
 
-  @ApiPropertyOptional({ description: "时长（秒）" })
-  @IsOptional() @IsInt()
+  @ApiPropertyOptional({ description: "时长（秒·自动取整）" })
+  @IsOptional()
+  // 视频时长天然带小数秒(如15.7)，前端/AI 传入一律四舍五入为整数，避免 @IsInt 误拒；空值归 undefined
+  @Transform(({ value }) => (value === null || value === undefined || value === "" ? undefined : Math.round(Number(value))))
+  @IsInt()
   duration?: number;
 
   @ApiPropertyOptional({ description: "话题标签（最多5个）" })
@@ -35,6 +38,10 @@ export class CreateVideoDto {
   @ApiPropertyOptional({ description: "是否仅自己可见" })
   @IsOptional() @IsBoolean()
   isPrivate?: boolean;
+
+  @ApiPropertyOptional({ description: "开放范围：CIRCLE_ONLY=仅本圈（默认）/ PLATFORM=全平台（需平台审核）", enum: ["CIRCLE_ONLY", "PLATFORM"] })
+  @IsOptional() @IsIn(["CIRCLE_ONLY", "PLATFORM"])
+  visibility?: "CIRCLE_ONLY" | "PLATFORM";
 
   @ApiPropertyOptional({ description: "关联带货商品ID列表（最多5件）" })
   @IsOptional() @IsArray() @IsString({ each: true })
@@ -79,6 +86,10 @@ export class VideoListQueryDto {
   @IsOptional() @IsString()
   status?: string;
 
+  @ApiPropertyOptional({ description: "查询范围：all=不限开放范围（仅管理员生效·管理端用）", enum: ["all"] })
+  @IsOptional() @IsIn(["all"])
+  scope?: string;
+
   @ApiPropertyOptional({ description: "页码", default: 1 })
   @IsOptional() @Type(() => Number) @IsInt() @Min(1)
   page?: number;
@@ -97,6 +108,8 @@ export class VideoListQueryDto {
 export class PullUploadDto {
   @ApiProperty({ description: "拉取URL列表", type: [Object] })
   @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => PullUrlItem)
   urls: PullUrlItem[];
@@ -106,7 +119,7 @@ export class PullUploadDto {
   mediaName?: string;
 
   @ApiPropertyOptional({ description: "封面URL" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsUrl({ protocols: ["http", "https"], require_protocol: true })
   coverUrl?: string;
 
   @ApiPropertyOptional({ description: "上传后执行的任务流" })
@@ -120,12 +133,11 @@ export class PullUploadDto {
 
 export class PullUrlItem {
   @ApiProperty({ description: "视频源URL" })
-  @IsString()
-  @MinLength(1)
+  @IsUrl({ protocols: ["http", "https"], require_protocol: true })
   url: string;
 
   @ApiPropertyOptional({ description: "文件名" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsString() @MaxLength(128)
   fileName?: string;
 }
 
@@ -154,11 +166,11 @@ export class ClipVideoDto {
   fileId: string;
 
   @ApiProperty({ description: "起始偏移（秒）" })
-  @IsNumber()
+  @IsNumber() @Min(0)
   startTimeOffset: number;
 
   @ApiProperty({ description: "结束偏移（秒）" })
-  @IsNumber()
+  @IsNumber() @Min(0)
   endTimeOffset: number;
 
   @ApiPropertyOptional({ description: "剪辑后文件名" })

@@ -1,0 +1,46 @@
+<template>
+  <view class="store-page">
+  <app-nav-bar title="品牌服务" title-align="left" background="#F6F8FB" />
+  <view class="store"><view class="brand"><text class="headline">{{ context?.brand.name || '品牌服务' }}</text><text class="muted">应用登记：{{ context?.applicationSubject || '待读取' }}</text><text class="muted">交易、履约与售后：{{ context?.tradingSubject || '待读取' }}</text></view>
+    <text v-if="error" class="error">{{ error }}</text><text v-if="notice" class="notice">{{ notice }}</text><button :disabled="busy" @click="reload">刷新已有记录</button>
+    <view v-if="context" class="tabs"><button @click="changeTab('product')">商品</button><button @click="changeTab('course')">课程</button><button @click="changeTab('orders')">我的订单</button></view>
+    <template v-if="context&&tab!=='orders'"><view v-for="row in tab==='product'?products:courses" :key="row.id" class="item"><text class="title">{{ row.title }}</text><text class="copy">{{ row.intro }}</text><text class="price">{{ Number(row.price)===0?'免费':'¥'+row.price }}</text><button :disabled="busy" @click="open(row)">查看详情</button></view>
+      <view v-if="selected" class="detail"><text class="title">{{ selected.title }}</text><text class="copy">{{ selected.detail || selected.intro }}</text><template v-if="tab==='product'"><label>数量<input v-model="quantity" type="number" /></label><label>原平台收货地址<picker :range="addresses.map(row=>String(row.name)+' '+String(row.detail))" :value="addressIndex" @change="addressIndex=Number($event.detail.value)"><view>{{ addresses[addressIndex]?.name || '先在原平台管理收货地址' }}</view></picker></label><button :disabled="busy||!addresses.length" @click="buy">建立原平台商品订单</button></template><template v-else><button :disabled="busy" @click="buy">{{ Number(selected.price)===0?'免费订阅':'建立原平台课程订单' }}</button><view v-for="row in chapters" :key="row.id" class="item"><text>{{ row.title }}</text><button :disabled="busy" @click="read(row)">阅读</button></view><view v-if="chapter"><text class="copy">{{ chapter.content }}</text><button :disabled="busy" @click="learn">标记已学完</button></view></template><text class="muted">订单采用服务端原定价及推荐规则。付款请使用已验收的原平台订单入口；本候选不触发付款。</text></view>
+    </template>
+    <template v-if="context&&tab==='orders'"><view v-for="row in orders" :key="row.id" class="item"><text class="title">{{ row.type==='COURSE'?'课程':'商品' }}订单 {{ row.id }}</text><text class="copy">金额 ¥{{ row.amount }}　{{ label(row.status) }}</text><button v-if="row.status==='PENDING'" :disabled="busy" @click="cancel(row)">取消待支付订单</button><button v-if="row.status==='SHIPPED'" :disabled="busy" @click="confirm(row)">确认收货</button><button :disabled="busy" @click="loadSales(row)">查看售后</button><template v-if="['PAID','SHIPPED','COMPLETED'].includes(String(row.status))"><label>售后原因<textarea v-model="reason" maxlength="500" /></label><picker :range="['仅退款','退货退款','换货']" :value="saleType" @change="saleType=Number($event.detail.value)"><view>{{ ['仅退款','退货退款','换货'][saleType] }}</view></picker><button :disabled="busy" @click="apply(row)">提交原平台售后申请</button></template></view><button v-if="cursor" :disabled="busy" @click="nextOrders">读取下一页订单</button>
+      <view v-if="salesOrder" class="detail"><text class="title">订单售后记录</text><view v-for="row in sales" :key="row.id" class="item"><text>{{ label(row.status) }}　{{ row.reason }}</text><button v-if="row.status==='PENDING'" :disabled="busy" @click="cancelSale(row)">取消申请</button><template v-if="row.status==='APPROVED'"><label>快递公司<input v-model="company" maxlength="80" /></label><label>退货运单<input v-model="logisticsNo" maxlength="80" /></label><button :disabled="busy" @click="returnParcel(row)">登记运单</button></template></view><button v-if="sales.length<salesTotal" :disabled="busy" @click="nextSales">读取下一页售后</button></view>
+    </template>
+  </view>
+  </view>
+</template>
+<script setup lang="ts">
+import {ref,onMounted} from 'vue'
+import AppNavBar from '@/components/common/app-nav-bar.vue'
+import {apiGet} from '@/utils/request'
+import {brandApi,brandKey,type BrandRow,type BrandContext} from '@/lib/managed-brand'
+const context=ref<BrandContext>(),tab=ref('product'),busy=ref(false),error=ref(''),notice=ref(''),products=ref<BrandRow[]>([]),courses=ref<BrandRow[]>([]),orders=ref<BrandRow[]>([]),cursor=ref(''),addresses=ref<BrandRow[]>([]),addressIndex=ref(0),quantity=ref('1'),selected=ref<BrandRow>(),chapters=ref<BrandRow[]>([]),chapter=ref<BrandRow>(),key=ref(brandKey()),reason=ref(''),saleType=ref(0),salesOrder=ref<BrandRow>(),sales=ref<BrandRow[]>([]),salesPage=ref(1),salesTotal=ref(0),company=ref(''),logisticsNo=ref('')
+function changeTab(value:string){tab.value=value;selected.value=undefined;chapter.value=undefined}
+const label=(value:unknown)=>({PENDING:'待处理',PAID:'已支付',SHIPPED:'已发货',COMPLETED:'已完成',CANCELLED:'已取消',APPROVED:'审核通过',REJECTED:'已拒绝',REFUNDED:'已退款'} as Record<string,string>)[String(value)]||String(value)
+async function run(action:()=>Promise<void>){if(busy.value)return;busy.value=true;error.value='';notice.value='';try{await action()}catch(e){error.value=e instanceof Error?e.message:'结果未确认，请先刷新记录核对'}finally{busy.value=false}}
+async function orderData(more=false){const page=await brandApi.orders(more?cursor.value:'');orders.value=more?[...orders.value,...page.items]:page.items;cursor.value=page.nextCursor||''}
+const reload=()=>run(async()=>{context.value=await brandApi.context();selected.value=undefined;chapter.value=undefined;products.value=[];courses.value=[];await orderData();if(context.value.operatingStatus!=='EXPIRED_RESTRICTED'){try{products.value=await brandApi.products()}catch(e){error.value=e instanceof Error?e.message:''}try{courses.value=await brandApi.courses()}catch(e){error.value=e instanceof Error?e.message:''}}})
+const nextOrders=()=>run(()=>orderData(true))
+const open=(row:BrandRow)=>run(async()=>{selected.value=row;chapter.value=undefined;key.value=brandKey();if(tab.value==='course')chapters.value=await brandApi.chapters(row.id);else addresses.value=await apiGet<BrandRow[]>('/shop/addresses')})
+const buy=()=>run(async()=>{if(!selected.value)return;const row=tab.value==='course'?await brandApi.courseOrder(selected.value.id,key.value):await brandApi.productOrder({productId:selected.value.id,quantity:Number(quantity.value),addressId:addresses.value[addressIndex.value]?.id,requestKey:key.value});key.value=brandKey();notice.value='原订单已建立：'+label(row.status);await orderData()})
+const read=(row:BrandRow)=>run(async()=>{chapter.value=await brandApi.chapter(selected.value!.id,row.id)})
+const learn=()=>run(async()=>{await brandApi.saveProgress(selected.value!.id,chapter.value!.id);notice.value='原课程学习进度已保存'})
+const cancel=(row:BrandRow)=>run(async()=>{await brandApi.cancel(row.id);await orderData()})
+const confirm=(row:BrandRow)=>run(async()=>{await brandApi.confirm(row.id);await orderData()})
+async function saleData(more=false){const page=await brandApi.aftersales(salesOrder.value!.id,more?salesPage.value+1:1);sales.value=more?[...sales.value,...page.items]:page.items;salesPage.value=page.page||1;salesTotal.value=page.total||0}
+const loadSales=(row:BrandRow)=>run(async()=>{salesOrder.value=row;await saleData()})
+const nextSales=()=>run(()=>saleData(true))
+const apply=(row:BrandRow)=>run(async()=>{await brandApi.apply(row.id,['refund_only','refund_with_return','exchange'][saleType.value],reason.value);salesOrder.value=row;await saleData();notice.value='售后申请已交原平台受理'})
+const cancelSale=(row:BrandRow)=>run(async()=>{await brandApi.cancelAfterSale(row.id);await saleData()})
+const returnParcel=(row:BrandRow)=>run(async()=>{await brandApi.logistics(row.id,company.value,logisticsNo.value);await saleData();notice.value='原售后退货运单已登记'})
+onMounted(reload)
+</script>
+<style scoped>
+.store-page{min-height:100vh;background:#f6f8fb}.store{box-sizing:border-box;max-width:880px;margin:0 auto}.store button{min-height:44px}
+.store{padding:28px 20px;background:#f6f8fb;color:#21354a;min-height:100vh}.brand{border-bottom:2px solid #355d70;padding-bottom:24px}.headline{display:block;font-family:SimSun,serif;font-size:28px}.title{display:block;font-size:19px;font-weight:600}.muted,.copy{display:block;line-height:1.8;margin-top:12px;overflow-wrap:anywhere;white-space:pre-wrap}.muted{font-size:13px;color:#52687d}.tabs{display:flex;gap:10px}.item{padding:22px 0;border-bottom:1px solid #c2d0dc}.price{display:block;margin:12px 0;color:#355d70}.detail{padding:20px;background:white;border-left:3px solid #355d70;margin:24px 0}button{font-size:14px;background:#e5ecf3;color:#21354a;margin:12px 0}label{display:block;margin:18px 0}input,textarea{border:1px solid #c2d0dc;background:white;padding:12px;margin-top:10px}.error,.notice{display:block;padding:15px;margin:15px 0;background:#e5ecf3;line-height:1.8}.error{color:#ad392b;background:#fff1ef}
+.store{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+</style>

@@ -1,0 +1,247 @@
+{
+  "schemaVersion": 1,
+  "kind": "guoxue-business-journeys",
+  "apiOrigin": "https://pre-api.example.com",
+  "qaPrefix": "QA_RELEASE_ACCEPTANCE",
+  "auth": {
+    "user": "QA_USER_TOKEN",
+    "merchant": "QA_MERCHANT_TOKEN"
+  },
+  "secrets": {},
+  "journeys": [
+    {
+      "id": "public-readiness",
+      "mode": "read",
+      "steps": [
+        {
+          "id": "health",
+          "method": "GET",
+          "path": "/api/v1/health",
+          "expectStatus": [200],
+          "expectJson": [
+            {
+              "pointer": "/data/status",
+              "exists": true
+            }
+          ]
+        },
+        {
+          "id": "client-remote-config",
+          "method": "GET",
+          "path": "/api/v1/config/client",
+          "expectStatus": [200],
+          "expectJson": [
+            {
+              "pointer": "/data/schemaVersion",
+              "equals": 1
+            },
+            {
+              "pointer": "/data/revision",
+              "matches": "^[0-9a-f]{16}$"
+            },
+            {
+              "pointer": "/data/environment",
+              "exists": true
+            },
+            {
+              "pointer": "/data/features",
+              "exists": true
+            },
+            {
+              "pointer": "/data/ui",
+              "exists": true
+            },
+            {
+              "pointer": "/data/maintenance/enabled",
+              "exists": true
+            }
+          ]
+        },
+        {
+          "id": "android-version-policy",
+          "method": "GET",
+          "path": "/api/v1/system/version/check?platform=android&version=0.0.0&buildNumber=0",
+          "expectStatus": [200],
+          "expectJson": [
+            {
+              "pointer": "/data/hasUpdate",
+              "equals": true
+            },
+            {
+              "pointer": "/data/latest/version",
+              "matches": "^v?[0-9]+(?:\\.[0-9]+){0,3}(?:-[0-9A-Za-z.-]+)?$"
+            },
+            {
+              "pointer": "/data/latest/buildNumber",
+              "matches": "^[0-9]+$"
+            },
+            {
+              "pointer": "/data/latest/downloadUrl",
+              "matches": "^(?:https://|itms-apps://|appmarket://|market://)"
+            },
+            {
+              "pointer": "/data/latest/policy",
+              "matches": "^(?:recommended|required)$"
+            }
+          ]
+        },
+        {
+          "id": "ios-version-policy",
+          "method": "GET",
+          "path": "/api/v1/system/version/check?platform=ios&version=0.0.0&buildNumber=0",
+          "expectStatus": [200],
+          "expectJson": [
+            {
+              "pointer": "/data/hasUpdate",
+              "equals": true
+            },
+            {
+              "pointer": "/data/latest/version",
+              "matches": "^v?[0-9]+(?:\\.[0-9]+){0,3}(?:-[0-9A-Za-z.-]+)?$"
+            },
+            {
+              "pointer": "/data/latest/buildNumber",
+              "matches": "^[0-9]+$"
+            },
+            {
+              "pointer": "/data/latest/downloadUrl",
+              "matches": "^(?:https://|itms-apps://|appmarket://|market://)"
+            },
+            {
+              "pointer": "/data/latest/policy",
+              "matches": "^(?:recommended|required)$"
+            }
+          ]
+        },
+        {
+          "id": "harmony-version-policy",
+          "method": "GET",
+          "path": "/api/v1/system/version/check?platform=harmony&version=0.0.0&buildNumber=0",
+          "expectStatus": [200],
+          "expectJson": [
+            {
+              "pointer": "/data/hasUpdate",
+              "equals": true
+            },
+            {
+              "pointer": "/data/latest/version",
+              "matches": "^v?[0-9]+(?:\\.[0-9]+){0,3}(?:-[0-9A-Za-z.-]+)?$"
+            },
+            {
+              "pointer": "/data/latest/buildNumber",
+              "matches": "^[0-9]+$"
+            },
+            {
+              "pointer": "/data/latest/downloadUrl",
+              "matches": "^(?:https://|itms-apps://|appmarket://|market://)"
+            },
+            {
+              "pointer": "/data/latest/policy",
+              "matches": "^(?:recommended|required)$"
+            }
+          ]
+        },
+        {
+          "id": "home-aggregation",
+          "method": "GET",
+          "path": "/api/v1/home?page=1&pageSize=6",
+          "expectStatus": [200]
+        },
+        {
+          "id": "anonymous-smart-feed",
+          "method": "GET",
+          "path": "/api/v1/recommend/smart-feed/feed?page=1&pageSize=6&channel=recommend",
+          "expectStatus": [200]
+        },
+        {
+          "id": "classics-home",
+          "method": "GET",
+          "path": "/api/v1/classics/home",
+          "expectStatus": [200]
+        },
+        {
+          "id": "agent-catalog",
+          "method": "GET",
+          "path": "/api/v1/bots",
+          "expectStatus": [200]
+        },
+        {
+          "id": "video-feed",
+          "method": "GET",
+          "path": "/api/v1/videos/items?page=1&pageSize=6&sort=recommend",
+          "expectStatus": [200]
+        },
+        {
+          "id": "live-rooms",
+          "method": "GET",
+          "path": "/api/v1/live/rooms?page=1&pageSize=6",
+          "expectStatus": [200]
+        },
+        {
+          "id": "live-scheduled",
+          "method": "GET",
+          "path": "/api/v1/live/scheduled?page=1&pageSize=6",
+          "expectStatus": [200]
+        },
+        {
+          "id": "live-replays",
+          "method": "GET",
+          "path": "/api/v1/live/replays?sortBy=latest",
+          "expectStatus": [200]
+        },
+        {
+          "id": "article-feed",
+          "method": "GET",
+          "path": "/api/v1/articles/feed?page=1&pageSize=6",
+          "expectStatus": [200]
+        },
+        {
+          "id": "product-catalog",
+          "method": "GET",
+          "path": "/api/v1/shop/products?page=1&pageSize=1",
+          "expectStatus": [200]
+        }
+      ]
+    },
+    {
+      "id": "authenticated-user",
+      "mode": "read",
+      "steps": [
+        {
+          "id": "current-user",
+          "method": "GET",
+          "path": "/api/v1/auth/me",
+          "auth": "user",
+          "expectStatus": [200]
+        }
+      ]
+    },
+    {
+      "id": "merchant-operations",
+      "mode": "read",
+      "steps": [
+        {
+          "id": "merchant-dashboard",
+          "method": "GET",
+          "path": "/api/v1/merchant-backend/dashboard",
+          "auth": "merchant",
+          "expectStatus": [200]
+        },
+        {
+          "id": "inventory-overview",
+          "method": "GET",
+          "path": "/api/v1/merchant-backend/inventory/overview",
+          "auth": "merchant",
+          "expectStatus": [200]
+        },
+        {
+          "id": "purchase-orders",
+          "method": "GET",
+          "path": "/api/v1/merchant-backend/purchase-orders?page=1&pageSize=1",
+          "auth": "merchant",
+          "expectStatus": [200]
+        }
+      ]
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import { Request, Response } from "express";
 import { CircleKnowledgeService } from "./circle-knowledge.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { SkipFormat } from "../../common/skip-format.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("圈子知识库")
 @Controller("circles")
@@ -74,6 +75,7 @@ export class CircleKnowledgeController {
   }
 
   @Delete(":circleId/knowledge/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除知识条目" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -110,6 +112,18 @@ export class CircleKnowledgeController {
     return this.knowledge.listCandidates(circleId, Number(page), Number(pageSize));
   }
 
+  @Post(":circleId/knowledge/extract-candidates")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "从达人回答提炼知识候选（#38·近30天已回答问答前10条→AI提炼落候选队列）" })
+  @ApiResponse({ status: 201, description: "{ scanned, created, message }" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无知识库管理权限" })
+  @ApiBearerAuth()
+  async extractCandidates(@Param("circleId") circleId: string, @Req() req: Request) {
+    await this.knowledge.assertManager(circleId, req.user.id);
+    return this.knowledge.extractFromExpertAnswers(circleId);
+  }
+
   @Post(":circleId/knowledge/candidates/:candidateId/confirm")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "确认候选条目入库" })
@@ -140,6 +154,26 @@ export class CircleKnowledgeController {
   ) {
     await this.knowledge.assertManager(circleId, req.user.id);
     return this.knowledge.rejectCandidate(circleId, candidateId);
+  }
+
+  // ───────── 只读知识检索（MCP 用）──────────
+
+  @Get(":circleId/knowledge/search")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "只读检索圈子知识（有效成员，仅返回已发布片段）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非有效成员" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "q", required: true, description: "检索关键词" })
+  @ApiQuery({ name: "topK", required: false, description: "返回条数，默认5" })
+  async searchKnowledge(
+    @Param("circleId") circleId: string,
+    @Query("q") q: string,
+    @Query("topK") topK: number,
+    @Req() req: Request,
+  ) {
+    return this.knowledge.search(circleId, req.user.id, q, topK ? Number(topK) : 5);
   }
 
   // ───────── 知识库导出 ─────────

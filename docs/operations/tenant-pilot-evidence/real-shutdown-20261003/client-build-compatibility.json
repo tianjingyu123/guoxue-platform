@@ -1,0 +1,82 @@
+{
+  "sourceHead": "7f150db57e98cea09b3a14b4e37e44e770723373",
+  "builds": [
+    {
+      "name": "independent-h5",
+      "buildSourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "currentBackendSourceHead": "7f150db57e98cea09b3a14b4e37e44e770723373",
+      "buildReceiptSha256": "627e8f1dd77120ad86cb19aec59878432120f571d5a869c5fa341118b743c2fc",
+      "clientSourcesChecked": 11,
+      "outputFilesChecked": 6,
+      "sourceBytesUnchanged": true,
+      "outputHashesMatch": true,
+      "usedAsCompatibilityOnly": true,
+      "production": false
+    },
+    {
+      "name": "independent-weixin",
+      "buildSourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "currentBackendSourceHead": "7f150db57e98cea09b3a14b4e37e44e770723373",
+      "buildReceiptSha256": "dbb284e9e0b62831b8e421e02b9fc41a94026fe8106d3232c4439fea3ab36993",
+      "clientSourcesChecked": 11,
+      "outputFilesChecked": 12,
+      "sourceBytesUnchanged": true,
+      "outputHashesMatch": true,
+      "usedAsCompatibilityOnly": true,
+      "production": false
+    },
+    {
+      "name": "independent-app-resources",
+      "buildSourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "currentBackendSourceHead": "7f150db57e98cea09b3a14b4e37e44e770723373",
+      "buildReceiptSha256": "9391530ec379590c67b8ddfb77f06486ba9137182c8d8a45440cf7ef34ae552b",
+      "clientSourcesChecked": 11,
+      "outputFilesChecked": 18,
+      "sourceBytesUnchanged": true,
+      "outputHashesMatch": true,
+      "usedAsCompatibilityOnly": true,
+      "production": false
+    },
+    {
+      "name": "brand-h5",
+      "buildSourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "currentBackendSourceHead": "7f150db57e98cea09b3a14b4e37e44e770723373",
+      "buildReceiptSha256": "7b41926e0774fb526a7b5d145343ee13bd29d451fa6eef7d5a66a1fe8a695a41",
+      "clientSourcesChecked": 1201,
+      "outputFilesChecked": 1182,
+      "sourceBytesUnchanged": true,
+      "outputHashesMatch": true,
+      "h5": {
+        "brandPageCompiled": true,
+        "brandRouteCompiled": true,
+        "brandPage": "assets/pkg-workspace-managed-store-index.BBuC4mhV.js",
+        "formalRegistration": false
+      },
+      "usedAsCompatibilityOnly": true,
+      "production": false
+    },
+    {
+      "name": "brand-weixin",
+      "buildSourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "currentBackendSourceHead": "7f150db57e98cea09b3a14b4e37e44e770723373",
+      "buildReceiptSha256": "2634d626fa11bb5c1e1d0228adf58f3ad1a772ae70cb4aacb57b1b2823e8bdeb",
+      "clientSourcesChecked": 1201,
+      "outputFilesChecked": 2656,
+      "sourceBytesUnchanged": true,
+      "outputHashesMatch": true,
+      "miniProgram": {
+        "appid": "touristappid",
+        "brandPageCompiled": true,
+        "formalRegistration": false
+      },
+      "usedAsCompatibilityOnly": true,
+      "production": false
+    }
+  ],
+  "originalEvidenceDirectory": "../real-layout-20261003",
+  "production": false,
+  "limits": [
+    "没有重新改写客户端原始构建head；本批仅更改服务端关闭、HTTP入口及验收器",
+    "客户端五类资源及原始UI验收保持此前冻结提交，不冒称本批新真机或渠道验证"
+  ]
+}

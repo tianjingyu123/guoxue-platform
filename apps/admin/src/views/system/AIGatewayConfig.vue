@@ -539,7 +539,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { systemApi, api } from "@/api";
 
 const availableModels = [
@@ -568,16 +568,34 @@ interface SceneBudgetInfo {
 interface SceneBudgets {
   scenes?: Record<string, SceneBudgetInfo>;
 }
+interface GrayReleaseConfig { newModel: string; percentage: number }
+interface BudgetControlConfig { monthlyTokenLimit: number; lightModel: string }
+interface ModelRouteConfig {
+  model: string;
+  fallbackModel: string;
+  temperature: number;
+  maxTokens: number;
+  topP: number;
+  timeoutSec?: number;
+  grayRelease?: GrayReleaseConfig;
+  budgetControl?: BudgetControlConfig;
+}
+interface RoutingConfigResponse { default?: Partial<ModelRouteConfig>; scenes?: Record<string, ModelRouteConfig> }
+interface SceneRow { name: string; config: ModelRouteConfig }
+type SceneEditConfig = Omit<ModelRouteConfig, "grayRelease" | "budgetControl"> & {
+  grayRelease: GrayReleaseConfig;
+  budgetControl: BudgetControlConfig;
+}
+interface SceneEditTarget { name: string; config: SceneEditConfig }
 
 const config = reactive({
   default: { model: "deepseek-v4-flash", fallbackModel: "deepseek-v4-flash", temperature: 0.3, maxTokens: 2048, topP: 0.9, timeoutSec: 5 },
-  // 场景配置结构动态（主模型/备用/灰度/预算等可选字段），保留 any
-  scenes: {} as Record<string, any>,
+  scenes: {} as Record<string, ModelRouteConfig>,
 });
 
 const sceneBudgets = ref<SceneBudgets | null>(null);
 const editDialog = ref(false);
-const editTarget = ref<any>(null);
+const editTarget = ref<SceneEditTarget | null>(null);
 
 const sceneCount = computed(() => Object.keys(config.scenes).length);
 const defaultModel = computed(() => config.default.model);
@@ -587,7 +605,7 @@ const cappedScenes = computed(() => {
 });
 
 const sceneList = computed(() => {
-  return Object.entries(config.scenes).map(([name, cfg]) => ({ name, config: cfg as any }));
+  return Object.entries(config.scenes).map(([name, sceneConfig]) => ({ name, config: sceneConfig }));
 });
 
 const budgetList = computed(() => {
@@ -617,7 +635,7 @@ async function refresh() {
   try {
     // 读取路由配置
     const { data: cfgRes } = await api.get("/ai/routing-config");
-    const cfg = cfgRes as any;
+    const cfg = (cfgRes ?? {}) as RoutingConfigResponse;
     config.default = { ...config.default, ...cfg?.default };
     config.scenes = cfg?.scenes || {};
 
@@ -633,6 +651,15 @@ async function refresh() {
 }
 
 async function saveConfig() {
+  // L3 确认：全平台模型路由变更，影响所有 AI 场景的实时调用（体验标准第七节）
+  const sceneCount = Object.keys(config.scenes).length;
+  try {
+    await ElMessageBox.confirm(
+      `即将保存 AI 模型路由配置：默认模型「${config.default.model}」+ ${sceneCount} 个场景覆写。保存后立即对全平台所有 AI 调用（对话/排盘解析/内容生成等）生效，配置错误可能导致 AI 服务不可用或成本上升。确认保存？`,
+      "全平台路由变更确认",
+      { type: "warning", confirmButtonText: "确认保存", cancelButtonText: "取消" },
+    );
+  } catch { return; }
   saving.value = true;
   try {
     const routingConfig = {
@@ -643,7 +670,9 @@ async function saveConfig() {
       value: JSON.stringify(routingConfig),
       description: "AI模型路由配置",
     });
-    ElMessage.success("路由配置已保存");
+    ElMessage.success("路由配置已保存并生效");
+  } catch {
+    ElMessage.error("保存失败，请重试");
   } finally { saving.value = false; }
 }
 
@@ -669,7 +698,7 @@ function removeScene(index: number) {
   if (name) delete config.scenes[name];
 }
 
-function editScene(row: any) {
+function editScene(row: SceneRow) {
   editTarget.value = {
     name: row.name,
     config: {
@@ -688,16 +717,12 @@ function editScene(row: any) {
 function confirmSceneEdit() {
   if (!editTarget.value) return;
   const { name, config: sceneCfg } = editTarget.value;
+  const { grayRelease, budgetControl, ...baseConfig } = sceneCfg;
+  const savedConfig: ModelRouteConfig = { ...baseConfig };
+  if (grayRelease.newModel && grayRelease.percentage > 0) savedConfig.grayRelease = { ...grayRelease };
+  if (budgetControl.monthlyTokenLimit > 0) savedConfig.budgetControl = { ...budgetControl };
 
-  // 清理空值
-  if (!sceneCfg.grayRelease?.newModel || sceneCfg.grayRelease?.percentage === 0) {
-    delete sceneCfg.grayRelease;
-  }
-  if (!sceneCfg.budgetControl?.monthlyTokenLimit || sceneCfg.budgetControl?.monthlyTokenLimit === 0) {
-    delete sceneCfg.budgetControl;
-  }
-
-  config.scenes[name] = sceneCfg;
+  config.scenes[name] = savedConfig;
   editDialog.value = false;
 }
 </script>

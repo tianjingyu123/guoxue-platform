@@ -35,9 +35,9 @@
               <app-icon name="message-square" :size="36" color="#999999" />
             </view>
             <view class="rp-target-main">
-              <view class="rp-target-meta">
-                <text class="rp-target-author">{{ target.author }}</text>
-                <text class="rp-target-time">{{ target.time }}</text>
+              <view v-if="target.author || target.time" class="rp-target-meta">
+                <text v-if="target.author" class="rp-target-author">{{ target.author }}</text>
+                <text v-if="target.time" class="rp-target-time">{{ target.time }}</text>
               </view>
               <text class="rp-target-content">{{ target.content }}</text>
             </view>
@@ -48,12 +48,14 @@
               <app-icon name="file-text" :size="36" color="#999999" />
             </view>
             <view class="rp-target-main">
-              <view class="rp-target-meta">
-                <view class="rp-avatar rp-avatar-xs">
-                  <text class="rp-avatar-letter">{{ (target.author || '某')[0] }}</text>
+              <!-- 作者/时间来自调用方，可能没有 —— 没有就整行不渲染，
+                   别再兜底成「某」（真机走查里就是它，看着像 bug） -->
+              <view v-if="target.author || target.time" class="rp-target-meta">
+                <view v-if="target.author" class="rp-avatar rp-avatar-xs">
+                  <text class="rp-avatar-letter">{{ target.author[0] }}</text>
                 </view>
-                <text class="rp-target-author">{{ target.author }}</text>
-                <text class="rp-target-time">{{ target.time }}</text>
+                <text v-if="target.author" class="rp-target-author">{{ target.author }}</text>
+                <text v-if="target.time" class="rp-target-time">{{ target.time }}</text>
               </view>
               <text class="rp-target-content">{{ target.content }}</text>
             </view>
@@ -139,9 +141,12 @@
           <app-icon name="check-circle" :size="64" color="#22C55E" />
         </view>
         <text class="rp-success-title">举报已提交</text>
-        <text class="rp-success-desc">感谢你的举报，我们将在24小时内核实处理。如有需要，我们会通过站内信与你联系。</text>
-        <view class="rp-success-btn" @tap="goHome">
-          <text class="rp-success-btn-text">返回首页</text>
+        <text class="rp-success-desc">平台会尽快核实处理。你可以随时查看进度，处理完成后也会收到站内信。</text>
+        <view class="rp-success-btn" @tap="goReportProgress">
+          <text class="rp-success-btn-text">查看处理进度</text>
+        </view>
+        <view class="rp-success-link" @tap="goHome">
+          <text class="rp-success-link-text">返回首页</text>
         </view>
       </view>
     </view>
@@ -149,8 +154,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+/**
+ * 举报页 —— 2026-07-14 真连改造
+ *
+ * 改造前：整页是假的 —— 举报对象是写死的「某用户/这里是被举报内容的摘要片段…」，
+ *   提交是 `setTimeout(800)` 后弹成功，**一个请求都不发**；而且全项目没有任何页面能跳进来。
+ *   后端举报端点（提交/列表/处理/统计）和 admin 举报处理台**早就做完了**，
+ *   结果运营的举报池永远是空的 —— 用户举报不了，平台也看不见违规内容（合规风险）。
+ *
+ * 现在：从调用方接 targetType/targetId（+ 可选摘要），真提交 POST /audit/reports。
+ * 后端 reason 是单个字符串字段、不收图片 —— 所以证据图先传 COS，链接附在 reason 末尾，
+ * 保证运营在后台点得开（不做"传了但丢掉"的假动作）。
+ */
+import { ref, computed, onMounted } from 'vue'
 import { navigateBack, navigateTo } from '@/utils/router'
+import { reportApi, REPORT_TARGET_LABEL, type ReportTargetType } from '@/lib/report-data'
+import { uploadImage } from '@/utils/request'
 
 const statusBarHeight = ref(0)
 try {
@@ -180,35 +199,43 @@ interface ReportTarget {
   name?: string
   description?: string
 }
-// 被举报对象（mock，按 type 区分）
-const targets: Record<string, ReportTarget> = {
-  post: {
-    type: 'post',
-    content: '这里是被举报内容的摘要片段，可能包含违规信息...',
-    author: '某用户',
-    time: '2小时前',
-  },
-  user: {
-    type: 'user',
-    name: '某用户',
-    description: '这是一个可能存在问题的用户账号',
-  },
-  comment: {
-    type: 'comment',
-    content: '这是一条可能违规的评论内容...',
-    author: '评论者',
-    time: '1小时前',
-  },
-}
 
-const targetType = ref('post')
-const target = computed(() => targets[targetType.value] || targets.post)
+/** 举报对象：由调用方通过 url 参数传入（targetType/targetId + 可选摘要），不再是写死的假数据 */
+const targetType = ref<ReportTargetType>('POST')
+const targetId = ref('')
+const targetTitle = ref('')
+const targetAuthor = ref('')
+
+/** 模板里按 type 分支渲染：用户走 user 分支、评论走 comment 分支、其余按内容卡渲染 */
+const target = computed<ReportTarget>(() => {
+  const t = targetType.value
+  const label = REPORT_TARGET_LABEL[t] || '内容'
+  if (t === 'USER') {
+    return { type: 'user', name: targetTitle.value || '该用户', description: `举报该${label}` }
+  }
+  if (t === 'COMMENT') {
+    return { type: 'comment', content: targetTitle.value || `（${label}）`, author: targetAuthor.value || '', time: '' }
+  }
+  return { type: 'post', content: targetTitle.value || `（${label}）`, author: targetAuthor.value || '', time: '' }
+})
+
+onMounted(() => {
+  // uni 的 onLoad 参数在 setup 里通过当前页面栈取，H5/小程序都可用
+  const pages = getCurrentPages()
+  const opts = (pages[pages.length - 1] as unknown as { options?: Record<string, string> })?.options || {}
+  const t = String(opts.targetType || '').toUpperCase()
+  if (t) targetType.value = t as ReportTargetType
+  targetId.value = String(opts.targetId || '')
+  targetTitle.value = decodeURIComponent(String(opts.title || ''))
+  targetAuthor.value = decodeURIComponent(String(opts.author || ''))
+})
 
 const selectedType = ref<string | null>(null)
 const reason = ref('')
 const images = ref<string[]>([])
 const isSubmitting = ref(false)
 const showSuccess = ref(false)
+const submittedReportId = ref('')
 
 const canSubmit = computed(() => {
   return !!selectedType.value && (selectedType.value !== 'other' || reason.value.trim().length > 0)
@@ -228,16 +255,54 @@ function removeImage(index: number) {
   images.value = images.value.filter((_, i) => i !== index)
 }
 
-function handleSubmit() {
+async function handleSubmit() {
   if (!canSubmit.value || isSubmitting.value) {
     if (!selectedType.value) uni.showToast({ title: '请选择举报类型', icon: 'none' })
     return
   }
+  if (!targetId.value) {
+    uni.showToast({ title: '举报对象缺失，请从内容页进入', icon: 'none' })
+    return
+  }
   isSubmitting.value = true
-  setTimeout(() => {
-    isSubmitting.value = false
+  try {
+    // 证据图先传 COS（后端 reason 只有一个文本字段，不收图片数组）
+    let evidence = ''
+    if (images.value.length) {
+      uni.showLoading({ title: '上传凭证…', mask: true })
+      const urls: string[] = []
+      for (const p of images.value) {
+        try {
+          urls.push(await uploadImage(p))
+        } catch {
+          // 单张失败不阻断举报本身
+        }
+      }
+      uni.hideLoading()
+      if (urls.length) evidence = `\n[凭证] ${urls.join(' ')}`
+    }
+
+    const typeLabel = reportTypes.find((r) => r.id === selectedType.value)?.label || selectedType.value
+    const detail = reason.value.trim()
+    const reasonText = `【${typeLabel}】${detail ? detail : ''}${evidence}`.trim()
+
+    const submitted = await reportApi.submit({
+      targetType: targetType.value,
+      targetId: targetId.value,
+      reason: reasonText,
+    })
+    submittedReportId.value = String(submitted.report?.id || submitted.id || '')
     showSuccess.value = true
-  }, 800)
+  } catch (e) {
+    uni.hideLoading()
+    uni.showToast({ title: (e as Error)?.message || '提交失败，请稍后重试', icon: 'none' })
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+function goReportProgress() {
+  navigateTo(submittedReportId.value ? `/report/result/${submittedReportId.value}` : '/report/result')
 }
 
 function goHome() {
@@ -648,5 +713,12 @@ function goBack() {
   font-size: 30rpx;
   font-weight: 500;
   color: #fff;
+}
+.rp-success-link {
+  padding: 28rpx 0 0;
+}
+.rp-success-link-text {
+  font-size: 27rpx;
+  color: #8a8578;
 }
 </style>

@@ -43,6 +43,7 @@ const mockPrisma: any = {
   },
   deviceFingerprint: {
     findMany: jest.fn(),
+    count: jest.fn(),
   },
 };
 
@@ -362,12 +363,14 @@ describe("RiskControlService", () => {
   // ─── 6. 设备指纹 ───
 
   describe("listDeviceFingerprints", () => {
-    it("按userId查询设备列表", async () => {
+    it("按userId查询设备列表（分页返回 data/total）", async () => {
       mockPrisma.deviceFingerprint.findMany.mockResolvedValue([
         { id: "d1", userId: "u1", deviceId: "dev001", platform: "ios" },
       ]);
+      mockPrisma.deviceFingerprint.count.mockResolvedValue(1);
       const result = await svc.listDeviceFingerprints({ userId: "u1" });
-      expect(result).toHaveLength(1);
+      expect(result.data).toHaveLength(1);
+      expect(result.total).toBe(1);
     });
   });
 

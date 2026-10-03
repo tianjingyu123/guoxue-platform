@@ -1,0 +1,86 @@
+{
+  "head": "982e90e41408296f6b74b007bb78a645652ad80a",
+  "sources": {
+    "apps/server/prisma/schema.prisma": "e532e1dca81b31c44e63460a0de4028708f584758aef0065755ac93936c0795f",
+    "apps/server/src/modules/managed-tenancy/managed-lease-identity.ts": "9482044f99266b04d33fda57ef904d2562122469aaacf62df020b5d185671d8b",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "864821d1c5742b30b9f3941e1f712453fd835a71483bd086fdd9d0af7f7c8019",
+    "apps/server/src/modules/managed-tenancy/managed-tenancy.service.ts": "3c3b4727ccf7cf97f4fdebc117d035781bc9f115a241349fa1584130a7a22565",
+    "apps/server/src/modules/auth/auth.service.ts": "9a24d0a91cd77c7bb5a6df466de2d64e0c6cc8748e27093f3a3987fcb21b109a",
+    "pilots/managed-tenancy/verify-local-auth-postgres.mjs": "73732ce8f7b0006e5bc5ca8225740e49015f2810d4a8d468794d5aa67bdc2319"
+  },
+  "node": "v24.17.0",
+  "checks": [
+    {
+      "name": "两个真实客户库独立注册同名账号，无手机号、平台账户或平台角色，未知字段与跨实例选择器拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "bcrypt凭据与仅SHA256刷新摘要入库，HTTP不返回凭据或摘要",
+      "status": "PASS"
+    },
+    {
+      "name": "维护侧真实只读核验后授权客户管理员，普通账号不能提权，授权修订立即撤销旧会话",
+      "status": "PASS"
+    },
+    {
+      "name": "同标识的平台身份不能接管本地账号，平台撤销不影响客户独立会话",
+      "status": "PASS"
+    },
+    {
+      "name": "两个客户进程并发刷新只有一次成功，消费过的凭据及跨客户刷新被拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "并发同名注册仅一个账号成功，失败事务没有遗留用户",
+      "status": "PASS"
+    },
+    {
+      "name": "改密事务撤销原访问与刷新凭据，另一客户同名账号仍可登录",
+      "status": "PASS"
+    },
+    {
+      "name": "客户数据导出排除独立认证密码、刷新摘要和内部认证表",
+      "status": "PASS"
+    },
+    {
+      "name": "超过5000条的真实导出完整分页、无重漏、摘要一致；建立后的写入和修改不影响固定快照",
+      "status": "PASS"
+    },
+    {
+      "name": "分页拒绝内部表、非法页码、错误凭据、另一管理员和另一客户，数据行不能改下载范围",
+      "status": "PASS"
+    },
+    {
+      "name": "分页体积超限整组回滚，不遗留半份导出；过期快照拒绝下载",
+      "status": "PASS"
+    },
+    {
+      "name": "退出只处理本人，并立即撤销所有旧访问及刷新会话",
+      "status": "PASS"
+    },
+    {
+      "name": "PostgreSQL限流跨进程生效，伪造转发IP不能绕过账号次数限制",
+      "status": "PASS"
+    },
+    {
+      "name": "客户运行角色不能插入用户状态、改账号开关、读取平台认证或授平台角色",
+      "status": "PASS"
+    },
+    {
+      "name": "到期保留本地历史登录并停新注册与业务；维护撤销立即拒绝已有与新会话",
+      "status": "PASS"
+    },
+    {
+      "name": "三个认证子进程与全部随机监听端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 16,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本任务三库、三个Nest进程与合成账号；不代表真机渠道或线上认证验收",
+    "限流按真实socket连接与账号执行；生产可信代理配置及独立IP容量仍需环境验收",
+    "账号恢复、可信邮件/短信验证及真实运营支持流程尚未验收"
+  ]
+}

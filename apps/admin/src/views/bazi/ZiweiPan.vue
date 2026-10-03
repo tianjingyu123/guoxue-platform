@@ -23,8 +23,27 @@ const form = reactive({
 
 /** 星曜（用于样式计算，字段宽松 optional） */
 interface ZiweiStar { name?: string; type?: string; liangJi?: string }
-// 排盘结果：来自 axios 响应 data 无类型来源，模板大量裸访问字段，保留 any
-const result = ref<any>(null)
+interface ZiweiGong {
+  name: string
+  gan?: string
+  zhi?: string
+  shenGong?: boolean
+  daXianStart?: number
+  daXianEnd?: number
+  stars?: ZiweiStar[]
+  sanFang?: string[]
+  duiGong?: string
+  gongQi?: string
+}
+interface ZiweiResult {
+  wuXingJu?: string
+  mingGong?: { name?: string; gan?: string; zhi?: string }
+  shenGong?: string
+  geShi?: string[]
+  siHua?: { huaLu?: string; huaQuan?: string; huaKe?: string; huaJi?: string }
+  gongWei: ZiweiGong[]
+}
+const result = ref<ZiweiResult | null>(null)
 const loading = ref(false)
 const error = ref(false)
 

@@ -78,6 +78,10 @@ export class RecommendSceneService {
           id: { not: article.id },
           auditStatus: "APPROVED",
           tags: { hasSome: tags },
+          OR: [
+            { circleId: article.circleId },
+            { visibility: "PLATFORM" },
+          ],
         },
         select: this.selectSvc.articleSelect(),
         take: 10,
@@ -146,7 +150,7 @@ export class RecommendSceneService {
     // 并行查询：课程 + 圈子 + 文章 + 商品 + 视频 + 古籍
     const [courses, circles, articles, products, videos] = await Promise.all([
       this.prisma.course.findMany({
-        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED" },
+        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED", visibility: "PLATFORM" },
         select: this.selectSvc.courseSelect(), take: 4, orderBy: { studentCount: "desc" },
       }),
       this.prisma.circle.findMany({
@@ -154,7 +158,7 @@ export class RecommendSceneService {
         select: this.selectSvc.circleSelect(), take: 4, orderBy: { memberCount: "desc" },
       }),
       this.prisma.article.findMany({
-        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED" },
+        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED", visibility: "PLATFORM" },
         select: this.selectSvc.articleSelect(), take: 4, orderBy: { viewCount: "desc" },
       }),
       this.prisma.product.findMany({
@@ -210,76 +214,64 @@ export class RecommendSceneService {
     return items;
   }
 
-  /** 同城流推荐：基于 LBS + 驿站关联内容 */
+  /** 只推荐所选城市真实驿站关联的公开平台内容，不猜测位置或全国兜底。 */
   private async sceneSameCity(ctx: RecommendContext): Promise<RecommendItem[]> {
-    const items: RecommendItem[] = [];
-
-    const stationWhere: Record<string, unknown> = { status: "ACTIVE" };
-    if (ctx.cityCode) {
-      stationWhere.cityCode = ctx.cityCode;
-    }
-
+    const city = typeof ctx.city === "string" ? ctx.city.trim() : "";
+    if (!city || city.length > 64 || !/^[\p{L}\p{N}\s·-]+$/u.test(city)) return [];
     const stations = await this.prisma.stationOffline.findMany({
-      where: stationWhere,
-      select: { id: true, name: true, city: true },
+      where: { status: "ACTIVE", city },
+      select: { id: true },
       take: 10,
       orderBy: { createdAt: "desc" },
     });
-
-    if (stations.length === 0) return this.coreSvc.sceneFallback(ctx);
-
-    const stationIds = stations.map((s) => s.id);
-
-    // 同城驿站课程
-    const offlineCourses = await this.prisma.offlineCourse.findMany({
-      where: { stationId: { in: stationIds }, status: "APPROVED" },
-      select: { id: true, title: true, cover: true, intro: true, courseId: true, price: true },
-      take: 10,
-      orderBy: { startTime: "desc" },
-    });
-    items.push(...offlineCourses.map((c) => ({
-      id: c.id, type: "COURSE" as const, title: c.title, cover: c.cover ?? undefined,
-      excerpt: c.intro ?? undefined, tags: [], score: 4000,
-      reason: `同城${stations[0]?.city ?? ""}线下课程`, strategies: ["same-city"],
-      metadata: { price: Number(c.price), courseId: c.courseId },
-    })));
-
-    // 同城驿站商品
-    const stationProducts = await this.prisma.stationProduct.findMany({
-      where: { stationId: { in: stationIds }, status: "ACTIVE" },
-      select: { id: true, name: true, price: true, productId: true },
-      take: 6,
-    });
-    items.push(...stationProducts.map((p) => ({
-      id: p.id, type: "PRODUCT" as const, title: p.name, score: 3000,
-      reason: `同城${stations[0]?.city ?? ""}好物`, strategies: ["same-city"],
-      metadata: { price: Number(p.price), productId: p.productId },
-    })));
-
-    // 同城驿站相关文章（通过驿站名匹配）
-    const cityNames = [...new Set(stations.map((s) => s.city).filter(Boolean))];
-    if (cityNames.length > 0) {
-      const articles = await this.prisma.article.findMany({
+    if (stations.length === 0) return [];
+    const stationIds = stations.map((station) => station.id);
+    const [offlineCourses, stationProducts] = await Promise.all([
+      this.prisma.offlineCourse.findMany({
         where: {
-          OR: cityNames.map((c: string) => ({ title: { contains: c } })),
-          auditStatus: "APPROVED",
+          stationId: { in: stationIds }, station: { status: "ACTIVE", city },
+          status: "PUBLISHED", auditStatus: "APPROVED", endTime: { gt: new Date() },
+          courseId: { not: null },
         },
-        select: { id: true, title: true, cover: true, excerpt: true, tags: true, viewCount: true, likeCount: true },
-        take: 6,
-        orderBy: { viewCount: "desc" },
-      });
-      items.push(...articles.map((a) => ({
-        id: a.id, type: "ARTICLE" as const, title: a.title, cover: a.cover ?? undefined,
-        excerpt: a.excerpt ?? undefined, tags: a.tags,
-        score: (a.viewCount ?? 0) * 0.3 + (a.likeCount ?? 0) * 2 + 2000,
-        reason: "同城动态", strategies: ["same-city"],
-        metadata: { viewCount: a.viewCount, likeCount: a.likeCount },
-      })));
-    }
-
-    if (items.length === 0) return this.coreSvc.sceneFallback(ctx);
-    items.sort((a, b) => b.score - a.score);
-    return items;
+        select: { courseId: true }, take: 10, orderBy: { startTime: "asc" },
+      }),
+      this.prisma.stationProduct.findMany({
+        where: {
+          stationId: { in: stationIds }, station: { status: "ACTIVE", city },
+          status: "ACTIVE", stock: { gt: 0 }, productId: { not: null },
+        },
+        select: { productId: true }, take: 6,
+      }),
+    ]);
+    const courseIds = offlineCourses.flatMap((row) => row.courseId ? [row.courseId] : []);
+    const productIds = stationProducts.flatMap((row) => row.productId ? [row.productId] : []);
+    // 此接口沿用 COURSE/PRODUCT 详情契约，必须使用平台真实目标 ID 和当前价格。
+    // 未关联的纯线下资源留给独立线下详情入口，不能将关联行 ID 冒作平台内容 ID。
+    const scope = ctx.stationId ? [{ stationId: null }, { stationId: ctx.stationId }] : [{ stationId: null }];
+    const [courses, products] = await Promise.all([
+      courseIds.length ? this.prisma.course.findMany({
+        where: { id: { in: courseIds }, auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null, OR: scope },
+        select: this.selectSvc.courseSelect(),
+      }) : Promise.resolve([]),
+      productIds.length ? this.prisma.product.findMany({
+        where: { id: { in: productIds }, status: "ON_SALE", deletedAt: null, stock: { gt: 0 }, OR: scope },
+        select: this.selectSvc.productSelect(),
+      }) : Promise.resolve([]),
+    ]);
+    return [
+      ...courses.map((course) => ({
+        id: course.id, type: "COURSE" as const, title: course.title, cover: course.cover ?? undefined,
+        excerpt: course.intro ?? undefined, tags: course.tags, score: 4000,
+        reason: city + "驿站关联课程", strategies: ["same-city"],
+        metadata: { price: Number(course.price), city },
+      })),
+      ...products.map((product) => ({
+        id: product.id, type: "PRODUCT" as const, title: product.title, cover: product.images[0],
+        excerpt: product.intro ?? undefined, tags: product.tags, score: 3000,
+        reason: city + "驿站关联好物", strategies: ["same-city"],
+        metadata: { price: Number(product.price), city },
+      })),
+    ];
   }
 
   private async sceneCourseDetail(ctx: RecommendContext): Promise<RecommendItem[]> {

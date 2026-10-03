@@ -18,6 +18,9 @@ const mockStationSvc = {
   getRevenueDashboard: jest.fn().mockResolvedValue({ revenue: 10000, orders: 50 }),
   getMiniConfig: jest.fn().mockResolvedValue({ appId: "wx123", jumpList: [] }),
   resolveJumpTarget: jest.fn().mockResolvedValue({ appId: "wx456", path: "/pages/index" }),
+  getStationPlan: jest.fn().mockResolvedValue({ price: 999, serviceMonths: 12 }),
+  getOperatorPlan: jest.fn().mockResolvedValue({ level: "SILVER", price: 4999, quotaTotal: 6, serviceMonths: 12 }),
+  getOperatorInvite: jest.fn().mockResolvedValue({ operatorId: "op1", operatorName: "华夏运营中心", availableQuota: 5 }),
 };
 
 describe("StationController", () => {
@@ -42,6 +45,26 @@ describe("StationController", () => {
     expect(mockStationSvc.getBrandByCode).toHaveBeenCalledWith("ABC123");
   });
 
+  it("GET /station/station-plan — 公开返回服务端真实站长方案", async () => {
+    const result: any = await ctrl.getStationPlan();
+    expect(result.price).toBe(999);
+    expect(result.serviceMonths).toBe(12);
+    expect(mockStationSvc.getStationPlan).toHaveBeenCalled();
+  });
+
+  it("GET /station/operator-plan — 公开返回服务端真实方案", async () => {
+    const result: any = await ctrl.getOperatorPlan();
+    expect(result.price).toBe(4999);
+    expect(result.serviceMonths).toBe(12);
+    expect(mockStationSvc.getOperatorPlan).toHaveBeenCalled();
+  });
+
+  it("GET /station/operator-invite/:id — 公开校验运营商邀请", async () => {
+    const result: any = await ctrl.getOperatorInvite("op1");
+    expect(result.operatorName).toBe("华夏运营中心");
+    expect(mockStationSvc.getOperatorInvite).toHaveBeenCalledWith("op1");
+  });
+
   it("GET /station/:id/brand — 分站品牌配置", async () => {
     const result: any = await ctrl.getBrand("s1");
     expect(result.id).toBe("s1");
@@ -59,7 +82,7 @@ describe("StationController", () => {
   it("GET /station — 分站列表", async () => {
     const result: any = await ctrl.listStations(1 as any, 20 as any);
     expect(result).toHaveLength(1);
-    expect(mockStationSvc.listStations).toHaveBeenCalledWith(1, 20);
+    expect(mockStationSvc.listStations).toHaveBeenCalledWith(1, 20, undefined);
   });
 
   it("GET /station/:id — 分站详情", async () => {

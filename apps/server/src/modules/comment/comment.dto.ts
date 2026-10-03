@@ -33,12 +33,12 @@ export class BatchHideDto {
 
 export class CommentQueryDto {
   @IsString()
-  @IsOptional()
-  targetType?: string;
+  @MinLength(1)
+  targetType: string;
 
-  @IsOptional()
   @IsString()
-  targetId?: string;
+  @MinLength(1)
+  targetId: string;
 
   @Type(() => Number)
   @IsInt()

@@ -1,0 +1,206 @@
+/** 汇付官方 A_NATIVE Android 方案；二维码不是支付宝 SDK 的 orderString。
+ * https://paas.huifu.com/help/dev_guide/zf/zfb/app.md
+ */
+export function buildAlipayNativeUrl(value: unknown): string {
+  // 支付链接必须拒绝控制字符；这里明确匹配字符范围，保留安全边界。
+  // eslint-disable-next-line no-control-regex
+  if (typeof value !== 'string' || value.length > 1024 || /[\s\\\u0000-\u001f\u007f]/.test(value)) {
+    throw new Error('支付宝支付链接无效')
+  }
+  // 严格原串匹配，避免 URL 规范化掩盖用户信息、端口、转义主机和混淆域名。
+  if (!/^https:\/\/qr\.alipay\.com\/[A-Za-z0-9][A-Za-z0-9/_?=&%+.,~-]*$/.test(value)) {
+    throw new Error('支付宝支付链接无效')
+  }
+  return `alipays://platformapi/startapp?saId=10000007&qrcode=${encodeURIComponent(value)}`
+}
+
+type AlipayOpenRuntime = {
+  android?: {
+    importClass(name: string): any
+    runtimeMainActivity(): unknown
+    implements(name: string, methods: Record<string, (...args: any[]) => void>): unknown
+  }
+  runtime: { openURL(url: string, failed: () => void): void }
+}
+
+/**
+ * 优先使用支付宝官方 SDK 的 H5→Native 拦截器处理汇付 A_NATIVE 链接。
+ * 云打包未包含支付宝 SDK 或旧 SDK 不支持该接口时，才退回已经实付验证的支付宝扫码 Scheme。
+ */
+export function openHuifuAlipayWithSdk(
+  value: unknown,
+  runtime: AlipayOpenRuntime,
+  failed: () => void,
+  onReturned: () => void = () => {},
+): 'sdk' | 'scheme' {
+  const qrCode = String(value || '')
+  buildAlipayNativeUrl(qrCode)
+  try {
+    if (!runtime.android) throw new Error('ANDROID_BRIDGE_UNAVAILABLE')
+    const PayTask = runtime.android.importClass('com.alipay.sdk.app.PayTask')
+    const callback = runtime.android.implements('com.alipay.sdk.app.H5PayCallback', {
+      onPayResult: () => onReturned(),
+    })
+    const task = new PayTask(runtime.android.runtimeMainActivity())
+    if (task.payInterceptorWithUrl(qrCode, true, callback) === true) return 'sdk'
+  } catch { /* 老包继续走已经验证的直接拉起方案 */ }
+  runtime.runtime.openURL(buildAlipayNativeUrl(qrCode), failed)
+  return 'scheme'
+}
+
+export interface AlipayOrderState {
+  id: string
+  amount: number | string
+  status: string
+  payMethod?: string | null
+  payTransactionId?: string | null
+  type?: string
+  targetId?: string
+}
+export interface AlipayAttempt {
+  orderId: string
+  requestedAt: number
+  outTradeNo?: string
+  qrCode?: string
+}
+export type AlipayPhase = 'ready' | 'checking' | 'pending' | 'openFailed' | 'unknown' | 'success' | 'closed' | 'unsupported'
+export interface AlipayView { phase: AlipayPhase; busy: boolean; canOpen: boolean; message: string }
+interface Dependencies {
+  orderId: string
+  platform: string
+  readOrder(fresh?: boolean): Promise<AlipayOrderState>
+  createPayment(): Promise<{ outTradeNo?: string; qrCode?: string }>
+  queryPayment(outTradeNo: string): Promise<unknown>
+  load(): AlipayAttempt | null
+  save(attempt: AlipayAttempt): void
+  openUrl(url: string, failed: () => void): void
+  update(view: AlipayView): void
+  paid(order: AlipayOrderState): void
+  now(): number
+  active(): boolean
+}
+
+/** 单订单状态机：只认服务端订单状态；重试只打开原凭据，未知下单结果不重发。 */
+export function createAlipayNativePayment(d: Dependencies) {
+  let busy = false
+  let disposed = false
+  let completed = false
+  let openGeneration = 0
+  let lastFresh = -Infinity
+  const freshReads: number[] = []
+  let attempt: AlipayAttempt | null = null
+  let phase: AlipayPhase = 'ready'
+  let message = '请前往支付宝完成付款'
+  try {
+    const saved = d.load()
+    if (saved?.orderId === d.orderId && Number.isFinite(saved.requestedAt)) attempt = saved
+  } catch { /* 存储不可读时由服务端订单支付记录阻止重复发起 */ }
+  const validQr = () => {
+    try {
+      if (!attempt?.outTradeNo || d.now() - attempt.requestedAt >= 2 * 60 * 60 * 1000 || d.now() < attempt.requestedAt) return false
+      buildAlipayNativeUrl(attempt.qrCode)
+      return true
+    } catch { return false }
+  }
+  function show(next: AlipayPhase, text: string) {
+    phase = next
+    message = text
+    if (!disposed) d.update({ phase, message, busy, canOpen: !completed && phase !== 'closed' && phase !== 'unsupported' && validQr() })
+  }
+  function acceptOrder(order: AlipayOrderState): boolean {
+    if (disposed || !d.active()) return true
+    if (order.id !== d.orderId || !Number.isFinite(Number(order.amount)) || Number(order.amount) < 0) throw new Error('订单信息无效')
+    if (['PAID', 'SHIPPED', 'COMPLETED'].includes(order.status)) {
+      completed = true
+      show('success', '支付结果已由服务端确认')
+      d.paid(order)
+      return true
+    }
+    if (order.status !== 'PENDING') {
+      show('closed', '订单当前不可支付，请返回订单查看')
+      return true
+    }
+    return false
+  }
+  async function run(action: () => Promise<void>) {
+    if (disposed || busy || completed || !d.active()) return
+    if (d.platform.toLowerCase() !== 'android') {
+      show('unsupported', '当前设备暂不支持此支付宝付款方式，请返回订单选择其他方式')
+      return
+    }
+    busy = true
+    show('checking', '正在核对订单…')
+    try { await action() } catch {
+      show('unknown', '暂未确认支付结果，请查询原订单后再试')
+    } finally {
+      busy = false
+      show(phase, message)
+    }
+  }
+  // /current 每分钟限流10次；本页最多8次，普通轮询每10秒才直读一次。
+  async function read(fresh = false, required = false) {
+    const now = d.now()
+    while (freshReads.length && now - freshReads[0] >= 60000) freshReads.shift()
+    const direct = fresh && freshReads.length < 8 && (required || now - lastFresh >= 10000)
+    if (required && !direct) throw new Error('请稍后重试查询')
+    if (direct) { freshReads.push(now); lastFresh = now }
+    return d.readOrder(direct)
+  }
+  async function check() {
+    await run(async () => {
+      const order = await read(true)
+      if (acceptOrder(order)) return
+      // 只用本人订单保存的汇付交易号查单，不能使用任意本地缓存交易号。
+      if (order.payMethod === 'HUIFU' && order.payTransactionId) {
+        let queryFailed = false
+        try { await d.queryPayment(order.payTransactionId) } catch { queryFailed = true }
+        // 通道查单异常仍检查本地订单，异步通知可能已完成入账。
+        if (acceptOrder(await read(true))) return
+        if (queryFailed) throw new Error('通道查单暂不可用')
+      }
+      show('pending', '尚未确认付款；如已付款请稍后再查，取消付款可重试原订单')
+    })
+  }
+  async function open(allowCreate = false) {
+    await run(async () => {
+      let order = await read(true, true)
+      if (acceptOrder(order)) return
+      if (order.payTransactionId && order.payMethod !== 'HUIFU') {
+        show('closed', '订单已使用其他支付方式，请返回订单确认支付结果')
+        return
+      }
+      // 同一订单的另一页面实例可能刚发起请求，创建前重新检查持久化标记。
+      const latest = d.load()
+      if (latest) {
+        if (latest.orderId !== d.orderId || !Number.isFinite(latest.requestedAt)) throw new Error('支付缓存无效')
+        attempt = latest
+      }
+      if (!attempt && !order.payTransactionId && allowCreate) {
+        // 先持久化请求标记；网络超时或退出页面后再进，不创建第二笔支付。
+        attempt = { orderId: d.orderId, requestedAt: d.now() }
+        d.save(attempt)
+        if (disposed || !d.active()) return
+        const pay = await d.createPayment()
+        if (typeof pay.outTradeNo !== 'string' || !pay.outTradeNo) throw new Error('支付查询凭据缺失')
+        buildAlipayNativeUrl(pay.qrCode)
+        attempt = { ...attempt, outTradeNo: pay.outTradeNo, qrCode: pay.qrCode }
+        d.save(attempt)
+        if (disposed || !d.active()) return
+        order = await read(true, true)
+        if (acceptOrder(order)) return
+      }
+      if (!validQr() || order.payMethod !== 'HUIFU' || order.payTransactionId !== attempt?.outTradeNo) {
+        show('unknown', '支付凭据暂不可用，请查询原订单或返回订单处理；不会重复发起付款')
+        return
+      }
+      if (disposed || !d.active()) return
+      show('pending', '请在支付宝完成付款，返回后将自动核对结果')
+      const generation = ++openGeneration
+      // openURL 没有支付成功回调；错误回调可能异步到达。
+      d.openUrl(buildAlipayNativeUrl(attempt?.qrCode), () => {
+        if (!disposed && !completed && phase !== 'closed' && generation === openGeneration) show('openFailed', '未能打开支付宝，请确认已安装；可重试打开原订单')
+      })
+    })
+  }
+  return { start: () => open(true), reopen: () => open(false), check, dispose: () => { disposed = true } }
+}

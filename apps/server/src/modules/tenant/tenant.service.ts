@@ -1,6 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Cron } from "@nestjs/schedule";
 import { randomUUID, createHash } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { CreateTenantDto, UpdateTenantDto, TenantRechargeDto, TenantConsumeDto, TenantListDto } from "./tenant.dto";
@@ -10,7 +12,22 @@ import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 export class TenantService {
   private readonly logger = new Logger(TenantService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {}
+
+  /**
+   * 每月 1 号 0 点自动重置月度配额（分布式锁防多实例重复跑）。
+   * 修复(后端审计#6)：resetMonthlyQuotas 原注释"定时任务调用"但全库无 @Cron →
+   * quotaUsed 永不自动归零，次月配额耗尽/计费失真。此处补上调度器。
+   */
+  @Cron("0 0 1 * *")
+  async monthlyQuotaResetCron() {
+    await this.redis.runExclusive("tenant_monthly_quota_reset", 300, async () => {
+      await this.resetMonthlyQuotas();
+    });
+  }
 
   // ───────── 管理 CRUD ─────────
 

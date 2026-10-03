@@ -15,6 +15,8 @@ describe("BountyService", () => {
         updateMany: jest.fn(),
         count: jest.fn(),
       },
+      // 圈子治理 #10：圈内悬赏创建前禁言直查（默认无禁言）
+      circleViolation: { findFirst: jest.fn().mockResolvedValue(null) },
       $transaction: jest.fn((arg: any) => typeof arg === "function" ? arg(prisma) : Promise.all(arg)),
     };
 
@@ -47,12 +49,34 @@ describe("BountyService", () => {
       const result = await svc.createQuestion("u1", dto);
 
       expect(result.circleId).toBe("c1");
+      // 带 circleId 才做禁言直查，且限定本圈生效禁言
+      expect(prisma.circleViolation.findFirst).toHaveBeenCalledTimes(1);
+      expect(prisma.circleViolation.findFirst.mock.calls[0][0].where).toMatchObject({
+        circleId: "c1", userId: "u1", type: "MUTE", status: "ACTIVE",
+      });
+    });
+
+    // 圈子治理 #10（2026-07-11）：被禁言成员在该圈内不能发布悬赏
+    it("圈内禁言中：发布悬赏被拦且不建记录", async () => {
+      prisma.circleViolation.findFirst.mockResolvedValue({ expiresAt: new Date(Date.now() + 86400000) });
+      const dto = { title: "风水问题", description: "布局", bountyCoin: 200, category: "FENGSHUI", circleId: "c1" };
+      await expect(svc.createQuestion("u1", dto)).rejects.toThrow("禁言");
+      expect(prisma.bountyQuestion.create).not.toHaveBeenCalled();
+    });
+
+    it("不带 circleId 的平台悬赏不受圈内禁言影响", async () => {
+      prisma.circleViolation.findFirst.mockResolvedValue({ expiresAt: new Date(Date.now() + 86400000) });
+      prisma.bountyQuestion.create.mockResolvedValue({ id: "q3", status: "OPEN" });
+      const dto = { title: "平台悬赏", description: "无圈", bountyCoin: 100, category: "BAZI" };
+      const result = await svc.createQuestion("u1", dto);
+      expect(result.id).toBe("q3");
+      expect(prisma.circleViolation.findFirst).not.toHaveBeenCalled();
     });
   });
 
   describe("claim", () => {
     it("抢答OPEN状态的悬赏", async () => {
-      prisma.bountyQuestion.findUnique.mockResolvedValue({ id: "q1", status: "OPEN", askerId: "u1" });
+      prisma.bountyQuestion.findUnique.mockResolvedValue({ id: "q1", status: "OPEN", askerId: "u1", createdAt: new Date() });
       prisma.bountyQuestion.update.mockResolvedValue({
         id: "q1", status: "CLAIMED", answererId: "u2", lockExpireAt: new Date(),
       });
@@ -60,6 +84,13 @@ describe("BountyService", () => {
       const result = await svc.claim("u2", "q1");
       expect(result.status).toBe("CLAIMED");
       expect(result.answererId).toBe("u2");
+    });
+
+    it("超过48小时有效期的悬赏不可抢答（董事长拍板 2026-07-10）", async () => {
+      prisma.bountyQuestion.findUnique.mockResolvedValue({
+        id: "q1", status: "OPEN", askerId: "u1", createdAt: new Date(Date.now() - 49 * 3600 * 1000),
+      });
+      await expect(svc.claim("u2", "q1")).rejects.toThrow(BusinessException);
     });
 
     it("不能抢答自己的悬赏", async () => {
@@ -163,7 +194,25 @@ describe("BountyService", () => {
 
       await svc.list(1, 20, "BAZI");
       expect(prisma.bountyQuestion.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { category: "BAZI" } }),
+        expect.objectContaining({
+          where: {
+            category: "BAZI",
+            status: { in: ["OPEN", "CLAIMED", "ANSWERED", "SETTLED"] },
+          },
+        }),
+      );
+    });
+
+    it("公开列表不允许通过状态参数探测已关闭或已退款记录", async () => {
+      prisma.bountyQuestion.findMany.mockResolvedValue([]);
+      prisma.bountyQuestion.count.mockResolvedValue(0);
+
+      await svc.list(1, 20, undefined, "CLOSED");
+
+      expect(prisma.bountyQuestion.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { status: { in: ["OPEN", "CLAIMED", "ANSWERED", "SETTLED"] } },
+        }),
       );
     });
 
@@ -173,6 +222,51 @@ describe("BountyService", () => {
       await svc.list("abc" as any, 20);
       const arg = prisma.bountyQuestion.findMany.mock.calls[0][0];
       expect(Number.isNaN(arg.skip)).toBe(false);
+    });
+  });
+
+  describe("closeQuestion", () => {
+    it("按悬赏业务单号原子解冻并持久化关闭证据", async () => {
+      const coin = { unfreeze: jest.fn().mockResolvedValue({}) };
+      svc = new BountyService(
+        prisma,
+        { runExclusive: (_k: string, _t: number, fn: () => unknown) => fn() } as any,
+        coin as any,
+      );
+      prisma.bountyQuestion.findUnique.mockResolvedValue({
+        id: "q1",
+        status: "OPEN",
+        askerId: "u1",
+        bountyCoin: 100,
+      });
+      prisma.bountyQuestion.update.mockResolvedValue({ id: "q1", status: "CLOSED" });
+
+      await svc.closeQuestion("q1", " 违规内容 ", "admin-1");
+
+      expect(coin.unfreeze).toHaveBeenCalledWith("u1", 100, "q1", prisma);
+      expect(prisma.bountyQuestion.update).toHaveBeenCalledWith({
+        where: { id: "q1" },
+        data: expect.objectContaining({
+          status: "CLOSED",
+          closeReason: "违规内容",
+          closedBy: "admin-1",
+          closedAt: expect.any(Date),
+        }),
+      });
+    });
+
+    it("禁止直接关闭已有待结算回答的悬赏", async () => {
+      prisma.bountyQuestion.findUnique.mockResolvedValue({
+        id: "q1",
+        status: "ANSWERED",
+        askerId: "u1",
+        bountyCoin: 100,
+      });
+
+      await expect(
+        svc.closeQuestion("q1", "内容违规", "admin-1"),
+      ).rejects.toThrow("先完成赏金归属处理");
+      expect(prisma.bountyQuestion.update).not.toHaveBeenCalled();
     });
   });
 

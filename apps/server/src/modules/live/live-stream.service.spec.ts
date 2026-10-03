@@ -58,4 +58,68 @@ describe("LiveStreamService", () => {
       expect(info.playDomain).toBe("play.example.com")
     })
   })
+
+  describe("运行时配置热更新", () => {
+    it("单例创建后保存的第三方配置可立即生效", () => {
+      const originalPushDomain = process.env.LIVE_PUSH_DOMAIN
+      const originalPlayDomain = process.env.LIVE_PLAY_DOMAIN
+      const originalAppName = process.env.LIVE_APP_NAME
+
+      try {
+        process.env.LIVE_PUSH_DOMAIN = "hot-push.example.com"
+        process.env.LIVE_PLAY_DOMAIN = "hot-play.example.com"
+        process.env.LIVE_APP_NAME = "hot-live"
+
+        expect(svc.genPushUrl("room-hot")).toContain(
+          "rtmp://hot-push.example.com/hot-live/room-hot",
+        )
+        expect(svc.genPlayUrls("room-hot").hls).toBe(
+          "https://hot-play.example.com/hot-live/room-hot.m3u8",
+        )
+        expect(svc.getCallbackInfo()).toEqual({
+          pushDomain: "hot-push.example.com",
+          playDomain: "hot-play.example.com",
+        })
+      } finally {
+        process.env.LIVE_PUSH_DOMAIN = originalPushDomain
+        process.env.LIVE_PLAY_DOMAIN = originalPlayDomain
+        process.env.LIVE_APP_NAME = originalAppName
+      }
+    })
+  })
+
+  describe("密钥缺失保护", () => {
+    it("缺少密钥时拒绝生成鉴权地址并拒绝回调", () => {
+      const originalPushKey = process.env.LIVE_PUSH_KEY
+      const originalPlayKey = process.env.LIVE_PLAY_KEY
+
+      try {
+        process.env.LIVE_PUSH_KEY = ""
+        process.env.LIVE_PLAY_KEY = ""
+
+        expect(svc.genPushUrl("room-no-key")).toBe("")
+        expect(svc.genPlayUrlWithAuth("room-no-key", "u1")).toEqual({
+          flv: "",
+          hls: "",
+        })
+        expect(svc.verifyCallbackSign({ action: "publish" }, "anything")).toBe(false)
+      } finally {
+        process.env.LIVE_PUSH_KEY = originalPushKey
+        process.env.LIVE_PLAY_KEY = originalPlayKey
+      }
+    })
+  })
+
+  describe("就绪状态", () => {
+    it("要求推拉流域名和两项鉴权密钥全部存在", () => {
+      expect(svc.isReady()).toBe(true)
+      const originalPlayKey = process.env.LIVE_PLAY_KEY
+      try {
+        process.env.LIVE_PLAY_KEY = ""
+        expect(svc.isReady()).toBe(false)
+      } finally {
+        process.env.LIVE_PLAY_KEY = originalPlayKey
+      }
+    })
+  })
 })

@@ -1,0 +1,242 @@
+{
+  "source": "用户提供热卜LOGO.jpg（原样）",
+  "sourceSha256": "b7155b8a9d56aff9ccc1ef5b5b50c5c1a539d18d79d46555787a48eae4042175",
+  "slotCount": 26,
+  "slots": [
+    {
+      "slot": "app-plus.icons.android.ldpi",
+      "path": "unpackage/res/icons/48x48.png",
+      "width": 48,
+      "height": 48,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "bec4a696e47b3d90dccbdb1f4bf9ccac2b798f2d945f85762896da7646d7f845"
+    },
+    {
+      "slot": "app-plus.icons.android.mdpi",
+      "path": "unpackage/res/icons/48x48.png",
+      "width": 48,
+      "height": 48,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "bec4a696e47b3d90dccbdb1f4bf9ccac2b798f2d945f85762896da7646d7f845"
+    },
+    {
+      "slot": "app-plus.icons.android.hdpi",
+      "path": "unpackage/res/icons/72x72.png",
+      "width": 72,
+      "height": 72,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "9d7c5e64573cd09c303eee4fbe399788db19d5f57352d542a501f76e96763467"
+    },
+    {
+      "slot": "app-plus.icons.android.xhdpi",
+      "path": "unpackage/res/icons/96x96.png",
+      "width": 96,
+      "height": 96,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "65a5c6bc8167292cad9eae6905e7305dea3a21f7e856ed0130ac77a8ef4b96fe"
+    },
+    {
+      "slot": "app-plus.icons.android.xxhdpi",
+      "path": "unpackage/res/icons/144x144.png",
+      "width": 144,
+      "height": 144,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "9b4e11a9449a5815729707770c04e00dc97d673b5ad12c430b3c1809ec03e303"
+    },
+    {
+      "slot": "app-plus.icons.android.xxxhdpi",
+      "path": "unpackage/res/icons/192x192.png",
+      "width": 192,
+      "height": 192,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "1d8fbe4aa819100ce2e371504147a03b46afc2b2a30b397793ff88874c4775c2"
+    },
+    {
+      "slot": "app-plus.icons.ios.appstore",
+      "path": "unpackage/res/icons/1024x1024.png",
+      "width": 1024,
+      "height": 1024,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "349d823af01c212171bc7c4d37370ed3bd58157c0d56c647b2c2e5d1c4b2d150"
+    },
+    {
+      "slot": "app-plus.icons.ios.iphone.app@2x",
+      "path": "unpackage/res/icons/120x120.png",
+      "width": 120,
+      "height": 120,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "3d17a472255030fe2262991b8e93459deb5ce914c122ee12d02d7005f9a36fb0"
+    },
+    {
+      "slot": "app-plus.icons.ios.iphone.app@3x",
+      "path": "unpackage/res/icons/180x180.png",
+      "width": 180,
+      "height": 180,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "417dc51fc20403ca0efbb92a5897e83adf40cedd936cf4eeec3fa92d945d86fa"
+    },
+    {
+      "slot": "app-plus.icons.ios.iphone.notification@2x",
+      "path": "unpackage/res/icons/40x40.png",
+      "width": 40,
+      "height": 40,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "c0af14a31c3e96225f5340297554682f6d384949daa5ef03f88e215921bd34c2"
+    },
+    {
+      "slot": "app-plus.icons.ios.iphone.notification@3x",
+      "path": "unpackage/res/icons/60x60.png",
+      "width": 60,
+      "height": 60,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "f8385cc6cca87cfde93be4e08201f484f17db750e9d9ab02e4f041038b97e8bb"
+    },
+    {
+      "slot": "app-plus.icons.ios.iphone.settings@2x",
+      "path": "unpackage/res/icons/58x58.png",
+      "width": 58,
+      "height": 58,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "3b13074bbf78bfe6f67ab8db7614eebaa33bb382c453e539723b389a76d79f73"
+    },
+    {
+      "slot": "app-plus.icons.ios.iphone.settings@3x",
+      "path": "unpackage/res/icons/87x87.png",
+      "width": 87,
+      "height": 87,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "a450e2b0f104748e101b6ca81ac68610beb5cdafea43d47d608621414cb395ae"
+    },
+    {
+      "slot": "app-plus.icons.ios.iphone.spotlight@2x",
+      "path": "unpackage/res/icons/80x80.png",
+      "width": 80,
+      "height": 80,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "2411c2f5b018450baf03115009bc0f4008e3e5251fd6083c553b2b7b61afb353"
+    },
+    {
+      "slot": "app-plus.icons.ios.iphone.spotlight@3x",
+      "path": "unpackage/res/icons/120x120.png",
+      "width": 120,
+      "height": 120,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "3d17a472255030fe2262991b8e93459deb5ce914c122ee12d02d7005f9a36fb0"
+    },
+    {
+      "slot": "app-plus.icons.ios.ipad.app",
+      "path": "unpackage/res/icons/76x76.png",
+      "width": 76,
+      "height": 76,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "8b54166de8c87e12ef9c69eb878a48bdd30ac3e101198f99ee66d67803a24f0f"
+    },
+    {
+      "slot": "app-plus.icons.ios.ipad.app@2x",
+      "path": "unpackage/res/icons/152x152.png",
+      "width": 152,
+      "height": 152,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "8fff041b14eb122af290f9140b2d3e3ae7346214b085f55b152c03793c77270c"
+    },
+    {
+      "slot": "app-plus.icons.ios.ipad.notification",
+      "path": "unpackage/res/icons/20x20.png",
+      "width": 20,
+      "height": 20,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "572054bfb12bce257992b691c28f3da0d0e8fe54023f02812f7060eacc7922d0"
+    },
+    {
+      "slot": "app-plus.icons.ios.ipad.notification@2x",
+      "path": "unpackage/res/icons/40x40.png",
+      "width": 40,
+      "height": 40,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "c0af14a31c3e96225f5340297554682f6d384949daa5ef03f88e215921bd34c2"
+    },
+    {
+      "slot": "app-plus.icons.ios.ipad.proapp@2x",
+      "path": "unpackage/res/icons/167x167.png",
+      "width": 167,
+      "height": 167,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "a44a0302010564582580e0db25ff9706c97f618d023f305a4408250010e838ed"
+    },
+    {
+      "slot": "app-plus.icons.ios.ipad.settings",
+      "path": "unpackage/res/icons/29x29.png",
+      "width": 29,
+      "height": 29,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "1abc6320d79ca2f4406c2abf705063510d07a54656cd43c0eb84ee3ef5c1a769"
+    },
+    {
+      "slot": "app-plus.icons.ios.ipad.settings@2x",
+      "path": "unpackage/res/icons/58x58.png",
+      "width": 58,
+      "height": 58,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "3b13074bbf78bfe6f67ab8db7614eebaa33bb382c453e539723b389a76d79f73"
+    },
+    {
+      "slot": "app-plus.icons.ios.ipad.spotlight",
+      "path": "unpackage/res/icons/40x40.png",
+      "width": 40,
+      "height": 40,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "c0af14a31c3e96225f5340297554682f6d384949daa5ef03f88e215921bd34c2"
+    },
+    {
+      "slot": "app-plus.icons.ios.ipad.spotlight@2x",
+      "path": "unpackage/res/icons/80x80.png",
+      "width": 80,
+      "height": 80,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "2411c2f5b018450baf03115009bc0f4008e3e5251fd6083c553b2b7b61afb353"
+    },
+    {
+      "slot": "app-harmony.icons.foreground",
+      "path": "unpackage/res/icons/1024x1024.png",
+      "width": 1024,
+      "height": 1024,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "349d823af01c212171bc7c4d37370ed3bd58157c0d56c647b2c2e5d1c4b2d150"
+    },
+    {
+      "slot": "app-harmony.icons.background",
+      "path": "unpackage/res/icons/harmony-background.png",
+      "width": 1024,
+      "height": 1024,
+      "format": "png",
+      "hasAlpha": false,
+      "sha256": "206299340d60c788e43fae152dded3927293e288e337ba0550ceba6280a26dd3"
+    }
+  ],
+  "nativePackageVerified": false
+}

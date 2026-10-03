@@ -1,13 +1,30 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { PushService } from "./push.service";
-import { SendNotificationDto, BatchSendDto } from "./notification.dto";
+import { PushAudienceService } from "../user/push-audience.service";
+import { SendNotificationDto, BatchSendDto, BroadcastDto, CIRCLE_NOTIFICATION_CATEGORIES } from "./notification.dto";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { Prisma } from "@prisma/client";
 
 const PREFS_TTL = 86400 * 30;
+
+/** 圈内通知列表行；分类与通知同次持久化，筛选列表沿用原生 SQL。 */
+export interface CircleNotificationRow {
+  id: string;
+  type: string;
+  category: string;
+  circleId: string | null;
+  title: string;
+  content: string;
+  targetType: string | null;
+  targetId: string | null;
+  isRead: boolean;
+  createdAt: Date;
+}
 
 @Injectable()
 export class NotificationService {
@@ -17,84 +34,236 @@ export class NotificationService {
     private prisma: PrismaService,
     private redis: RedisService,
     private push: PushService,
+    private audience: PushAudienceService,
   ) {}
 
   /** 给单个用户发送通知（DB存储 + 推送通道） */
   async send(userId: string, dto: SendNotificationDto) {
-    // 1. 写入DB
+    const notification = await this.persistNotification(userId, dto);
+    await this.pushPersistedNotification(userId, dto);
+    return notification;
+  }
+
+  /** 只有站内通知成功持久化，业务调用方才可确认通知已建立。 */
+  private async persistNotification(userId: string, dto: SendNotificationDto) {
+    // 分类与正文在同一次INSERT写入，避免通知成功后补写失败或批量串标。
     const notification = await this.prisma.notification.create({
       data: {
         userId,
+        idempotencyKey: dto.idempotencyKey ? `${userId}:${dto.idempotencyKey}` : null,
         type: dto.type,
         title: dto.title,
         content: dto.content,
         targetType: dto.targetType,
         targetId: dto.targetId,
+        ...this.circleClassification(dto),
       },
     });
-
-    // 2. 检查用户推送偏好，关闭则不推送
-    const prefs = await this.getPreferences(userId);
-    if (prefs.PUSH_ENABLED === false) {
-      this.logger.debug(`用户 ${userId} 已关闭推送，跳过`);
-      return notification;
-    }
-
-    // 3. 通过推送通道发送
-    await this.sendPushIfPossible(userId, dto);
 
     return notification;
   }
 
-  /** 批量发送通知 */
-  async batchSend(dto: BatchSendDto) {
-    const data = dto.userIds.map(userId => ({
+  /** 保留既有语义：只接收四类圈内分类，不单独采用circleId，不改写历史通知。 */
+  private circleClassification(dto: Pick<SendNotificationDto, "category" | "circleId">) {
+    return dto.category && (CIRCLE_NOTIFICATION_CATEGORIES as readonly string[]).includes(dto.category)
+      ? { category: dto.category, circleId: dto.circleId ?? null }
+      : {};
+  }
+
+  /** 可选推送独立于持久化；其失败不能导致已落库通知被再次创建。 */
+  private async pushPersistedNotification(userId: string, dto: SendNotificationDto): Promise<void> {
+    try {
+      const prefs = await this.getPreferences(userId);
+      if (prefs.PUSH_ENABLED === false) {
+        this.logger.debug(`用户 ${userId} 已关闭推送，跳过`);
+      } else {
+        await this.sendPushIfPossible(userId, dto);
+      }
+    } catch (err) {
+      this.logger.warn(`通知已落库，但推送准备失败 user=${userId}`, err);
+    }
+  }
+
+  /**
+   * 关键业务事件的幂等发送。幂等键只在成功落库后保留；落库失败会释放，便于任务重试。
+   * 成功落库后不等待可选推送准备，避免支付、退款结果被推送偏好或渠道响应拖住。
+   * 普通 send 的等待语义不变；这里不承诺进程退出后的推送补偿。
+   */
+  async sendOnce(userId: string, idempotencyKey: string, dto: SendNotificationDto) {
+    if (!idempotencyKey.trim()) throw new BusinessException(ErrorCode.BAD_REQUEST, "通知幂等键不能为空");
+    if (`${userId}:${idempotencyKey}`.length > 255) throw new BusinessException(ErrorCode.BAD_REQUEST, "通知幂等键过长");
+    const key = `notification:sent:${userId}:${idempotencyKey}`;
+    const claimed = await this.redis.setNX(key, "1", PREFS_TTL);
+    if (!claimed) return null;
+    try {
+      const keyedDto = { ...dto, idempotencyKey };
+      const notification = await this.persistNotification(userId, keyedDto);
+      // 错误在 helper 内处理；保留兜底 catch，异步任务不会成为未处理拒绝。
+      void this.pushPersistedNotification(userId, keyedDto).catch((err) =>
+        this.logger.warn(`通知已落库，但可选推送任务失败 user=${userId}`, err),
+      );
+      return notification;
+    } catch (err) {
+      // Redis 丢失或 30 天后重投时，数据库唯一键仍是最终防重线。
+      if (isUniqueConstraintError(err)) return null;
+      await this.redis.del(key).catch(() => undefined);
+      throw err;
+    }
+  }
+
+  /** 批量发送通知。事件键仅供内部可重试任务使用，按收件人落数据库唯一键。 */
+  async batchSend(dto: BatchSendDto, eventKey?: string, persistBatch?: (
+    data: Prisma.NotificationCreateManyInput[],
+  ) => Promise<Array<{ id: string; userId: string }>>) {
+    // 内部业务可将状态复核与通知落库放在同一事务；可选推送仍只在提交后执行。
+    if (persistBatch && !eventKey) throw new BusinessException(ErrorCode.BAD_REQUEST, "受保护的批量通知必须提供事件键");
+    if (eventKey && dto.userIds.some((userId) => `${userId}:${eventKey}`.length > 255)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "通知幂等键过长");
+    }
+    const userIds = eventKey ? [...new Set(dto.userIds)] : dto.userIds;
+    const data = userIds.map(userId => ({
       userId,
+      ...(eventKey ? { idempotencyKey: `${userId}:${eventKey}` } : {}),
       type: dto.type,
       title: dto.title,
       content: dto.content,
       targetType: dto.targetType,
       targetId: dto.targetId,
+      ...this.circleClassification(dto),
     }));
 
-    await this.prisma.notification.createMany({ data });
+    // 重试任务只推送本次真正插入的收件人；数据库唯一键挡住进程崩溃后的再次写入。
+    const created = persistBatch
+      ? await persistBatch(data)
+      : eventKey
+      ? await this.prisma.notification.createManyAndReturn({ data, skipDuplicates: true, select: { id: true, userId: true } })
+      : null;
+    if (!eventKey) await this.prisma.notification.createMany({ data });
+    const insertedUsers = created ? created.map((row) => row.userId) : userIds;
+
+    if (!insertedUsers.length) return { success: true, count: 0, pushSkipped: 0 };
 
     // 批量读取推送偏好，过滤关闭推送的用户
-    const prefsKeys = dto.userIds.map((uid) => `notification:prefs:${uid}`);
+    const prefsKeys = insertedUsers.map((uid) => `notification:prefs:${uid}`);
     const prefsResults = await Promise.all(prefsKeys.map((k) => this.redis.getJson<any>(k).catch(() => null)));
     const pushDisabled = new Set<string>();
-    for (let i = 0; i < dto.userIds.length; i++) {
+    for (let i = 0; i < insertedUsers.length; i++) {
       const prefs = prefsResults[i];
       if (prefs && prefs.PUSH_ENABLED === false) {
-        pushDisabled.add(dto.userIds[i]);
+        pushDisabled.add(insertedUsers[i]);
       }
     }
 
-    const enabledUsers = dto.userIds.filter((uid) => !pushDisabled.has(uid));
+    const enabledUsers = insertedUsers.filter((uid) => !pushDisabled.has(uid));
     if (enabledUsers.length === 0) {
       this.logger.log("所有目标用户均已关闭推送，跳过");
-      return { success: true, count: data.length, pushSkipped: dto.userIds.length };
+      return { success: true, count: insertedUsers.length, pushSkipped: insertedUsers.length };
     }
 
-    // 批量预取所有用户的 auth 信息，避免 N+1 查询
-    const auths = await this.prisma.auth.findMany({
-      where: { userId: { in: enabledUsers } },
-      select: { userId: true, provider: true, openId: true },
-    });
-    const authsByUser = new Map<string, { provider: string; openId: string | null }[]>();
-    for (const a of auths) {
-      const list = authsByUser.get(a.userId) || [];
-      list.push(a);
-      authsByUser.set(a.userId, list);
+    try {
+      // 批量预取所有用户的 auth 信息，避免 N+1 查询
+      const auths = await this.prisma.auth.findMany({
+        where: { userId: { in: enabledUsers } },
+        select: { userId: true, provider: true, openId: true },
+      });
+      const authsByUser = new Map<string, { provider: string; openId: string | null }[]>();
+      for (const a of auths) {
+        const list = authsByUser.get(a.userId) || [];
+        list.push(a);
+        authsByUser.set(a.userId, list);
+      }
+
+      // 批量推送（仅推送给开启推送的用户）
+      const pushDto = { type: dto.type, title: dto.title, content: dto.content };
+      for (const userId of enabledUsers) {
+        this.sendPushWithAuths(userId, pushDto, authsByUser.get(userId) || []).catch((err) => this.logger.warn("通知发送失败", err));
+      }
+    } catch (err) {
+      // 站内通知已成功落库；可选外部推送准备失败不能触发业务任务重投并重复建通知。
+      this.logger.warn("批量站内通知已落库，但外部推送准备失败", err);
     }
 
-    // 批量推送（仅推送给开启推送的用户）
-    const pushDto = { type: dto.type, title: dto.title, content: dto.content };
-    for (const userId of enabledUsers) {
-      this.sendPushWithAuths(userId, pushDto, authsByUser.get(userId) || []).catch((err) => this.logger.warn("通知发送失败", err));
+    return { success: true, count: insertedUsers.length, pushSkipped: pushDisabled.size };
+  }
+
+  /**
+   * 管理员按标签群发（2026-07-17 审计补齐：此前只有单发/按 userIds 批发，无按人群群发）。
+   * - 圈人复用 PushAudienceService（与 users/push/estimate 同口径·预估=实发）
+   * - 落库为站内通知（createMany）；与既有 pushByTag 一致，不触发微信模板推送通道
+   *   （群发量大时逐人拉 auth 推模板消息会拖死请求，站内通知是此场景的诚实边界）
+   * - 返回真实写入人数
+   */
+  async broadcast(dto: BroadcastDto, senderId?: string) {
+    let userIds: string[];
+    if (dto.userIds?.length) {
+      // 直接指定收件人：去重 + 只保留真实存在的 ACTIVE 用户（人数要真实）
+      const unique = [...new Set(dto.userIds)];
+      const users = await this.prisma.user.findMany({
+        where: { id: { in: unique }, status: "ACTIVE" },
+        select: { id: true },
+      });
+      userIds = users.map((u) => u.id);
+    } else {
+      userIds = await this.audience.resolveUserIds(dto.tag, dto.memberLevel || "", dto.activeDays || 0);
     }
 
-    return { success: true, count: data.length, pushSkipped: pushDisabled.size };
+    const type = dto.type || "SYSTEM";
+    let sentCount = 0;
+    if (userIds.length > 0) {
+      const result = await this.prisma.notification.createMany({
+        data: userIds.map((userId) => ({ userId, type, title: dto.title, content: dto.content })),
+      });
+      sentCount = result.count;
+    }
+
+    this.logger.log(
+      `管理员群发: sender=${senderId ?? "unknown"}, tag=${dto.tag ?? ""}, userIds=${dto.userIds?.length ?? 0}, 实发=${sentCount}人, title=${dto.title}`,
+    );
+    return { sentCount, tag: dto.tag ?? "", type, title: dto.title };
+  }
+
+  /**
+   * 管理员发送历史（GET /notifications/admin/sent）。
+   * 诚实设计：Notification 模型无 sender/senderId 字段（不加迁移不虚构发送人），
+   * 按「title + type + 分钟窗口」聚合近似还原每一次发送批次，返回目标人数与已读数。
+   * 局限：同一分钟内同标题的两次发送会并为一条；系统自动通知（同为 SYSTEM 型）也会出现在列表中。
+   */
+  async adminSentHistory(rawPage: number | string = 1, rawPageSize: number | string = 20, type?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+
+    const whereSql = type ? `WHERE "type"=$1` : "";
+    const listParams: unknown[] = type ? [type, pageSize, skip] : [pageSize, skip];
+    const countParams: unknown[] = type ? [type] : [];
+
+    const [rows, totalRows] = await Promise.all([
+      this.prisma.$queryRawUnsafe<Array<{ title: string; type: string; sentAt: Date; targetCount: number; readCount: number; content: string }>>(
+        `SELECT title, "type", date_trunc('minute', "createdAt") AS "sentAt",
+                COUNT(*)::int AS "targetCount",
+                COUNT(*) FILTER (WHERE "isRead")::int AS "readCount",
+                MIN(content) AS content
+         FROM "Notification"
+         ${whereSql}
+         GROUP BY title, "type", date_trunc('minute', "createdAt")
+         ORDER BY "sentAt" DESC
+         LIMIT $${type ? 2 : 1} OFFSET $${type ? 3 : 2}`,
+        ...listParams,
+      ),
+      this.prisma.$queryRawUnsafe<Array<{ cnt: number }>>(
+        `SELECT COUNT(*)::int AS cnt FROM (
+           SELECT 1 FROM "Notification" ${whereSql}
+           GROUP BY title, "type", date_trunc('minute', "createdAt")
+         ) t`,
+        ...countParams,
+      ),
+    ]);
+
+    return {
+      items: rows.map((r) => ({ ...r, targetCount: Number(r.targetCount), readCount: Number(r.readCount) })),
+      total: Number(totalRows[0]?.cnt) || 0,
+      page,
+      pageSize,
+      aggregated: true, // 提示前端：无 sender 字段·按标题+类型+分钟窗口聚合的近似口径
+    };
   }
 
   /** 使用预取 auth 数据发送推送（批量场景） */
@@ -231,6 +400,65 @@ export class NotificationService {
       data: { isRead: true },
     });
     return { success: true };
+  }
+
+  // ───────── 圈内通知中心（V0 待办 #36·四类筛选视图，复用本表不建新表） ─────────
+
+  private assertCircleCategory(category?: string) {
+    if (category && !(CIRCLE_NOTIFICATION_CATEGORIES as readonly string[]).includes(category)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "分类仅支持 INTERACT/TRADE/GOVERN/LIVE");
+    }
+  }
+
+  /** 我的圈内通知列表（分类筛选+分页+各类未读计数） */
+  async getCircleNotifications(userId: string, category?: string, rawPage: number | string = 1, rawPageSize: number | string = 20) {
+    this.assertCircleCategory(category);
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
+
+    const filter = category ? ` AND "category"=$2` : "";
+    const listParams: unknown[] = category ? [userId, category, pageSize, skip] : [userId, pageSize, skip];
+    const countParams: unknown[] = category ? [userId, category] : [userId];
+
+    const [items, totalRows, unreadRows] = await Promise.all([
+      this.prisma.$queryRawUnsafe<CircleNotificationRow[]>(
+        `SELECT id, type, "category", "circleId", title, content, "targetType", "targetId", "isRead", "createdAt"
+         FROM "Notification"
+         WHERE "userId"=$1 AND "category" IS NOT NULL${filter}
+         ORDER BY "createdAt" DESC
+         LIMIT $${category ? 3 : 2} OFFSET $${category ? 4 : 3}`,
+        ...listParams,
+      ),
+      this.prisma.$queryRawUnsafe<{ cnt: number }[]>(
+        `SELECT COUNT(*)::int AS cnt FROM "Notification" WHERE "userId"=$1 AND "category" IS NOT NULL${filter}`,
+        ...countParams,
+      ),
+      // 未读计数始终按全部四类分组返回（前端 chips 角标不受当前筛选影响）
+      this.prisma.$queryRawUnsafe<{ category: string; cnt: number }[]>(
+        `SELECT "category", COUNT(*)::int AS cnt FROM "Notification"
+         WHERE "userId"=$1 AND "isRead"=false AND "category" IS NOT NULL GROUP BY "category"`,
+        userId,
+      ),
+    ]);
+
+    const unread: Record<string, number> = { ALL: 0, INTERACT: 0, TRADE: 0, GOVERN: 0, LIVE: 0 };
+    for (const row of unreadRows) {
+      const n = Number(row.cnt) || 0;
+      if (row.category in unread) unread[row.category] = n;
+      unread.ALL += n;
+    }
+
+    return { items, total: Number(totalRows[0]?.cnt) || 0, page, pageSize, unread };
+  }
+
+  /** 圈内通知全部已读（可按分类） */
+  async markCircleAllRead(userId: string, category?: string) {
+    this.assertCircleCategory(category);
+    const count = await this.prisma.$executeRawUnsafe(
+      `UPDATE "Notification" SET "isRead"=true
+       WHERE "userId"=$1 AND "isRead"=false AND "category" IS NOT NULL${category ? ` AND "category"=$2` : ""}`,
+      ...(category ? [userId, category] : [userId]),
+    );
+    return { success: true, count };
   }
 
   /** 删除通知（管理员） */

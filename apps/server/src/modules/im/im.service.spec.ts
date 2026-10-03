@@ -2,6 +2,13 @@ import { Test } from "@nestjs/testing";
 import { ImService } from "./im.service";
 import { TlsSigService } from "./tlssig.service";
 import { ImPolicyService } from "./im-policy.service";
+import { AuditService } from "../audit/audit.service";
+
+// 私信审核 mock：本地快拦默认无命中；深审默认 pass（不干扰既有发送用例）
+const mockAudit = {
+  hasLocalViolation: jest.fn(() => [] as string[]),
+  classifyTextRisk: jest.fn(async () => ({ verdict: "pass" as const })),
+};
 
 const mockTlsSig = {
   getAppId: jest.fn().mockReturnValue(1400000000),
@@ -45,6 +52,7 @@ describe("ImService", () => {
         ImService,
         { provide: TlsSigService, useValue: mockTlsSig },
         { provide: ImPolicyService, useValue: mockPolicy },
+        { provide: AuditService, useValue: mockAudit },
       ],
     }).compile();
     svc = mod.get(ImService);
@@ -182,6 +190,42 @@ describe("ImService", () => {
       expect(call[1].body).toContain("大家好");
       expect(call[1].body).toContain("TIMTextElem");
     });
+
+    it("登录用户不能借通用群发接口绕过直播审核", async () => {
+      await expect(svc.sendGroupMsg("live_room-001", "伪造互动", "user-1"))
+        .rejects.toThrow("直播消息必须通过直播互动接口发送");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("审核通过后的内部中继保留真实发言人", async () => {
+      await svc.relayLiveGroupMsg("live_room-001", "审核通过", "user-1");
+      const call = fetchMock.mock.calls[0];
+      expect(call[0]).toContain("group_open_http_svc/send_group_msg");
+      expect(call[1].body).toContain('"From_Account":"user-1"');
+      expect(call[1].body).toContain("ForbidBeforeSendMsgCallback");
+      expect(call[1].body).toContain("审核通过");
+    });
+
+    it("内部直播中继不能被误用于普通群", async () => {
+      await expect(svc.relayLiveGroupMsg("circle-001", "消息", "user-1"))
+        .rejects.toThrow("直播中继只允许发送到直播群");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("礼物使用结构化自定义事件，不能与普通评论混淆", async () => {
+      await svc.relayLiveGift("live_room-001", {
+        recordId: "gift-record-1",
+        giftId: "gift-1",
+        giftName: "如意",
+        quantity: 2,
+      }, "user-1");
+      const body = fetchMock.mock.calls[0][1].body as string;
+      expect(body).toContain("TIMCustomElem");
+      expect(body).toContain("LIVE_GIFT");
+      expect(body).toContain("gift-record-1");
+      expect(body).toContain("ForbidBeforeSendMsgCallback");
+      expect(body).not.toContain("TIMTextElem");
+    });
   });
 
   describe("API 错误处理", () => {
@@ -199,6 +243,7 @@ describe("ImService", () => {
           ImService,
           { provide: TlsSigService, useValue: mockTlsSig },
           { provide: ImPolicyService, useValue: mockPolicy },
+          { provide: AuditService, useValue: mockAudit },
         ],
       }).compile();
       const badSvc = mod.get(ImService);

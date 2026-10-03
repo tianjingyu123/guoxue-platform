@@ -3,7 +3,9 @@ import { BotService } from "./bot.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CozeService } from "./coze.service";
 import { RecommendationService } from "./recommendation.service";
+import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { BusinessException } from "../../common/business.exception";
+import { lastValueFrom, Observable, of, toArray } from "rxjs";
 
 // consumeQuota/purchaseUses 经 getBotOrThrow 解密 apiKey，spec 中用透传 mock 避免真实密文依赖
 jest.mock("../../common/crypto.util", () => ({
@@ -36,13 +38,27 @@ const mockPrisma = {
     findUnique: jest.fn(),
   },
   user: { findUnique: jest.fn() },
+  botChatLog: { count: jest.fn(), create: jest.fn(), findFirst: jest.fn(), findMany: jest.fn() },
   userBotQuota: { upsert: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findUnique: jest.fn() },
+  botQuotaReservation: {
+    create: jest.fn().mockResolvedValue({ id: "reservation-1" }),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    findMany: jest.fn(),
+  },
+  botQuotaPurchase: {
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockResolvedValue({ id: "purchase-1" }),
+    update: jest.fn(),
+  },
   // 购包扣币与配额发放同事务：透传 tx=mockPrisma，回调内 tx.userBotQuota 即复用上方 mock
   $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(mockPrisma)),
 };
 
-const mockCoze = {};
-const mockReco = { build: jest.fn().mockResolvedValue({ content: "", recommendation: null }) };
+const mockCoze = { isOAuthConfigured: jest.fn().mockReturnValue(false), chat: jest.fn(), chatStreamEx: jest.fn() };
+const mockReco = {
+  build: jest.fn().mockResolvedValue({ content: "", recommendation: null }),
+  parseProtocol: jest.fn((content: string) => ({ clean: content.replace(/<!--RECO:[\s\S]*?-->/g, "").trim(), intents: [] })),
+};
 
 describe("BotService", () => {
   let svc: BotService;
@@ -54,12 +70,85 @@ describe("BotService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CozeService, useValue: mockCoze },
         { provide: RecommendationService, useValue: mockReco },
+        { provide: AiGatewayService, useValue: { chatStream: jest.fn() } },
       ],
     }).compile();
     svc = mod.get(BotService);
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  it("对话记录故障不丢失流式收尾且告警不含提问和数据库错误", async () => {
+    mockCoze.chatStreamEx.mockReturnValue(of(
+      { type: "meta", conversationId: "conv-audit-failure" },
+      { type: "chunk", content: "已生成的合成回答。" },
+    ));
+    mockReco.build.mockResolvedValueOnce({ content: "已生成的合成回答。", recommendation: null });
+    mockPrisma.botChatLog.create.mockRejectedValueOnce(new Error("数据库错误包含合成提问与PRIVATE_DATABASE_DETAIL"));
+    const warn = jest.spyOn((svc as any).logger, "warn").mockImplementation(() => undefined);
+    try {
+      const events = await lastValueFrom(svc.chatStreamRich(
+        { id: "b1", botId: "coze-1", apiKey: "test" }, "u1", { query: "仅用于本地验证的合成提问" } as any,
+      ).pipe(toArray()));
+      expect(events).toContainEqual({ type: "chunk", content: "已生成的合成回答。" });
+      expect(events).toContainEqual(expect.objectContaining({ type: "meta", conversationId: "conv-audit-failure", disclaimer: expect.any(String) }));
+      expect(mockPrisma.botChatLog.create).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith("流式对话记录写入失败，请核查记录存储服务");
+      expect(JSON.stringify(warn.mock.calls)).not.toMatch(/PRIVATE_DATABASE_DETAIL|合成提问/);
+    } finally { warn.mockRestore(); }
+  });
+
+  it("推荐检索故障时保留已生成的回答并剥离协议标记", async () => {
+    mockPrisma.botConfig.findUnique.mockResolvedValue({
+      id: "b1", name: "国学助手", botId: "coze-1", apiKey: "enc",
+      runtime: "coze", status: "ACTIVE", isFree: true, dailyLimit: 5, pricePer10Coin: 0,
+    });
+    mockPrisma.botChatLog.count.mockResolvedValue(0);
+    mockPrisma.botChatLog.create.mockResolvedValue({ id: "log-1" });
+    mockCoze.chat.mockResolvedValue({
+      content: '先读原文。<!--RECO:[{"type":"classic","query":"论语"}]-->',
+      conversationId: "conv-1", chatId: "chat-1",
+    });
+    mockReco.build.mockRejectedValueOnce(new Error("检索超时"));
+
+    const result = await svc.chat("b1", "u1", { query: "论语是什么" } as any);
+    expect(result.content).toBe("先读原文。");
+    expect(result.recommendation).toBeNull();
+    expect(mockPrisma.botChatLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ response: "先读原文。" }),
+    }));
+  });
+
+  describe("对话归属隔离", () => {
+    const bot = { id: "b1", name: "国学助手", botId: "coze-1", apiKey: "enc", runtime: "coze", isFree: true, dailyLimit: 5, pricePer10Coin: 100 };
+
+    it("历史查询始终按当前用户过滤", async () => {
+      mockPrisma.botChatLog.findMany.mockResolvedValue([]);
+      expect(await svc.getChatHistory("b1", "other-conversation", "u1")).toEqual([]);
+      expect(mockPrisma.botChatLog.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { botConfigId: "b1", conversationId: "other-conversation", userId: "u1" },
+      }));
+    });
+
+    it("非流式续聊在扣额度和调用模型前拒绝他人会话", async () => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue(bot);
+      mockPrisma.botChatLog.findFirst.mockResolvedValue(null);
+      await expect(svc.chat("b1", "u1", { query: "接着说", conversationId: "other-conversation" } as any)).rejects.toThrow(/对话不存在/);
+      expect(mockPrisma.botChatLog.findFirst).toHaveBeenCalledWith({
+        where: { botConfigId: "b1", userId: "u1", conversationId: "other-conversation" }, select: { id: true },
+      });
+      expect(mockPrisma.userBotQuota.upsert).not.toHaveBeenCalled();
+      expect(mockCoze.chat).not.toHaveBeenCalled();
+    });
+
+    it("流式续聊在 SSE 头与扣额度前拒绝他人会话", async () => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue(bot);
+      mockPrisma.botChatLog.findFirst.mockResolvedValue(null);
+      await expect(svc.precheckChat("b1", "u1", "other-conversation")).rejects.toThrow(/对话不存在/);
+      expect(mockPrisma.userBotQuota.upsert).not.toHaveBeenCalled();
+      expect(mockCoze.chatStreamEx).not.toHaveBeenCalled();
+    });
+  });
 
   describe("consumeQuota — AI 计费（会员免费/试用/追问包）", () => {
     const PAID_BOT = { id: "b1", name: "命理助手", botId: "coze-1", apiKey: "enc", pricePer10Coin: 100, freeUses: 3, status: "ACTIVE" };
@@ -68,32 +157,60 @@ describe("BotService", () => {
 
     it("免费智能体（pricePer10Coin=0）直接放行", async () => {
       asBot({ ...PAID_BOT, pricePer10Coin: 0 });
-      expect(await svc.consumeQuota("b1", "u1")).toBe("free_bot");
+      expect(await svc.consumeQuota("b1", "u1")).toEqual({ charge: "free_bot" });
       expect(mockPrisma.userBotQuota.upsert).not.toHaveBeenCalled();
     });
 
     it("有效会员免费（终身会员 memberExpire 为空）", async () => {
       asBot(PAID_BOT);
       mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "LIFETIME", memberExpire: null });
-      expect(await svc.consumeQuota("b1", "u1")).toBe("member");
+      expect(await svc.consumeQuota("b1", "u1")).toEqual({ charge: "member" });
     });
 
     it("非会员试用期内消耗免费次数", async () => {
       asBot(PAID_BOT);
       asNonMember();
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 1, paidRemaining: 0 });
-      expect(await svc.consumeQuota("b1", "u1")).toBe("trial");
-      expect(mockPrisma.userBotQuota.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { freeUsed: { increment: 1 } } }),
-      );
+      mockPrisma.userBotQuota.updateMany.mockResolvedValueOnce({ count: 1 });
+      expect(await svc.consumeQuota("b1", "u1")).toEqual({ charge: "trial", reservationId: "reservation-1" });
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledWith({
+        where: { id: "q1", freeUsed: { lt: 3 } }, data: { freeUsed: { increment: 1 } },
+      });
+      expect(mockPrisma.userBotQuota.update).not.toHaveBeenCalled();
+    });
+
+    it("并发中试用额度被其他请求抢先用尽后转用已购次数", async () => {
+      asBot(PAID_BOT);
+      asNonMember();
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 2, paidRemaining: 1 });
+      mockPrisma.userBotQuota.updateMany
+        .mockResolvedValueOnce({ count: 0 })
+        .mockResolvedValueOnce({ count: 1 });
+      expect(await svc.consumeQuota("b1", "u1")).toEqual({ charge: "paid", reservationId: "reservation-1" });
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenNthCalledWith(1, {
+        where: { id: "q1", freeUsed: { lt: 3 } }, data: { freeUsed: { increment: 1 } },
+      });
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenNthCalledWith(2, {
+        where: { id: "q1", paidRemaining: { gt: 0 } }, data: { paidRemaining: { decrement: 1 } },
+      });
+    });
+
+    it("并发中试用额度被抢先用尽且无已购次数时拒绝，不超发试用", async () => {
+      asBot(PAID_BOT);
+      asNonMember();
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 2, paidRemaining: 0 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 0 });
+      await expect(svc.consumeQuota("b1", "u1")).rejects.toThrow(/追问包|会员/);
+      expect(mockPrisma.userBotQuota.update).not.toHaveBeenCalled();
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(2);
     });
 
     it("试用用完扣追问包（原子条件扣减）", async () => {
       asBot(PAID_BOT);
       asNonMember();
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 3, paidRemaining: 5 });
-      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
-      expect(await svc.consumeQuota("b1", "u1")).toBe("paid");
+      mockPrisma.userBotQuota.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 });
+      expect(await svc.consumeQuota("b1", "u1")).toEqual({ charge: "paid", reservationId: "reservation-1" });
     });
 
     it("额度耗尽抛出购买/会员引导", async () => {
@@ -103,6 +220,148 @@ describe("BotService", () => {
       mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 0 });
       await expect(svc.consumeQuota("b1", "u1")).rejects.toThrow(/追问包|会员/);
     });
+
+    it("扣减与预留流水共用事务，流水写失败不发放成功回执", async () => {
+      asBot(PAID_BOT);
+      asNonMember();
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1" });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.botQuotaReservation.create.mockRejectedValueOnce(new Error("ledger unavailable"));
+      await expect(svc.consumeQuota("b1", "u1")).rejects.toThrow("ledger unavailable");
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("额度预留结算", () => {
+    const use = { charge: "trial" as const, reservationId: "r1" };
+
+    it("重复失败释放只返还一次，且只允许同一用户的预留", async () => {
+      mockPrisma.botQuotaReservation.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
+      await svc.releaseFailedQuota("b1", "u1", use);
+      await svc.releaseFailedQuota("b1", "u1", use);
+      expect(mockPrisma.botQuotaReservation.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ id: "r1", userId: "u1", botConfigId: "b1", status: "RESERVED" }),
+      }));
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(1);
+    });
+
+    it("已交付预留只能由 RESERVED 状态确认", async () => {
+      await svc.markDeliveredQuota(use);
+      expect(mockPrisma.botQuotaReservation.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "r1", status: "RESERVED" }, data: expect.objectContaining({ status: "DELIVERED" }),
+      }));
+    });
+
+    it("超时扫尾只处理过期未交付预留", async () => {
+      mockPrisma.botQuotaReservation.findMany.mockResolvedValue([{ id: "r1", userId: "u1", botConfigId: "b1", charge: "trial" }]);
+      mockPrisma.botQuotaReservation.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
+      await svc.sweepStaleQuotaReservations();
+      expect(mockPrisma.botQuotaReservation.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ status: "RESERVED", createdAt: { lt: expect.any(Date) } }),
+      }));
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("模型失败时归还未获得回答的额度", () => {
+    const bot = { id: "b1", name: "国学助手", botId: "coze-1", apiKey: "enc", runtime: "coze", isFree: true, dailyLimit: 5, pricePer10Coin: 100, freeUses: 3 };
+    beforeEach(() => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue(bot);
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "NONE", memberExpire: null });
+      mockPrisma.botChatLog.count.mockResolvedValue(0);
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 2, paidRemaining: 1 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
+    });
+
+    it("非流式模型报错后归还试用，保留原错误", async () => {
+      mockCoze.chat.mockRejectedValue(new Error("upstream failed"));
+      await expect(svc.chat("b1", "u1", { query: "问题" } as any)).rejects.toThrow("upstream failed");
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenLastCalledWith({
+        where: { userId: "u1", botConfigId: "b1", freeUsed: { gt: 0 } },
+        data: { freeUsed: { decrement: 1 } },
+      });
+    });
+
+    it("非流式空回答归还已购次数", async () => {
+      mockPrisma.userBotQuota.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValue({ count: 1 });
+      mockCoze.chat.mockResolvedValue({ content: "  ", conversationId: "c1" });
+      await expect(svc.chat("b1", "u1", { query: "问题" } as any)).rejects.toThrow(/有效内容/);
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenLastCalledWith({
+        where: { userId: "u1", botConfigId: "b1" },
+        data: { paidRemaining: { increment: 1 } },
+      });
+    });
+
+    it("非流式回答审计保存失败时归还额度并保留原错误", async () => {
+      mockCoze.chat.mockResolvedValue({ content: "已有回答", conversationId: "c1" });
+      mockReco.build.mockResolvedValue({ content: "已有回答", recommendation: null });
+      mockPrisma.botChatLog.create.mockRejectedValue(new Error("audit write failed"));
+      await expect(svc.chat("b1", "u1", { query: "问题" } as any)).rejects.toThrow("audit write failed");
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenLastCalledWith({
+        where: { userId: "u1", botConfigId: "b1", freeUsed: { gt: 0 } },
+        data: { freeUsed: { decrement: 1 } },
+      });
+    });
+
+    it("流式首字前上游报错只归还一次", async () => {
+      const checked = await svc.precheckChat("b1", "u1");
+      mockCoze.chatStreamEx.mockReturnValue(new Observable((subscriber) => subscriber.error(new Error("stream failed"))));
+      await new Promise<void>((resolve) => {
+        svc.chatStreamRich(checked, "u1", { query: "问题" } as any).subscribe({
+          error: (err) => { expect(err.message).toBe("stream failed"); resolve(); },
+        });
+      });
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(2);
+    });
+
+    it("流式已有文字再中断，不归还已消费额度", async () => {
+      const checked = await svc.precheckChat("b1", "u1");
+      mockCoze.chatStreamEx.mockReturnValue(new Observable((subscriber) => {
+        subscriber.next({ type: "chunk", content: "部分回答" });
+        subscriber.error(new Error("stream failed"));
+      }));
+      await new Promise<void>((resolve) => {
+        svc.chatStreamRich(checked, "u1", { query: "问题" } as any).subscribe({ error: () => resolve() });
+      });
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(1);
+    });
+
+    it("流式空完成归还额度并向客户端报错", async () => {
+      const checked = await svc.precheckChat("b1", "u1");
+      mockCoze.chatStreamEx.mockReturnValue(new Observable((subscriber) => subscriber.complete()));
+      await new Promise<void>((resolve) => {
+        svc.chatStreamRich(checked, "u1", { query: "问题" } as any).subscribe({
+          error: (err) => { expect(err.message).toMatch(/有效内容/); resolve(); },
+        });
+      });
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(2);
+    });
+
+    it("流式首字前断开连接归还额度", async () => {
+      const checked = await svc.precheckChat("b1", "u1");
+      mockCoze.chatStreamEx.mockReturnValue(new Observable(() => undefined));
+      const subscription = svc.chatStreamRich(checked, "u1", { query: "问题" } as any).subscribe();
+      subscription.unsubscribe();
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(2);
+    });
+
+    it("本地模型流取消订阅会向 AI 网关传递中止信号", async () => {
+      const gateway = (svc as any).aiGateway;
+      gateway.chatStream.mockImplementation(async function* (req: any) {
+        yield "已回答";
+        await new Promise((resolve) => req.options.signal.addEventListener("abort", resolve));
+      });
+      const sub = (svc as any).localChatStream({ id: "b1", systemPrompt: "助手" }, "u1", { query: "你好" }).subscribe();
+      await new Promise((resolve) => setImmediate(resolve));
+      const signal = gateway.chatStream.mock.calls[0][0].options.signal as AbortSignal;
+      expect(signal.aborted).toBe(false);
+      sub.unsubscribe();
+      expect(signal.aborted).toBe(true);
+    });
   });
 
   describe("purchaseUses — 购买追问包", () => {
@@ -111,11 +370,22 @@ describe("BotService", () => {
       const mockCoin = { spend: jest.fn().mockResolvedValue({}) };
       (svc as any).coin = mockCoin;
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", paidRemaining: 10 });
-      const result = await svc.purchaseUses("b1", "u1");
+      const result = await svc.purchaseUses("b1", "u1", "bot-purchase-request-001");
       // 扣币与充值在同一事务：spend 末参透传 tx
       expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ amountCoin: 100, scene: "BOT_CALL" }), expect.anything());
       expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(mockPrisma.botQuotaPurchase.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ userId: "u1", botConfigId: "b1", requestId: "bot-purchase-request-001" }),
+      }));
       expect(result).toEqual({ purchased: 10, paidRemaining: 10 });
+    });
+
+    it("同一购包请求重试直接返回首笔结果，不再次扣币", async () => {
+      mockPrisma.botQuotaPurchase.findUnique.mockResolvedValueOnce({ purchased: 10, paidRemainingAfter: 10 });
+      const mockCoin = { spend: jest.fn() };
+      (svc as any).coin = mockCoin;
+      expect(await svc.purchaseUses("b1", "u1", "bot-purchase-request-001")).toEqual({ purchased: 10, paidRemaining: 10 });
+      expect(mockCoin.spend).not.toHaveBeenCalled();
     });
 
     it("免费智能体不可购买", async () => {
@@ -154,6 +424,16 @@ describe("BotService", () => {
       const result = await svc.update("b1", { name: "新名称" });
       expect(result.name).toBe("新名称");
     });
+
+    it("apiKey/botId 传空串或缺省时保留原值（不落库覆盖）", async () => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue({ id: "b1", name: "旧名称" });
+      mockPrisma.botConfig.update.mockResolvedValue({ id: "b1" });
+      await svc.update("b1", { apiKey: "", botId: "", sortOrder: 3 } as any);
+      const data = mockPrisma.botConfig.update.mock.calls[0][0].data;
+      expect(data).not.toHaveProperty("apiKey");
+      expect(data).not.toHaveProperty("botId");
+      expect(data.sortOrder).toBe(3);
+    });
   });
 
   describe("delete", () => {
@@ -166,17 +446,39 @@ describe("BotService", () => {
   });
 
   describe("list", () => {
-    it("列出所有活跃智能体", async () => {
-      mockPrisma.botConfig.findMany.mockResolvedValue([{ id: "b1", name: "助手" }]);
+    it("列出所有活跃智能体（凭证真实可用才下发·2026-07-17 拍板占位=下架）", async () => {
+      mockPrisma.botConfig.findMany.mockResolvedValue([{ id: "b1", name: "助手", type: "CLASSICS_READING", botId: "734829102938", apiKey: "sk_real_1234" }]);
       const result = await svc.list();
       expect(result).toHaveLength(1);
+      expect(result[0]).not.toHaveProperty("apiKey");
+    });
+
+    it("local 学习型智能体无需 Coze 凭证即可公开", async () => {
+      mockPrisma.botConfig.findMany.mockResolvedValue([
+        { id: "b1", name: "古籍句读助手", type: "CLASSICS_READING", runtime: "local", systemPrompt: "讲解古籍", botId: "local_public_01", apiKey: "" },
+      ]);
+      const result = await svc.list();
+      expect(result).toHaveLength(1);
+    });
+
+    it("占位凭证（coze_ 前缀 botId / sk_dev_placeholder）在 C 端列表被过滤", async () => {
+      mockPrisma.botConfig.findMany.mockResolvedValue([
+        { id: "b1", name: "占位", botId: "coze_customer_001", apiKey: "sk_dev_placeholder" },
+      ]);
+      const result = await svc.list();
+      expect(result).toHaveLength(0);
     });
 
     it("按类型过滤", async () => {
       mockPrisma.botConfig.findMany.mockResolvedValue([]);
       await svc.list("CHAT");
       expect(mockPrisma.botConfig.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { status: "ACTIVE", type: "CHAT" } }),
+        expect.objectContaining({
+          where: {
+            status: "ACTIVE",
+            type: "CHAT",
+          },
+        }),
       );
     });
 
@@ -184,7 +486,31 @@ describe("BotService", () => {
       mockPrisma.botConfig.findMany.mockResolvedValue([]);
       await svc.list();
       expect(mockPrisma.botConfig.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { status: "ACTIVE" } }),
+        expect.objectContaining({
+          where: {
+            status: "ACTIVE",
+            type: { notIn: expect.arrayContaining(["FORTUNE_TELLER", "DIVINATION"]) },
+          },
+        }),
+      );
+    });
+  });
+
+  describe("adminList", () => {
+    it("管理端返回全部（含占位）·apiKey 只回掩码 + isConfigured 布尔", async () => {
+      mockPrisma.botConfig.findMany.mockResolvedValue([
+        { id: "b1", name: "真实", botId: "734829102938", apiKey: "sk_real_1234" },
+        { id: "b2", name: "占位", botId: "coze_customer_001", apiKey: "sk_dev_placeholder" },
+      ]);
+      const result = await svc.adminList();
+      expect(result).toHaveLength(2);
+      expect(result[0]).not.toHaveProperty("apiKey");
+      expect(result[0].apiKeyMask).toBe("sk_***1234");
+      expect(result[0].isConfigured).toBe(true);
+      expect(result[1].isConfigured).toBe(false);
+      // 管理端不按 status=ACTIVE 过滤（下架/占位也要能盘点与换令牌）
+      expect(mockPrisma.botConfig.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} }),
       );
     });
   });
@@ -246,10 +572,12 @@ describe("BotService", () => {
 
   describe("getCircleBot", () => {
     it("获取圈子绑定的智能体", async () => {
-      mockPrisma.circleBot.findUnique.mockResolvedValue({ circleId: "c1", botConfig: { id: "b1" } });
+      mockPrisma.circleBot.findUnique.mockResolvedValue({ circleId: "c1", botConfig: { id: "b1", apiKey: "encrypted-secret" } });
       const result = await svc.getCircleBot("c1");
       expect(result).not.toBeNull();
       expect(result!.botConfig.id).toBe("b1");
+      expect(result!.botConfig).not.toHaveProperty("apiKey");
+      expect(JSON.stringify(result)).not.toContain("encrypted-secret");
     });
 
     it("圈子未绑定智能体返回 null", async () => {

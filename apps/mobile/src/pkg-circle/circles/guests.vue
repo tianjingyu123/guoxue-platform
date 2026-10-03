@@ -2,7 +2,7 @@
 /**
  * 圈子「嘉宾管理」页（真连后端，去除原型臆想功能）
  *
- * 数据：circleGuestsApi.list() —— GET /circle-backend/guests（后端自动取当前圈主/管理员的圈子，不传 circleId）。
+ * 数据：circleGuestsApi.list(circleId) —— 显式读取当前圈子的嘉宾。
  * 写操作：
  *  - 设分账比例 PUT /circle-backend/guests/:userId/share-rate（saving 防重复，0-100 校验）
  *  - 移除嘉宾   DELETE /circles/:circleId/members/:userId（acting 防重复，需 circleId；拿不到则隐藏该操作）
@@ -12,19 +12,30 @@
  *  - article/course/live/qa 细粒度发布权限（后端无此模型）
  *  - 待审核嘉宾 Tab/通过·拒绝（后端无嘉宾申请审核端点，嘉宾即 role=GUEST 直接存在）
  *  - 文章/课程/直播/本月收益 四宫格统计（后端 getGuests 不返回这些字段）
- *  - 二维码邀请 → 保留 toastComingSoon 占位
+ *  - 邀请嘉宾 → 复用圈子真实邀请码页
  * 真实展示：头像/昵称、分账比例(shareRate%)、累计收益(totalEarned，单位元)。
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, toastComingSoon } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
+import { goBack, navigateTo } from '@/utils/router'
 import { circleGuestsApi, type CircleGuest } from '@/lib/circle-guests-data'
 
-// onLoad 取 circleId（仅用于「移除嘉宾」端点；列表接口不需要）。拿不到则隐藏移除操作。
+// 列表、分账修改和移除均使用当前圈子；路由参数就绪后才读取。
 const circleId = ref('')
-onLoad((opt) => { circleId.value = (opt?.id || opt?.circleId || '') as string })
+const menuSafeRight = getMiniProgramMenuSafeRight()
+onLoad((opt) => { circleId.value = (opt?.id || opt?.circleId || '') as string; void loadGuests() })
 const canRemove = computed(() => !!circleId.value)
+
+function openInvite() {
+  if (!circleId.value) {
+    uni.showToast({ title: '缺少圈子信息，请从圈子后台进入', icon: 'none' })
+    return
+  }
+  navigateTo(`/pkg-circle/circles/invite-codes?id=${circleId.value}`)
+}
 
 // ─── 列表三态 ───
 const guests = ref<CircleGuest[]>([])
@@ -35,14 +46,13 @@ async function loadGuests() {
   loading.value = true
   errMsg.value = ''
   try {
-    guests.value = await circleGuestsApi.list()
+    guests.value = await circleGuestsApi.list(circleId.value)
   } catch (e) {
     errMsg.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
 }
-loadGuests()
 
 // ─── 搜索 ───
 const searchQuery = ref('')
@@ -80,7 +90,7 @@ async function saveShareRate() {
   }
   saving.value = true
   try {
-    await circleGuestsApi.setShareRate(g.userId, rate)
+    await circleGuestsApi.setShareRate(g.userId, rate, circleId.value)
     uni.showToast({ title: '分账比例已更新', icon: 'none' })
     showEditModal.value = null
     await loadGuests()
@@ -119,13 +129,14 @@ async function doRemove(g: CircleGuest) {
 </script>
 
 <template>
+  <app-safe-area-top />
   <view class="gt">
     <!-- Header -->
     <view class="gt-nav">
-      <view class="gt-nav-bar">
-        <view class="gt-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+      <view class="gt-nav-bar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
+        <view class="gt-back" role="button" tabindex="0" aria-label="返回" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="gt-title">嘉宾管理</text>
-        <view class="gt-invite-btn" @tap="toastComingSoon()"><app-icon name="user-plus" :size="40" color="#C41E3A" /></view>
+        <view class="gt-invite-btn" role="button" tabindex="0" aria-label="邀请嘉宾" @tap="openInvite" @keydown.enter="openInvite"><app-icon name="user-plus" :size="40" color="#C41E3A" /></view>
       </view>
       <!-- 搜索 -->
       <view class="gt-search-wrap">
@@ -140,7 +151,7 @@ async function doRemove(g: CircleGuest) {
     <view class="gt-list">
       <!-- loading -->
       <view v-if="loading" class="gt-empty">
-        <text class="gt-empty-text">加载中…</text>
+        <AppLoading />
       </view>
 
       <!-- error -->
@@ -208,9 +219,9 @@ async function doRemove(g: CircleGuest) {
 
 <style lang="scss" scoped>
 .gt { min-height: 100vh; background: #FAF8F5; }
-.gt-nav { position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1rpx solid #F2EFEA; }
+.gt-nav { position: sticky; top: var(--status-bar-height, 0px); z-index: 10; background: #fff; border-bottom: 1rpx solid #F2EFEA; }
 .gt-nav-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; height: 96rpx; }
-.gt-back, .gt-invite-btn { padding: 8rpx; }
+.gt-back, .gt-invite-btn { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .gt-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
 .gt-search-wrap { padding: 0 24rpx 18rpx; }
 .gt-search { display: flex; align-items: center; gap: 10rpx; background: #FAF8F5; border-radius: 16rpx; padding: 16rpx 20rpx; }

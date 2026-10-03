@@ -1,0 +1,515 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-02T06:39:07.652Z",
+  "sourceCommit": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
+  "businessCommit": "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
+  "baseline": "9dda89741f6db5f3dfb9b2648846df649bbe5629",
+  "receivedCommits": [
+    "d6015091c726d2f0f30eec2c882eac7b456c0dea",
+    "9d0a15f241c469af09a44fd4bc0f6bd11b1e28f2",
+    "51077ffe38e84db4e5c9c75985880e4a7dd18c35",
+    "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
+    "3015217ef16c35ed986442e98c7ef29dd27c4ef1"
+  ],
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "formalMaster": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+  "formalMasterIsAncestor": true,
+  "rootWorkspaceUsedForEdits": false,
+  "local": {
+    "businessSource": "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
+    "passed": 297,
+    "failed": 0,
+    "skipped": 0,
+    "suites": 19,
+    "fixtureSource": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
+    "affectedFixtureRerunPassed": 32,
+    "postgres": "16.13",
+    "source": "合成专用55462库；未使用共享5433或6379"
+  },
+  "baselineFailures": {
+    "feedbackActualDb": {
+      "source": "9dda89741f6db5f3dfb9b2648846df649bbe5629",
+      "actualPostgres": "16.13",
+      "resolvedPersisted": true,
+      "noticeInsertFailed": true,
+      "retryRejectedAsAlreadyResolved": true,
+      "notices": 0,
+      "production": false,
+      "realChannels": false
+    },
+    "imPrivacyFailed": 6,
+    "monthlyActualDbFailed": 3
+  },
+  "linux": {
+    "sourceCommit": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
+    "businessCommit": "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
+    "runId": 36972374324,
+    "verificationCommit": "6e607cd7794e4fb8cf723d089ab3d8f0f4130c8c",
+    "suites": 19,
+    "passed": 297,
+    "failed": 0,
+    "skipped": 0,
+    "postgres": "18.4",
+    "databaseServerPort": 5432,
+    "clientMappedPort": 55462,
+    "artifactId": 11211849450,
+    "artifactDigest": "sha256:06b7e52e635c347c42cdec872dc315c93eda81da412bec180981c8c2e23afaf9",
+    "officialArchiveDigestVerified": true,
+    "gitSourceBindingsVerified": [
+      {
+        "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
+        "sha256": "e0e8933425f69dc71ead6eab089a5bdf62bc8919db1f8e6deb45e6a3716ae1b3"
+      },
+      {
+        "path": "apps/server/src/modules/entitlement/entitlement.controller.ts",
+        "sha256": "1008f232f1bd0592c57f7db1b1a1b55528f64a6ea84e4fd913ad5111ef10d54a"
+      },
+      {
+        "path": "apps/mobile/src/pkg-mine/memberships/index.vue",
+        "sha256": "4699b9b4587b28ba2b239498be304c214f46eb4ca7b9a89c9073f062611a2343"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.service.ts",
+        "sha256": "b86371048153c7f6f6146e50b7ce3a23f4c8b3bc4b6f00206baf83801acd867b"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.controller.ts",
+        "sha256": "b071e9b9b56f9c2119956815c8487ef0f411ad07d07d4a1f3ad7239295f8b2e8"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.dto.ts",
+        "sha256": "832467dd50bf8f8b4e557aca088a9a754c57927205eda68237431b4ff869bc61"
+      },
+      {
+        "path": "apps/server/prisma/schema.prisma",
+        "sha256": "c4d0ccc52e68c234e3e61e6e82369bbdc8e9fbb8bc54eb9d24e66ca69ba4c040"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-grant.service.ts",
+        "sha256": "2048876e2551047b8281146b62f7809759d58a5a2f0ab1a92f4c348aab637c7f"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+        "sha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+      },
+      {
+        "path": "apps/mobile/src/lib/im-data.ts",
+        "sha256": "8af6322ddb816573a9735c7e0567e427b6f893e0d4056cdaff67c8a4537221e3"
+      },
+      {
+        "path": "apps/mobile/src/lib/mine-data.ts",
+        "sha256": "86b63067fe9eb2f59e668230fd84612798ad481af08e861b6004ed038df3bfba"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "sha256": "e6cdae211eca1f515b53dbee281fd6c1dd11a054c00547b24b132fb0fb9ed7ac"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-reply.ts",
+        "sha256": "61597af6b20f93452ec7664e88e6d730d2ccd391c363a98cc09085fef64002b5"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.task.ts",
+        "sha256": "a7213e5514ab0bb7708f6dcf1d073841ec0477ed2f390e4e15ded456937c7add"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+        "sha256": "81dfadcfc6569ba836816ed2c46ada7aa1c78680bf3089ee887926db1ac85218"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.task.spec.ts",
+        "sha256": "26035bf36ca8c1a2bb44fa423702350232584037c9a3a06bd6ca44f975d15208"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.spec.ts",
+        "sha256": "b09c8cd7f2b1b6339717c2e9cd7593330081ee8e5d3ed4be74e7b4119bba3431"
+      },
+      {
+        "path": "apps/server/src/modules/user/user.module.ts",
+        "sha256": "df286cabda81c758a3dcc9b3e8839336a31fadf426fc3a3550179b1c8809c258"
+      },
+      {
+        "path": "apps/server/src/modules/im/im-callback.controller.ts",
+        "sha256": "72d9413d0245b098cfbf58bb64173eadcb2be6c9cd13c13d677f56b68628c187"
+      },
+      {
+        "path": "apps/server/src/modules/im/im-callback.privacy.spec.ts",
+        "sha256": "c3f5041b28c6d9d055ae46f4b2aa683910cddfcb90ccad541ce793fa54b55cb7"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.service.ts",
+        "sha256": "df8492d322ced1e97ebed34ca9b196454892cf951bd969871246e5844f24ca31"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+        "sha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+      }
+    ],
+    "newLintErrors": 0,
+    "newLintWarnings": 0,
+    "baselineWarnings": [
+      {
+        "path": "apps/server/src/modules/member/member-benefit.service.ts",
+        "rule": "@typescript-eslint/no-explicit-any",
+        "currentLine": 98,
+        "unchangedCode": "} catch (error: any) {",
+        "baselineCommit": "9dda89741f6db5f3dfb9b2648846df649bbe5629"
+      }
+    ],
+    "previousFailedRun": {
+      "runId": 36971816374,
+      "conclusion": "failure",
+      "reason": "测试误要求容器内部端口等于客户端映射端口；18项工单和14项月度测试在beforeAll身份检查失败，修正测试夹具后重跑",
+      "productCodeChangedToFixThisRun": false
+    },
+    "scope": "Linux独立依赖/Prisma/schema的真实库和JWT、跨进程回归；不是正式Dockerfile最终镜像或生产渠道验收",
+    "production": false,
+    "realChannels": false
+  },
+  "compiled": {
+    "passedByScope": [
+      18,
+      14,
+      6
+    ],
+    "receipts": [
+      {
+        "scope": "本机正式 nest build 成品与真实 PG/JWT HTTP，非 Linux 正式镜像、非真机",
+        "passed": 18,
+        "failed": 0,
+        "skipped": 0,
+        "compiledChildProcesses": true,
+        "registeredInCompiledUserModule": true,
+        "inputs": [
+          {
+            "source": "apps\\server\\src\\modules\\user\\feedback.service.ts",
+            "sourceSha256": "117810335a3147a98f9e38eeab00e76a29164c5a7405b9dc21a7da49f9a9b120",
+            "compiled": "apps\\server\\dist\\modules\\user\\feedback.service.js",
+            "compiledSha256": "6669dee74d0443d0eda1cf951781fb4d7550fe5e5d572e06180ccb15fb49adaa"
+          },
+          {
+            "source": "apps\\server\\src\\modules\\user\\feedback-notification.task.ts",
+            "sourceSha256": "a7213e5514ab0bb7708f6dcf1d073841ec0477ed2f390e4e15ded456937c7add",
+            "compiled": "apps\\server\\dist\\modules\\user\\feedback-notification.task.js",
+            "compiledSha256": "4695b2c185358fc9ac62c3db209a7cec3088052b961751e477cb3b27b22abc3a"
+          },
+          {
+            "source": "apps\\server\\src\\modules\\user\\feedback-reply.ts",
+            "sourceSha256": "61597af6b20f93452ec7664e88e6d730d2ccd391c363a98cc09085fef64002b5",
+            "compiled": "apps\\server\\dist\\modules\\user\\feedback-reply.js",
+            "compiledSha256": "fefe475d2e72d4c5a3187dcd98051b74092f0cf1e65c185b3f0670bdd64aa868"
+          },
+          {
+            "source": "apps\\server\\src\\modules\\user\\feedback.controller.ts",
+            "sourceSha256": "2d835bc731a5583b56cac4c4d76c6ef11a29972c7e13bfb962b32f421fa4ee5a",
+            "compiled": "apps\\server\\dist\\modules\\user\\feedback.controller.js",
+            "compiledSha256": "6b6163da85746aeb08ceee2fe6de16730aeab1b029b1d8993d4b41fd27814ae4"
+          },
+          {
+            "source": "apps\\server\\src\\modules\\user\\user.module.ts",
+            "sourceSha256": "647c850c51fe712c6500c75e512a26f88ddcdae9f3f722d7993f203cc3407848",
+            "compiled": "apps\\server\\dist\\modules\\user\\user.module.js",
+            "compiledSha256": "1271d618208aed2aaf2a9de96e8d792948600099fc49fc1f38f1529e42979317"
+          }
+        ],
+        "realChannels": false,
+        "production": false
+      },
+      {
+        "scope": "本机 nest build 成品，合成库或回调桩，不是正式 Linux 镜像/供应商/手机",
+        "passed": 14,
+        "failed": 0,
+        "skipped": 0,
+        "hashes": [
+          {
+            "input": "apps\\server\\src\\modules\\member\\member-benefit.service.ts",
+            "inputSha256": "2366531cbde9002d1979b12fca7c713c9f4491ae72096f3d9bddbdd664326e60",
+            "output": "apps\\server\\dist\\modules\\member\\member-benefit.service.js",
+            "outputSha256": "71bb746dcacecb0d3e953e844d9481e1998641ea7414475053968b2eee31767a"
+          },
+          {
+            "input": "apps\\server\\src\\modules\\member\\member-grant.service.ts",
+            "inputSha256": "0ab24432501a73666b25426a357eb4fee7469aaa8975d827245c3cb963c15552",
+            "output": "apps\\server\\dist\\modules\\member\\member-grant.service.js",
+            "outputSha256": "0484e051214011db746180011600af211a76ac3d420c6afa18a7f522c4db01e6"
+          }
+        ],
+        "realChannels": false,
+        "production": false
+      },
+      {
+        "scope": "本机 nest build 成品，合成库或回调桩，不是正式 Linux 镜像/供应商/手机",
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "hashes": [
+          {
+            "input": "apps\\server\\src\\modules\\im\\im-callback.controller.ts",
+            "inputSha256": "dc41a7ed12ae1356986a954c2c7a08c7f14694dcdc0548c83c54a880639c9a1a",
+            "output": "apps\\server\\dist\\modules\\im\\im-callback.controller.js",
+            "outputSha256": "4df1b9865c67c86a6547b56a99b03fff8ca1f858332ec237a647bac5bd02c43d"
+          }
+        ],
+        "realChannels": false,
+        "production": false
+      }
+    ],
+    "sourceEquivalentAfterFixtureCorrection": true,
+    "notFormalLinuxImage": true
+  },
+  "ci": {
+    "runId": 36972302443,
+    "source": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "TypeScript 类型检查",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 110728741493
+      },
+      {
+        "name": "ESLint + Prettier",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 110728741765
+      },
+      {
+        "name": "迁移与上线代码门禁",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 110728741901
+      },
+      {
+        "name": "单元测试 (2/3)",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 110729077164
+      },
+      {
+        "name": "单元测试 (1/3)",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 110729077209
+      },
+      {
+        "name": "单元测试 (3/3)",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 110729077214
+      },
+      {
+        "name": "测试结果汇总",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 110732501878
+      },
+      {
+        "name": "构建产物",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 110732501926
+      }
+    ],
+    "counts": {
+      "passed": 8955,
+      "runId": 36972302443,
+      "jobsPassed": 8,
+      "sourceCommit": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
+      "shards": [
+        {
+          "name": "单元测试 (2/3)",
+          "passed": 3040,
+          "skipped": 51,
+          "id": 110729077164,
+          "summary": "2026-10-02T06:15:37.7163656Z Tests:       51 skipped, 3040 passed, 3091 total"
+        },
+        {
+          "name": "单元测试 (1/3)",
+          "passed": 2859,
+          "skipped": 75,
+          "id": 110729077209,
+          "summary": "2026-10-02T06:26:41.5725957Z Tests:       75 skipped, 2859 passed, 2934 total"
+        },
+        {
+          "name": "单元测试 (3/3)",
+          "passed": 3056,
+          "skipped": 71,
+          "id": 110729077214,
+          "summary": "2026-10-02T06:15:53.4691797Z Tests:       71 skipped, 3056 passed, 3127 total"
+        }
+      ],
+      "skipped": 197,
+      "checkedAt": "2026-10-02T06:37:55.1871329Z",
+      "production": false
+    }
+  },
+  "typecheck": true,
+  "targetedLintNewErrors": 0,
+  "targetedLintNewWarnings": 0,
+  "existingLinuxWarning": [
+    {
+      "path": "apps/server/src/modules/member/member-benefit.service.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "currentLine": 98,
+      "unchangedCode": "} catch (error: any) {",
+      "baselineCommit": "9dda89741f6db5f3dfb9b2648846df649bbe5629"
+    }
+  ],
+  "clientInputEquivalentTo": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+  "clientComparisonPaths": [
+    "apps/mobile",
+    "apps/admin",
+    "packages",
+    "pnpm-lock.yaml",
+    "apps/server/prisma"
+  ],
+  "newClientBuilds": 0,
+  "newPhoneTests": 0,
+  "previousMiniCandidateHeadroomBytes": 100546,
+  "miniOfficialUploadNotVerified": true,
+  "formalImageForCurrentSource": {
+    "status": "待最终固定包重建与验证",
+    "historicalPassedImageSource": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+    "historicalRun": 36966143664,
+    "historicalChecks": 29,
+    "isCurrentSourceEvidence": false
+  },
+  "feedback": {
+    "newMarker": "[public-reply:v2:<UUID>]\\n",
+    "legacyPublicReplyReadCompatible": true,
+    "databaseKey": "<userId>:FEEDBACK_RESOLVED:<feedbackId>:<UUID>",
+    "mainWriteCAS": [
+      "status",
+      "updatedAt",
+      "result"
+    ],
+    "delivery": "立即尝试与分钟补发，当前结案共享锁/SKIP LOCKED，数据库唯一键",
+    "publicReplyBodyNotInNotification": true,
+    "nonTicketsExcluded": true,
+    "historicalBackfill": false,
+    "realPush": false
+  },
+  "monthly": {
+    "atomicity": "积分余额、积分流水、券库存与券记录同事务",
+    "userRowLock": true,
+    "couponStockCAS": true,
+    "zeroPointsMarker": "PointsRecord amount=0/EARN/member_monthly_YYYYMM，不增加余额",
+    "existingMonthSourceSemanticsUnchanged": true,
+    "purchaseTransactionRetained": true,
+    "cronScheduleChanged": false,
+    "businessDecision": "已有未用同模板券受既有UNIQUE(couponId,userId,status)限制，当前安全回滚整批；需决定保留券只发积分或允许多张券，未擅自改政策",
+    "retryGap": "runMonthlyGrant重跑已验证安全；真实cron仍每月一次，不代表当月故障已自动补偿",
+    "historicalRepairs": false
+  },
+  "internalGapStatus": {
+    "gaps": [
+      {
+        "id": "N1",
+        "priority": "先处理通知丢失",
+        "path": "apps/server/src/modules/member/member-grant.service.ts",
+        "method": "runAutoRenewRemind",
+        "fact": "setNX先保留8天占位，notification.create失败被catch吞掉，仍增加sent；没有失败释放或数据库通知幂等键",
+        "next": "定向故障反证后修复失败释放、数据库防重和真实成功统计；到期日与提醒窗口一起验证",
+        "runtimeFailureInjectionThisBatch": true,
+        "status": "代码候选完成、隔离验证完成（本轮范围）、线上状态未知、待发布决策",
+        "resolvedInIsolation": true,
+        "backendCommit": "1c2d4158eb374d95d91e7de70dda6cb675c28452",
+        "clientCommit": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+        "remaining": "真实Cron、正式两节点调度/时钟、手机点击与全日故障跨日策略未覆盖"
+      },
+      {
+        "id": "N2",
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "method": "adminUpdateStatus",
+        "fact": "新版公开回复随结案写入UUID事件；立即尝试和分钟扫描共用原子SQL、用户限定与数据库唯一键。旧V1/内部备注不历史补发。",
+        "next": "正式Cron、同版镜像与真机目标页验证；回退保留新版回复读取兼容层",
+        "runtimeFailureInjectionThisBatch": true,
+        "resolvedInIsolation": true,
+        "status": "代码候选完成、隔离验证完成（真实库/JWT/本机成品范围）、线上状态未知、待发布决策",
+        "backendCommit": "9d0a15f241c469af09a44fd4bc0f6bd11b1e28f2",
+        "compatibilityCommit": "d6015091c726d2f0f30eec2c882eac7b456c0dea"
+      },
+      {
+        "id": "N3",
+        "paths": [
+          "apps/mobile/src/pkg-agent/agent/customer-service.vue",
+          "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+          "apps/server/src/modules/im/im-callback.controller.ts"
+        ],
+        "fact": "转人工实际提供工单、企业微信二维码和电话；AI服务是即时回答。一般IM回调仅推Socket消息，不能据此宣称人工客服会话统一通知已接入",
+        "next": "工单补发已收口；企业微信会话回流、归属和渠道接通仍独立核验，AI回答/普通私信不自动当人工客服通知",
+        "externalEnterpriseWechatStatus": "未知",
+        "resolvedInIsolation": false,
+        "workOrderRecoveryCompletedInIsolation": true
+      },
+      {
+        "id": "N4",
+        "paths": [
+          "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+          "apps/server/src/modules/circle/services/circle-membership.service.ts",
+          "apps/server/src/modules/circle/services/circle-post.service.ts"
+        ],
+        "fact": "治理有notify->send真实调用，圈子到期删除后send且到期提醒无数据库事件幂等；圈帖sendOnce防重但提交后崩溃尚无持久事件恢复",
+        "next": "按治理、到期和打赏三个独立单元补事实源与持久恢复，保留资金主事务和各自撤回点",
+        "runtimeFailureInjectionThisBatch": false,
+        "resolvedInIsolation": false
+      },
+      {
+        "id": "N5",
+        "priority": "权益原子性单独核验",
+        "paths": [
+          "apps/server/src/modules/member/member-benefit.service.ts",
+          "apps/server/src/modules/member/member-grant.service.ts"
+        ],
+        "fact": "逐用户事务与User行锁覆盖判重、积分、券库存和记录；零积分写0额当月防重记录；购买沿用父事务，cron使用锁内最新等级。缺券跳过原政策保留。",
+        "next": "每月一次cron失败后的当月自动补偿时限、已有同模板UNUSED券时的产品处理口径、正式支付入口与最终镜像仍需收口；不自动补历史部分发放",
+        "runtimeFailureInjectionThisBatch": true,
+        "resolvedInIsolation": false,
+        "atomicityFixedInIsolation": true,
+        "backendCommit": "b45b46a187f10f21d1f3ed5df3f33d5c89548122"
+      },
+      {
+        "id": "N6",
+        "path": "apps/server/src/modules/im/im-callback.controller.ts",
+        "fact": "IM回调日志改为固定事件语义，不记录正文、原账户/群号、未知命令或错误原文；消息正文正常转发不截断。",
+        "next": "正式运行环境日志与全链路隐私审计；本批仅收口指定控制器，不宣称全仓敏感日志清零",
+        "runtimeFailureInjectionThisBatch": true,
+        "resolvedInIsolation": true,
+        "backendCommit": "51077ffe38e84db4e5c9c75985880e4a7dd18c35"
+      }
+    ],
+    "allClosed": false
+  },
+  "rollbackOrder": [
+    "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
+    "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
+    "51077ffe38e84db4e5c9c75985880e4a7dd18c35",
+    "9d0a15f241c469af09a44fd4bc0f6bd11b1e28f2"
+  ],
+  "rollbackRetainCompatibilityCommit": "d6015091c726d2f0f30eec2c882eac7b456c0dea",
+  "migrationsChanged": false,
+  "production": false,
+  "realFunds": false,
+  "realNotifications": false,
+  "deployed": false,
+  "miniSubmitted": false,
+  "paidPackaging": false,
+  "uncovered": [
+    "本版正式Dockerfile最终固定包",
+    "真实Cron及新旧版本混跑任务控制",
+    "会员真实支付入口的最终镜像首月权益路径",
+    "既有同模板旧券政策和当月自动补偿",
+    "圈务治理/到期/打赏的持久恢复",
+    "企业微信回流和真实微信/短信/App推送",
+    "正式两节点最新业务与同版手机",
+    "全链路敏感日志、容量和七类上线门槛"
+  ]
+}

@@ -4,7 +4,7 @@
 
     <scroll-view scroll-y class="ins-scroll">
       <!-- 三态 -->
-      <view v-if="loading" class="ins-state"><text class="ins-state-txt">加载中...</text></view>
+      <view v-if="loading" class="ins-state"><AppLoading /></view>
       <view v-else-if="error" class="ins-state">
         <text class="ins-state-txt">{{ error }}</text>
         <view class="ins-retry" @tap="load"><text class="ins-retry-txt">重试</text></view>
@@ -114,6 +114,7 @@ import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import { navigateTo } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
 import { crmApi, type CrmInsights, type RfmTier } from '@/lib/crm-data'
 
 const loading = ref(true)
@@ -154,8 +155,9 @@ function trendHeight(count: number) {
 </script>
 
 <style scoped lang="scss">
-.ins-page { min-height: 100vh; background: #f5f2ee; display: flex; flex-direction: column; }
-.ins-scroll { flex: 1; height: 0; }
+/* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+.ins-page { height: 100vh; background: #f5f2ee; display: flex; flex-direction: column; }
+.ins-scroll { flex: 1; height: 0; min-height: 0; }
 
 .ins-state { padding: 120rpx 40rpx; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
 .ins-state-emoji { font-size: 64rpx; }

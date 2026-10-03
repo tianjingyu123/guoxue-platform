@@ -41,8 +41,7 @@
     <view v-if="tab === 'all'" class="list">
       <!-- 加载中 -->
       <view v-if="loading" class="state-box">
-        <view class="state-spin" />
-        <text class="state-text">加载中...</text>
+        <AppLoading />
       </view>
       <!-- 加载失败 -->
       <view v-else-if="error" class="state-box">
@@ -59,13 +58,16 @@
         <view class="state-icon">
           <app-icon name="users" :size="72" color="#b8ab94" />
         </view>
-        <text class="state-text">暂无拼团商品</text>
+        <text class="state-text">拼团活动正在筹备，先去商城逛逛精选好物</text>
+        <view class="state-retry" @tap="navigateTo('/mall')">
+          <text class="state-retry-text">去商城逛逛</text>
+        </view>
       </view>
       <!-- 数据列表 -->
       <view v-for="item in groupBuyList" :key="item.id" class="card">
         <view class="card-main">
           <view class="card-img-wrap">
-            <image lazy-load class="card-img" :src="item.cover" mode="aspectFill" />
+            <smart-cover class="card-img" :src="item.cover" :title="item.title" type="product" deco :deco-size="52" />
             <view class="badge-team">{{ item.minMembers }}人团</view>
             <view v-if="item.status === 'success'" class="mask-done">
               <text class="mask-done-text">已成团</text>
@@ -74,8 +76,8 @@
           <view class="card-info">
             <text class="card-title">{{ item.title }}</text>
             <view class="card-price">
-              <text class="price-now"><text class="price-unit">¥</text>{{ item.price }}</text>
-              <text class="price-old">单买¥{{ item.originalPrice }}</text>
+              <text class="price-now"><text class="price-unit">¥</text>{{ formatPrice(item.price) }}</text>
+              <text class="price-old">单买¥{{ formatPrice(item.originalPrice) }}</text>
             </view>
             <view class="save-tag">拼团省{{ saveAmount(item) }}元</view>
             <view class="prog-meta">
@@ -115,8 +117,7 @@
     <view v-else class="list">
       <!-- 加载中 -->
       <view v-if="loading" class="state-box">
-        <view class="state-spin" />
-        <text class="state-text">加载中...</text>
+        <AppLoading />
       </view>
       <!-- 空数据 -->
       <view v-else-if="!myGroups.length" class="empty">
@@ -134,10 +135,10 @@
           <text v-if="item.isOwner" class="my-owner">团长</text>
         </view>
         <view class="card-main">
-          <image lazy-load class="my-cover" :src="item.productCover" mode="aspectFill" />
+          <smart-cover class="my-cover" :src="item.productCover" :title="item.productName" type="product" deco :deco-size="48" />
           <view class="card-info">
             <text class="card-title">{{ item.productName }}</text>
-            <text class="price-now my-price"><text class="price-unit">¥</text>{{ item.price }}</text>
+            <text class="price-now my-price"><text class="price-unit">¥</text>{{ formatPrice(item.price) }}</text>
             <view class="member-stack">
               <view v-for="n in item.memberCount" :key="'mm' + n" class="m-avatar m-avatar--on">
                 <app-icon name="users" :size="20" color="#fff" />
@@ -166,52 +167,33 @@
       </view>
     </view>
 
-    <!-- 分享弹窗 -->
-    <view v-if="showShare && shareTarget" class="share-mask" @tap="showShare = false">
-      <view class="share-panel" @tap.stop>
-        <view class="share-close" @tap="showShare = false">
-          <app-icon name="x" :size="32" color="#b8ab94" />
-        </view>
-        <text class="share-title">邀请好友参团</text>
-        <text class="share-sub">还差 <text class="share-num">{{ shareTarget.minMembers - shareTarget.currentMembers }}</text> 人即可成团</text>
-        <view class="share-product">
-          <image lazy-load class="share-cover" :src="shareTarget.productCover" mode="aspectFill" />
-          <view class="share-pinfo">
-            <text class="share-pname">{{ shareTarget.productName }}</text>
-            <text class="price-now">¥{{ shareTarget.price }}</text>
-          </view>
-        </view>
-        <text class="share-label">分享至</text>
-        <view class="share-ways">
-          <view class="way">
-            <view class="way-icon way-wx"><app-icon name="message-circle" :size="44" color="#fff" /></view>
-            <text class="way-text">微信好友</text>
-          </view>
-          <view class="way">
-            <view class="way-icon way-wx"><app-icon name="users" :size="44" color="#fff" /></view>
-            <text class="way-text">朋友圈</text>
-          </view>
-          <view class="way">
-            <view class="way-icon way-qr"><app-icon name="grid" :size="44" color="#fff" /></view>
-            <text class="way-text">二维码</text>
-          </view>
-          <view class="way" @tap="copyLink">
-            <view class="way-icon way-copy"><app-icon name="copy" :size="44" color="#3a3024" /></view>
-            <text class="way-text">复制链接</text>
-          </view>
-        </view>
-        <view class="share-tip">
-          <text class="share-tip-text">分享给好友，TA购买后即可帮你成团，成团后自动发货</text>
-        </view>
-      </view>
-    </view>
+    <content-share-sheet
+      v-if="shareTarget"
+      :visible="showShare"
+      kind="product"
+      :title="groupShareTitle"
+      :summary="groupShareSummary"
+      :meta="groupShareMeta"
+      :cover="shareTarget.productCover || ''"
+      :url="groupShareUrl"
+      :poster-enabled="false"
+      @close="showShare = false"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import SmartCover from '@/components/common/smart-cover.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi, formatCountdown, type MyGroupBuyItem } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
+import { useShare } from '@/composables/useShare'
+import { buildH5Url } from '@/utils/share'
+import { withRef } from '@/utils/referral'
 
 interface GroupBuyItem {
   id: string
@@ -236,6 +218,28 @@ const loading = ref(true)
 const error = ref('')
 const showShare = ref(false)
 const shareTarget = ref<MyGroupBuyItem | null>(null)
+const groupShareTitle = computed(() => `邀请你一起拼「${shareTarget.value?.productName || '平台好物'}」`)
+const groupShareSummary = computed(() => {
+  const item = shareTarget.value
+  if (!item) return '邀请好友一起拼团，达到人数即可享受拼团价。'
+  const needed = Math.max(0, item.minMembers - item.currentMembers)
+  return `还差 ${needed} 人成团，好友打开即可查看商品与参团进度。`
+})
+const groupShareMeta = computed(() => shareTarget.value ? `拼团价 ¥${formatPrice(shareTarget.value.price)}` : '')
+const groupShareUrl = computed(() => withRef(buildH5Url('pkg-shop/group-buy/detail', {
+  id: shareTarget.value?.id,
+})))
+const { toAppMessage, toTimeline } = useShare()
+onShareAppMessage(() => toAppMessage({
+  title: groupShareTitle.value,
+  path: `/pkg-shop/group-buy/detail?id=${shareTarget.value?.id || ''}`,
+  cover: shareTarget.value?.productCover,
+}))
+onShareTimeline(() => toTimeline({
+  title: groupShareTitle.value,
+  path: `/pkg-shop/group-buy/detail?id=${shareTarget.value?.id || ''}`,
+  cover: shareTarget.value?.productCover,
+}))
 
 // 倒计时基准（各项 endTime 固定）
 const endMap: Record<string, number> = {}
@@ -291,10 +295,6 @@ function openMyResult(item: MyGroupBuyItem) {
   if (item.status === 'success') navigateTo(`/shop/group-buy-success?id=${item.id}`)
   else if (item.status === 'failed') navigateTo(`/shop/group-buy-fail?id=${item.id}`)
   else navigateTo(`/shop/group-buy/${item.id}`)
-}
-function copyLink() {
-  uni.setClipboardData({ data: `https://rebu.app/shop/group-buy/${shareTarget.value?.id}` })
-  showShare.value = false
 }
 async function retry() {
   loading.value = true
@@ -685,6 +685,7 @@ function endMapCleanup() {
   height: 160rpx;
   flex-shrink: 0;
   border-radius: 16rpx;
+  overflow: hidden;
   background: #f0ece2;
 }
 .my-price {
@@ -777,6 +778,7 @@ function endMapCleanup() {
   width: 96rpx;
   height: 96rpx;
   border-radius: 12rpx;
+  overflow: hidden;
   background: #f0ece2;
 }
 .share-pinfo {
@@ -850,17 +852,6 @@ function endMapCleanup() {
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
-}
-.state-spin {
-  width: 64rpx;
-  height: 64rpx;
-  border: 4rpx solid #e8e3db;
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 .state-icon {
   width: 120rpx;

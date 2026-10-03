@@ -54,9 +54,9 @@ describe("IdentityController", () => {
   });
 
   it("GET /identity/face/result/:token — 人脸核身结果", async () => {
-    const result: any = await ctrl.faceResult("tk123");
+    const result: any = await ctrl.faceResult(mockReq, "tk123");
     expect(result.passed).toBe(true);
-    expect(mockIdentitySvc.getFaceIdResult).toHaveBeenCalledWith("tk123");
+    expect(mockIdentitySvc.getFaceIdResult).toHaveBeenCalledWith("u1", "tk123");
   });
 
   it("GET /identity/admin/audit-list — 审核列表", async () => {

@@ -3,10 +3,11 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader, ApiResponse } from "@n
 import { Request } from "express";
 import { BigScreenService } from "./bigscreen.service";
 import { BigScreenAuthService } from "./bigscreen-auth.service";
-import { BigScreenAuthGuard } from "./bigscreen-auth.guard";
+import { BigScreenAuthGuard, BigScreenScope } from "./bigscreen-auth.guard";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("对外数字大屏")
 @Controller("bigscreen")
@@ -17,6 +18,7 @@ export class BigScreenController {
   ) {}
 
   @Get("platform")
+  @BigScreenScope("platform")
   @UseGuards(BigScreenAuthGuard)
   @ApiHeader({ name: "x-bigscreen-token", required: true })
   @ApiOperation({ summary: "平台综合实力大屏" })
@@ -26,6 +28,7 @@ export class BigScreenController {
   }
 
   @Get("transactions")
+  @BigScreenScope("transactions")
   @UseGuards(BigScreenAuthGuard)
   @ApiHeader({ name: "x-bigscreen-token", required: true })
   @ApiOperation({ summary: "实时交易大屏" })
@@ -35,6 +38,7 @@ export class BigScreenController {
   }
 
   @Get("content-eco")
+  @BigScreenScope("content_eco")
   @UseGuards(BigScreenAuthGuard)
   @ApiHeader({ name: "x-bigscreen-token", required: true })
   @ApiOperation({ summary: "内容生态大屏" })
@@ -44,6 +48,7 @@ export class BigScreenController {
   }
 
   @Get("ai-capability")
+  @BigScreenScope("ai_capability")
   @UseGuards(BigScreenAuthGuard)
   @ApiHeader({ name: "x-bigscreen-token", required: true })
   @ApiOperation({ summary: "AI能力大屏" })
@@ -53,6 +58,7 @@ export class BigScreenController {
   }
 
   @Get("offline-map")
+  @BigScreenScope("offline_map")
   @UseGuards(BigScreenAuthGuard)
   @ApiHeader({ name: "x-bigscreen-token", required: true })
   @ApiOperation({ summary: "线下驿站分布大屏" })
@@ -71,6 +77,7 @@ export class BigScreenTokenController {
   constructor(private readonly authSvc: BigScreenAuthService) {}
 
   @Post()
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "创建大屏访问令牌" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -80,6 +87,7 @@ export class BigScreenTokenController {
   }
 
   @Post(":id/approve")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "审批大屏令牌" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -89,6 +97,7 @@ export class BigScreenTokenController {
   }
 
   @Post(":id/revoke")
+  @RedLineGate(RedLine.USER_DATA, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "撤销大屏令牌" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -112,6 +121,7 @@ export class BigScreenTokenController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除大屏令牌" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -121,6 +131,7 @@ export class BigScreenTokenController {
   }
 
   @Post("clean-expired")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "清理过期令牌" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

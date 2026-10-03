@@ -1,65 +1,97 @@
 <template>
   <view class="analysis-page">
-    <app-nav-bar title="下线业绩分析" :show-back="true" background="#ffffff" color="#1f2937" />
+    <!-- 自定义导航：statusBarHeight 由组件处理 -->
+    <app-nav-bar
+      title="业绩分析"
+      :show-back="true"
+      background="linear-gradient(135deg, #A01828, #C41E3A)"
+      color="#ffffff"
+      :no-border="true"
+    />
 
     <view class="an-body">
-      <!-- 三态：加载中 -->
-      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
+      <!-- 三态：加载中（骨架） -->
+      <view v-if="loading" class="state-loading">
+        <view class="skeleton-kpi">
+          <view v-for="i in 4" :key="i" class="skeleton-cell" />
+        </view>
+        <view class="skeleton-card" />
+        <view class="skeleton-card" />
+        <text class="state-loading-text">加载中...</text>
+      </view>
+
       <!-- 三态：错误 -->
       <view v-else-if="error" class="state-error">
         <text class="state-error-text">{{ error }}</text>
         <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
       </view>
+
       <!-- 三态：空数据 -->
       <view v-else-if="isEmpty" class="state-empty">
-        <text class="state-empty-text">暂无数据</text>
+        <text class="state-empty-icon">📊</text>
+        <text class="state-empty-text">暂无团队业绩数据</text>
+        <text class="state-empty-sub">名下暂无站长</text>
       </view>
+
       <!-- 数据渲染 -->
       <template v-else>
-        <text class="an-intro">名下站长本月收益与运营诊断。推广漏斗（曝光→点击→成交）数据待埋点接入后展示。</text>
-
-        <view v-for="m in members" :key="m.id" class="an-card">
-          <!-- 头部 -->
-          <view class="an-head">
-            <view class="an-avatar">
-              <text class="an-avatar-txt">{{ m.name.charAt(0) }}</text>
+        <!-- 关键指标 2×2（由团队成员真实收益聚合） -->
+        <view class="kpi">
+          <view class="kpi-cell">
+            <view class="kpi-lbl">
+              <view class="kpi-di gold" />
+              <text class="kpi-lbl-txt">团队本月收益(元)</text>
             </view>
-            <view class="an-head-info">
-              <view class="an-head-name-row">
-                <text class="an-name">{{ m.name }}</text>
-                <text class="an-level">{{ m.level }}</text>
+            <text class="kpi-num gold">{{ formatPrice(kpi.totalEarning) }}</text>
+            <text class="kpi-foot">名下站长本月收益合计</text>
+          </view>
+          <view class="kpi-cell">
+            <view class="kpi-lbl">
+              <view class="kpi-di red" />
+              <text class="kpi-lbl-txt">团队成员</text>
+            </view>
+            <text class="kpi-num">{{ kpi.memberCount }}</text>
+            <text class="kpi-foot">名下站长(人)</text>
+          </view>
+          <view class="kpi-cell">
+            <view class="kpi-lbl">
+              <view class="kpi-di blue" />
+              <text class="kpi-lbl-txt">本月有收益站长</text>
+            </view>
+            <text class="kpi-num">{{ kpi.activeCount }}</text>
+            <text class="kpi-foot">本月收益大于零 / 共 {{ kpi.memberCount }} 人</text>
+          </view>
+          <view class="kpi-cell">
+            <view class="kpi-lbl">
+              <view class="kpi-di orange" />
+              <text class="kpi-lbl-txt">本月人均收益(元)</text>
+            </view>
+            <text class="kpi-num">{{ formatPrice(kpi.avgEarning) }}</text>
+            <text class="kpi-foot">按名下站长人数均摊</text>
+          </view>
+        </view>
+
+        <!-- 成员本月收益分解（真实 commission，按收益降序） -->
+        <view class="card">
+          <text class="card-title mb10">成员本月收益</text>
+          <view
+            v-for="(m, i) in sortedMembers"
+            :key="m.id"
+            class="mb"
+          >
+            <view class="mb-av" :style="{ background: avatarBg(i) }">
+              <text class="mb-av-txt">{{ (m.name || '?').charAt(0) }}</text>
+            </view>
+            <view class="mb-info">
+              <view class="mb-name-row">
+                <text class="mb-name">{{ m.name }}</text>
+                <text v-if="m.level" class="mb-level">{{ m.level }}</text>
               </view>
-              <text class="an-commission">佣金 ¥{{ m.commission }}</text>
+              <view class="mb-track">
+                <view class="mb-fill" :style="{ width: barWidth(m.commission) }" />
+              </view>
             </view>
-            <view class="an-trend" :class="m.trend >= 0 ? 'up' : 'down'">
-              <app-icon :name="m.trend >= 0 ? 'trending-up' : 'trending-down'" :size="28" :color="m.trend >= 0 ? '#16a34a' : '#ef4444'" />
-              <text class="an-trend-txt" :class="m.trend >= 0 ? 'up' : 'down'">{{ Math.abs(m.trend) }}%</text>
-            </view>
-          </view>
-
-          <!-- 漏斗数据 -->
-          <view class="an-funnel">
-            <view class="an-funnel-item">
-              <app-icon name="eye" :size="28" color="#9ca3af" />
-              <text class="an-funnel-val">{{ m.visits }}</text>
-              <text class="an-funnel-label">曝光</text>
-            </view>
-            <view class="an-funnel-item">
-              <app-icon name="mouse-pointer-click" :size="28" color="#9ca3af" />
-              <text class="an-funnel-val">{{ m.clicks }}</text>
-              <text class="an-funnel-label">点击 {{ ctr(m) }}%</text>
-            </view>
-            <view class="an-funnel-item">
-              <app-icon name="shopping-cart" :size="28" color="#9ca3af" />
-              <text class="an-funnel-val">{{ m.orders }}</text>
-              <text class="an-funnel-label">成交 {{ cvr(m) }}%</text>
-            </view>
-          </view>
-
-          <!-- 自动诊断 -->
-          <view class="an-diag" :class="m.diagnosis.type">
-            <app-icon name="alert-circle" :size="26" :color="m.diagnosis.type === 'good' ? '#16a34a' : '#b45309'" />
-            <text class="an-diag-txt" :class="m.diagnosis.type">{{ m.diagnosis.text }}</text>
+            <text class="mb-val">¥{{ formatPrice(m.commission) }}</text>
           </view>
         </view>
       </template>
@@ -68,8 +100,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { operatorApi, type MemberPerf } from '@/lib/operator-data'
+import { ref, computed, onMounted } from 'vue'
+import { operatorApi, type MemberPerf } from '@/pkg-operator/lib/operator-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')
@@ -94,163 +127,258 @@ async function loadData() {
   }
 }
 
-async function retry() { await loadData() }
+async function retry() {
+  await loadData()
+}
 
-function ctr(m: MemberPerf) {
-  return m.visits > 0 ? ((m.clicks / m.visits) * 100).toFixed(1) : '0.0'
+// —— KPI 聚合：接口返回名下站长本月收益 ——
+const kpi = computed(() => {
+  const list = members.value
+  const totalEarning = list.reduce((s, m) => s + (m.commission || 0), 0)
+  const memberCount = list.length
+  const activeCount = list.filter((m) => (m.commission || 0) > 0).length
+  const avgEarning = memberCount > 0 ? totalEarning / memberCount : 0
+  return { totalEarning, memberCount, activeCount, avgEarning }
+})
+
+// —— 成员分解：按收益降序，进度条相对最高值 ——
+const sortedMembers = computed(() =>
+  [...members.value].sort((a, b) => (b.commission || 0) - (a.commission || 0)),
+)
+const maxCommission = computed(() =>
+  Math.max(1, ...sortedMembers.value.map((m) => m.commission || 0)),
+)
+function barWidth(v: number) {
+  const pct = Math.round(((v || 0) / maxCommission.value) * 100)
+  return Math.max(4, pct) + '%'
 }
-function cvr(m: MemberPerf) {
-  return m.clicks > 0 ? ((m.orders / m.clicks) * 100).toFixed(1) : '0.0'
+
+const AVATAR_BGS = [
+  'linear-gradient(135deg, #C9A96E, #B08D4A)',
+  'linear-gradient(135deg, #8E9BAE, #6E7A8C)',
+  'linear-gradient(135deg, #D0925A, #B0743C)',
+  '#C7BFB2',
+]
+function avatarBg(i: number) {
+  return AVATAR_BGS[i % AVATAR_BGS.length]
 }
+
 </script>
 
 <style lang="scss" scoped>
 .analysis-page {
   min-height: 100vh;
   background: #faf8f5;
-  padding-bottom: 40rpx;
+  padding-bottom: 60rpx;
 }
 
 .an-body {
-  padding: 24rpx 32rpx;
+  padding: 30rpx 38rpx;
   display: flex;
   flex-direction: column;
+  gap: 28rpx;
+}
+
+/* —— KPI 2×2 —— */
+.kpi {
+  display: flex;
+  flex-wrap: wrap;
   gap: 24rpx;
 }
-.an-intro {
-  font-size: 22rpx;
-  color: #9ca3af;
-  line-height: 1.5;
-}
-
-.an-card {
-  padding: 32rpx;
+.kpi-cell {
+  width: calc(50% - 12rpx);
+  box-sizing: border-box;
   background: #ffffff;
-  border: 1rpx solid #f0e9e0;
-  border-radius: 24rpx;
+  border-radius: 35rpx;
+  padding: 30rpx;
+  box-shadow: 0 2rpx 20rpx rgba(44, 38, 30, 0.05);
 }
-
-.an-head {
+.kpi-lbl {
   display: flex;
   align-items: center;
-  gap: 24rpx;
-  margin-bottom: 24rpx;
+  gap: 12rpx;
 }
-.an-avatar {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 20rpx;
-  background: rgba(146, 84, 222, 0.1);
+.kpi-di {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 4rpx;
+  flex-shrink: 0;
+}
+.kpi-di.gold { background: #c9a96e; }
+.kpi-di.red { background: #c41e3a; }
+.kpi-di.blue { background: #4a90d9; }
+.kpi-di.orange { background: #e8890b; }
+.kpi-lbl-txt {
+  font-size: 23rpx;
+  color: #6e6e73;
+}
+.kpi-num {
+  display: block;
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 46rpx;
+  font-weight: 700;
+  color: #2c2c2c;
+  line-height: 1.1;
+  margin-top: 16rpx;
+}
+.kpi-num.gold { color: #97794a; }
+.kpi-num.red { color: #c41e3a; }
+.kpi-foot {
+  display: block;
+  font-size: 20rpx;
+  color: #999999;
+  margin-top: 10rpx;
+}
+
+/* —— 通用卡片 —— */
+.card {
+  background: #ffffff;
+  border-radius: 35rpx;
+  padding: 34rpx;
+  box-shadow: 0 2rpx 20rpx rgba(44, 38, 30, 0.05);
+}
+.card-title {
+  display: block;
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #2c2c2c;
+}
+.card-title.mb10 {
+  margin-bottom: 20rpx;
+}
+/* —— 成员业绩分解 —— */
+.mb {
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+  padding: 22rpx 0;
+  border-bottom: 2rpx solid #f4f0e9;
+}
+.mb:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.mb-av {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
 }
-.an-avatar-txt {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #9254de;
+.mb-av-txt {
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 26rpx;
+  color: #ffffff;
 }
-.an-head-info {
+.mb-info {
   flex: 1;
   min-width: 0;
 }
-.an-head-name-row {
+.mb-name-row {
   display: flex;
   align-items: center;
   gap: 12rpx;
 }
-.an-name {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #1f2937;
+.mb-name {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #2c2c2c;
 }
-.an-level {
-  font-size: 20rpx;
+.mb-level {
+  font-size: 19rpx;
   padding: 2rpx 12rpx;
   border-radius: 8rpx;
   background: #f3f4f6;
-  color: #9ca3af;
+  color: #999999;
 }
-.an-commission {
-  display: block;
-  font-size: 22rpx;
-  color: #9ca3af;
-  margin-top: 6rpx;
+.mb-track {
+  height: 12rpx;
+  border-radius: 99rpx;
+  background: #f1ede6;
+  margin-top: 10rpx;
+  overflow: hidden;
 }
-.an-trend {
+.mb-fill {
+  height: 100%;
+  border-radius: 99rpx;
+  background: linear-gradient(90deg, #c9a96e, #97794a);
+}
+.mb-val {
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #97794a;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 2rpx;
-}
-.an-trend-txt {
-  font-size: 26rpx;
-  font-weight: 500;
-}
-.an-trend-txt.up {
-  color: #16a34a;
-}
-.an-trend-txt.down {
-  color: #ef4444;
 }
 
-.an-funnel {
+/* —— 三态 —— */
+.state-loading {
   display: flex;
-  gap: 16rpx;
-  margin-bottom: 24rpx;
+  flex-direction: column;
+  gap: 28rpx;
+  align-items: center;
 }
-.an-funnel-item {
-  flex: 1;
+.skeleton-kpi {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24rpx;
+}
+.skeleton-cell {
+  width: calc(50% - 12rpx);
+  height: 160rpx;
+  border-radius: 35rpx;
+  background: #f0ece5;
+}
+.skeleton-card {
+  width: 100%;
+  height: 300rpx;
+  border-radius: 35rpx;
+  background: #f0ece5;
+}
+.state-loading-text {
+  font-size: 26rpx;
+  color: #999999;
+  margin-top: 8rpx;
+}
+.state-error,
+.state-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16rpx 0;
-  border-radius: 16rpx;
-  background: #f9fafb;
+  justify-content: center;
+  padding: 140rpx 38rpx;
 }
-.an-funnel-val {
+.state-error-text {
   font-size: 28rpx;
-  font-weight: 700;
-  color: #1f2937;
-  margin-top: 8rpx;
+  color: #c41e3a;
+  text-align: center;
+  margin-bottom: 28rpx;
 }
-.an-funnel-label {
-  font-size: 20rpx;
-  color: #9ca3af;
-  margin-top: 4rpx;
-}
-
-.an-diag {
-  display: flex;
-  align-items: flex-start;
-  gap: 12rpx;
-  padding: 20rpx;
+.state-retry-btn {
+  padding: 18rpx 56rpx;
+  background: #c41e3a;
   border-radius: 16rpx;
 }
-.an-diag.good {
-  background: rgba(22, 163, 74, 0.05);
+.state-retry-btn text {
+  font-size: 26rpx;
+  color: #ffffff;
 }
-.an-diag.warn {
-  background: #fffbeb;
+.state-empty-icon {
+  font-size: 60rpx;
+  margin-bottom: 20rpx;
 }
-.an-diag-txt {
-  flex: 1;
+.state-empty-text {
+  font-size: 28rpx;
+  color: #2c2c2c;
+  font-weight: 500;
+}
+.state-empty-sub {
   font-size: 22rpx;
-  line-height: 1.6;
+  color: #999999;
+  margin-top: 12rpx;
 }
-.an-diag-txt.good {
-  color: #16a34a;
-}
-.an-diag-txt.warn {
-  color: #b45309;
-}
-
-/* 三态 */
-.state-loading, .state-error, .state-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
-.state-loading-text { font-size: 28rpx; color: #999; }
-.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
-.state-empty-text { font-size: 28rpx; color: #999; }
-.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
-.state-retry-btn text { font-size: 26rpx; color: #fff; }
 </style>

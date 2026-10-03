@@ -1,8 +1,10 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class PermissionService {
+  private readonly logger = new Logger(PermissionService.name);
+
   constructor(private prisma: PrismaService) {}
 
   /** 获取某角色的权限列表 */
@@ -14,8 +16,15 @@ export class PermissionService {
     return rolePermissions.map((rp) => rp.permission.key);
   }
 
-  /** 更新某角色的权限 */
-  async setRolePermissions(roleType: string, permissionKeys: string[]) {
+  /**
+   * 更新某角色的权限（提权类高危操作）。
+   * 审计留痕(后端审计P1)：记录旧/新权限集合 + 差异 + rollbackData（旧集合），支持一键回滚。
+   * 全局 AuditInterceptor 已记基础 who/when，此处补「改了什么」这层无法从拦截器拿到的信息。
+   */
+  async setRolePermissions(roleType: string, permissionKeys: string[], operatorId?: string) {
+    // 变更前快照旧权限集合，用于差异审计与回滚
+    const oldKeys = await this.getRolePermissions(roleType);
+
     const permissions = await this.prisma.permission.findMany({
       where: { key: { in: permissionKeys } },
       select: { id: true, key: true },
@@ -33,7 +42,26 @@ export class PermissionService {
       }
     });
 
-    return { permissions: permissions.map((p) => p.key) };
+    const newKeys = permissions.map((p) => p.key);
+    const added = newKeys.filter((k) => !oldKeys.includes(k));
+    const removed = oldKeys.filter((k) => !newKeys.includes(k));
+
+    // 详细审计（含 rollbackData=旧集合，可一键还原）。写库失败不回滚业务操作，仅告警。
+    await this.prisma.auditLog
+      .create({
+        data: {
+          userId: operatorId,
+          executor: operatorId || "UNKNOWN",
+          action: "ROLE_PERMISSION_CHANGE",
+          targetType: "ROLE",
+          targetId: roleType,
+          detail: JSON.stringify({ roleType, oldKeys, newKeys, added, removed }),
+          rollbackData: { roleType, permissionKeys: oldKeys } as any,
+        },
+      })
+      .catch((err) => this.logger.warn(`角色权限变更审计写入失败 [${roleType}]`, err instanceof Error ? err.message : err));
+
+    return { permissions: newKeys };
   }
 
   /** 获取所有权限定义 */

@@ -171,8 +171,8 @@
     </scroll-view>
 
     <!-- 历史记录弹层 -->
-    <view v-if="showHistory" class="sheet-mask" @tap="showHistory = false">
-      <view class="sheet" @tap.stop>
+    <view v-if="showHistory" class="sheet-mask" @tap="showHistory = false" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
         <view class="sheet-head">
           <text class="sheet-title">生成历史</text>
         </view>
@@ -715,6 +715,7 @@ function openHistory() {
 .sheet {
   width: 100%;
   height: 70vh;
+  overflow: hidden;
   background: #fff;
   border-radius: 28rpx 28rpx 0 0;
   padding: 32rpx;
@@ -730,6 +731,10 @@ function openHistory() {
 }
 .sheet-body {
   height: calc(70vh - 120rpx);
+}
+.sheet-body :deep(.uni-scroll-view),
+.sheet-body :deep(.uni-scroll-view-content) {
+  overscroll-behavior: contain;
 }
 .hist-loading {
   display: flex;

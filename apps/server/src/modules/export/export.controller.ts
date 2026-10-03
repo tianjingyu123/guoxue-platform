@@ -1,6 +1,6 @@
-import { Controller, Get, Query, Res, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
-import { Response } from "express";
+import { Request, Response } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -28,9 +28,10 @@ export class ExportController {
     @Query("keyword") keyword?: string,
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string,
+    @Req() req?: Request,
     @Res() res?: Response,
   ) {
-    const csv = await this.exportSvc.exportUsers({ status, keyword, startDate, endDate });
+    const csv = await this.exportSvc.exportUsers({ status, keyword, startDate, endDate }, req?.user?.id);
     res!.setHeader("Content-Type", "text/csv; charset=utf-8");
     res!.setHeader("Content-Disposition", `attachment; filename="users_${Date.now()}.csv"`);
     res!.send(csv);
@@ -49,9 +50,10 @@ export class ExportController {
     @Query("type") type?: string,
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string,
+    @Req() req?: Request,
     @Res() res?: Response,
   ) {
-    const csv = await this.exportSvc.exportOrders({ status, type, startDate, endDate });
+    const csv = await this.exportSvc.exportOrders({ status, type, startDate, endDate }, req?.user?.id);
     res!.setHeader("Content-Type", "text/csv; charset=utf-8");
     res!.setHeader("Content-Disposition", `attachment; filename="orders_${Date.now()}.csv"`);
     res!.send(csv);
@@ -68,9 +70,10 @@ export class ExportController {
     @Query("auditStatus") auditStatus?: string,
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string,
+    @Req() req?: Request,
     @Res() res?: Response,
   ) {
-    const csv = await this.exportSvc.exportCourses({ auditStatus, startDate, endDate });
+    const csv = await this.exportSvc.exportCourses({ auditStatus, startDate, endDate }, req?.user?.id);
     res!.setHeader("Content-Type", "text/csv; charset=utf-8");
     res!.setHeader("Content-Disposition", `attachment; filename="courses_${Date.now()}.csv"`);
     res!.send(csv);
@@ -89,9 +92,10 @@ export class ExportController {
     @Query("circleId") circleId?: string,
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string,
+    @Req() req?: Request,
     @Res() res?: Response,
   ) {
-    const csv = await this.exportSvc.exportArticles({ auditStatus, circleId, startDate, endDate });
+    const csv = await this.exportSvc.exportArticles({ auditStatus, circleId, startDate, endDate }, req?.user?.id);
     res!.setHeader("Content-Type", "text/csv; charset=utf-8");
     res!.setHeader("Content-Disposition", `attachment; filename="articles_${Date.now()}.csv"`);
     res!.send(csv);
@@ -109,9 +113,10 @@ export class ExportController {
     @Query("status") status?: string,
     @Query("startDate") startDate?: string,
     @Query("endDate") endDate?: string,
+    @Req() req?: Request,
     @Res() res?: Response,
   ) {
-    const csv = await this.exportSvc.exportWithdrawals({ status, startDate, endDate });
+    const csv = await this.exportSvc.exportWithdrawals({ status, startDate, endDate }, req?.user?.id);
     res!.setHeader("Content-Type", "text/csv; charset=utf-8");
     res!.setHeader("Content-Disposition", `attachment; filename="withdrawals_${Date.now()}.csv"`);
     res!.send(csv);

@@ -9,7 +9,7 @@
     <!-- 错误状态 -->
     <view v-else-if="error" class="state-error">
       <text class="state-error__txt">{{ error }}</text>
-      <view class="state-error__retry" @tap="fetchData('1')"><text class="state-error__retry-txt">重试</text></view>
+      <view class="state-error__retry" @tap="fetchData(endId)"><text class="state-error__retry-txt">重试</text></view>
     </view>
 
     <template v-else>
@@ -19,7 +19,7 @@
       <view class="cover-mask" />
 
       <!-- 顶部导航 -->
-      <view class="cover-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="cover-nav" :style="{ paddingTop: safeTop + 'px' }">
         <view class="nav-back" @tap="goBack">
           <AppIcon name="chevron-left" :size="40" color="#fff" />
         </view>
@@ -48,9 +48,9 @@
     <!-- 主播信息（后端 end 无关注/粉丝维度 → 仅展示主播） -->
     <view class="host-card">
       <view class="host-left">
-        <image lazy-load class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+        <smart-avatar :src="room.hostAvatar" :name="hostDisplayName" class="host-avatar" />
         <view class="host-meta">
-          <text class="host-name">{{ room.hostName }}</text>
+          <text class="host-name">{{ hostDisplayName }}</text>
         </view>
       </view>
     </view>
@@ -126,7 +126,7 @@
           <view class="course-meta">
             <text class="course-title">{{ course.title }}</text>
             <view class="course-foot">
-              <text class="course-price">¥{{ course.price }}</text>
+              <text class="course-price">¥{{ formatPrice(course.price) }}</text>
               <text class="course-lessons">{{ course.lessons }}课时</text>
             </view>
           </view>
@@ -135,7 +135,7 @@
     </view>
 
     <!-- 底部固定按钮 -->
-    <view class="bottom-bar" :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16rpx)' }">
+    <view class="bottom-bar" :style="{ paddingBottom: (safeBottom + 8) + 'px' }">
       <view class="bottom-btn bottom-btn-outline" @tap="goPlaza">
         <text class="bottom-btn-txt-outline">返回直播广场</text>
       </view>
@@ -149,22 +149,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
+import { formatPrice } from '@/utils/format'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 
-const statusBarHeight = ref(0)
+const { safeTop, safeBottom } = useAppSafeArea()
 
 // 数据状态
 const loading = ref(true)
 const error = ref('')
+const endId = ref('')
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({})
 // 推荐直播/课程列表，元素结构由后端返回，保留 any[]
 const recommendLives = ref<any[]>([])
 const recommendCourses = ref<any[]>([])
+
+// 主播昵称缺失时兜底，避免头像旁整块空白
+const hostDisplayName = computed(() => (room.value?.hostName || '').trim() || '主播')
 
 async function fetchData(endId: string) {
   loading.value = true
@@ -182,7 +189,13 @@ async function fetchData(endId: string) {
 }
 
 onLoad((opts) => {
-  fetchData(opts?.id || '1')
+  endId.value = String(opts?.id || '')
+  if (!endId.value) {
+    loading.value = false
+    error.value = '缺少直播场次信息，请返回后重新进入'
+    return
+  }
+  fetchData(endId.value)
 })
 
 function goPlaza() { navigateTo('/pkg-live/plaza/index') }

@@ -55,21 +55,42 @@ function starColor(s: { wuXing?: string; liangJi?: string }): string {
 <template>
   <div class="ziwei-board">
     <!-- 头部：五行局 + 格局 -->
-    <div class="board-header" v-if="wuXingJu || (geShi?.length)">
-      <span v-if="wuXingJu" class="wuxing-ju">{{ wuXingJu }}</span>
-      <span v-for="g in geShi" :key="g" class="ge-tag">{{ g }}</span>
+    <div
+      v-if="wuXingJu || (geShi?.length)"
+      class="board-header"
+    >
+      <span
+        v-if="wuXingJu"
+        class="wuxing-ju"
+      >{{ wuXingJu }}</span>
+      <span
+        v-for="g in geShi"
+        :key="g"
+        class="ge-tag"
+      >{{ g }}</span>
     </div>
 
     <!-- 四化 -->
-    <div class="sihua-bar" v-if="siHuaList.length">
-      <span v-for="s in siHuaList" :key="s.label" class="sihua-item" :class="s.cls">
+    <div
+      v-if="siHuaList.length"
+      class="sihua-bar"
+    >
+      <span
+        v-for="s in siHuaList"
+        :key="s.label"
+        class="sihua-item"
+        :class="s.cls"
+      >
         {{ s.label }}：<b>{{ s.value }}</b>
       </span>
     </div>
 
     <!-- 12宫网格 -->
     <div class="gong-grid">
-      <template v-for="cell in grid" :key="cell.name">
+      <template
+        v-for="cell in grid"
+        :key="cell.name"
+      >
         <div
           class="gong-cell"
           :class="{ 'is-ming': cell.name === '命宫', 'is-shen': cell.name === (shenGong||'') }"
@@ -77,21 +98,36 @@ function starColor(s: { wuXing?: string; liangJi?: string }): string {
         >
           <div class="gong-header">
             <span class="gong-name">{{ cell.name }}</span>
-            <span v-if="cell.name === (shenGong||'')" class="shen-badge">身</span>
-            <span v-if="cell.gong" class="gong-zhi">{{ cell.gong.zhi }}</span>
+            <span
+              v-if="cell.name === (shenGong||'')"
+              class="shen-badge"
+            >身</span>
+            <span
+              v-if="cell.gong"
+              class="gong-zhi"
+            >{{ cell.gong.zhi }}</span>
           </div>
-          <div class="gong-stars" v-if="cell.gong?.stars?.length">
+          <div
+            v-if="cell.gong?.stars?.length"
+            class="gong-stars"
+          >
             <span
               v-for="star in cell.gong.stars.slice(0,6)"
               :key="star.name"
               class="star-tag"
               :style="{ color: starColor(star) }"
             >{{ star.name }}</span>
-            <span v-if="cell.gong.stars.length > 6" class="star-more">
+            <span
+              v-if="cell.gong.stars.length > 6"
+              class="star-more"
+            >
               +{{ cell.gong.stars.length - 6 }}
             </span>
           </div>
-          <div class="gong-info" v-if="cell.gong">
+          <div
+            v-if="cell.gong"
+            class="gong-info"
+          >
             <span class="gong-gan">{{ cell.gong.gan }}</span>
             <span class="gong-daxian">{{ cell.gong.daXianStart }}-{{ cell.gong.daXianEnd }}岁</span>
           </div>

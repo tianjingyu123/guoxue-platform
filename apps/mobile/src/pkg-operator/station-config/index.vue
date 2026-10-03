@@ -3,7 +3,7 @@
     <!-- Header (动态主题色) -->
     <view class="cfg-header" :style="{ paddingTop: statusBarHeight + 'px', background: theme.primary }">
       <view class="cfg-header-inner">
-        <view class="cfg-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
+        <view class="cfg-hbtn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <text class="cfg-title">分站装修</text>
         <view class="cfg-hbtn" @tap="handleSave">
           <app-icon :name="saving ? 'loader-2' : 'save'" :size="40" color="#ffffff" :class="{ 'cfg-spin': saving }" />
@@ -42,9 +42,9 @@
           <view class="cfg-logo-tip">
             <text class="cfg-logo-t1">建议尺寸：200x200像素</text>
             <text class="cfg-logo-t2">支持 JPG、PNG 格式，最大 2MB</text>
-            <view class="cfg-logo-upload" :style="{ color: theme.primary }" @tap="uploadLogo">
-              <app-icon name="upload" :size="26" :color="theme.primary" />
-              <text class="cfg-logo-upload-txt">更换 Logo</text>
+            <view class="cfg-logo-upload" :class="{ disabled: logoUploading }" :style="{ color: theme.primary }" @tap="uploadLogo">
+              <app-icon :name="logoUploading ? 'loader-2' : 'upload'" :size="26" :color="theme.primary" :class="{ 'cfg-spin': logoUploading }" />
+              <text class="cfg-logo-upload-txt">{{ logoUploading ? '上传中…' : '更换 Logo' }}</text>
             </view>
           </view>
         </view>
@@ -227,7 +227,9 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { operatorApi, type StationConfigData, type StationTemplateOption } from '@/lib/operator-data'
+import { operatorApi, type StationConfigData, type StationTemplateOption } from '@/pkg-operator/lib/operator-data'
+import { buildH5Url } from '@/utils/share'
+import { chooseAndUploadImage } from '@/utils/request'
 
 const statusBarHeight = ref(20)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 20 } })
@@ -263,6 +265,7 @@ const templates = ref<StationTemplateOption[]>([])
 const useCustomColor = ref(false)
 
 // 可编辑表单（与 config 解耦，避免误改只读统计）
+const logoUploading = ref(false)
 const form = reactive({ name: '', intro: '', logo: '', themeColor: '#C41E3A', templateId: 'default' })
 
 const theme = computed(() => ({ primary: isValidHex(form.themeColor) ? form.themeColor : '#C41E3A' }))
@@ -308,12 +311,22 @@ async function retry() {
 
 onMounted(fetchData)
 
-function uploadLogo() {
-  // Logo 上传依赖 OSS 文件服务，后端暂未开放上传端点 → 诚实提示，不伪造成功
-  uni.showToast({ title: 'Logo 上传即将开放', icon: 'none' })
+async function uploadLogo() {
+  if (logoUploading.value) return
+  logoUploading.value = true
+  try {
+    form.logo = await chooseAndUploadImage()
+    uni.showToast({ title: 'Logo 已上传，请保存配置', icon: 'none' })
+  } catch (e) {
+    const message = (e as Error)?.message || ''
+    if (message && message !== '已取消') uni.showToast({ title: message, icon: 'none' })
+  } finally {
+    logoUploading.value = false
+  }
 }
 
 async function handleSave() {
+  if (logoUploading.value) { uni.showToast({ title: '请等待 Logo 上传完成', icon: 'none' }); return }
   if (saving.value) return
   if (!form.name.trim()) { uni.showToast({ title: '请填写分站名称', icon: 'none' }); return }
   if (!isValidHex(form.themeColor)) { uni.showToast({ title: '主题色格式不正确', icon: 'none' }); return }
@@ -322,6 +335,7 @@ async function handleSave() {
     await operatorApi.updateStationConfig({
       name: form.name.trim(),
       intro: form.intro.trim(),
+      logo: form.logo,
       themeColor: form.themeColor,
       templateId: form.templateId,
     })
@@ -334,9 +348,7 @@ async function handleSave() {
 }
 
 function copyShareLink() {
-  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
-  const base = (import.meta as any).env?.VITE_H5_URL || ''
-  const link = `${base}/#/pages/index/index?ref=${config.value.code}`
+  const link = buildH5Url('/pages/index/index', { ref: config.value.code })
   uni.setClipboardData({ data: link, success: () => uni.showToast({ title: '推广链接已复制', icon: 'none' }) })
 }
 
@@ -432,6 +444,7 @@ function goBack() { uni.navigateBack({ fail: () => navigateTo('/pages/index/inde
 .cfg-custom { display: flex; flex-direction: column; gap: 24rpx; }
 .cfg-custom-row { display: flex; align-items: center; gap: 24rpx; }
 .cfg-custom-label { font-size: 26rpx; color: #4b5563; width: 120rpx; }
+.cfg-logo-upload.disabled { opacity: 0.55; }
 .cfg-color-box { width: 64rpx; height: 64rpx; border-radius: 12rpx; border: 1rpx solid #e5e7eb; flex-shrink: 0; }
 .cfg-color-input { flex: 1; font-family: monospace; }
 .cfg-custom-err { font-size: 22rpx; color: #ef4444; }

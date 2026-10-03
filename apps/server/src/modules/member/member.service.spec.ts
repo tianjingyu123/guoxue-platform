@@ -2,23 +2,26 @@ import { Test } from "@nestjs/testing";
 import { MemberService } from "./member.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
+import { EntitlementService } from "../entitlement/entitlement.service";
 
 describe("MemberService", () => {
   let svc: MemberService;
   let prisma: any;
+  const entitlement = { grantWithTx: jest.fn(), revokeEntitlementWithTx: jest.fn() };
 
   beforeEach(async () => {
     prisma = {
       memberConfig: { findMany: jest.fn(), findUnique: jest.fn() },
       memberPurchase: { findMany: jest.fn(), create: jest.fn(), count: jest.fn(), aggregate: jest.fn() },
       user: { findUnique: jest.fn(), update: jest.fn(), count: jest.fn(), groupBy: jest.fn() },
-      $transaction: jest.fn((ops: any[]) => Promise.all(ops.map(o => typeof o === "function" ? o() : o))),
+      $transaction: jest.fn((input: any) => typeof input === "function" ? input(prisma) : Promise.all(input)),
     };
 
     const mod = await Test.createTestingModule({
       providers: [
         MemberService,
         { provide: PrismaService, useValue: prisma },
+        { provide: EntitlementService, useValue: entitlement },
       ],
     }).compile();
     svc = mod.get(MemberService);
@@ -76,6 +79,15 @@ describe("MemberService", () => {
   // renew 测试已随方法删除（同 purchase）
 
   describe("grantMember", () => {
+    it.each([
+      ["NONE", 30], ["UNKNOWN", 30], ["MONTHLY", 0], ["MONTHLY", -1],
+      ["MONTHLY", 1.5], ["MONTHLY", Number.MAX_SAFE_INTEGER],
+    ])("拒绝无效等级或时长 %s / %s，不写会员事务", async (level, days) => {
+      prisma.user.findUnique.mockResolvedValue({ id: "u1" });
+      await expect(svc.grantMember("u1", level as string, days as number)).rejects.toThrow(BusinessException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
     it("管理员授予指定天数会员", async () => {
       prisma.user.findUnique.mockResolvedValue({ id: "u1" });
       prisma.$transaction.mockResolvedValue([]);

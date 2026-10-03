@@ -1,0 +1,141 @@
+{
+  "checkedAt": "2026-10-03T14:17:33.398Z",
+  "publicProbeReportSha256": "0a91a4f23a4db0c28233c82d21f2bf0175f92bed7dadf2eda1f6542724bbeb77",
+  "windowUtc": [
+    "2026-10-03T14:10:00Z",
+    "2026-10-03T14:12:30Z"
+  ],
+  "nodes": [
+    {
+      "node": "A",
+      "instanceId": "ins-0sen8yvf",
+      "taskId": "invt-e9f1isgfqb",
+      "invocationId": "inv-e9f1isgfqa",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordSha256": "1c6171f798a3a0260958101ab090fe6a9066ac6489eede6c237349b5429844d5",
+      "executedScriptSha256": "bed809c269f62cd9e3fedc620b6e28e4f90b40bb837cd535ab16b0926babfbc3",
+      "rawRecordActuallyRead": true,
+      "hits": [
+        {
+          "sequence": 1,
+          "uuid": "e23c1bcd-ce87-4f0a-bc53-c503cd4cf7e7",
+          "kind": "API",
+          "count": 1,
+          "statuses": [
+            200
+          ]
+        },
+        {
+          "sequence": 2,
+          "uuid": "9d0f47b6-991e-4cc5-9a9a-9ce9efc4ac28",
+          "kind": "H5",
+          "count": 0,
+          "statuses": []
+        },
+        {
+          "sequence": 3,
+          "uuid": "432bc68a-b6f6-43a8-9915-7d1436df82f8",
+          "kind": "API",
+          "count": 1,
+          "statuses": [
+            200
+          ]
+        },
+        {
+          "sequence": 4,
+          "uuid": "6067e04b-6d39-456d-aa4e-bbea4375ea33",
+          "kind": "H5",
+          "count": 1,
+          "statuses": [
+            200
+          ]
+        },
+        {
+          "sequence": 5,
+          "uuid": "74ffb5dc-76c2-4751-be3a-aeabffd6bda5",
+          "kind": "API",
+          "count": 0,
+          "statuses": []
+        },
+        {
+          "sequence": 6,
+          "uuid": "76e7f683-94c6-418b-974b-da097fdd06f0",
+          "kind": "H5",
+          "count": 0,
+          "statuses": []
+        }
+      ]
+    },
+    {
+      "node": "B",
+      "instanceId": "ins-n0sqc627",
+      "taskId": "invt-e9f1j7gquk",
+      "invocationId": "inv-e9f1j7gquj",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordSha256": "a68816e09b0cc0512a666e0f538559c2638e234ed5848f5e845bdd4ceba79116",
+      "executedScriptSha256": "bed809c269f62cd9e3fedc620b6e28e4f90b40bb837cd535ab16b0926babfbc3",
+      "rawRecordActuallyRead": true,
+      "hits": [
+        {
+          "sequence": 1,
+          "uuid": "e23c1bcd-ce87-4f0a-bc53-c503cd4cf7e7",
+          "kind": "API",
+          "count": 0,
+          "statuses": []
+        },
+        {
+          "sequence": 2,
+          "uuid": "9d0f47b6-991e-4cc5-9a9a-9ce9efc4ac28",
+          "kind": "H5",
+          "count": 1,
+          "statuses": [
+            200
+          ]
+        },
+        {
+          "sequence": 3,
+          "uuid": "432bc68a-b6f6-43a8-9915-7d1436df82f8",
+          "kind": "API",
+          "count": 0,
+          "statuses": []
+        },
+        {
+          "sequence": 4,
+          "uuid": "6067e04b-6d39-456d-aa4e-bbea4375ea33",
+          "kind": "H5",
+          "count": 0,
+          "statuses": []
+        },
+        {
+          "sequence": 5,
+          "uuid": "74ffb5dc-76c2-4751-be3a-aeabffd6bda5",
+          "kind": "API",
+          "count": 1,
+          "statuses": [
+            200
+          ]
+        },
+        {
+          "sequence": 6,
+          "uuid": "76e7f683-94c6-418b-974b-da097fdd06f0",
+          "kind": "H5",
+          "count": 1,
+          "statuses": [
+            200
+          ]
+        }
+      ]
+    }
+  ],
+  "eachUuidExactlyOnce": true,
+  "bothApiAndH5ObservedOnEachSpecifiedNode": true,
+  "currentRouteObservationClosed": true,
+  "postDeploymentFinalReleaseVerified": false,
+  "observedApiReleaseId": "preprod-cd055084-20260903-r1",
+  "clbAccountOrCompleteBackendConfigurationVerified": false,
+  "productionModified": false
+}

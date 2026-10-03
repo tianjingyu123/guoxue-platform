@@ -1,7 +1,7 @@
 // 运势板块数据（迁移自原型 lib/api/fortune.ts + lib/types/fortune.ts）
 // 联调：API 对象 fortuneApi 已对接后端 /fortune/* 端点
 
-import { apiGet, apiPost, apiDelete, useMock } from '@/utils/request'
+import { apiGet, apiPost } from '@/utils/request'
 
 export type FortuneLevel = 'excellent' | 'good' | 'normal' | 'bad' | 'poor'
 

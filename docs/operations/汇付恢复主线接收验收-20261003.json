@@ -1,0 +1,95 @@
+{
+  "checkedAt": "2026-10-03T15:45:29.611Z",
+  "source": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069",
+  "previous": "0865fba351410b09365234b7d17c2a3690dd60db",
+  "candidate": "8db4b5c22c9e653492ad310f39e594bfb1a78225",
+  "received": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069",
+  "conflicts": 0,
+  "productFiles": 2,
+  "testFiles": 5,
+  "migrations": 145,
+  "migrationChanges": 0,
+  "evidence": [
+    {
+      "path": "artifacts/safety55-intake-20261003/r04-inputs.json",
+      "sha256": "0238c1c664d5bd98b253c9787d3223c2b0e070a6b5004af372a5c09faadc79c8"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r04-main-build.log",
+      "sha256": "c9068e5ceb39ad22e025453d9f95c7ed5220220498ed42a064e05f9417c31e03"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r04-main-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r04-main-unit.json",
+      "sha256": "b905bb861f7476ead20915f2457ac895cbdc5c8559bcbe2be258d894fb0153e6"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r04-main-unit.log",
+      "sha256": "9cada01a4db24971f286ee7dec5821937a0a9f3fa2a920c757d70f7968d57929"
+    }
+  ],
+  "pg": {
+    "path": "E:/CodexReview/main-r04-988414ccf-20261003/receipt.json",
+    "sha256": "94d68e6a71ff318d4992ade5e24c366e8ce91d3a7aa1935bfbcbca052458d455",
+    "passed": 68,
+    "skipped": 0,
+    "actualCompiledServices": true,
+    "sharedCompiled": true,
+    "fixtureCleanupVerified": true,
+    "postgresStopped": true,
+    "baselineSha256": "01bbfedbca623315a375de9fe96953cb6bc032b896da900b11d7b28db9ed8b48",
+    "notFullUpgradeRehearsal": true
+  },
+  "newUnit": {
+    "suites": 8,
+    "passed": 331,
+    "failed": 0,
+    "skipped": 0
+  },
+  "sourceHistoricalEvidence": {
+    "unit": 230,
+    "sourceAndCompiledSameCases": 68,
+    "doNotAddTwice": true
+  },
+  "implementation": {
+    "intentCommittedBeforeOnlyInitialPost": true,
+    "networkOutsideTransaction": true,
+    "unknownRecoveryQueryOnly": true,
+    "originalDateAndSequenceVerified": true,
+    "strictRsaQuery": true,
+    "merchantAndRefundAmountBinding": true,
+    "successCannotBeOverwrittenByProcessing": true,
+    "oldPaymentsNotRebaselined": true
+  },
+  "rollout": {
+    "route": "维护窗口：双入口阻新资金写入、核在途、停止两旧业务进程并确认退出后迁移和启动同版",
+    "mixedOldNewForbidden": true,
+    "oldRefundTasksMustNotResumeAfterNewIntents": true,
+    "recoveryIntentAndBaselineMustBeRetainedTogether": true,
+    "existingPauseControlNotVerified": true,
+    "localMaintenanceImplementationUnderReview": true
+  },
+  "client": {
+    "installedAndroidVersion": 253,
+    "currentManifestVersion": 254,
+    "currentInstalledPackageMatchesCandidate": false,
+    "oldDeviceEvidenceNotFinalAcceptance": true
+  },
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "uncovered": [
+    "汇付真实响应契约与真实出款",
+    "最终145清单正式Linux镜像及完整103升级副本",
+    "最终同版App与小程序用户旅程",
+    "维护窗口脚本正式执行与两个旧镜像的资金安全回退"
+  ],
+  "releaseReady": false,
+  "production": false
+}

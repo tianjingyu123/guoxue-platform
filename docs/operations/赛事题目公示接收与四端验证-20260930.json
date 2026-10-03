@@ -1,0 +1,620 @@
+{
+  "recordedAt": "2026-10-01T01:38:15.0824109Z",
+  "sourceCommit": "f4a70171dface60d4091b9130c975a8cea9cca61",
+  "originalCandidate": "b5b6682678706a8561684f9ffb6bd0a58395f8a9",
+  "receiveParent": "ebcb96d3e043730c43ba63f1680a5f46ccc644da",
+  "conflicts": false,
+  "archive": {
+    "assetId": 602181090,
+    "archiveSha256": "f43610e75b3eff17b53dfb086c4b33f491f1280888ecf92a00506e8feeebea24",
+    "draft": true,
+    "size": 15604090,
+    "assetName": "gx-deploy-91-launch-20260930-f4a70171.tar.gz",
+    "sourceCommit": "f4a70171dface60d4091b9130c975a8cea9cca61",
+    "releaseId": 400058667,
+    "digest": "sha256:f43610e75b3eff17b53dfb086c4b33f491f1280888ecf92a00506e8feeebea24"
+  },
+  "clientArtifacts": {
+    "schemaVersion": 2,
+    "generatedAt": "2026-10-01T01:33:37.008Z",
+    "releaseId": "launch-20260930-f4a70171",
+    "sourceCommit": "f4a70171dface60d4091b9130c975a8cea9cca61",
+    "environmentFile": "apps\\mobile\\.env.production",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5408,
+      "textFiles": 5344,
+      "bytes": 53734346,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "name": "管理后台",
+        "directory": "apps/admin/dist",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_H5_URL"
+        ],
+        "files": 503,
+        "textFiles": 503,
+        "sourceMaps": 0,
+        "bytes": 6449115,
+        "contentSha256": "2c6b870e22cc54bca52ad145247ea5ef829908ecaf1b5d7f8beb2ad5561281d7",
+        "success": true
+      },
+      {
+        "name": "H5",
+        "directory": "apps/mobile/dist/build/h5",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 1178,
+        "textFiles": 1161,
+        "sourceMaps": 0,
+        "bytes": 11068987,
+        "contentSha256": "be12dbcbb18e532d696e0d1ad1bea50e8ced406cd06bc82476cb6d807389b893",
+        "success": true
+      },
+      {
+        "name": "微信小程序",
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 2748,
+        "textFiles": 2742,
+        "sourceMaps": 0,
+        "bytes": 11047265,
+        "contentSha256": "e8a2637210501d4b770d27362fb7c61729a63b77522a5c4ebe2ccccde259e767",
+        "success": true
+      },
+      {
+        "name": "App",
+        "directory": "apps/mobile/dist/build/app",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 489,
+        "textFiles": 470,
+        "sourceMaps": 0,
+        "bytes": 12735175,
+        "contentSha256": "52198fe8f39b55d64c5f2255f34bdaf7fd2b0cfca5dade2c8a367e8492d8068d",
+        "success": true
+      },
+      {
+        "name": "鸿蒙 App",
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 490,
+        "textFiles": 468,
+        "sourceMaps": 0,
+        "bytes": 12433804,
+        "contentSha256": "fff89a7f5e99b025b199da23a675bba9f6c6ef85a1d071da128e82c40de735fe",
+        "success": true
+      }
+    ],
+    "errors": []
+  },
+  "sourceAndSchemaEquivalentTo5b": true,
+  "h5": {
+    "passed": true,
+    "sourceCommit": "b5b668267",
+    "scope": "built-h5-real-browser-synthetic-intercepted-responses-not-live-backend-or-phone",
+    "cases": [
+      {
+        "name": "finished-content",
+        "passed": true,
+        "disclosureCalls": 1,
+        "externalContinued": 0,
+        "pageErrors": []
+      },
+      {
+        "name": "running-private",
+        "passed": true,
+        "disclosureCalls": 0,
+        "externalContinued": 0,
+        "pageErrors": []
+      },
+      {
+        "name": "empty-disclosure",
+        "passed": true,
+        "disclosureCalls": 1,
+        "externalContinued": 0,
+        "pageErrors": []
+      },
+      {
+        "name": "failure-retry",
+        "passed": true,
+        "disclosureCalls": 2,
+        "externalContinued": 0,
+        "pageErrors": []
+      },
+      {
+        "name": "mismatched-response",
+        "passed": true,
+        "disclosureCalls": 1,
+        "externalContinued": 0,
+        "pageErrors": []
+      },
+      {
+        "name": "generic-no-competition",
+        "passed": true,
+        "disclosureCalls": 0,
+        "externalContinued": 0,
+        "pageErrors": []
+      }
+    ],
+    "realChannels": false
+  },
+  "wechatSimulator": {
+    "passed": true,
+    "sourceCommit": "b5b6682678706a8561684f9ffb6bd0a58395f8a9",
+    "scope": "official-developer-tool-simulator-synthetic-request-responses-not-real-phone",
+    "requestRestored": true,
+    "cases": [
+      {
+        "name": "finished",
+        "passed": true,
+        "disclosureCalls": 1
+      },
+      {
+        "name": "running",
+        "passed": true,
+        "disclosureCalls": 0
+      },
+      {
+        "name": "retry",
+        "passed": true,
+        "disclosureCalls": 2
+      },
+      {
+        "name": "generic",
+        "passed": true,
+        "disclosureCalls": 0
+      }
+    ],
+    "realChannels": false
+  },
+  "officialPreview": {
+    "size": {
+      "total": 12720700,
+      "packages": [
+        {
+          "name": "TOTAL",
+          "size": 12720700
+        },
+        {
+          "name": "main",
+          "size": 1950575
+        },
+        {
+          "name": "/pkg-account/",
+          "size": 120557
+        },
+        {
+          "name": "/pkg-agent/",
+          "size": 294302
+        },
+        {
+          "name": "/pkg-auth/",
+          "size": 84094
+        },
+        {
+          "name": "/pkg-bounty/",
+          "size": 92733
+        },
+        {
+          "name": "/pkg-circle/",
+          "size": 1339571
+        },
+        {
+          "name": "/pkg-classics/",
+          "size": 472190
+        },
+        {
+          "name": "/pkg-common/",
+          "size": 47356
+        },
+        {
+          "name": "/pkg-competition/",
+          "size": 261116
+        },
+        {
+          "name": "/pkg-course/",
+          "size": 316627
+        },
+        {
+          "name": "/pkg-creator/",
+          "size": 96195
+        },
+        {
+          "name": "/pkg-discover/",
+          "size": 8633
+        },
+        {
+          "name": "/pkg-help/",
+          "size": 16829
+        },
+        {
+          "name": "/pkg-im/",
+          "size": 197766
+        },
+        {
+          "name": "/pkg-institute/",
+          "size": 319039
+        },
+        {
+          "name": "/pkg-live/",
+          "size": 668097
+        },
+        {
+          "name": "/pkg-mall/",
+          "size": 132687
+        },
+        {
+          "name": "/pkg-merchant/",
+          "size": 624960
+        },
+        {
+          "name": "/pkg-mine/",
+          "size": 767700
+        },
+        {
+          "name": "/pkg-notices/",
+          "size": 39319
+        },
+        {
+          "name": "/pkg-offline/",
+          "size": 323126
+        },
+        {
+          "name": "/pkg-operator/",
+          "size": 589816
+        },
+        {
+          "name": "/pkg-order/",
+          "size": 168461
+        },
+        {
+          "name": "/pkg-paipan/",
+          "size": 1959687
+        },
+        {
+          "name": "/pkg-paipan2/",
+          "size": 634410
+        },
+        {
+          "name": "/pkg-paipan3/",
+          "size": 191767
+        },
+        {
+          "name": "/pkg-profile/",
+          "size": 53503
+        },
+        {
+          "name": "/pkg-report/",
+          "size": 62202
+        },
+        {
+          "name": "/pkg-search/",
+          "size": 64246
+        },
+        {
+          "name": "/pkg-settings/",
+          "size": 80050
+        },
+        {
+          "name": "/pkg-shop/",
+          "size": 250940
+        },
+        {
+          "name": "/pkg-solar-term/",
+          "size": 22440
+        },
+        {
+          "name": "/pkg-video/",
+          "size": 221337
+        },
+        {
+          "name": "/pkg-workspace/",
+          "size": 248369
+        }
+      ]
+    }
+  },
+  "packageLimits": {
+    "limitBytes": 2097152,
+    "mainBytes": 1950575,
+    "mainRemainingBytes": 146577,
+    "maximumSubpackage": "/pkg-paipan/",
+    "maximumSubpackageBytes": 1959687,
+    "maximumSubpackageRemainingBytes": 137465,
+    "competitionPackageBytes": 261116,
+    "scope": "官方preview，不是upload或未来版本保证"
+  },
+  "evidence": [
+    {
+      "name": "typecheck.log",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "eslint.log",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\eslint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build-h5.log",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\build-h5.log",
+      "bytes": 68061,
+      "sha256": "53d6d06d5eb608d9af99d41dc6d65ace207cfe5fa3f64cfa8e1537d2fa1fa1fd"
+    },
+    {
+      "name": "build-mp-weixin.log",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\build-mp-weixin.log",
+      "bytes": 69046,
+      "sha256": "0cb0d4fedc5c9d066fbb77fc34984b1c746a1917d881febf6c5e3035ef1a9ef8"
+    },
+    {
+      "name": "build-app.log",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\build-app.log",
+      "bytes": 68023,
+      "sha256": "26327d3c6f7db3b3eb973c26950e70a29c343582a1f46a03ceb7fa0d191a3ae5"
+    },
+    {
+      "name": "build-app-harmony.log",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\build-app-harmony.log",
+      "bytes": 67883,
+      "sha256": "b0d6dca317b7f706760596d6167168565c983a19303c137c10547445d37345d8"
+    },
+    {
+      "name": "config-origin.json",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\config-origin.json",
+      "bytes": 324,
+      "sha256": "a9c240dc866d9a3fdb635643d47e2a1d966f58afa5481aef8cdf781abb9d682d"
+    },
+    {
+      "name": "browser-acceptance.json",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\browser-acceptance.json",
+      "bytes": 1092,
+      "sha256": "39925431330ead80b7688ee5db64a664411d66fb56e357fa20111f16b2fcc817"
+    },
+    {
+      "name": "wechat-acceptance.json",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\wechat-acceptance.json",
+      "bytes": 589,
+      "sha256": "4e8dd8790784f299335367d7e65caa7294d4adc60d7890b38afecdfc53ad7467"
+    },
+    {
+      "name": "wechat-acceptance.log",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\wechat-acceptance.log",
+      "bytes": 261,
+      "sha256": "2f893b49a99883ae89a4852ed25a2b78cca016289640f94e904144000fa7c1e8"
+    },
+    {
+      "name": "preview-info.json",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\preview-info.json",
+      "bytes": 2575,
+      "sha256": "158d05b78e66cef4e05d6e570415178e7a3558f20094d02c61e5dbdfa85d4d8c"
+    },
+    {
+      "name": "wechat-preview.log",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\wechat-preview.log",
+      "bytes": 2933,
+      "sha256": "4bd6fd53dc3d4dfd1acda2843fcfecea56f14fc3857492cbe228207cf02be297"
+    },
+    {
+      "name": "wechat-account-identity.log",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\wechat-account-identity.log",
+      "bytes": 55,
+      "sha256": "bf4e064e1858144428f03a958d75cfe4c44b313207a0efe883e48b1a70f9ef43"
+    },
+    {
+      "name": "finished-content.png",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\finished-content.png",
+      "bytes": 60304,
+      "sha256": "cda2c73b9f1c4ab32edf8912e5f37f9c73efc1b54b48d43009f2383960d7ca43"
+    },
+    {
+      "name": "wechat-finished.png",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\wechat-finished.png",
+      "bytes": 79877,
+      "sha256": "e4fb26e2b05db44af36709d5a9c20f109fc55943e3c7c7be45b278e9d5b3302e"
+    },
+    {
+      "name": "wechat-running.png",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\wechat-running.png",
+      "bytes": 67163,
+      "sha256": "27fa07abbbc6c6fead4f09473ce7898ee43ab6fbbc6a879e8d5c6b3e5e1e478c"
+    },
+    {
+      "name": "wechat-retry.png",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\wechat-retry.png",
+      "bytes": 79877,
+      "sha256": "e4fb26e2b05db44af36709d5a9c20f109fc55943e3c7c7be45b278e9d5b3302e"
+    },
+    {
+      "name": "wechat-generic.png",
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\wechat-generic.png",
+      "bytes": 67197,
+      "sha256": "2e277f45f6372fc38af11c1c7c5fad807d3a5a546a233d06631c029f69f29536"
+    }
+  ],
+  "ci": {
+    "sourceCommit": "f4a70171dface60d4091b9130c975a8cea9cca61",
+    "testsPassed": 8880,
+    "shardLogs": [
+      {
+        "jobId": 110177995727,
+        "name": "单元测试 (3/3)",
+        "conclusion": "success",
+        "logSha256": "844c84a2b55aed1301da31d3dfb04a45b5b3d52a30dc0056fb50fde976e9a59f",
+        "summaries": [
+          "2026-10-01T01:40:26.7472301Z Test Suites: 10 skipped, 218 passed, 218 of 228 total",
+          "2026-10-01T01:40:26.7473082Z Tests:       39 skipped, 3035 passed, 3074 total",
+          "2026-10-01T01:40:26.7474075Z Time:        136.739 s"
+        ]
+      },
+      {
+        "jobId": 110177995751,
+        "name": "单元测试 (1/3)",
+        "conclusion": "success",
+        "logSha256": "b25de2e24c9f5ff34019d49a9bfda2a452e0e6802262192d1f2d58ae26360a27",
+        "summaries": [
+          "2026-10-01T01:51:14.1940169Z Test Suites: 8 skipped, 220 passed, 220 of 228 total",
+          "2026-10-01T01:51:14.1940979Z Tests:       44 skipped, 2800 passed, 2844 total",
+          "2026-10-01T01:51:14.1941942Z Time:        782.727 s"
+        ]
+      },
+      {
+        "jobId": 110177995776,
+        "name": "单元测试 (2/3)",
+        "conclusion": "success",
+        "logSha256": "680b34c2b2ad7990f7d7472e4fbd55ea7bfe65524562ad0d8afabbfa6e66a3be",
+        "summaries": [
+          "2026-10-01T01:40:12.5669935Z Test Suites: 8 skipped, 220 passed, 220 of 228 total",
+          "2026-10-01T01:40:12.5670635Z Tests:       50 skipped, 3045 passed, 3095 total",
+          "2026-10-01T01:40:12.5671366Z Time:        117.122 s"
+        ]
+      }
+    ],
+    "suitesSkipped": 26,
+    "testsSkipped": 133,
+    "status": "completed",
+    "suitesPassed": 658,
+    "artifact": {
+      "id": 11135978587,
+      "name": "server-build",
+      "size_in_bytes": 7401490,
+      "digest": "sha256:3b33eb7541a8c2ad46411b81b5fc4c700cb03d67dc5124161d476ae9ecfd9be2"
+    },
+    "zipSha256": "3b33eb7541a8c2ad46411b81b5fc4c700cb03d67dc5124161d476ae9ecfd9be2",
+    "jobsPassed": 8,
+    "conclusion": "success",
+    "runId": 36801832093
+  },
+  "runtime": {
+    "allNotificationTriggersCompleted": false,
+    "artifactBytes": 52651,
+    "rewardHttpCases": 19,
+    "realChannelsVerified": false,
+    "artifactId": 11135767621,
+    "productionMigration": false,
+    "notificationTargetScopes": {
+      "post": true,
+      "order": true,
+      "allTargets": false
+    },
+    "releaseDecision": "NO-GO",
+    "productionDeployment": false,
+    "passed": true,
+    "checkedAtUtc": "2026-10-01T01:45:41.0132206Z",
+    "targetNodesVerified": false,
+    "realMoneyOperations": 0,
+    "artifactSha256": "c9bf467eb33313e817d6cbdb0268fc7606b852af792a8e72b3829147dccf0255",
+    "imageId": "sha256:49008de85d855e4e8a2f46b9be3843484d6f4aa9336a64c20c8d8b5588afdce5",
+    "sourceSha256": "f43610e75b3eff17b53dfb086c4b33f491f1280888ecf92a00506e8feeebea24",
+    "verificationCommit": "5ee69790b889a50a43474590defa4976c58756b4",
+    "sourceCommit": "f4a70171dface60d4091b9130c975a8cea9cca61",
+    "postDetailHttpCases": 89,
+    "cleanup": {
+      "rebu-app-second-411e7a5614": true,
+      "rebu-app-411e7a5614": true,
+      "rebu-db-411e7a5614": true,
+      "rebu-redis-411e7a5614": true,
+      "networkAbsent": true
+    },
+    "checks": 22,
+    "realNotifications": 0,
+    "paymentRefundHttpCases": 22,
+    "runId": 36801809285
+  },
+  "boundaries": [
+    "未安装最终原生包",
+    "不是手机实测",
+    "没有正式上传提审发布",
+    "无生产数据库或真实资金通知",
+    "后台本地成品沿用等效43de输入，未本轮重建",
+    "本次22组HTTP与CI仅对f4固定包；后续版本单独收口"
+  ],
+  "releaseDecision": "NO-GO，待完整版本门槛",
+  "rollback": "先单独撤回f4赛事前端，再按5b→968及原批次逆序",
+  "wechatFailurePageClosure": {
+    "sha256": "6f563b22cf88a440c4475ec382bf157a0926d66851765f62fde56e5aa755d3ee",
+    "evidencePath": "C:/Users/Administrator/.codex/worktrees/circle-reward-atomic/gx-deploy-91/artifacts/competition-disclosure-ui-20260930/wechat-route-failure.json",
+    "result": {
+      "sourceCommit": "b5b6682678706a8561684f9ffb6bd0a58395f8a9",
+      "scope": "official-developer-tool-eight-page-closure-under-synthetic-503-not-functional-or-phone-acceptance",
+      "passed": true,
+      "requestRestored": true,
+      "cases": [
+        {
+          "route": "pages/index/index",
+          "loadedRoute": "pages/index/index",
+          "pageLoaded": true,
+          "newUncaughtExceptions": [],
+          "functionalSuccess": false
+        },
+        {
+          "route": "pages/circles/index",
+          "loadedRoute": "pages/circles/index",
+          "pageLoaded": true,
+          "newUncaughtExceptions": [],
+          "functionalSuccess": false
+        },
+        {
+          "route": "pages/discover/index",
+          "loadedRoute": "pages/discover/index",
+          "pageLoaded": true,
+          "newUncaughtExceptions": [],
+          "functionalSuccess": false
+        },
+        {
+          "route": "pkg-video/list/index",
+          "loadedRoute": "pkg-video/list/index",
+          "pageLoaded": true,
+          "newUncaughtExceptions": [],
+          "functionalSuccess": false
+        },
+        {
+          "route": "pkg-competition/home/index",
+          "loadedRoute": "pkg-competition/home/index",
+          "pageLoaded": true,
+          "newUncaughtExceptions": [],
+          "functionalSuccess": false
+        },
+        {
+          "route": "pkg-institute/index/index",
+          "loadedRoute": "pkg-institute/index/index",
+          "pageLoaded": true,
+          "newUncaughtExceptions": [],
+          "functionalSuccess": false
+        },
+        {
+          "route": "pkg-offline/stations/index",
+          "loadedRoute": "pkg-offline/stations/index",
+          "pageLoaded": true,
+          "newUncaughtExceptions": [],
+          "functionalSuccess": false
+        },
+        {
+          "route": "pkg-classics/home/index",
+          "loadedRoute": "pkg-classics/home/index",
+          "pageLoaded": true,
+          "newUncaughtExceptions": [],
+          "functionalSuccess": false
+        }
+      ],
+      "exceptions": []
+    }
+  }
+}

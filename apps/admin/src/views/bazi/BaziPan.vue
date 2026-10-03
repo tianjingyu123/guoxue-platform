@@ -4,6 +4,8 @@
  * 使用 PageTool 模板 + 业务组件
  */
 import { ref, reactive } from 'vue'
+import type { BaziResult as EngineBaziResult } from '@guoxue/bazi-engine'
+import type { BaziResult as SharedBaziResult } from '@guoxue/shared'
 import { ElMessage } from 'element-plus'
 import { paipanApi } from '@/api'
 import { UI_COLORS, FONT_SIZE } from '@guoxue/shared'
@@ -23,19 +25,33 @@ const form = reactive({
   city: '',
 })
 
-// 排盘结果：来自 axios 响应 data 无类型来源，仅作为 prop 透传给排盘展示组件，保留 any
-const result = ref<any>(null)
+type AdminBaziResult = EngineBaziResult & SharedBaziResult
+const result = ref<AdminBaziResult | null>(null)
 const mode = ref<'traditional' | 'report' | 'analysis'>('traditional')
 const loading = ref(false)
 const error = ref(false)
 const inputCollapsed = ref(false)
+
+// 旺相休囚死拼音 → 中文（引擎 geju.ts deLing() 返回拼音直进 geJu.desc，展示层必须翻译）
+const DE_LING_CN: Record<string, string> = { wang: '旺', xiang: '相', xiu: '休', qiu: '囚', si: '死' }
+
+/** 清洗引擎结果中的拼音字段（只在"得令情况："后精确替换，不动其它文本） */
+function normalizeResult(r: AdminBaziResult): AdminBaziResult {
+  if (r?.geJu?.desc && typeof r.geJu.desc === 'string') {
+    r.geJu.desc = r.geJu.desc.replace(
+      /得令情况：(wang|xiang|xiu|qiu|si)/g,
+      (_m: string, p: string) => `得令情况：${DE_LING_CN[p] || p}`,
+    )
+  }
+  return r
+}
 
 async function doCalc() {
   if (loading.value) return // 防重复
   loading.value = true
   error.value = false
   try {
-    result.value = (await paipanApi.preview({ ...form })).data
+    result.value = normalizeResult((await paipanApi.preview({ ...form })).data)
   } catch {
     error.value = true
     ElMessage.error('排盘失败，请稍后重试')

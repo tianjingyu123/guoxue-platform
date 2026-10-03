@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="700" viewBox="0 0 900 700">
+  <rect width="900" height="700" fill="#703d35"/>
+  <circle cx="710" cy="150" r="100" fill="#d6bd80" opacity=".6"/>
+  <path d="M80 570h740M160 570V300M740 570V300M210 300h480" stroke="#f0dec0" stroke-width="12" opacity=".85"/>
+  <path d="M275 570V400h350v170M375 400V285h150v115" fill="none" stroke="#f0dec0" stroke-width="12"/>
+  <text x="90" y="110" fill="#f4e7d0" font-size="30" letter-spacing="6">空间与秩序 02</text>
+</svg>

@@ -37,33 +37,63 @@ function liuQinColor(q?:string):string {
       <span v-if="zhanShi">占时：<b>{{ zhanShi }}</b>时</span>
       <span v-if="yueJiang">月将：<b>{{ yueJiang }}</b></span>
       <span v-if="dayNight">{{ dayNight }}</span>
-      <span v-if="zongMen" class="zongmen-tag">{{ zongMen }}</span>
+      <span
+        v-if="zongMen"
+        class="zongmen-tag"
+      >{{ zongMen }}</span>
     </div>
 
     <!-- 三传 -->
     <div class="sanchuan-bar">
       <div class="sc-item sc-chu">
-        <div class="sc-label">初传</div>
-        <div class="sc-zhi">{{ sanChuan?.chu?.zhi }}</div>
-        <div class="sc-detail">{{ sanChuan?.chu?.description }}</div>
+        <div class="sc-label">
+          初传
+        </div>
+        <div class="sc-zhi">
+          {{ sanChuan?.chu?.zhi }}
+        </div>
+        <div class="sc-detail">
+          {{ sanChuan?.chu?.description }}
+        </div>
       </div>
-      <div class="sc-arrow">→</div>
+      <div class="sc-arrow">
+        →
+      </div>
       <div class="sc-item sc-zhong">
-        <div class="sc-label">中传</div>
-        <div class="sc-zhi">{{ sanChuan?.zhong?.zhi }}</div>
-        <div class="sc-detail">{{ sanChuan?.zhong?.description }}</div>
+        <div class="sc-label">
+          中传
+        </div>
+        <div class="sc-zhi">
+          {{ sanChuan?.zhong?.zhi }}
+        </div>
+        <div class="sc-detail">
+          {{ sanChuan?.zhong?.description }}
+        </div>
       </div>
-      <div class="sc-arrow">→</div>
+      <div class="sc-arrow">
+        →
+      </div>
       <div class="sc-item sc-mo">
-        <div class="sc-label">末传</div>
-        <div class="sc-zhi">{{ sanChuan?.mo?.zhi }}</div>
-        <div class="sc-detail">{{ sanChuan?.mo?.description }}</div>
+        <div class="sc-label">
+          末传
+        </div>
+        <div class="sc-zhi">
+          {{ sanChuan?.mo?.zhi }}
+        </div>
+        <div class="sc-detail">
+          {{ sanChuan?.mo?.description }}
+        </div>
       </div>
     </div>
 
     <!-- 天地盘 4x4网格 -->
     <div class="tiandi-grid">
-      <div v-for="cell in roundGongs" :key="cell?.zhi||'empty'" class="td-cell" :class="{ empty:!cell }">
+      <div
+        v-for="cell in roundGongs"
+        :key="cell?.zhi||'empty'"
+        class="td-cell"
+        :class="{ empty:!cell }"
+      >
         <template v-if="cell?.gong">
           <div class="td-top">
             <span class="td-tianpan">{{ cell.gong.tianPan }}</span>
@@ -74,24 +104,47 @@ function liuQinColor(q?:string):string {
           </div>
           <div class="td-bottom">
             <span class="td-dipan">{{ cell.gong.diPan }}</span>
-            <span v-if="cell.gong.liuQin" class="td-liuqin" :style="{color:liuQinColor(cell.gong.liuQin)}">{{ cell.gong.liuQin }}</span>
+            <span
+              v-if="cell.gong.liuQin"
+              class="td-liuqin"
+              :style="{color:liuQinColor(cell.gong.liuQin)}"
+            >{{ cell.gong.liuQin }}</span>
           </div>
-          <div class="td-shensha" v-if="cell.gong.shenSha.length">
-            <span v-for="s in cell.gong.shenSha.slice(0,2)" :key="s" class="ss-tag">{{ s }}</span>
+          <div
+            v-if="cell.gong.shenSha.length"
+            class="td-shensha"
+          >
+            <span
+              v-for="s in cell.gong.shenSha.slice(0,2)"
+              :key="s"
+              class="ss-tag"
+            >{{ s }}</span>
           </div>
         </template>
       </div>
     </div>
 
     <!-- 课经 -->
-    <div class="kejing-section" v-if="keJing?.length">
-      <div v-for="k in keJing" :key="k.name" class="kj-item">
+    <div
+      v-if="keJing?.length"
+      class="kejing-section"
+    >
+      <div
+        v-for="k in keJing"
+        :key="k.name"
+        class="kj-item"
+      >
         <b>{{ k.name }}</b>：{{ k.summary }}
       </div>
     </div>
 
     <!-- 宗门说明 -->
-    <div v-if="zongMenDesc" class="zongmen-desc">{{ zongMenDesc }}</div>
+    <div
+      v-if="zongMenDesc"
+      class="zongmen-desc"
+    >
+      {{ zongMenDesc }}
+    </div>
   </div>
 </template>
 

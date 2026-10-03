@@ -7,6 +7,7 @@ import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { CreateInstituteContentDto, UpdateInstituteContentDto } from "./dto/content.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("研究院内容资产")
 @Controller("admin/institute/contents")
@@ -16,6 +17,7 @@ export class InstituteContentController {
   constructor(private readonly svc: InstituteContentService) {}
 
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建内容" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -61,6 +63,7 @@ export class InstituteContentController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新内容" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -71,6 +74,7 @@ export class InstituteContentController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "归档内容" })
   @ApiResponse({ status: 200, description: "删除成功" })

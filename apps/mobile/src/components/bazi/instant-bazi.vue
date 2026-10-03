@@ -1,7 +1,15 @@
 <script setup lang="ts">
-/** 即时排盘（实时时钟四柱）——从原型 instant-bazi.tsx 迁移 */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+/**
+ * 即时排盘（实时时钟四柱）——从原型 instant-bazi.tsx 迁移。
+ * 2026-07-17 修复：原迁移版四柱是硬编码「丙午 癸巳 庚寅 丙戌」、农历写死「2026年四月初一」、
+ * 按钮没接 @tap，却标着「实时更新」——挂着旗舰工具的名做假盘。
+ * 现四柱/农历用主包轻量引擎真算（almanac-lite，与排盘主页 today-hero 同源），
+ * 按钮跳 result 按当前时刻真起盘。
+ */
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { navigateTo } from '@/utils/router'
+import { buildLiteAlmanac, type LiteAlmanac } from '@/lib/paipan/almanac-lite'
 
 const shiChen = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥']
 // 五行颜色（指向 wuxing 令牌）
@@ -17,17 +25,59 @@ function wxColor(c: string) {
   return k ? `var(--wuxing-${k})` : 'var(--text-ink)'
 }
 
-const pillars = [
-  { label: '年', gan: '丙', zhi: '午' },
-  { label: '月', gan: '癸', zhi: '巳' },
-  { label: '日', gan: '庚', zhi: '寅' },
-  { label: '时', gan: '丙', zhi: '戌' },
-]
-
 const now = ref<Date | null>(null)
 let timer: ReturnType<typeof setInterval> | null = null
 onMounted(() => { now.value = new Date(); timer = setInterval(() => { now.value = new Date() }, 1000) })
 onUnmounted(() => timer && clearInterval(timer))
+
+// 四柱按分钟粒度重算（秒针跳动不触发干支计算）
+const minuteKey = computed(() => {
+  const d = now.value
+  return d ? `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}` : ''
+})
+const alm = ref<LiteAlmanac | null>(null)
+watch(minuteKey, () => { if (now.value) alm.value = buildLiteAlmanac(now.value) })
+
+/** 真算当下四柱（almanac-lite → shared/paipan/ganzhi 唯一真源） */
+const pillars = computed(() => {
+  const fp = alm.value?.fp
+  if (!fp) return [
+    { label: '年', gan: '', zhi: '' }, { label: '月', gan: '', zhi: '' },
+    { label: '日', gan: '', zhi: '' }, { label: '时', gan: '', zhi: '' },
+  ]
+  return [
+    { label: '年', gan: fp.year.gan, zhi: fp.year.zhi },
+    { label: '月', gan: fp.month.gan, zhi: fp.month.zhi },
+    { label: '日', gan: fp.day.gan, zhi: fp.day.zhi },
+    { label: '时', gan: fp.hour.gan, zhi: fp.hour.zhi },
+  ]
+})
+
+// 农历月日：H5/App 端动态加载 lunar-typescript 真算；小程序端（主包 2MB 约束不引 lunar）
+// 显示干支纪年+节气行兜底（today-hero 同款口径，不写死任何日期）
+const lunarText = ref('')
+const dayKey = computed(() => {
+  const d = now.value
+  return d ? `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` : ''
+})
+watch(dayKey, async () => {
+  const d = now.value
+  if (!d) return
+  // #ifndef MP-WEIXIN
+  try {
+    const { Solar } = await import('@/pkg-paipan/lib/lunar/index.js')
+    const lunar = Solar.fromYmd(d.getFullYear(), d.getMonth() + 1, d.getDate()).getLunar()
+    lunarText.value = `${lunar.getYearInGanZhi()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`
+  } catch {
+    lunarText.value = ''
+  }
+  // #endif
+})
+const lunarLine = computed(() => {
+  if (lunarText.value) return `农历：${lunarText.value} ${currentShiChen.value}时`
+  const a = alm.value
+  return a ? `${a.ganZhiLine.replace('岁次 ', '农历：')} · ${a.jieqiLine}` : '农历：--'
+})
 
 const currentShiChen = computed(() => {
   const h = now.value?.getHours() ?? 12
@@ -43,6 +93,22 @@ const dateStr = computed(() => {
   const d = now.value
   return d ? `${d.getFullYear()}年${pad(d.getMonth() + 1)}月${pad(d.getDate())}日` : '--'
 })
+
+/**
+ * 即时排盘：按当前时刻跳 result 真起盘。
+ * 时盘按钟面时刻起（trueSolar/dst 关），与本卡展示的四柱口径一致；性别取默认男。
+ */
+function goInstant() {
+  const d = now.value || new Date()
+  const q = [
+    `name=${encodeURIComponent('即时盘')}`,
+    `gender=${encodeURIComponent('男')}`,
+    `year=${d.getFullYear()}`, `month=${d.getMonth() + 1}`, `day=${d.getDate()}`,
+    `hour=${d.getHours()}`, `minute=${d.getMinutes()}`,
+    'trueSolar=false', 'earlyZi=false', 'dst=false',
+  ].join('&')
+  navigateTo(`/paipan/bazi/result?${q}`)
+}
 </script>
 
 <template>
@@ -67,14 +133,14 @@ const dateStr = computed(() => {
           </view>
         </view>
         <view class="ib-info">
-          <text class="ib-info-line">农历：2026年四月初一 {{ currentShiChen }}时</text>
+          <text class="ib-info-line">{{ lunarLine }}</text>
           <text class="ib-info-line">公历：{{ dateStr }} {{ timeStr }}</text>
         </view>
       </view>
       <view class="ib-right">
         <text class="ib-shichen">{{ currentShiChen }}时</text>
         <text class="ib-clock">{{ timeStr }}</text>
-        <view class="ib-btn">
+        <view class="ib-btn" @tap="goInstant">
           <app-icon name="zap" :size="28" color="#ffffff" />
           <text class="ib-btn-text">即时排盘</text>
         </view>

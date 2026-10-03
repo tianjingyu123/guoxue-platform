@@ -62,8 +62,8 @@ export class GrowthController {
     @Param("id") circleId: string,
     @Param("reqId") reqId: string,
     @Req() req: Request,
-    @Body() body: { action: "approve" | "reject" },
+    @Body() body: { action: "approve" | "reject"; rejectReason?: string },
   ) {
-    return this.svc.reviewJoinRequest(circleId, reqId, req.user.id, body?.action);
+    return this.svc.reviewJoinRequest(circleId, reqId, req.user.id, body?.action, body?.rejectReason);
   }
 }

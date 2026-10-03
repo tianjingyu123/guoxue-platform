@@ -13,6 +13,14 @@
     "./*": {
       "types": "./dist/*.d.ts",
       "default": "./dist/*.js"
+    },
+    "./paipan": {
+      "types": "./dist/paipan/index.d.ts",
+      "default": "./dist/paipan/index.js"
+    },
+    "./paipan/*": {
+      "types": "./dist/paipan/*.d.ts",
+      "default": "./dist/paipan/*.js"
     }
   },
   "scripts": {

@@ -1,4 +1,5 @@
-import { Injectable, Inject, Logger, Optional } from "@nestjs/common";
+import { Injectable, Inject, Logger, Optional, HttpStatus } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
@@ -15,7 +16,35 @@ import { WebhookService } from "../webhook/webhook.service";
 import { MemberBenefitService } from "../member/member-benefit.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 import { ShopOrderService } from "./shop-order.service";
-import { COIN_TO_RMB, RMB_TO_FEN } from "../../common/constants";
+import {
+  fulfillCircleOrderTx,
+  buildRetryCandidateWhere,
+  CIRCLE_REVENUE_TYPE,
+  type FulfillResult,
+  type PaidPostProcessOutcome,
+} from "./circle-fulfillment";
+import { EntitlementService } from "../entitlement/entitlement.service";
+import { fulfillVoiceTopupOrderInTx } from "../voice/voice-topup";
+import { fulfillMemberOrderInTx, fulfillReportOrderInTx } from "../voice/xiaobu-commerce";
+import { addCalendarMonthsClamped } from "./membership-period";
+import { RMB_TO_FEN } from "../../common/constants";
+import { serverConfig } from "../../config/server-config";
+import { StationPaipanSyncService } from "../station/station-paipan-sync.service";
+import { WechatService } from "../auth/wechat.service";
+import { NotificationService } from "../notification/notification.service";
+import { recordOrderNoticeWithTx } from "../notification/order-business-notification.task";
+import { clearCircleMembershipCaches } from "../circle/services/circle-membership-cache.task";
+
+/** 运营商档位高低序（用于开通/续期时「只升不降」判定；对齐 schema enum OperatorLevel） */
+const OPERATOR_LEVEL_RANK: Record<string, number> = {
+  SILVER: 1,
+  GOLD: 2,
+  DIAMOND: 3,
+  BLACK_GOLD: 4,
+};
+
+const MAX_COIN_RECHARGE = 500_000;
+const COIN_RECHARGE_INTENT_TTL = 2 * 60 * 60;
 
 /**
  * 商城支付域（从 shop.service 拆出·纯搬家不改逻辑）。
@@ -35,113 +64,539 @@ export class ShopPaymentService {
     private unionpay: UnionpayService,
     private webhook: WebhookService,
     private memberBenefit: MemberBenefitService,
+    private entitlement: EntitlementService,
     private attribution: ShopAttributionService,
     private orderSvc: ShopOrderService,
     @Optional() private huifu?: HuifuService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
     @Inject(CoinService) private coinSvc?: CoinService,
-  ) {}
+    @Optional() private readonly stationPaipan?: StationPaipanSyncService,
+    @Optional() private readonly wechatPlatform?: WechatService,
+    @Optional() private notification?: NotificationService,
+  ) {
+    this.huifu?.registerPaymentNotifyHandler((payload) => this.handleHuifuNotify(payload));
+  }
 
-  /** 创建微信支付JSAPI订单（小程序内支付） */
+  /** 同一本地订单的微信 JSAPI / App / Native / H5 初始化必须串行，避免跨入口生成多笔可支付渠道单。 */
+  private async withWechatPaymentInit<T>(orderId: string, busyMessage: string, task: () => Promise<T>): Promise<T> {
+    const lockKey = "pay:init:wechat:" + orderId;
+    const locked = await this.redis.setNX(lockKey, "1", 60);
+    if (!locked) throw new BusinessException(ErrorCode.BAD_REQUEST, busyMessage);
+    try {
+      return await task();
+    } finally {
+      await this.redis.del(lockKey);
+    }
+  }
+
+  /** 旧渠道单无法明确关停时绝不创建第二笔；若已支付则主动补入账并阻止重复付款。 */
+  private async closePreviousWechatPayment(order: Order, outTradeNo: string): Promise<void> {
+    const orderId = order.id;
+    try {
+      await this.wechatPay.closeOrder(outTradeNo);
+    } catch (closeError) {
+      try {
+        const queried = await this.wechatPay.queryOrderVerified(outTradeNo, Math.round(Number(order.amount) * RMB_TO_FEN));
+        if (queried.trade_state === "SUCCESS") {
+          const handled = await this.handlePaymentNotify({
+            ...queried,
+            out_trade_no: outTradeNo,
+            trade_state: "SUCCESS",
+            attach: orderId,
+          });
+          if (handled) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单已支付，请勿重复付款");
+        }
+      } catch (queryError) {
+        if (queryError instanceof BusinessException && queryError.message.includes("订单已支付")) throw queryError;
+        this.logger.warn("旧付款单查单失败 order=" + orderId + ": " + (queryError as Error).message);
+      }
+      this.logger.warn("旧付款单关单失败 order=" + orderId + ": " + (closeError as Error).message);
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "原付款正在处理中，请稍后重试");
+    }
+  }
+
+  private buildWechatOutTradeNo(orderId: string, replacingPrevious: boolean): string {
+    const normalizedOrderId = String(orderId).replace(/[^A-Za-z0-9]/g, "");
+    return replacingPrevious
+      ? "GX" + Date.now() + normalizedOrderId.slice(0, 17)
+      : "GX" + normalizedOrderId.slice(0, 30);
+  }
+
+  private assertWechatPaymentOwner(order: Order): void {
+    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+    if (!Number.isSafeInteger(totalFen) || totalFen <= 0 || Number(order.amount) !== totalFen / RMB_TO_FEN) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "订单金额无效，请返回订单确认");
+    }
+    if (order.payMethod === "HUIFU" || order.payTransactionId?.startsWith("HF")) {
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单已有汇付支付单，请查询原支付单");
+    }
+    if (order.payMethod === "WECHAT_INIT") {
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "原微信支付结果待确认，请查询原单");
+    }
+    if (order.payTransactionId && order.payMethod && order.payMethod !== "WECHAT") {
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单已有其他渠道支付单，请查询原单");
+    }
+  }
+
+  /** 瞬断后只以严格验签NOTPAY恢复；未找到/验签失败/处理中均不释放原意图。 */
+  private async ensureWechatPaymentOwner(order: Order): Promise<void> {
+    if (order.payMethod === "WECHAT_INIT") {
+      const queried = await this.queryPaymentStatus(order.id, order.userId);
+      if (queried.tradeState !== "NOTPAY") {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "原微信支付结果待确认，请查询原单");
+      }
+      const fresh = await this.prisma.$transaction((tx) => tx.order.findUnique({ where: { id: order.id } }));
+      if (!fresh || fresh.status !== "PENDING" || fresh.payMethod !== "WECHAT" ||
+          fresh.payTransactionId !== order.payTransactionId || Number(fresh.amount) !== Number(order.amount)) {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单支付状态已变化，请查询原单");
+      }
+      order.payMethod = fresh.payMethod;
+    }
+    this.assertWechatPaymentOwner(order);
+  }
+
+  /** 与汇付共用Order行的持久化CAS；资金请求前占用，未知结果永不靠锁超时释放。 */
+  private async reserveWechatPaymentIntent(order: Order, outTradeNo: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const current = await tx.order.findUnique({ where: { id: order.id } });
+      if (!current || current.userId !== order.userId) {
+        throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      }
+      this.assertWechatPaymentOwner(current);
+      const huifu = await tx.huifuSplitRecord.findUnique({ where: { orderId: order.id } });
+      if (huifu) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单已有汇付支付记录，请查询原单");
+      const updated = await tx.order.updateMany({
+        where: { id: order.id, userId: order.userId, status: "PENDING", amount: order.amount,
+          payTransactionId: order.payTransactionId || null, payMethod: order.payMethod || null },
+        data: { payTransactionId: outTradeNo, payMethod: "WECHAT_INIT" },
+      });
+      if (updated.count !== 1) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更，请查询原单");
+    }, { isolationLevel: "Serializable" });
+    await this.redis.del("shop:order:" + order.id);
+  }
+
+  /** 已收到渠道初始化响应才标记可安全关单；不清除流水，不覆盖提前到达的支付通知。 */
+  private async confirmWechatPaymentIntent(order: Order, outTradeNo: string): Promise<void> {
+    const updated = await this.prisma.order.updateMany({
+      where: { id: order.id, userId: order.userId, status: "PENDING", amount: order.amount,
+        payTransactionId: outTradeNo, payMethod: "WECHAT_INIT" },
+      data: { payMethod: "WECHAT" },
+    });
+    if (updated.count !== 1) {
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单支付状态已变化，请查询原单");
+    }
+    await this.redis.del("shop:order:" + order.id);
+  }
+
+  private async clearWechatPaymentResultCaches(orderId: string): Promise<void> {
+    await Promise.all([
+      this.redis.del("shop:pay:native:" + orderId),
+      this.redis.del("shop:pay:h5:" + orderId),
+      this.redis.del("shop:pay:app:" + orderId),
+      this.redis.del("shop:pay:jsapi:MINI:" + orderId),
+      this.redis.del("shop:pay:jsapi:OFFICIAL:" + orderId),
+    ]);
+  }
+
+  /** App 收银台：金额只取服务端订单；复用其他微信入口的锁、关单和 CAS 落库。 */
+  async createAppPayment(orderId: string, userId: string, platform: "ios" | "android") {
+    if (!this.wechatPay.isAppConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信 App 支付尚未配置，请联系平台");
+    }
+    return this.withWechatPaymentInit(orderId, "支付正在初始化，请稍后重试", async () => {
+      const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+      if (!order || order.userId !== userId) {
+        throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      }
+      if (order.status !== "PENDING") {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付", HttpStatus.BAD_REQUEST);
+      }
+      if (platform === "ios" && (order.type !== "PRODUCT" || !order.shippingInfo)) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "iOS 数字权益请使用应用内购买，此入口仅支持实物商品");
+      }
+      const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+      if (!Number.isSafeInteger(totalFen) || totalFen <= 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "订单金额无效，请返回订单确认");
+      }
+      await this.ensureWechatPaymentOwner(order);
+      const cacheKey = "shop:pay:app:" + orderId;
+      const cached = await this.redis.getJson<{
+        outTradeNo: string;
+        orderInfo: Awaited<ReturnType<WechatPayService["createAppOrder"]>>["orderInfo"];
+      }>(cacheKey);
+      if (cached?.orderInfo && cached.outTradeNo === order.payTransactionId &&
+          cached.orderInfo.appid === process.env.WECHAT_OPEN_APP_ID?.trim()) return cached.orderInfo;
+
+      const previousOutTradeNo = order.payTransactionId || "";
+      if (previousOutTradeNo) await this.closePreviousWechatPayment(order, previousOutTradeNo);
+      await this.clearWechatPaymentResultCaches(orderId);
+      const outTradeNo = this.buildWechatOutTradeNo(orderId, !!previousOutTradeNo);
+      await this.reserveWechatPaymentIntent(order, outTradeNo);
+      const result = await this.wechatPay.createAppOrder({
+        outTradeNo,
+        description: "国学平台订单-" + orderId.slice(0, 8),
+        amount: { total: totalFen },
+        attach: orderId,
+      });
+      await this.confirmWechatPaymentIntent(order, outTradeNo);
+      // 调起签名采用短缓存；过期后按既有安全关单流程重建，不重放陈旧 SDK 参数。
+      await this.redis.setJson(cacheKey, { outTradeNo, orderInfo: result.orderInfo }, 5 * 60);
+      return result.orderInfo;
+    });
+  }
+
+  /** 创建微信支付JSAPI订单（channel 缺省/MINI=小程序内支付；OFFICIAL=公众号内H5支付） */
   async createJsapiPayment(
     userId: string,
-    openid: string,
+    openid: string | undefined,
     orderId: string,
-    notifyUrl?: string,
+    channel?: "MINI" | "OFFICIAL",
   ) {
     const order = await this.orderSvc.getOrder(orderId);
     if (!order || order.userId !== userId) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
+    if (!this.wechatPay.isConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付未配置（缺商户证书/密钥），请联系平台或稍后再试");
+    }
 
-    const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
-    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+    // 公众号内 H5（OFFICIAL）：openid 必须来自公众号网页授权（微信要求 openid 与下单 appid 同应用），
+    // 不回退查 Auth 表——表里存的是小程序 openid，拿去公众号 appid 下单微信必拒
+    let officialAppId: string | undefined;
+    if (channel === "OFFICIAL") {
+      officialAppId = process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID || "";
+      if (!officialAppId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "公众号支付未配置，请在后台「微信公众号」卡片配置后重试");
+      }
+      if (!openid) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少微信授权，请刷新页面完成微信授权后重试");
+      }
+    }
 
-    const result = await this.wechatPay.createJsapiOrder({
-      outTradeNo,
-      description: `国学平台订单-${orderId.slice(0, 8)}`,
-      amount: { total: totalFen },
-      payer: { openid },
-      attach: orderId,
-      notifyUrl,
+    // openid 未显式传入时（小程序端不便获取），从用户已绑定的微信授权记录中查取，与充值 JSAPI 保持一致
+    let payerOpenid = openid;
+    if (!payerOpenid) {
+      const wechatAuth = await this.prisma.auth.findFirst({
+        where: { userId, provider: "WECHAT" },
+        select: { openId: true },
+      });
+      if (!wechatAuth?.openId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "未绑定微信，请在微信小程序内使用微信登录后再支付");
+      }
+      payerOpenid = wechatAuth.openId;
+    }
+
+    const paymentChannel = channel || "MINI";
+    const cacheKey = "shop:pay:jsapi:" + paymentChannel + ":" + orderId;
+    return this.withWechatPaymentInit(orderId, "支付正在初始化，请稍后重试", async () => {
+      const freshOrder = await this.prisma.order.findUnique({ where: { id: orderId } });
+      if (!freshOrder || freshOrder.userId !== userId) {
+        throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      }
+      if (freshOrder.status !== "PENDING") {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
+      }
+
+      await this.ensureWechatPaymentOwner(freshOrder);
+      const cached = await this.redis.getJson<{
+        outTradeNo: string;
+        paySign: Awaited<ReturnType<WechatPayService["createJsapiOrder"]>>["paySign"];
+      }>(cacheKey);
+      if (cached?.paySign && cached.outTradeNo === freshOrder.payTransactionId) return cached.paySign;
+
+      const previousOutTradeNo = freshOrder.payTransactionId || "";
+      if (previousOutTradeNo) await this.closePreviousWechatPayment(freshOrder, previousOutTradeNo);
+      await this.clearWechatPaymentResultCaches(orderId);
+
+      const outTradeNo = this.buildWechatOutTradeNo(orderId, !!previousOutTradeNo);
+      const totalFen = Math.round(Number(freshOrder.amount) * RMB_TO_FEN);
+      await this.reserveWechatPaymentIntent(freshOrder, outTradeNo);
+      const result = await this.wechatPay.createJsapiOrder({
+        outTradeNo,
+        description: "国学平台订单-" + orderId.slice(0, 8),
+        amount: { total: totalFen },
+        payer: { openid: payerOpenid },
+        attach: orderId,
+        appId: officialAppId,
+      });
+
+      await this.confirmWechatPaymentIntent(freshOrder, outTradeNo);
+      await this.redis.setJson(cacheKey, { outTradeNo, paySign: result.paySign }, 110 * 60);
+      return result.paySign;
     });
-
-    // 更新订单支付交易号
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: { payTransactionId: outTradeNo },
-    });
-
-    return result.paySign;
   }
 
-  /** 创建Native扫码支付 */
-  async createNativePayment(orderId: string, userId: string, notifyUrl?: string) {
+  /**
+   * 创建 Native 扫码支付。
+   * 同一本地订单在付款码有效期内复用同一码；缓存失效后必须先关掉旧微信订单，
+   * 防止用户重进页面生成多张都能扣款的二维码。
+   */
+  async createNativePayment(orderId: string, userId: string) {
     const order = await this.orderSvc.getOrder(orderId);
     if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
     if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
+    if (!this.wechatPay.isConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付未配置（缺商户证书/密钥），请联系平台或稍后再试");
+    }
 
-    const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
-    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+    const cacheKey = "shop:pay:native:" + orderId;
+    return this.withWechatPaymentInit(orderId, "付款码正在生成，请稍后重试", async () => {
+      const freshOrder = await this.prisma.order.findUnique({ where: { id: orderId } });
+      if (!freshOrder) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      if (freshOrder.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
+      if (freshOrder.status !== "PENDING") {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
+      }
 
-    const result = await this.wechatPay.createNativeOrder({
-      outTradeNo,
-      description: `国学平台订单-${orderId.slice(0, 8)}`,
-      amount: { total: totalFen },
-      attach: orderId,
-      notifyUrl,
+      await this.ensureWechatPaymentOwner(freshOrder);
+      const cached = await this.redis.getJson<{
+        outTradeNo: string;
+        result: Awaited<ReturnType<WechatPayService["createNativeOrder"]>>;
+      }>(cacheKey);
+      if (cached?.result?.codeUrl && cached.outTradeNo === freshOrder.payTransactionId) return cached.result;
+
+      const previousOutTradeNo = freshOrder.payTransactionId || "";
+      if (previousOutTradeNo) await this.closePreviousWechatPayment(freshOrder, previousOutTradeNo);
+      await this.clearWechatPaymentResultCaches(orderId);
+
+      const outTradeNo = this.buildWechatOutTradeNo(orderId, !!previousOutTradeNo);
+      const totalFen = Math.round(Number(freshOrder.amount) * RMB_TO_FEN);
+      await this.reserveWechatPaymentIntent(freshOrder, outTradeNo);
+      const result = await this.wechatPay.createNativeOrder({
+        outTradeNo,
+        description: "国学平台订单-" + orderId.slice(0, 8),
+        amount: { total: totalFen },
+        attach: orderId,
+      });
+
+      await this.confirmWechatPaymentIntent(freshOrder, outTradeNo);
+      await this.redis.setJson(cacheKey, { outTradeNo, result }, 110 * 60);
+      return result;
     });
-
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: { payTransactionId: outTradeNo },
-    });
-
-    return result;
   }
 
-  /** 创建虚拟币充值支付订单 */
+  /**
+   * 创建微信 H5 支付（外部浏览器·mweb_url 跳转收银台）。
+   * 校验与 JSAPI/Native 同口径：归属（只能付自己的单·403）+ 状态（PENDING 才可发起·400）；
+   * 未配置商户证书时返回结构化 400（非 500 裸奔）。微信内置浏览器不支持 H5 支付，前端分流走 JSAPI。
+   */
+  async createH5Payment(orderId: string, userId: string, clientIp: string) {
+    const order = await this.orderSvc.getOrder(orderId);
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
+    if (order.status !== "PENDING") {
+      // 显式 400：已支付/已取消等状态非权限问题（ORDER_STATUS_INVALID 默认映射 403，此处覆写）
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付", HttpStatus.BAD_REQUEST);
+    }
+    if (!this.wechatPay.isConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付未配置（缺商户证书/密钥），请联系平台或稍后再试");
+    }
+
+    const cacheKey = "shop:pay:h5:" + orderId;
+    return this.withWechatPaymentInit(orderId, "支付正在初始化，请稍后重试", async () => {
+      const freshOrder = await this.prisma.order.findUnique({ where: { id: orderId } });
+      if (!freshOrder) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      if (freshOrder.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
+      if (freshOrder.status !== "PENDING") {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付", HttpStatus.BAD_REQUEST);
+      }
+
+      await this.ensureWechatPaymentOwner(freshOrder);
+      const cached = await this.redis.getJson<{ outTradeNo: string; mwebUrl: string }>(cacheKey);
+      if (cached?.mwebUrl && cached.outTradeNo === freshOrder.payTransactionId) return cached;
+
+      const previousOutTradeNo = freshOrder.payTransactionId || "";
+      if (previousOutTradeNo) await this.closePreviousWechatPayment(freshOrder, previousOutTradeNo);
+      await this.clearWechatPaymentResultCaches(orderId);
+
+      const outTradeNo = this.buildWechatOutTradeNo(orderId, !!previousOutTradeNo);
+      const totalFen = Math.round(Number(freshOrder.amount) * RMB_TO_FEN);
+      await this.reserveWechatPaymentIntent(freshOrder, outTradeNo);
+      const result = await this.wechatPay.createH5Order({
+        outTradeNo,
+        description: "国学平台订单-" + orderId.slice(0, 8),
+        amount: { total: totalFen },
+        sceneInfo: {
+          payerClientIp: clientIp || "127.0.0.1",
+          h5Info: {
+            type: "Wap",
+            appName: "热卜国学",
+            appUrl: serverConfig.publicH5BaseUrl,
+          },
+        },
+        attach: orderId,
+      });
+
+      await this.confirmWechatPaymentIntent(freshOrder, outTradeNo);
+      const response = { mwebUrl: result.h5Url, outTradeNo };
+      await this.redis.setJson(cacheKey, response, 110 * 60);
+      return response;
+    });
+  }
+  private validateCoinRechargeAmount(amountCoin: number) {
+    if (!Number.isInteger(amountCoin) || amountCoin <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "充值金额必须为正整数");
+    }
+    if (amountCoin > MAX_COIN_RECHARGE) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "单次充值金额超过上限");
+    }
+    if (!this.wechatPay.isConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付未配置（缺商户证书/密钥），请联系平台或稍后再试");
+    }
+  }
+
+  private async resolveCoinRechargeAmount(amountCoin: number) {
+    if (!this.coinSvc) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "国学币服务暂不可用，请稍后再试");
+    }
+    // 精确命中后台充值档位时，档位金额是收款真源（可支持特价档）；自定义币数才按全局汇率换算。
+    const tiers = await this.coinSvc.getRechargeTiers();
+    const tier = Array.isArray(tiers)
+      ? tiers.find((item: { amountCoin?: number }) => Number(item?.amountCoin) === amountCoin)
+      : undefined;
+    const rechargeTier = tier as { amountRmb?: number; bonus?: number } | undefined;
+    const tierAmount = Number(rechargeTier?.amountRmb);
+    let amountRmb: number;
+    let bonusCoin = 0;
+    if (Number.isFinite(tierAmount) && tierAmount > 0) {
+      amountRmb = tierAmount;
+      const configuredBonus = Number(rechargeTier?.bonus);
+      bonusCoin = Number.isInteger(configuredBonus) && configuredBonus > 0 ? configuredBonus : 0;
+    } else {
+      const coinRate = await this.coinSvc.getCoinRate();
+      if (!Number.isFinite(coinRate) || coinRate <= 0) {
+        throw new BusinessException(ErrorCode.PAY_FAILED, "国学币汇率配置异常，请联系平台");
+      }
+      amountRmb = amountCoin / coinRate;
+    }
+    const totalFen = Math.round(amountRmb * RMB_TO_FEN);
+    if (totalFen <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "充值金额低于支付渠道最小金额");
+    }
+    return { amountRmb: totalFen / RMB_TO_FEN, totalFen, bonusCoin };
+  }
+
+  private createCoinRechargeOrderNo() {
+    return `RC${Date.now()}${randomUUID().replace(/-/g, "").slice(0, 8)}`;
+  }
+
+  /** 支付意图仅供回跳轮询；缓存失败不得阻断已经创建的真实微信订单。 */
+  private async rememberCoinRechargeIntent(orderNo: string, userId: string) {
+    try {
+      await this.redis.set(`recharge:intent:${orderNo}`, userId, COIN_RECHARGE_INTENT_TTL);
+    } catch (err) {
+      this.logger.warn(`充值支付意图缓存失败（不阻断真实支付）: ${orderNo}`, err);
+    }
+  }
+
+  /** 创建国学币充值微信 JSAPI 订单（小程序/公众号共用）。 */
   async createRechargePayment(
     userId: string,
     openid: string,
     amountCoin: number,
-    notifyUrl?: string,
+    appId?: string,
   ) {
-    const amountRmb = amountCoin / COIN_TO_RMB;
-    const totalFen = Math.round(amountRmb * RMB_TO_FEN);
-
-    const orderNo = `RC${Date.now()}${userId.slice(0, 6)}`;
+    this.validateCoinRechargeAmount(amountCoin);
+    const { amountRmb, totalFen, bonusCoin } = await this.resolveCoinRechargeAmount(amountCoin);
+    const orderNo = this.createCoinRechargeOrderNo();
     const result = await this.wechatPay.createJsapiOrder({
       outTradeNo: orderNo,
       description: `${amountCoin}国学币充值`,
       amount: { total: totalFen },
       payer: { openid },
-      attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin }),
-      notifyUrl,
+      attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin, amountFen: totalFen, bonusCoin }),
+      appId,
     });
+    await this.rememberCoinRechargeIntent(orderNo, userId);
+    return { payParams: result.paySign, orderNo, amountRmb };
+  }
 
-    return result.paySign;
+  /** 国学币充值 —— 微信外部浏览器 H5 下单。 */
+  async createCoinRechargeH5(userId: string, amountCoin: number, clientIp: string) {
+    this.validateCoinRechargeAmount(amountCoin);
+    const { amountRmb, totalFen, bonusCoin } = await this.resolveCoinRechargeAmount(amountCoin);
+    const orderNo = this.createCoinRechargeOrderNo();
+    const result = await this.wechatPay.createH5Order({
+      outTradeNo: orderNo,
+      description: `${amountCoin}国学币充值`,
+      amount: { total: totalFen },
+      sceneInfo: {
+        payerClientIp: clientIp || "127.0.0.1",
+        h5Info: {
+          type: "Wap",
+          appName: "热卜国学",
+          appUrl: serverConfig.publicH5BaseUrl,
+        },
+      },
+      attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin, amountFen: totalFen, bonusCoin }),
+    });
+    await this.rememberCoinRechargeIntent(orderNo, userId);
+    return { mwebUrl: result.h5Url, orderNo, amountRmb };
+  }
+
+  /** 查询本人充值状态；缓存失效但回调未到时保持 PENDING，避免误报失败。 */
+  async queryCoinRechargeStatus(userId: string, orderNo: string) {
+    if (!orderNo || !/^RC[A-Za-z0-9_-]{8,40}$/.test(orderNo)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "充值订单号无效");
+    }
+    const recharge = await this.prisma.virtualCoinRecharge.findUnique({ where: { orderNo } });
+    if (recharge) {
+      if (recharge.userId !== userId) {
+        throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "充值订单不存在");
+      }
+      return {
+        orderNo,
+        status: recharge.status,
+        amountCoin: recharge.amountCoin,
+        amountRmb: Number(recharge.amountRmb),
+        paidAt: recharge.paidAt,
+      };
+    }
+    let intentOwner: string | null = null;
+    try {
+      intentOwner = await this.redis.get(`recharge:intent:${orderNo}`);
+    } catch (err) {
+      this.logger.warn(`充值支付意图读取失败（按待确认降级）: ${orderNo}`, err);
+    }
+    if (intentOwner && intentOwner !== userId) {
+      throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "充值订单不存在");
+    }
+    return { orderNo, status: "PENDING", amountCoin: null, amountRmb: null, paidAt: null };
   }
 
   /**
-   * 国学币充值 —— 微信小程序 JSAPI 下单。
-   * openid 从用户的微信授权记录（Auth provider=WECHAT）查取，避免前端处理 openid。
-   * 未绑定微信（如仅手机号登录）时诚实报错，前端据此降级为演示/引导。
+   * 国学币充值 —— 微信 JSAPI 下单。
+   * MINI：openid 可省略并从小程序授权记录读取；OFFICIAL：必须传公众号网页授权 openid。
    * 到账由支付回调 handlePaymentNotify → CoinService.handleRechargeCallback 完成（幂等），此处不预扣不加币。
    */
-  async createCoinRechargeJsapi(userId: string, amountCoin: number) {
-    if (!amountCoin || amountCoin <= 0) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "充值金额必须大于0");
+  async createCoinRechargeJsapi(
+    userId: string,
+    amountCoin: number,
+    openid?: string,
+    channel?: "MINI" | "OFFICIAL",
+  ) {
+    this.validateCoinRechargeAmount(amountCoin);
+    let payerOpenid = openid;
+    let appId: string | undefined;
+    if (channel === "OFFICIAL") {
+      appId = process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID || "";
+      if (!appId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "公众号支付未配置，请在后台「微信公众号」卡片配置后重试");
+      }
+      if (!payerOpenid) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少微信授权，请刷新页面完成微信授权后重试");
+      }
+    } else if (!payerOpenid) {
+      const wechatAuth = await this.prisma.auth.findFirst({
+        where: { userId, provider: "WECHAT" },
+        select: { openId: true },
+      });
+      if (!wechatAuth?.openId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "未绑定微信，请在微信小程序内使用微信登录后再充值");
+      }
+      payerOpenid = wechatAuth.openId;
     }
-    const wechatAuth = await this.prisma.auth.findFirst({
-      where: { userId, provider: "WECHAT" },
-      select: { openId: true },
-    });
-    if (!wechatAuth?.openId) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "未绑定微信，请在微信小程序内使用微信登录后再充值");
-    }
-    const payParams = await this.createRechargePayment(userId, wechatAuth.openId, amountCoin);
-    return { payParams };
+    return this.createRechargePayment(userId, payerOpenid, amountCoin, appId);
   }
 
   /** 验签+解密支付回调 */
@@ -164,7 +619,11 @@ export class ShopPaymentService {
    * 避免"渠道已收款但本地未入账却回 SUCCESS"导致订单卡死。
    */
   async handlePaymentNotify(body: Record<string, unknown>): Promise<boolean> {
-    const outTradeNo = body.out_trade_no as string;
+    const outTradeNo = String(body.out_trade_no || "");
+    if (!outTradeNo) {
+      this.logger.error("【资金对账·商户单号缺失】微信支付回调缺少 out_trade_no");
+      return false;
+    }
     const lockKey = `pay:lock:${outTradeNo}`;
 
     // 分布式锁防并发重复处理：抢不到=另一处理中，让渠道稍后重试（勿谎报成功）
@@ -186,15 +645,22 @@ export class ShopPaymentService {
         attach = {};
       }
 
-      // 虚拟币充值回调 → 转发给 CoinService（其内部幂等）
-      if (attach.type === "COIN_RECHARGE" && this.coinSvc) {
-        await this.coinSvc.handleRechargeCallback(body);
-        return true;
-      }
-
       if (body.trade_state !== "SUCCESS") {
         this.logger.log(`支付未成功: ${outTradeNo}, 状态: ${body.trade_state}`);
         return true; // 非成功态无需处理，也无需渠道重试
+      }
+      if (!transactionId) {
+        this.logger.error(`【资金对账·流水缺失】微信支付成功回调缺少 transaction_id: ${outTradeNo}`);
+        return false;
+      }
+
+      // 虚拟币充值回调 → 转发给 CoinService（其内部幂等）
+      if (attach.type === "COIN_RECHARGE") {
+        if (!this.coinSvc) {
+          this.logger.error(`国学币充值处理器未就绪，拒绝确认微信回调: ${outTradeNo}`);
+          return false;
+        }
+        return this.coinSvc.handleRechargeCallback(body);
       }
 
       // 商城订单回调 — 避免双重查询
@@ -209,9 +675,8 @@ export class ShopPaymentService {
       }
 
       if (!orderId) {
-        // 收到款但找不到订单：重试无益，落错误台账人工对账
         this.logger.error(`【资金对账】收到支付成功回调但找不到订单: ${outTradeNo}, transactionId: ${transactionId}`);
-        return true;
+        return false;
       }
 
       // 只有 attach 提供了 orderId 才需要另外查询（已通过 payTransactionId 查到的直接复用）
@@ -220,24 +685,54 @@ export class ShopPaymentService {
       }
       if (!order) {
         this.logger.error(`【资金对账】回调订单不存在: ${orderId}, outTradeNo: ${outTradeNo}`);
-        return true;
+        return false;
       }
       if (order.status === "CANCELLED") {
         // 关键：订单已被超时 cron 取消却又收到支付成功——钱货两空风险，落错误台账人工/自动退款
         this.logger.error(
-          `【资金对账·需退款】已取消订单收到支付成功回调: order=${orderId}, outTradeNo=${outTradeNo}, transactionId=${transactionId}`,
+          "【资金对账·需退款】已取消订单收到支付成功回调: order=" + orderId +
+            ", outTradeNo=" + outTradeNo + ", transactionId=" + transactionId,
         );
-        return true;
+        return false;
       }
-      if (order.status !== "PENDING") return true; // 已支付等终态，幂等返回
+      if (order.status !== "PENDING") {
+        // processPaidOrder 会把 payTransactionId 原子替换为微信 transaction_id。
+        // 只有同一渠道流水的重投才是幂等；不同流水意味着同一本地订单被重复扣款，必须让渠道重试并进入对账。
+        if (order.paidAt && ["PAID", "SHIPPED", "COMPLETED", "REFUNDED"].includes(order.status) &&
+            order.payMethod === "WECHAT" && order.payTransactionId === transactionId) {
+          if (order.status === "REFUNDED") return true;
+          // 订单已入账但首次外发箱落库失败时，渠道重投必须补建事件；唯一键会拦截正常重复通知。
+          await this.emitOrderPaidEvent(order, outTradeNo, "WECHAT", transactionId);
+          await this.reportWechatVirtualDelivery(order, body, transactionId);
+          return true;
+        }
+        this.logger.error(
+          "【资金对账·疑似重复扣款】终态订单收到另一笔微信成功流水: order=" + orderId +
+            ", status=" + order.status + ", stored=" + (order.payTransactionId || "") +
+            ", incoming=" + transactionId + ", outTradeNo=" + outTradeNo,
+        );
+        return false;
+      }
+      if (!order.payTransactionId || order.payTransactionId !== outTradeNo) {
+        // attach 只能定位业务订单，不能替代商户单号校验；否则历史付款码/孤儿渠道单也能给当前订单入账。
+        this.logger.error(
+          "【资金对账·商户单号不符】微信成功回调与当前支付意图不一致: order=" + orderId +
+            ", expected=" + (order.payTransactionId || "") + ", incoming=" + outTradeNo +
+            ", transactionId=" + transactionId,
+        );
+        return false;
+      }
 
-      // M2 金额比对：微信 V3 解密报文 amount.total 单位为分；不符=确定性差异，重试无益，落错误台账人工对账
-      const wxTotal = (body.amount as Record<string, unknown> | undefined)?.total;
-      if (typeof wxTotal === "number" && Math.abs(wxTotal / 100 - Number(order.amount)) >= 0.01) {
+      const wxTotal = Number((body.amount as Record<string, unknown> | undefined)?.total);
+      if (!Number.isFinite(wxTotal) || wxTotal <= 0) {
+        this.logger.error(`【资金对账·金额缺失】微信支付成功回调未携带合法金额: order=${orderId}, outTradeNo=${outTradeNo}`);
+        return false;
+      }
+      if (Math.abs(wxTotal / 100 - Number(order.amount)) >= 0.01) {
         this.logger.error(
           `【资金对账·金额不符】微信回调金额与订单金额不一致，拒绝入账: order=${orderId}, outTradeNo=${outTradeNo}, 回调金额=${wxTotal / 100}, 订单金额=${Number(order.amount)}`,
         );
-        return true;
+        return false;
       }
 
       const orderLockKey = await this.acquireOrderLock(orderId);
@@ -246,9 +741,14 @@ export class ShopPaymentService {
       try {
         await this.processPaidOrder(order, "WECHAT", transactionId);
       } catch (e: unknown) {
-        if (e instanceof BusinessException && e.message === "订单状态已变更") return true;
-        if (isUniqueConstraintError(e)) {
-          this.logger.warn(`支付回调重复处理(DB约束拦截): ${outTradeNo}, transactionId: ${transactionId}`);
+        if ((e instanceof BusinessException && e.message === "订单状态已变更") || isUniqueConstraintError(e)) {
+          const committed = await this.findCommittedPayment(order, "WECHAT", transactionId);
+          if (!committed) return false;
+          // 并发赢家可能已提交但尚未写外发箱；核实实际入账后补发，不能把退款单再次报支付成功。
+          if (committed.status !== "REFUNDED") {
+            await this.emitOrderPaidEvent(committed, outTradeNo, "WECHAT", transactionId);
+            await this.reportWechatVirtualDelivery(committed, body, transactionId);
+          }
           return true;
         }
         throw e;
@@ -256,12 +756,50 @@ export class ShopPaymentService {
         await this.redis.del(orderLockKey);
       }
       await this.attribution.recordOrderCommissionAndFee({ ...order, id: orderId });
+      await this.emitOrderPaidEvent(order, outTradeNo, "WECHAT", transactionId);
+      await this.reportWechatVirtualDelivery(order, body, transactionId);
 
       this.logger.log(`订单 ${orderId} 支付成功, 微信交易号: ${transactionId}`);
       return true;
     } finally {
       await this.redis.del(lockKey);
     }
+  }
+
+  /**
+   * 微信小程序虚拟订单到账后自动上报“已发货”。实物商品必须由商家填写真实物流，绝不自动处理。
+   * 首次失败不影响已确认的支付；在当前进程内退避重试，微信回调重投也会再次补报。
+   */
+  private async reportWechatVirtualDelivery(
+    order: Pick<Order, "id" | "type" | "shippingInfo">,
+    body: Record<string, unknown>,
+    transactionId: string,
+  ): Promise<void> {
+    if (!this.wechatPlatform) return;
+    const miniAppId = (process.env.WECHAT_MINI_APP_ID || process.env.MINIPROGRAM_APP_ID || process.env.WECHAT_MP_APP_ID || process.env.WECHAT_APP_ID || "").trim();
+    const callbackAppId = String(body.appid || "").trim();
+    const payer = body.payer as Record<string, unknown> | undefined;
+    const openid = String(payer?.openid || "").trim();
+    const isVirtual = order.type !== "PRODUCT" || !order.shippingInfo;
+    if (!miniAppId || callbackAppId !== miniAppId || body.trade_type !== "JSAPI" || !openid || !isVirtual) return;
+
+    const deliveredKey = `wechat:mini:delivery:${transactionId}`;
+    if (await this.redis.get(deliveredKey)) return;
+    const attempt = async (index: number): Promise<void> => {
+      try {
+        await this.wechatPlatform!.uploadVirtualOrderShipping({
+          transactionId,
+          openid,
+          itemDesc: `热卜虚拟权益订单 ${order.id}`,
+        });
+        await this.redis.set(deliveredKey, "1", 30 * 24 * 60 * 60);
+      } catch (error) {
+        this.logger.warn(`小程序虚拟订单自动发货失败 order=${order.id}, attempt=${index + 1}: ${(error as Error).message}`);
+        const delays = [1000, 3000, 10000, 30000];
+        if (index < delays.length) setTimeout(() => { void attempt(index + 1); }, delays[index]);
+      }
+    };
+    await attempt(0);
   }
 
   /** 支付宝回调验签 */
@@ -272,9 +810,9 @@ export class ShopPaymentService {
   /** 处理支付宝回调 */
   async handleAlipayNotify(data: Record<string, unknown>) {
     const outTradeNo = data.outTradeNo as string;
-    await this.completePayment(
+    return this.completePayment(
       outTradeNo, "ALIPAY", data.tradeNo as string,
-      data.tradeStatus === "TRADE_SUCCESS",
+      ["TRADE_SUCCESS", "TRADE_FINISHED"].includes(String(data.tradeStatus)),
       Number(data.totalAmount), // 元
     );
   }
@@ -286,79 +824,154 @@ export class ShopPaymentService {
 
   /** 处理银联回调 */
   async handleUnionpayNotify(data: Record<string, unknown>) {
-    if (data.respCode !== "00") return;
+    if (data.respCode !== "00") return true;
     const outTradeNo = data.outTradeNo as string;
-    await this.completePayment(
+    return this.completePayment(
       outTradeNo, "UNIONPAY", data.tradeNo as string, true,
       Number(data.amount) / 100, // 银联回调金额单位为分
     );
   }
 
-  private async completePayment(outTradeNo: string, payMethod: string, tradeNo: string, success: boolean, callbackAmount?: number) {
+  private async completePayment(
+    outTradeNo: string,
+    payMethod: string,
+    tradeNo: string,
+    success: boolean,
+    callbackAmount?: number,
+  ): Promise<boolean> {
     if (!success) {
       this.logger.log(`支付未成功: ${outTradeNo}, 方式: ${payMethod}`);
-      return;
+      return true;
+    }
+    if (!outTradeNo || !tradeNo) {
+      this.logger.error(`【资金对账·流水缺失】${payMethod} 支付成功回调缺少商户单号或渠道流水`);
+      return false;
     }
 
-    // 防重入锁（支付渠道侧）
     const payLockKey = `pay:lock:${outTradeNo}`;
     const payLocked = await this.redis.setNX(payLockKey, "1", 30);
     if (!payLocked) {
       this.logger.warn(`支付回调重复处理被拦截: ${outTradeNo}`);
-      return;
+      return false;
     }
 
     try {
+      // 首次回调按商户单号定位；成功后 payTransactionId 会改存渠道流水，
+      // 后续重投再按渠道流水定位，确保进程重启/缓存失效后仍能幂等应答。
       const order = await this.prisma.order.findFirst({
-        where: { payTransactionId: outTradeNo },
+        where: {
+          OR: [
+            { payTransactionId: outTradeNo },
+            ...(tradeNo ? [{ payMethod, payTransactionId: tradeNo }] : []),
+          ],
+        },
       });
       if (!order) {
         this.logger.error(`找不到对应的订单: ${outTradeNo}`);
-        return;
+        return false;
       }
-      if (order.status !== "PENDING") return;
+      if (order.status !== "PENDING") {
+        // 只有同一渠道、同一渠道流水的终态重投才可幂等确认；已取消订单或第二笔扣款必须进入对账。
+        if (order.paidAt && ["PAID", "SHIPPED", "COMPLETED", "REFUNDED"].includes(order.status) &&
+            order.payMethod === payMethod && order.payTransactionId === tradeNo) {
+          if (order.status === "REFUNDED") return true;
+          await this.emitOrderPaidEvent(order, outTradeNo, payMethod, tradeNo);
+          return true;
+        }
+        const riskLabel = order.status === "CANCELLED" ? "已取消订单收到成功扣款" : "终态订单收到另一笔成功流水";
+        this.logger.error(
+          "【资金对账·" + riskLabel + "】order=" + order.id +
+            ", status=" + order.status + ", payMethod=" + payMethod +
+            ", storedMethod=" + (order.payMethod || "") +
+            ", storedTradeNo=" + (order.payTransactionId || "") +
+            ", incomingTradeNo=" + tradeNo + ", outTradeNo=" + outTradeNo,
+        );
+        return false;
+      }
 
-      // M2 金额比对：验签只证明报文来自渠道，不证明买家付的是本单应付额（篡改下单金额/换单攻击面）
-      if (callbackAmount !== undefined && Math.abs(callbackAmount - Number(order.amount)) >= 0.01) {
+      if (!Number.isFinite(callbackAmount) || Number(callbackAmount) <= 0) {
+        this.logger.error(
+          `【资金对账·金额缺失】支付成功回调未携带合法金额，拒绝入账: order=${order.id}, outTradeNo=${outTradeNo}, 渠道=${payMethod}`,
+        );
+        return false;
+      }
+      if (Math.abs(Number(callbackAmount) - Number(order.amount)) >= 0.01) {
         this.logger.error(
           `【资金对账·金额不符】回调金额与订单金额不一致，拒绝入账: order=${order.id}, outTradeNo=${outTradeNo}, 渠道=${payMethod}, 回调金额=${callbackAmount}, 订单金额=${Number(order.amount)}`,
         );
-        return;
+        return false;
       }
 
       const orderLockKey = await this.acquireOrderLock(order.id);
-      if (!orderLockKey) return;
+      if (!orderLockKey) return false;
 
       try {
-        await this.processPaidOrder(order, payMethod, tradeNo);
+        await this.processPaidOrder(order, payMethod, tradeNo, Number(callbackAmount));
       } catch (e: unknown) {
-        if (e instanceof BusinessException && e.message === "订单状态已变更") return;
-        if (isUniqueConstraintError(e)) {
-          this.logger.warn(`支付回调重复处理(DB约束拦截): ${outTradeNo}, payMethod: ${payMethod}`);
-          return;
+        if ((e instanceof BusinessException && e.message === "订单状态已变更") || isUniqueConstraintError(e)) {
+          const committed = await this.findCommittedPayment(order, payMethod, tradeNo);
+          if (!committed) return false;
+          if (committed.status !== "REFUNDED") await this.emitOrderPaidEvent(committed, outTradeNo, payMethod, tradeNo);
+          return true;
         }
         throw e;
       } finally {
         await this.redis.del(orderLockKey);
       }
 
-      // 分佣 + 平台费（事务外，失败可重试不影响订单状态；此前支付宝/银联漏记平台费）
       await this.attribution.recordOrderCommissionAndFee(order);
-
-      // 触发 Webhook（fire-and-forget，不阻塞主流程）
-      this.webhook.fire("ORDER_PAID", {
-        orderId: order.id,
-        outTradeNo,
-        payMethod,
-        tradeNo,
-        amount: Number(order.amount),
-        userId: order.userId,
-      }).catch((err) => this.logger.warn("Webhook ORDER_PAID 发送失败", err));
+      await this.emitOrderPaidEvent(order, outTradeNo, payMethod, tradeNo);
 
       this.logger.log(`订单 ${order.id} 支付成功, ${payMethod}交易号: ${tradeNo}`);
+      return true;
     } finally {
       await this.redis.del(payLockKey);
     }
+  }
+
+  /** 唯一键或订单CAS冲突本身不证明已付款；事务结束后重新核对同一订单、主体、金额和渠道流水。 */
+  private async findCommittedPayment(order: Order, payMethod: string, tradeNo: string): Promise<Order | null> {
+    const current = await this.prisma.order.findUnique({ where: { id: order.id } });
+    if (current && current.userId === order.userId && current.type === order.type && current.targetId === order.targetId &&
+        Number(current.amount) === Number(order.amount) && current.paidAt &&
+        ["PAID", "SHIPPED", "COMPLETED", "REFUNDED"].includes(current.status) &&
+        current.payMethod === payMethod && current.payTransactionId === tradeNo) return current;
+    this.logger.error(`【资金对账·未确认入账】支付事务冲突后仍无法核实同笔入账: order=${order.id}, channel=${payMethod}, status=${current?.status || "MISSING"}`);
+    return null;
+  }
+
+  /**
+   * 统一发送支付成功事件。
+   * 网关回调与管理员线下确认收款都必须走这里，避免微信/人工确认路径漏掉下游发货、CRM 与数据通知。
+   * 事件投递失败不回滚已完成的资金事务；WebhookService 负责单订阅重试。
+   */
+  emitOrderPaidEvent(
+    order: Pick<Order, "id" | "amount" | "userId">,
+    outTradeNo: string,
+    payMethod: string,
+    tradeNo: string,
+  ): Promise<void> {
+    return this.webhook.fire("ORDER_PAID", {
+      orderId: order.id,
+      outTradeNo,
+      payMethod,
+      tradeNo,
+      amount: Number(order.amount),
+      userId: order.userId,
+    }).then(async () => {
+      try {
+        await this.notification?.sendOnce(order.userId, `ORDER_PAID:${order.id}`, {
+          type: "PURCHASE", title: "支付成功", content: "订单已支付成功，可查看订单详情。",
+          targetType: "ORDER", targetId: order.id,
+        });
+      } catch (err) {
+        this.logger.error(`支付成功站内通知写入失败 order=${order.id}`, err);
+      }
+    }).catch((err) => {
+      // 外发箱都未能落库时必须让支付渠道重投，不能吞掉这类本地持久化故障。
+      this.logger.error("Webhook ORDER_PAID 外发箱写入失败", err);
+      throw err;
+    });
   }
 
   /** 获取订单互斥锁，失败时重试一次，返回 lockKey 或 null */
@@ -379,16 +992,364 @@ export class ShopPaymentService {
   /** 订单类型 × 支付后处理器 — 新增类型在此注册 */
   private readonly paidPostProcessors: Record<string, (order: Order, tx: any) => Promise<void>> = {
     MEMBER: (order, tx) => this.processMemberPaid(order, tx),
+    STATION_MASTER: (order, tx) => this.processStationMasterPaid(order, tx),
+    OPERATOR: (order, tx) => this.processOperatorPaid(order, tx),
+    PRACTITIONER_PRO: (order, tx) => this.processPractitionerProPaid(order, tx),
+    COURSE: (order, tx) => this.processAccessPaid(order, tx),
+    BUNDLE: (order, tx) => this.processAccessPaid(order, tx),
+    BOT_SERVICE: (order, tx) => this.processAccessPaid(order, tx),
+    PAIPAN: (order, tx) => this.processAccessPaid(order, tx),
+    LIVESTREAM: (order, tx) => this.processAccessPaid(order, tx),
+    // 小卜语音时长充值：与订单置 PAID 同一事务加时长，幂等键 order:<id>:voice-minutes
+    VOICE_MINUTES: async (order, tx) => { await fulfillVoiceTopupOrderInTx(tx, order); },
+    // 小卜报告单独购买 / 小卜AI会员：登记权益并赠送语音时长，与订单置 PAID 同一事务、均幂等
+    XIAOBU_REPORT: async (order, tx) => { await fulfillReportOrderInTx(tx, this.entitlement, order); },
+    XIAOBU_MEMBER: async (order, tx) => { await fulfillMemberOrderInTx(tx, this.entitlement, order); },
   };
 
+  // 注：CIRCLE_JOIN / CIRCLE_RENEW 不挂在上表里，而是在 runPaidPostProcessors 内特判。
+  // 原因：圈子履约需要把结果**回传给调用方**（事务提交后做缓存失效与收益记账），
+  // 而上表的签名是 Promise<void>，塞不下返回值；早期版本改用服务实例上的共享 Map 暂存，
+  // 那是跨请求共享状态，回滚会留残留、并发会互相覆盖，已废弃。
+
+  /**
+   * 圈子履约的**事务后收尾**：缓存失效 + 收益记账。
+   *
+   * 由调用方在事务提交后显式调用，并把 `runPaidPostProcessors` 的返回结果传进来。
+   * 事务回滚时调用方拿不到结果，也就不会有任何收尾动作 —— 不存在「回滚后仍可消费的残留」，
+   * 并发调用各自持有局部结果，不会互相覆盖。
+   *
+   * 收益记账为什么在事务外：`recordCircleRevenue` 需要 commission 模块解析圈子分成费率，
+   * 用的是独立 prisma 连接，无法并入履约事务。这与既有 confirmJoin/confirmRenew 一致。
+   * 事务外记账可能失败或进程中断，因此记账**必须可重放**：
+   * `CircleRevenueRecord` 已加 `(type, orderId)` 唯一约束，重放不会双记；
+   * 未记上的由 `reconcileCircleRevenue` 补齐。
+   */
+  async settleCircleAfterCommit(
+    order: { id: string; userId: string; targetId: string; payAmount?: unknown; amount?: unknown },
+    fulfillment?: FulfillResult,
+  ): Promise<void> {
+    // 唯一履约事务已保存实际成员变更；清理失败不能阻断已提交的付款或后续收益处理。
+    // already / needs_manual 不伪造新待办，也可恢复此前提交后中断的待办。
+    try {
+      await clearCircleMembershipCaches(this.prisma, this.redis, {
+        circleId: order.targetId,
+        userId: order.userId,
+      });
+    } catch {
+      this.logger.warn("付费圈子缓存暂未恢复，已保留待办");
+    }
+
+    if (!fulfillment?.shouldRecordRevenue || !fulfillment.memberId) return;
+    const priceYuan = Number(order.payAmount ?? order.amount ?? 0);
+    if (!(priceYuan > 0)) return;
+    await this.recordCircleRevenueOnce(order.id, order.targetId, fulfillment.memberId, priceYuan);
+  }
+
+  /**
+   * 按**订单**幂等地记一次圈子收益。
+   *
+   * 两把钥匙各司其职，不能互相代替：
+   *  - `sourceId` 取 **成员 id**：退款追回的回落查询按它反查圈主分成（circle-refund.service.ts）；
+   *  - `orderId`  取 **订单 id**：数据库 `(type, orderId)` 唯一约束保证同一笔订单只记一次。
+   * 一个成员会有多笔订单（入圈 + 多次续费），成员唯一性挡不住订单级重复记账。
+   *
+   * 唯一约束同时是**跨入口**的挡板：客户端付完款还会调 `confirm-join`，
+   * 那条路径（circle-membership.service.ts）现在同样传 orderId，两者互斥。
+   *
+   * **一次写入完整行，不留占位行。** 早先的两段式（先插 amount=0 占位行占住唯一键、
+   * 再回填金额）有一个未被发现的资金副作用：回填失败时留下的那条 `ownerShare=0` 的
+   * circle_join 行，会被退款冲正的「取该成员最新一条 circle_join」查询选中，
+   * 导致圈主分成按 0 追回。占位行并不提供额外保护——挡住并发与重放的是唯一约束本身，
+   * 无论先写占位行还是直接写完整行都一样成立。
+   *
+   * 失败不抛出，只记日志：收益是账务旁路，不应反噬订单主流程。失败留下的是「没有行」，
+   * 由 `reconcileCircleRevenue` 扫描补记。
+   */
+  private async recordCircleRevenueOnce(
+    orderId: string,
+    circleId: string,
+    memberId: string,
+    priceYuan: number,
+  ): Promise<"recorded" | "duplicate" | "failed" | "no-service"> {
+    if (!this.commissionSvc) return "no-service";
+    try {
+      // 先解析分成（只读），再一次性写入。两者之间若有并发，唯一约束会挡下后到的那笔。
+      const split = await this.commissionSvc.resolveCircleRevenueSplit(circleId, priceYuan);
+      await this.prisma.circleRevenueRecord.create({
+        data: {
+          circleId,
+          type: CIRCLE_REVENUE_TYPE,
+          sourceId: memberId,
+          orderId,
+          amount: priceYuan,
+          platformFee: split.platformFee,
+          ownerShare: split.ownerShare,
+          splitRate: split.splitRate,
+        },
+      });
+      return "recorded";
+    } catch (e) {
+      if (isUniqueConstraintError(e)) return "duplicate";
+      this.logger.error(`圈子收益记账失败 order=${orderId}`, e instanceof Error ? e.stack : String(e));
+      return "failed";
+    }
+  }
+
+  /**
+   * 回填收益金额（行已存在但金额为 0 时使用）。
+   *
+   * 正常路径不再产生金额为 0 的行，这里是**防御性**通道：用于兜底早先两段式版本
+   * 可能遗留的占位行，以及任何其他来源的 0 元 circle_join 行。
+   * 不能改用 create —— 行已经在了，create 会撞唯一键被误判成「已记过」而永远补不上
+   * （这是隔离验证 R4 抓到的真实缺陷）。
+   */
+  private async fillCircleRevenueAmount(
+    orderId: string,
+    circleId: string,
+    priceYuan: number,
+  ): Promise<"recorded" | "failed" | "no-service"> {
+    if (!this.commissionSvc) return "no-service";
+    try {
+      const split = await this.commissionSvc.resolveCircleRevenueSplit(circleId, priceYuan);
+      await this.prisma.circleRevenueRecord.update({
+        where: { type_orderId: { type: CIRCLE_REVENUE_TYPE, orderId } },
+        data: {
+          amount: priceYuan,
+          platformFee: split.platformFee,
+          ownerShare: split.ownerShare,
+          splitRate: split.splitRate,
+        },
+      });
+      return "recorded";
+    } catch (e) {
+      this.logger.error(
+        `圈子收益金额回填失败 order=${orderId}（0 元行仍在，待下次对账）`,
+        e instanceof Error ? e.stack : String(e),
+      );
+      return "failed";
+    }
+  }
+
+  /**
+   * 圈子收益对账补齐（只处理**本次改动上线后**产生的订单，绝不自动补记历史收益）。
+   *
+   * 补两类：
+   *  1) 已 COMPLETED 且未退款、但完全没有本订单收益行的；
+   *  2) 有收益行但金额仍为 0 的（早先两段式版本遗留的占位行）。
+   *
+   * 硬约束：
+   *  - `since` 必填且无默认值。调用方必须显式给出**不早于本改动上线时间**的起点；
+   *    早于该时间的订单可能已由旧路径（没有 orderId 的行）记过账，补记会造成双记。
+   *  - 对每个候选，若发现「该成员在本订单支付之后已有一条没有 orderId 的 circle_join 收益行」，
+   *    判为**疑似旧路径已记**，计入 `ambiguous` 并跳过，不写入。
+   *  - 退款单一律不补（`refundedAt: null` 过滤），避免退款后又冒出新的收益。
+   *  - 不自动执行：没有任何调度调用方，需运维显式触发，接入前须有明确启停开关。
+   */
+  async reconcileCircleRevenue(
+    since: Date,
+    until: Date,
+    limit: number,
+  ): Promise<{ scanned: number; recorded: number; backfilled: number; ambiguous: number; failed: number }> {
+    const safeLimit = Math.min(Math.max(1, Math.floor(limit)), 200);
+    const candidates = await this.prisma.order.findMany({
+      where: {
+        type: { in: ["CIRCLE_JOIN", "CIRCLE_RENEW"] },
+        status: "COMPLETED",
+        refundedAt: null,
+        paidAt: { gte: since, lte: until },
+      },
+      select: { id: true, userId: true, targetId: true, payAmount: true, amount: true, paidAt: true },
+      orderBy: { paidAt: "asc" },
+      take: safeLimit,
+    });
+
+    let recorded = 0;
+    let backfilled = 0;
+    let ambiguous = 0;
+    let failed = 0;
+    for (const o of candidates) {
+      try {
+        const existing = await this.prisma.circleRevenueRecord.findUnique({
+          where: { type_orderId: { type: CIRCLE_REVENUE_TYPE, orderId: o.id } },
+          select: { id: true, amount: true },
+        });
+        if (existing && Number(existing.amount) > 0) continue; // 已完整记账
+
+        const member = await this.prisma.circleMember.findUnique({
+          where: { circleId_userId: { circleId: o.targetId, userId: o.userId } },
+          select: { id: true },
+        });
+        if (!member) {
+          ambiguous += 1; // 成员已不在（退圈/被移出/到期清理），不臆测该记多少
+          continue;
+        }
+        const price = Number(o.payAmount ?? o.amount ?? 0);
+        if (!(price > 0)) {
+          ambiguous += 1;
+          continue;
+        }
+
+        if (!existing) {
+          const legacy = await this.prisma.circleRevenueRecord.findFirst({
+            where: {
+              circleId: o.targetId,
+              type: CIRCLE_REVENUE_TYPE,
+              sourceId: member.id,
+              orderId: null,
+              createdAt: { gte: o.paidAt ?? since },
+            },
+            select: { id: true },
+          });
+          if (legacy) {
+            ambiguous += 1; // 疑似旧路径已记，宁可漏补也不双记
+            continue;
+          }
+        }
+
+        // 已有 0 元行（早先两段式遗留）→ 只回填金额；否则直接写入完整行。
+        const r = existing
+          ? await this.fillCircleRevenueAmount(o.id, o.targetId, price)
+          : await this.recordCircleRevenueOnce(o.id, o.targetId, member.id, price);
+        if (r === "recorded") {
+          if (existing) backfilled += 1;
+          else recorded += 1;
+        } else if (r === "duplicate") {
+          // 并发下另一路已占坑，视为完成
+        } else {
+          failed += 1;
+        }
+      } catch (e) {
+        failed += 1;
+        this.logger.error(`圈子收益对账失败 order=${o.id}`, e instanceof Error ? e.stack : String(e));
+      }
+    }
+    return { scanned: candidates.length, recorded, backfilled, ambiguous, failed };
+  }
+
+  /**
+   * 单笔圈子订单的履约补齐（幂等）。供管理员确认收款的「重放」分支等场景直接补一单。
+   * 与批量补偿走同一份履约逻辑和同一套事务后收尾。
+   */
+  async retryCircleFulfillmentForOrder(orderId: string): Promise<FulfillResult> {
+    const { result, order } = await this.prisma.$transaction(async (tx) => {
+      const r = await fulfillCircleOrderTx(tx, orderId);
+      const o = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { id: true, userId: true, targetId: true, payAmount: true, amount: true },
+      });
+      return { result: r, order: o };
+    });
+    if (order) await this.settleCircleAfterCommit(order, result);
+    return result;
+  }
+
+  /**
+   * 已支付圈子订单的补偿重试（只处理履约，不碰支付状态、不退款、不发通知）。
+   *
+   * 为什么需要：支付后处理器只覆盖「首次回调」。历史遗留的已 PAID 未履约订单，
+   * 以及回调时因瞬时故障整体回滚、渠道又不再重试的订单，都需要独立入口补上。
+   *
+   * 约束：
+   *  - 必须显式传时间窗与条数上限，本方法不做默认全量扫描；
+   *  - 已退款订单由 fulfillCircleOrderTx 内部直接跳过，不会复活权益；
+   *  - 逐单独立事务，一单失败不影响其余；
+   *  - **不自动执行**：由运维或定时任务显式调用，接入前须有明确启停开关。
+   */
+  async retryCircleFulfillment(
+    since: Date,
+    until: Date,
+    limit: number,
+  ): Promise<{ scanned: number; fulfilled: number; skipped: number; needsManual: number; failed: number }> {
+    const safeLimit = Math.min(Math.max(1, Math.floor(limit)), 200);
+    const candidates = await this.prisma.order.findMany({
+      where: buildRetryCandidateWhere(since, until),
+      select: { id: true },
+      orderBy: { paidAt: "asc" },
+      take: safeLimit,
+    });
+    let fulfilled = 0;
+    let skipped = 0;
+    let failed = 0;
+    let needsManual = 0;
+    for (const { id } of candidates) {
+      try {
+        // 事务返回值沿本次循环的局部变量传递；事务抛错则拿不到结果，不会有任何收尾动作。
+        const { result, order } = await this.prisma.$transaction(async (tx) => {
+          const r = await fulfillCircleOrderTx(tx, id);
+          const o = await tx.order.findUnique({
+            where: { id },
+            select: { id: true, userId: true, targetId: true, payAmount: true, amount: true },
+          });
+          return { result: r, order: o };
+        });
+        if (order) await this.settleCircleAfterCommit(order, result);
+
+        if (result.outcome === "fulfilled" || result.outcome === "extended") fulfilled += 1;
+        else if (result.outcome === "needs_manual") needsManual += 1;
+        else skipped += 1;
+      } catch (e) {
+        failed += 1;
+        this.logger.error(`圈子履约补偿失败 order=${id}`, e instanceof Error ? e.stack : String(e));
+      }
+    }
+    return { scanned: candidates.length, fulfilled, skipped, needsManual, failed };
+  }
+
+  /**
+   * 按订单类型跑支付后处理器（会员开通 / 分站激活 / 运营商建号）。
+   * 供非网关支付路径复用——管理员线下确认收款（ShopOrderLifecycleService.adminPayOrder）必须调它，
+   * 否则订单变 PAID 但开通逻辑不跑 = 钱收了货不发（B 端加盟费的线下转账正是主要付款路径）。
+   * 必须在翻状态的同一事务内调用，保证「订单 PAID」与「权益开通」原子。
+   */
+  async runPaidPostProcessors(order: Order, tx: any): Promise<PaidPostProcessOutcome> {
+    // 与首次支付CAS和权益写入共用事务；任一后处理回滚时事实也回滚。
+    await recordOrderNoticeWithTx(tx, order.id, "ORDER_PAID");
+    if (order.type === "CIRCLE_JOIN" || order.type === "CIRCLE_RENEW") {
+      // 圈子履约的结果必须回传给调用方，由调用方在**事务提交后**做缓存失效与收益记账。
+      // 不放进服务实例上的共享状态：那是跨请求共享的，回滚后会留下可被消费的残留，
+      // 并发时还会互相覆盖。这里用返回值沿本次调用链显式传递。
+      const r = await fulfillCircleOrderTx(tx, order.id);
+      if (r.outcome === "needs_manual") {
+        this.logger.warn(
+          `圈子履约暂停待人工 order=${order.id} circle=${order.targetId} user=${order.userId} 原因=${r.reason}`,
+        );
+      } else if (r.outcome === "skipped") {
+        this.logger.warn(`圈子履约跳过 order=${order.id}：${r.reason}`);
+      } else {
+        this.logger.log(
+          `圈子履约 ${r.outcome} order=${order.id} 到期=${r.expireAt?.toISOString() ?? "永久"}`,
+        );
+      }
+      return { circle: r };
+    }
+    const processor = this.paidPostProcessors[order.type];
+    if (processor) await processor(order, tx);
+    return {};
+  }
+
+  /** 只能在支付事务提交后触发；第三方异常不影响已经确认的支付结果。 */
+  triggerPostCommitTasks(order: Pick<Order, "type" | "userId">): void {
+    if (order.type !== "STATION_MASTER" || !this.stationPaipan) return;
+    void this.stationPaipan.syncByUserId(order.userId).catch(() => {
+      this.logger.warn("旧排盘分站异步同步未完成 code=POST_COMMIT_SYNC_FAILED");
+    });
+  }
+
   /** 事务内更新订单状态为 PAID + 按类型触发后处理 */
-  private async processPaidOrder(order: { id: string; type: string; userId: string; amount: any; targetId?: string | null; referrerId?: string | null }, payMethod: string, tradeNo: string) {
-    await this.prisma.$transaction(async (tx) => {
+  private async processPaidOrder(
+    order: { id: string; type: string; userId: string; amount: any; targetId?: string | null; referrerId?: string | null },
+    payMethod: string,
+    tradeNo: string,
+    paidAmount = Number(order.amount),
+  ) {
+    const postProcess = await this.prisma.$transaction(async (tx) => {
       const result = await tx.order.updateMany({
         where: { id: order.id, status: "PENDING" },
         data: {
           status: "PAID",
           payMethod,
+          payAmount: paidAmount,
           paidAt: new Date(),
           payTransactionId: tradeNo,
         },
@@ -398,9 +1359,25 @@ export class ShopPaymentService {
         throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
       }
 
-      const processor = this.paidPostProcessors[order.type];
-      if (processor) await processor(order as Order, tx);
+      return this.runPaidPostProcessors(order as Order, tx);
     });
+    this.triggerPostCommitTasks(order as Order);
+    // 入账成功后立即清订单缓存：否则 getOrder 命中旧 PENDING 缓存(TTL 300s)，
+    // 导致支付页轮询 getOrderPayState 永远读到未支付(不跳转)、订单详情显示「待付款」。
+    await this.orderSvc.invalidateOrderCache(order.id, order.userId).catch((e) => this.logger.warn(`订单缓存清除失败 order=${order.id}`, e));
+    // 圈子履约的事务后收尾（缓存失效 + 收益记账）。结果由事务返回值显式传入。
+    if (postProcess?.circle) {
+      await this.settleCircleAfterCommit(
+        {
+          id: order.id,
+          userId: order.userId,
+          targetId: order.targetId ?? "",
+          payAmount: paidAmount,
+          amount: order.amount,
+        },
+        postProcess.circle,
+      );
+    }
     // 拼团订单：支付成功后结算成团（事务外独立处理，失败不影响支付主流程）
     await this.orderSvc.settleGroupBuyIfNeeded(order.id).catch((e) => this.logger.error(`拼团成团结算失败 order=${order.id}`, e));
   }
@@ -418,6 +1395,8 @@ export class ShopPaymentService {
     const isAutoRenew = planLevel === "YEARLY_AUTO";
     const memberLevel = isAutoRenew ? "YEARLY" : planLevel;
 
+    // 不同付款及退款统一 Order → User → 权益锁序，先锁再读，避免并发续费吞掉一期。
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${order.userId} FOR UPDATE`;
     // 有效期内复购不吞剩余天数：从「当前未到期到期日」起算叠加（已过期/终身除外）；
     // 等级只升不降：已是终身则保持终身，避免高档买低档被覆盖降档。
     const current = await tx.user.findUnique({
@@ -443,6 +1422,7 @@ export class ShopPaymentService {
     await tx.memberPurchase.create({
       data: {
         userId: order.userId,
+        orderId: order.id,
         memberType: memberLevel as any,
         amount: order.amount,
         referrerId: order.referrerId,
@@ -452,6 +1432,146 @@ export class ShopPaymentService {
     });
     // 权益③首月发放（同事务原子；月度 cron 按 member_monthly_YYYYMM 幂等，本月不会重复发）
     await this.memberBenefit.grantMonthlyBenefits(order.userId, planLevel, tx);
+    await this.entitlement.grantWithTx(tx, {
+      userId: order.userId,
+      entitlementKey: "membership.school",
+      kind: "MEMBERSHIP",
+      resourceType: "MEMBER_PLAN",
+      unlimited: true,
+      validUntil: expiresAt,
+      sourceType: "ORDER",
+      sourceId: order.id,
+      idempotencyKey: `order:${order.id}:membership.school`,
+      metadata: {
+        planLevel, memberLevel: finalLevel, autoRenew: isAutoRenew,
+        notificationEvent: "MEMBER_PAID_GRANTED_V1",
+      },
+    });
+  }
+
+  /** 数字内容订单统一登记为全平台访问权益；原业务表继续兼容，权益中心负责跨端汇总。 */
+  private async processAccessPaid(order: Order, tx: any) {
+    let validUntil: Date | null = null;
+    if (order.type === "COURSE") {
+      const course = await tx.course.findUnique({ where: { id: order.targetId }, select: { validityDays: true } });
+      if (course?.validityDays > 0) {
+        validUntil = new Date();
+        validUntil.setDate(validUntil.getDate() + course.validityDays);
+      }
+    }
+    await this.entitlement.grantWithTx(tx, {
+      userId: order.userId,
+      entitlementKey: `${order.type.toLowerCase()}.access`,
+      kind: "ACCESS",
+      resourceType: order.type,
+      resourceId: order.targetId,
+      quantity: 1,
+      validUntil,
+      sourceType: "ORDER",
+      sourceId: order.id,
+      idempotencyKey: `order:${order.id}:${order.type.toLowerCase()}.access`,
+      metadata: {
+        orderType: order.type,
+        // 只标记本版真实付款开通课程的新流水，旧流水不补成功通知。
+        ...(order.type === "COURSE" ? { notificationEvent: "COURSE_PAID_GRANTED_V1" } : {}),
+      },
+    });
+  }
+
+  /** 加盟费计费周期（月）— 真源 ConfigSystem，缺省 12（按年） */
+  private async resolveBillingMonths(tx: any): Promise<number> {
+    const cfg = await tx.configSystem.findUnique({ where: { configKey: "station.billing_period_months" } });
+    const months = Number(cfg?.configValue ?? 12);
+    return Number.isFinite(months) && months > 0 ? Math.floor(months) : 12;
+  }
+
+  /** 到期日叠加：续期不吞剩余天数（未到期则从原到期日起算，已过期则从当下起算）— 同会员口径 */
+  private calcRenewedExpiry(current: Date | null | undefined, months: number): Date {
+    const now = new Date();
+    const base = new Date(current && current > now ? current : now);
+    base.setMonth(base.getMonth() + months);
+    return base;
+  }
+
+  /**
+   * STATION_MASTER 支付后处理 — 分站年租缴纳/续期。
+   * targetId = stationId（下单时已校验存在且归属付款人）。
+   * 付款即激活：已上线协议文案明示「开通分站无准入门槛」，故不再等待管理员审核；
+   * 管理员保留后置停用能力（status 可改）。
+   */
+  private async processStationMasterPaid(order: Order, tx: any) {
+    if (!order.targetId) {
+      this.logger.error(`STATION_MASTER 订单缺 targetId: ${order.id}`);
+      return;
+    }
+    const station = await tx.station.findUnique({
+      where: { id: order.targetId },
+      select: { id: true, expireAt: true, status: true },
+    });
+    if (!station) {
+      this.logger.error(`STATION_MASTER 订单指向的分站不存在: order=${order.id} station=${order.targetId}`);
+      return;
+    }
+    const months = await this.resolveBillingMonths(tx);
+    await tx.station.update({
+      where: { id: station.id },
+      data: {
+        // 管理端 DISABLED 是治理状态，已发起支付的竞态回调只能顺延权益，绝不能替站长解除停用。
+        status: station.status === "DISABLED" ? "DISABLED" : "ACTIVE",
+        expireAt: this.calcRenewedExpiry(station.expireAt, months),
+      },
+    });
+  }
+
+  /**
+   * OPERATOR 支付后处理 — 运营商开通/续期/升档。
+   * targetId = 档位（SILVER/GOLD/DIAMOND/BLACK_GOLD，下单时已校验）。
+   * 名额取 CommissionConfig.operator_<level>.rateB；档位只升不降（同会员「等级只升不降」）。
+   * ⚠️ mgmtRate 一律留空 → 走 channelType 默认（ONLINE 0.10 / OFFLINE 0.20）。
+   *    seed 里的 rateC（旧分级管理奖）已废止，禁止读取，否则会与现行口径打架。
+   */
+  private async processOperatorPaid(order: Order, tx: any) {
+    const level = String(order.targetId || "").toUpperCase();
+    if (!OPERATOR_LEVEL_RANK[level]) {
+      this.logger.error(`OPERATOR 订单档位非法: order=${order.id} level=${order.targetId}`);
+      return;
+    }
+    const cfg = await tx.commissionConfig.findUnique({ where: { configKey: `operator_${level}` } });
+    const quota = Math.max(0, Math.floor(Number(cfg?.rateB ?? 0)));
+    const months = await this.resolveBillingMonths(tx);
+
+    const existing = await tx.operator.findUnique({
+      where: { userId: order.userId },
+      select: { id: true, level: true, containQuota: true, expireAt: true, status: true },
+    });
+
+    if (!existing) {
+      await tx.operator.create({
+        data: {
+          userId: order.userId,
+          level: level as any,
+          containQuota: quota,
+          channelType: "ONLINE",
+          status: "ACTIVE",
+          expireAt: this.calcRenewedExpiry(null, months),
+        },
+      });
+      return;
+    }
+
+    // 只升不降：买低档不覆盖已有高档（名额同理取大者）
+    const keepLevel =
+      OPERATOR_LEVEL_RANK[existing.level] >= OPERATOR_LEVEL_RANK[level] ? existing.level : level;
+    await tx.operator.update({
+      where: { id: existing.id },
+      data: {
+        level: keepLevel as any,
+        containQuota: Math.max(existing.containQuota ?? 0, quota),
+        // EXPIRED 是正常到期态，续费后恢复；DISABLED 是平台治理态，竞态回调不得替用户解封。
+        status: existing.status === "DISABLED" ? "DISABLED" : "ACTIVE",
+        expireAt: this.calcRenewedExpiry(existing.expireAt, months),
+      },
+    });
   }
 
   // ═══════════════════ 汇付天下支付 ═══════════════════
@@ -462,90 +1582,63 @@ export class ShopPaymentService {
     return this.huifu.createPayment(userId, { orderId, payType, openid });
   }
 
-  /** 处理汇付天下支付回调 */
+  /** 处理已由 HuifuService 验签、解析的汇付支付回调，并进入统一订单履约主链。 */
   async handleHuifuNotify(body: Record<string, unknown>) {
-    if (!this.huifu) {
-      this.logger.error("汇付支付回调但服务未配置");
+    const outTradeNo = String(body.req_seq_id || body.out_trade_no || "");
+    if (!outTradeNo) throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付支付回调缺少商户订单号");
+    const tradeStatus = String(body.trans_stat || body.trade_status || body.status || "");
+    if (!["S", "SUCCESS", "TRADE_SUCCESS"].includes(tradeStatus)) {
+      this.logger.log("汇付支付未成功: " + outTradeNo + ", trans_stat=" + (tradeStatus || "UNKNOWN"));
       return;
     }
-
-    const outTradeNo = body.out_trade_no as string;
-    if (!outTradeNo) return;
-
-    const lockKey = `huifu:cb:shop:${outTradeNo}`;
-    const locked = await this.redis.setNX(lockKey, "1", 30);
-    if (!locked) return;
-
-    try {
-      const tradeStatus = body.trade_status || body.status;
-      if (tradeStatus !== "SUCCESS" && tradeStatus !== "TRADE_SUCCESS") return;
-
-      const order = await this.prisma.order.findFirst({
-        where: { payTransactionId: outTradeNo },
-      });
-      if (!order || order.status !== "PENDING") return;
-
-      const transactionId = (body.huifu_order_id || body.transaction_id) as string;
-
-      const orderLockKey = await this.acquireOrderLock(order.id);
-      if (!orderLockKey) return;
-
-      try {
-        await this.processPaidOrder(order, "HUIFU", outTradeNo);
-      } catch (e: unknown) {
-        if (e instanceof BusinessException && e.message === "订单状态已变更") return;
-        if (isUniqueConstraintError(e)) {
-          this.logger.warn(`汇付支付回调重复处理(DB约束拦截): ${outTradeNo}`);
-          return;
-        }
-        throw e;
-      } finally {
-        await this.redis.del(orderLockKey);
-      }
-
-      // 分佣计算（事务外，失败可重试不影响订单状态）
-      if (this.commissionSvc) {
-        try {
-          await this.commissionSvc.calculateAndRecord(
-            order.id, order.type, Number(order.amount),
-            order.referrerId || undefined, order.tempReferrerId || undefined,
-            undefined, order.userId || undefined,
-          );
-        } catch (e) {
-          this.logger.error("汇付支付分佣计算失败", e);
-        }
-        // 平台费记录
-        try {
-          const fee = await this.commissionSvc.calculatePlatformFee(order.type, Number(order.amount));
-          if (fee) {
-            await this.commissionSvc.recordPlatformFee({
-              type: order.type, sourceId: order.id, sourceAmount: Number(order.amount),
-              platformRate: fee.platformRate, platformFee: fee.platformFee,
-            });
-          }
-        } catch (e) {
-          this.logger.error("汇付支付平台费记录失败", e);
-        }
-      }
-
-      // 触发 Webhook（fire-and-forget，不阻塞主流程）
-      this.webhook.fire("ORDER_PAID", {
-        orderId: order.id, outTradeNo, payMethod: "HUIFU", tradeNo: transactionId,
-        amount: Number(order.amount), userId: order.userId,
-      }).catch((err) => this.logger.warn("Webhook ORDER_PAID 发送失败", err));
-
-      this.logger.log(`汇付订单 ${order.id} 支付成功, 交易号: ${transactionId}`);
-    } finally {
-      await this.redis.del(lockKey);
-    }
+    const callbackAmount = Number(body.trans_amt);
+    const transactionId = String(body.hf_seq_id || body.huifu_order_id || "");
+    const handled = await this.completePayment(
+      outTradeNo,
+      "HUIFU",
+      transactionId,
+      true,
+      Number.isFinite(callbackAmount) ? callbackAmount : undefined,
+    );
+    if (!handled) throw new BusinessException(ErrorCode.PAY_FAILED, "汇付支付回调尚未完成本地入账");
+    await this.prisma.huifuSplitRecord.updateMany({
+      where: { outTradeNo },
+      data: { huifuOrderId: transactionId || undefined, rawResponse: body as any },
+    });
   }
-
-  /** 查询订单支付状态 */
+  /** 查询订单支付状态：主库判定渠道，禁止把汇付原流水发送给微信。 */
   async queryPaymentStatus(orderId: string, userId?: string) {
-    const order = await this.orderSvc.getOrder(orderId, userId);
-    if (!order?.payTransactionId) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单无支付记录");
-
-    const result = await this.wechatPay.queryOrder(order.payTransactionId);
+    const order = await this.prisma.$transaction((tx) => tx.order.findUnique({ where: { id: orderId } }));
+    if (!order || !userId || order.userId !== userId) {
+      throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    }
+    if (["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) return { tradeState: "SUCCESS", raw: null };
+    if (order.status === "REFUNDED") return { tradeState: "REFUND", raw: null };
+    if (order.status === "CANCELLED") return { tradeState: "CLOSED", raw: null };
+    if (!order.payTransactionId) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单无支付记录");
+    if (order.payMethod === "HUIFU" || order.payTransactionId.startsWith("HF")) {
+      if (!this.huifu) throw new BusinessException(ErrorCode.PAY_FAILED, "汇付查询暂不可用");
+      const result = await this.huifu.queryPayment(order.payTransactionId, userId);
+      return { tradeState: result.trans_stat === "S" ? "SUCCESS" : result.trans_stat === "F" ? "PAYERROR" : "USERPAYING", raw: result };
+    }
+    if (order.payMethod && !["WECHAT", "WECHAT_INIT"].includes(order.payMethod)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请通过原支付渠道查询订单");
+    }
+    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+    if (Number(order.amount) !== totalFen / RMB_TO_FEN) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单金额无效");
+    const result = await this.wechatPay.queryOrderVerified(order.payTransactionId, totalFen);
+    if (result.trade_state === "SUCCESS") {
+      const handled = await this.handlePaymentNotify({ ...result, attach: order.id });
+      if (!handled) throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付尚未完成本地入账，请稍后查询");
+    } else if (result.trade_state === "NOTPAY" && order.payMethod === "WECHAT_INIT") {
+      // 渠道已证明接收原单，可由既有明确关单流程继续；绝不清空或更换此处流水。
+      await this.prisma.order.updateMany({
+        where: { id: order.id, userId, status: "PENDING", amount: order.amount,
+          payMethod: "WECHAT_INIT", payTransactionId: order.payTransactionId },
+        data: { payMethod: "WECHAT" },
+      });
+      await this.redis.del("shop:order:" + order.id);
+    }
     return { tradeState: result.trade_state, raw: result };
   }
 
@@ -570,5 +1663,50 @@ export class ShopPaymentService {
       base.setMonth(base.getMonth() + 1);
     }
     return base;
+  }
+
+  /**
+   * PRACTITIONER_PRO 支付后处理 —— 从业者会员（¥98/月）开通/续期。
+   *
+   * 🔴 与书院会员（MEMBER）完全隔离：只写 PractitionerProfile.proExpireAt，
+   * 绝不碰 user.memberLevel/memberExpire——两者是两个产品，一个是 C 端书院权益（电子书/积分/AI 伴读），
+   * 一个是 B 端执业工具权益（报告导出/案例库/品牌落款）。用户可以同时是两者。
+   *
+   * 续期不吞剩余天数：未到期则从「当前到期日」起算叠加，已过期则从当下起算。
+   */
+  private async processPractitionerProPaid(order: Order, tx: any) {
+    // 不同订单也必须按用户串行；与退款统一 Order → User → 权益锁序。
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${order.userId} FOR UPDATE`;
+    const now = new Date();
+    const existing = await tx.practitionerProfile.findUnique({
+      where: { userId: order.userId },
+      select: { id: true, proExpireAt: true, proFirstAt: true },
+    });
+    const base = existing?.proExpireAt && existing.proExpireAt > now ? existing.proExpireAt : now;
+    const expire = addCalendarMonthsClamped(base, 1); // 月付；月底续费不越过目标月份
+
+    if (existing) {
+      await tx.practitionerProfile.update({
+        where: { userId: order.userId },
+        data: { proExpireAt: expire, proFirstAt: existing.proFirstAt ?? now },
+      });
+    } else {
+      await tx.practitionerProfile.create({
+        data: { userId: order.userId, proExpireAt: expire, proFirstAt: now },
+      });
+    }
+    await this.entitlement.grantWithTx(tx, {
+      userId: order.userId,
+      entitlementKey: "membership.practitioner",
+      kind: "MEMBERSHIP",
+      resourceType: "PRACTITIONER_PRO",
+      unlimited: true,
+      validUntil: expire,
+      sourceType: "ORDER",
+      sourceId: order.id,
+      idempotencyKey: `order:${order.id}:membership.practitioner`,
+      metadata: { notificationEvent: "PRACTITIONER_GRANTED_V1" },
+    });
+    this.logger.log(`从业者会员开通/续期 user=${order.userId} 到期=${expire.toISOString()}`);
   }
 }

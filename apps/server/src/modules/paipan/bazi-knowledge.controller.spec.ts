@@ -4,7 +4,8 @@ import { BaziKnowledgeController } from "./bazi-knowledge.controller";
 import { BaziKnowledgeService } from "./bazi-knowledge.service";
 import { BaziKnowledgeSeeder } from "./bazi-knowledge-seeder.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
-import { RolesGuard } from "../../common/roles.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 const mockService: Record<string, jest.Mock> = {
   stats: jest.fn(),
@@ -36,6 +37,8 @@ describe("BaziKnowledgeController", () => {
     })
       .overrideGuard(JwtAuthGuard).useValue(mockGuard)
       .overrideGuard(RolesGuard).useValue(mockGuard)
+      // for-bazi 公开但限流（防批量爬知识库），测试里放行即可
+      .overrideGuard(StrictRedisThrottleGuard).useValue(mockGuard)
       .compile();
     ctrl = mod.get(BaziKnowledgeController);
   });

@@ -9,6 +9,7 @@ export type ExitStage =
   | 'refunding' // 平台已通过，退款处理中
   | 'refunded' // 退款已到账（已退出）
   | 'rejected' // 被驳回（圈主或平台任一方拒绝）
+  | 'failed' // 已审核但退款未完成，不能当作驳回或到账
 
 // 驳回方
 export type RejectBy = 'owner' | 'platform'
@@ -85,6 +86,8 @@ export function getExitStageDisplay(stage: ExitStage): {
       return { label: '已退出', tone: 'approved' }
     case 'rejected':
       return { label: '申请被驳回', tone: 'rejected' }
+    case 'failed':
+      return { label: '退款未完成', tone: 'rejected' }
   }
 }
 
@@ -109,6 +112,8 @@ export function getCompletedStepIndex(stage: ExitStage): number {
       return 3 // 全部完成
     case 'rejected':
       return -1 // 流程中断
+    case 'failed':
+      return -1 // 退款异常，需核对
   }
 }
 
@@ -179,7 +184,8 @@ function ymd(v?: string | number | null): string {
 // 后端三状态字段 → 前端单一 stage
 function deriveStage(row: RawExitRow): ExitStage {
   if (row.refundStatus === 'refunded') return 'refunded'
-  if (row.refundStatus === 'failed') return 'rejected'
+  if (row.ownerStatus === 'rejected' || row.adminStatus === 'rejected') return 'rejected'
+  if (row.refundStatus === 'failed') return 'failed'
   if (row.refundStatus === 'refunding' || row.adminStatus === 'approved') return 'refunding'
   if (row.ownerStatus === 'approved') return 'platform_reviewing'
   return 'owner_reviewing'
@@ -254,12 +260,17 @@ export const exitApi = {
   /**
    * 圈主待审退出申请列表 — GET /circle-refund/owner-pending
    * 后端按登录圈主（JWT）返回其名下所有圈子的「待圈主审核」申请；circleId 可选，传入则前端按圈过滤。
-   * 注：后端无圈主侧「已处理历史」端点，已处理记录依赖本次会话内审核后的乐观更新。
    */
   async getExitRequests(circleId?: string): Promise<ExitApplication[]> {
     const rows = await apiGet<RawExitRow[]>('/circle-refund/owner-pending')
     const list = (Array.isArray(rows) ? rows : []).map((r) => mapRefundRow(r, false))
     return circleId ? list.filter((r) => r.circleId === circleId) : list
+  },
+
+  /** 圈主已处理记录：按本人名下圈子过滤，每页最多 50 项。 */
+  async getOwnerReviewed(limit = 20, offset = 0): Promise<ExitApplication[]> {
+    const rows = await apiGet<RawExitRow[]>(`/circle-refund/owner-reviewed?limit=${limit}&offset=${offset}`)
+    return (Array.isArray(rows) ? rows : []).map((r) => mapRefundRow(r, false))
   },
 
   /** 我的退出申请 — GET /circle-refund/my */

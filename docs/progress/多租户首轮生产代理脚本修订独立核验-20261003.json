@@ -1,0 +1,87 @@
+{
+  "checkedAt": "2026-10-03T15:16:20.231387+00:00",
+  "fixedWorkPackage": "MT-06",
+  "scope": "LOCAL_MOCK_AND_SYNTAX_ONLY",
+  "productionExecuted": false,
+  "inputs": [
+    {
+      "path": "D:\\gx-deploy-91\\artifacts\\ops\\tenant-linux-sandbox-20261003\\40-install-cross-node-nginx-config-v2.sh.template",
+      "sha256": "f06d8a4044aeac63c2c5b96223090a9058b87e8116e11edf8cf55d739ffc2c20",
+      "bytes": 6337
+    },
+    {
+      "path": "D:\\gx-deploy-91\\artifacts\\ops\\tenant-linux-sandbox-20261003\\41-restore-cross-node-nginx-config-v2.sh.template",
+      "sha256": "52e8570ca8bd3e06f14019541bd9840efd27f8a30f223415292673f9921f06bb",
+      "bytes": 4665
+    },
+    {
+      "path": "D:\\gx-deploy-91\\artifacts\\ops\\tenant-linux-sandbox-20261003\\42-observe-old-nginx-workers-v2.sh.template",
+      "sha256": "7b5bac8e5b4affb2d50cc566581eaac3b4223fea1a93a40cd529ffd681bb8b09",
+      "bytes": 2324
+    },
+    {
+      "path": "D:\\gx-deploy-91\\artifacts\\ops\\tenant-linux-sandbox-20261003\\43-test-production-proxy-v2-safety.py",
+      "sha256": "12590157e8311aaa43645c09248947f6f0956b4562afd34285f560e20ebe8117",
+      "bytes": 3497
+    },
+    {
+      "path": "D:\\gx-deploy-91\\artifacts\\ops\\tenant-linux-sandbox-20261003\\44-test-install-restore-v2-faults.py",
+      "sha256": "280f83ff954f42a0bfb196f43007af283390dd470c53317f71434a82966b851f",
+      "bytes": 7679
+    }
+  ],
+  "runs": [
+    {
+      "input": "40-install-cross-node-nginx-config-v2.sh.template",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "input": "41-restore-cross-node-nginx-config-v2.sh.template",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "input": "42-observe-old-nginx-workers-v2.sh.template",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "input": "43-test-production-proxy-v2-safety.py",
+      "exitCode": 0,
+      "stdout": "PRODUCTION_PROXY_V2_SAFETY_TESTS|PASS",
+      "stderr": ""
+    },
+    {
+      "input": "44-test-install-restore-v2-faults.py",
+      "exitCode": 0,
+      "stdout": "install_collision|EXIT=64|MARKER=CONTAINER_TEMP_COLLISION|FINAL_BYTES_OK\ninstall_copy_bad|EXIT=75|MARKER=CANDIDATE_COPY_SHA_MISMATCH|FINAL_BYTES_OK\ninstall_confirm_fail|EXIT=1|MARKER=INSTALL_CONFIRM_FAILED_ROLLING_BACK|FINAL_BYTES_OK\nrestore_collision|EXIT=64|MARKER=CONTAINER_TEMP_COLLISION|FINAL_BYTES_OK\nrestore_copy_bad|EXIT=75|MARKER=RESTORE_COPY_SHA_MISMATCH|FINAL_BYTES_OK\nrestore_confirm_fail|EXIT=1|MARKER=RESTORE_CONFIRM_FAILED_ROLLING_BACK|FINAL_BYTES_OK\nINSTALL_RESTORE_V2_STATEFUL_FAULTS|PASS",
+      "stderr": ""
+    }
+  ],
+  "snapshotTemporaryDirectoryCleanup": true,
+  "originalInputsUnchangedDuringRun": true,
+  "verifiedCoverage": [
+    "Docker查询失败中止",
+    "PID复用中止",
+    "有效master与旧worker消失通过",
+    "安装候选临时碰撞拒绝",
+    "安装候选复制损坏拒绝",
+    "安装rename后确认失败实际回退原字节",
+    "恢复临时碰撞拒绝",
+    "恢复复制损坏拒绝",
+    "恢复rename后确认失败实际回退变换字节"
+  ],
+  "limits": [
+    "所有进程、Docker、配置字节均为本地替身，不连接真实Docker/服务器/生产",
+    "替身替换主机名、生产路径、固定基线SHA、Docker入口与睡眠时钟；Windows夹具去掉mkdir模式参数，不覆盖Linux权限行为",
+    "真实Linux安装/恢复/排空尚未执行",
+    "安装恢复故障测试断言注入事件、错误标记、最终字节和无成功PASS，非仅检查非零退出",
+    "未覆盖真实长Socket.IO/后台任务/共享静态切换或最终145版本",
+    "代理脚本通过不证明资金任务已停止"
+  ],
+  "status": "PASS_LOCAL_MOCK_ONLY_PRODUCTION_PENDING"
+}

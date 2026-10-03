@@ -4,26 +4,33 @@
       <template #actions>
         <el-button
           type="success"
+          :loading="seeding"
           @click="seedLibrary"
         >
           初始化种子数据
         </el-button>
         <el-button
           type="warning"
+          :loading="syncing"
           @click="syncKnowledge"
         >
           同步知识库
         </el-button>
         <el-button
           type="info"
+          :loading="vectorizing"
           @click="vectorize"
         >
           向量化索引
         </el-button>
-        <el-button @click="clearCache">
+        <el-button
+          :loading="clearingCache"
+          @click="clearCache"
+        >
           清除缓存
         </el-button>
         <el-button
+          v-if="MANUAL_EDIT"
           type="primary"
           @click="openEdit()"
         >
@@ -32,50 +39,53 @@
       </template>
     </PageHeader>
 
+    <AiMaintainedBanner description="古籍正文由 AI 数字员工采集导入维护，人工请勿直接新增/编辑正文（数据订正走工单/AI 兜底）。本页保留查看、章节浏览与运营操作（同步知识库/向量化/缓存）。" />
+
     <!-- 统计面板 -->
     <div
       v-if="stats"
       class="stats-panel"
     >
+      <!-- <text> 是 uni-app 标签，Web 端无语义，改回 <span> -->
       <div class="stat-item">
-        <text class="stat-num">
+        <span class="stat-num">
           {{ stats.totals?.books || 0 }}
-        </text>
-        <text class="stat-label">
+        </span>
+        <span class="stat-label">
           古籍总数
-        </text>
+        </span>
       </div>
       <div class="stat-item">
-        <text class="stat-num">
+        <span class="stat-num">
           {{ stats.totals?.chapters || 0 }}
-        </text>
-        <text class="stat-label">
+        </span>
+        <span class="stat-label">
           章节总数
-        </text>
+        </span>
       </div>
       <div class="stat-item">
-        <text class="stat-num">
+        <span class="stat-num">
           {{ stats.totals?.images || 0 }}
-        </text>
-        <text class="stat-label">
+        </span>
+        <span class="stat-label">
           原图数量
-        </text>
+        </span>
       </div>
       <div class="stat-item">
-        <text class="stat-num">
+        <span class="stat-num">
           {{ stats.totals?.commentaries || 0 }}
-        </text>
-        <text class="stat-label">
+        </span>
+        <span class="stat-label">
           名家注解
-        </text>
+        </span>
       </div>
       <div class="stat-item">
-        <text class="stat-num">
+        <span class="stat-num">
           {{ stats.totals?.annotations || 0 }}
-        </text>
-        <text class="stat-label">
+        </span>
+        <span class="stat-label">
           注疏批注
-        </text>
+        </span>
       </div>
     </div>
 
@@ -94,6 +104,13 @@
     </div>
 
     <div class="filter-bar">
+      <!-- 书名/作者搜索：49 本量级，前端过滤已拉取列表即可，无需后端搜索端点 -->
+      <el-input
+        v-model="keyword"
+        placeholder="搜索书名 / 作者"
+        clearable
+        style="width:200px;margin-right:12px"
+      />
       <el-radio-group
         v-model="categoryFilter"
         size="small"
@@ -128,13 +145,13 @@
 
     <el-table
       v-loading="loading"
-      :data="books"
+      :data="filteredBooks"
       border
       stripe
     >
       <template #empty>
         <el-empty
-          description="暂无古籍"
+          :description="keyword ? '没有匹配「' + keyword + '」的古籍，换个关键词试试' : '暂无古籍'"
           :image-size="80"
         />
       </template>
@@ -190,6 +207,7 @@
             章节
           </el-button>
           <el-button
+            v-if="MANUAL_EDIT"
             size="small"
             type="primary"
             @click="openEdit(row)"
@@ -197,6 +215,7 @@
             编辑
           </el-button>
           <el-button
+            v-if="MANUAL_EDIT"
             size="small"
             type="danger"
             @click="delBook(row.id)"
@@ -316,6 +335,7 @@
           show-overflow-tooltip
         />
         <el-table-column
+          v-if="MANUAL_EDIT"
           label="操作"
           width="160"
         >
@@ -336,7 +356,10 @@
           </template>
         </el-table-column>
       </el-table>
-      <div style="margin-top:12px">
+      <div
+        v-if="MANUAL_EDIT"
+        style="margin-top:12px"
+      >
         <el-button
           size="small"
           type="primary"
@@ -404,11 +427,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { classicApi } from "@/api";
 import ImageUpload from "@/components/ImageUpload.vue";
 import PageHeader from "@/components/PageHeader.vue";
+import AiMaintainedBanner from "@/components/AiMaintainedBanner.vue";
+
+// 目录重构批（2026-07-11·董事长拍板）：古籍库由 AI 数字员工采集维护，
+// 人工"新增/编辑/删除正文"入口下线（置 true 可回滚·代码保留），本页转只读运营视图
+const MANUAL_EDIT = false;
 
 /** 古籍行（字段宽松 optional） */
 interface BookRow {
@@ -444,6 +472,20 @@ const saving = ref(false);
 const editingBook = ref<BookRow>({});
 const categoryFilter = ref("");
 const stats = ref<ClassicStats | null>(null);
+const keyword = ref("");
+// 运营操作 loading（防连点）
+const seeding = ref(false);
+const syncing = ref(false);
+const vectorizing = ref(false);
+const clearingCache = ref(false);
+
+/** 书名/作者前端过滤（全库仅几十本，无需后端搜索） */
+const filteredBooks = computed(() => {
+  const kw = keyword.value.trim().toLowerCase();
+  if (!kw) return books.value;
+  return books.value.filter((b) =>
+    (b.title || "").toLowerCase().includes(kw) || (b.author || "").toLowerCase().includes(kw));
+});
 
 const form = reactive({ title: "", author: "", dynasty: "", category: "子", cover: "", source: "", intro: "" });
 
@@ -457,32 +499,48 @@ async function fetchStats() {
 }
 
 async function seedLibrary() {
+  if (seeding.value) return;
+  // L3 影响预告：生产写库操作
+  try {
+    await ElMessageBox.confirm(
+      `将向古籍库写入种子数据（当前库中已有 ${stats.value?.totals?.books || 0} 本书、${stats.value?.totals?.chapters || 0} 个章节）。该操作直接写生产数据库，仅在初始化/补种时使用。确定执行？`,
+      "初始化种子数据确认",
+      { type: "warning", confirmButtonText: "确认执行", cancelButtonText: "取消" },
+    );
+  } catch { return; }
+  seeding.value = true;
   try {
     await classicApi.seed();
     ElMessage.success("种子数据初始化完成");
     fetchBooks(); fetchStats();
-  } catch { ElMessage.error("初始化失败"); }
+  } catch { ElMessage.error("初始化失败，请重试"); } finally { seeding.value = false; }
 }
 
 async function syncKnowledge() {
+  if (syncing.value) return;
+  syncing.value = true;
   try {
     const { data } = await classicApi.syncKnowledge();
     ElMessage.success(`已同步 ${data?.synced || 0} 条`);
-  } catch { ElMessage.error("同步失败"); }
+  } catch { ElMessage.error("同步失败，请重试"); } finally { syncing.value = false; }
 }
 
 async function vectorize() {
+  if (vectorizing.value) return;
+  vectorizing.value = true;
   try {
     const { data } = await classicApi.vectorize();
     ElMessage.success(`已向量化 ${data?.vectorized || 0} 条`);
-  } catch { ElMessage.error("向量化失败"); }
+  } catch { ElMessage.error("向量化失败，请重试"); } finally { vectorizing.value = false; }
 }
 
 async function clearCache() {
+  if (clearingCache.value) return;
+  clearingCache.value = true;
   try {
     await classicApi.clearCache();
     ElMessage.success("缓存已清除");
-  } catch { ElMessage.error("清除失败"); }
+  } catch { ElMessage.error("清除失败，请重试"); } finally { clearingCache.value = false; }
 }
 
 async function fetchBooks() {
@@ -525,8 +583,9 @@ async function saveBook() {
     }
     dialogVisible.value = false;
     fetchBooks();
-  } catch (e) {
-    const msg = (e as Error)?.message;
+  } catch {
+    // 原 catch 内只赋值局部变量属死代码，用户点保存失败无任何反馈
+    ElMessage.error("保存失败，请重试");
   } finally {
     saving.value = false;
   }
@@ -549,9 +608,15 @@ const chForm = reactive({ id: "", title: "", content: "", translation: "", annot
 
 async function openChapters(row: BookRow) {
   currentBookId.value = row.id!;
-  const { data } = await classicApi.getChapters(row.id!);
-  chapters.value = data.items || data.chapters || [];
-  chapterVisible.value = true;
+  try {
+    const { data } = await classicApi.getChapters(row.id!);
+    // 修复：该端点返回裸数组（classic.service listChaptersByBook），
+    // 此前只取 data.items/data.chapters 恒为空 → 有章节的书也显示"暂无章节"
+    chapters.value = Array.isArray(data) ? data : data.items || data.chapters || [];
+    chapterVisible.value = true;
+  } catch {
+    ElMessage.error("章节列表加载失败，请重试");
+  }
 }
 
 function editChapter(row?: ChapterRow) {
@@ -578,8 +643,9 @@ async function saveChapter() {
     chEditVisible.value = false;
     ElMessage.success("已保存");
     openChapters({ id: currentBookId.value });
-  } catch (e) {
-    const msg = (e as Error)?.message;
+  } catch {
+    // 原 catch 内只赋值局部变量属死代码，保存失败无反馈
+    ElMessage.error("章节保存失败，请重试");
   } finally {
     saving.value = false;
   }

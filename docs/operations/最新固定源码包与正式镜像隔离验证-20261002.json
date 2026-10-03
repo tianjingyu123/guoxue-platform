@@ -1,0 +1,255 @@
+{
+  "sourceCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
+  "runId": 37066496281,
+  "verificationHead": "08c24163c160dc0c5bf0b01194ed90601265f4c7",
+  "artifactId": 11252991353,
+  "artifactDigest": "sha256:c7d9c40571433d089b72a9636c57e9ffad895517095cc1c69df1279a8ea5ed0a",
+  "digestVerified": true,
+  "sourcePackageDigest": "d57bc3fdb7c1b7d52865c13c57e0c20b38841e362015247940cd423fb0ddd0bf",
+  "sourcePackageFiles": 4497,
+  "formalDockerfile": true,
+  "passedChecks": 30,
+  "checks": [
+    {
+      "name": "image-identity",
+      "passed": true
+    },
+    {
+      "name": "prisma-source-compile-runtime-binding",
+      "passed": true
+    },
+    {
+      "name": "grpc-security-version-in-runtime-image",
+      "passed": true
+    },
+    {
+      "name": "admin-h5-base-and-public-config",
+      "passed": true
+    },
+    {
+      "name": "postgres-major-match",
+      "passed": true
+    },
+    {
+      "name": "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "passed": true
+    },
+    {
+      "name": "production-entrypoint-health-public-http",
+      "passed": true
+    },
+    {
+      "name": "real-jwt-global-guards-cross-user-and-admin-roles",
+      "passed": true
+    },
+    {
+      "name": "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "passed": true
+    },
+    {
+      "name": "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "passed": true
+    },
+    {
+      "name": "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "passed": true
+    },
+    {
+      "name": "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "passed": true
+    },
+    {
+      "name": "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "passed": true
+    },
+    {
+      "name": "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "passed": true
+    },
+    {
+      "name": "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "passed": true
+    },
+    {
+      "name": "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "passed": true
+    },
+    {
+      "name": "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "passed": true
+    },
+    {
+      "name": "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "passed": true
+    },
+    {
+      "name": "competition-disclosure-finished-only-and-public-state-boundary",
+      "passed": true
+    },
+    {
+      "name": "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "passed": true
+    },
+    {
+      "name": "redis7-two-process-notification-idempotency",
+      "passed": true
+    },
+    {
+      "name": "database-unique-after-redis-key-loss",
+      "passed": true
+    },
+    {
+      "name": "notification-failure-release-and-two-process-retry",
+      "passed": true
+    },
+    {
+      "name": "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions",
+      "passed": true
+    },
+    {
+      "name": "free-course-full-http-postcommit-notification-failure-and-permissions",
+      "passed": true
+    },
+    {
+      "name": "live-booking-real-db-failures-retry-concurrency-and-http-target-permissions",
+      "passed": true
+    },
+    {
+      "name": "compiled-entitlement-service-and-durable-notification-idempotency",
+      "passed": true
+    },
+    {
+      "name": "compiled-member-grant-state-durable-notification-failure-retry-and-revoke",
+      "passed": true
+    },
+    {
+      "name": "compiled-member-renew-durable-retry-date-boundary-rollback-and-renewal-lock",
+      "passed": true
+    },
+    {
+      "name": "compiled-practitioner-concurrent-payment-refund-durable-notice",
+      "passed": true
+    }
+  ],
+  "imageIdentity": {
+    "id": "sha256:4dee9ffffba1f03f7d796689062fec43ab35979a69f894c56e909b2279f1b9e0",
+    "os": "linux",
+    "architecture": "amd64",
+    "sourceCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
+    "sourceSha256": "d57bc3fdb7c1b7d52865c13c57e0c20b38841e362015247940cd423fb0ddd0bf"
+  },
+  "prisma": {
+    "schemaVersion": 1,
+    "kind": "prisma-build-binding",
+    "schemaHash": "83980c1b988e8520d805c8f3fb4d0c0bf2d14000251ce270d119ee1b6f0633ef",
+    "clientVersion": "6.19.3"
+  },
+  "migrationLedger": {
+    "total": 134,
+    "complete": 134,
+    "failed": 0
+  },
+  "migrationScope": "formal-empty-bootstrap-only-not-production-upgrade",
+  "details": {
+    "circle-auto-refund-http.json": {
+      "passed": true,
+      "cases": 12,
+      "scope": "synthetic-http-not-real-provider-or-settlement"
+    },
+    "circle-post-detail-http-permissions.json": {
+      "passed": true,
+      "cases": 89,
+      "scope": "full-app-real-http-jwt-postgres-synthetic-only"
+    },
+    "circle-recall-http-transactions.json": {
+      "passed": true,
+      "cases": 22,
+      "scope": "synthetic-ledger-http-not-production-funds-or-settlement"
+    },
+    "circle-reward-http-transactions.json": {
+      "passed": true,
+      "cases": 19,
+      "scope": "two-full-apps-real-http-jwt-postgres-redis-synthetic-only"
+    },
+    "competition-disclosure-http-boundary.json": {
+      "passed": true,
+      "cases": 8,
+      "scope": "full-app-real-public-http-postgres-synthetic-only"
+    },
+    "course-expiry-reminder-runtime.json": {
+      "passed": true,
+      "cases": 15,
+      "scope": "compiled-scheduler-real-pg-redis-independent-processes-and-full-http-target-permissions"
+    },
+    "course-free-enrollment-runtime.json": {
+      "passed": true,
+      "cases": 19,
+      "scope": "full-http-real-di-postcommit-pg-failure-and-lock-redis-permissions"
+    },
+    "finance-http-boundaries.json": {
+      "passed": true,
+      "cases": 22
+    },
+    "im-fallback-http-transactions.json": {
+      "passed": true,
+      "cases": 26,
+      "scope": "synthetic-http-real-jwt-postgresql-transactions-no-external-im"
+    },
+    "im-two-process-socket-transactions.json": {
+      "passed": true,
+      "cases": 12,
+      "scope": "isolated-two-app-processes-synthetic-socket-http-no-tencent-no-production"
+    },
+    "live-booking-notification-runtime.json": {
+      "passed": true,
+      "cases": 31,
+      "scope": "compiled-live-schedulers-real-pg-redis-two-processes-booking-http-and-target-permissions"
+    },
+    "merchant-shipping-http-transactions.json": {
+      "passed": true,
+      "cases": 14,
+      "scope": "synthetic-http-no-carrier-or-wechat-delivery"
+    },
+    "payment-refund-http-transactions.json": {
+      "passed": true,
+      "cases": 24,
+      "scope": "synthetic-course-orders-not-real-provider-or-target-database"
+    },
+    "sensitive-http-audit.json": {
+      "passed": true,
+      "cases": 36
+    }
+  },
+  "cleanup": {
+    "rebu-app-second-2f889a43da": true,
+    "rebu-app-2f889a43da": true,
+    "rebu-db-2f889a43da": true,
+    "rebu-redis-2f889a43da": true,
+    "networkAbsent": true
+  },
+  "realRedisInIsolatedImage": true,
+  "twoIndependentAppProcesses": true,
+  "production": false,
+  "realPaymentProvider": false,
+  "externalDelivery": false,
+  "newDeviceTest": false,
+  "productionUpgrade": false,
+  "reportErrata": [
+    {
+      "file": "course-free-enrollment-runtime.json",
+      "fields": [
+        "crashDurableRetryNotImplemented",
+        "paidCourseSeparateEnrollmentNotAdded"
+      ],
+      "meaning": "旧验证脚本固定文案已过时；该HTTP专项没有测试这两条新恢复链，不代表产品没有实现。免费8c、付费e8源码及各独立PG专项已证明实现。保留官方原件，不改写原附件。"
+    },
+    {
+      "file": "course-expiry-reminder-runtime.json",
+      "fields": [
+        "unchangedCronSchedule"
+      ],
+      "meaning": "原9点Cron保持；f77另新增当天5次重试。镜像专项调用同服务方法，但未验证新Cron元数据；元数据由本次485专项验证。真实云Cron与手机仍未覆盖。"
+    }
+  ],
+  "checkedAt": "2026-10-02T21:35:52.993Z"
+}

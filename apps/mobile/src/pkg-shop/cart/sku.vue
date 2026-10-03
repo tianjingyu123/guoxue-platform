@@ -2,19 +2,19 @@
   <view class="sku-cart">
     <app-nav-bar title="购物车" back-icon="arrow-left" :back-size="40" :title-size="36" :bar-height="106">
       <template #right>
-        <text class="nav-edit" @tap="editMode = !editMode">{{ editMode ? '完成' : '管理' }}</text>
+        <view class="nav-edit" role="button" tabindex="0" :aria-label="editMode ? '完成购物车管理' : '管理购物车'" @tap="editMode = !editMode" @keydown.enter="editMode = !editMode" @keydown.space.prevent="editMode = !editMode">{{ editMode ? '完成' : '管理' }}</view>
       </template>
     </app-nav-bar>
 
     <!-- 加载中 -->
     <view v-if="loading" class="state-wrap">
-      <text class="state-text">加载中...</text>
+      <AppLoading />
     </view>
     <!-- 错误 -->
-    <view v-else-if="error" class="state-wrap">
+    <view v-else-if="error" class="state-wrap" role="alert" aria-live="assertive">
       <app-icon name="alert-circle" :size="56" color="#E74C3C" />
       <text class="state-text">{{ error }}</text>
-      <view class="retry-btn" @tap="retry">
+      <view class="retry-btn" role="button" tabindex="0" aria-label="重新加载购物车" @tap="retry" @keydown.enter="retry" @keydown.space.prevent="retry">
         <text class="retry-btn-text">重试</text>
       </view>
     </view>
@@ -29,9 +29,9 @@
           class="swipe-wrap"
         >
           <view class="swipe-inner" :style="{ transform: openId === item.id ? 'translateX(-160rpx)' : 'translateX(0)' }">
-            <view class="cart-item" @tap="onItemTap(item)">
-              <view class="item-check" :class="{ checked: item.selected }" @tap.stop="toggleItem(item)">
-                <app-icon v-if="item.selected" name="check" :size="28" color="#FFFFFF" />
+            <view class="cart-item" @tap="onItemTap(item)" @touchstart="onRowTouchStart" @touchend="onRowTouchEnd($event, item)">
+              <view class="item-check" role="checkbox" :aria-label="`选择商品：${item.productName}`" :aria-checked="item.selected ? 'true' : 'false'" tabindex="0" @tap.stop="toggleItem(item)" @keydown.enter.stop="toggleItem(item)" @keydown.space.stop.prevent="toggleItem(item)">
+                <view class="check-visual" :class="{ checked: item.selected }"><app-icon v-if="item.selected" name="check" :size="28" color="#FFFFFF" /></view>
               </view>
               <image lazy-load class="item-img" :src="item.productCover" mode="aspectFill" />
               <view class="item-info">
@@ -39,13 +39,13 @@
                 <view class="sku-tag"><text>{{ item.skuName }}</text></view>
                 <view class="item-bottom">
                   <view class="price-box">
-                    <text class="cur">¥{{ item.price }}</text>
-                    <text class="ori">¥{{ item.originalPrice }}</text>
+                    <text class="cur">¥{{ formatPrice(item.price) }}</text>
+                    <text v-if="item.originalPrice > item.price" class="ori">¥{{ formatPrice(item.originalPrice) }}</text>
                   </view>
                   <view class="stepper">
-                    <view class="step-btn" :class="{ disabled: item.quantity <= 1 }" @tap.stop="changeQty(item, -1)"><app-icon name="minus" :size="24" color="#666666" /></view>
+                    <view class="step-btn" :class="{ disabled: item.quantity <= 1 }" role="button" :aria-label="`减少 ${item.productName} 数量`" :aria-disabled="item.quantity <= 1 ? 'true' : 'false'" tabindex="0" @tap.stop="changeQty(item, -1)" @keydown.enter.stop="changeQty(item, -1)" @keydown.space.stop.prevent="changeQty(item, -1)"><app-icon name="minus" :size="24" color="#666666" /></view>
                     <text class="step-num">{{ item.quantity }}</text>
-                    <view class="step-btn" :class="{ disabled: item.quantity >= item.stock }" @tap.stop="changeQty(item, 1)"><app-icon name="plus" :size="24" color="#666666" /></view>
+                    <view class="step-btn" :class="{ disabled: item.quantity >= item.stock }" role="button" :aria-label="`增加 ${item.productName} 数量`" :aria-disabled="item.quantity >= item.stock ? 'true' : 'false'" tabindex="0" @tap.stop="changeQty(item, 1)" @keydown.enter.stop="changeQty(item, 1)" @keydown.space.stop.prevent="changeQty(item, 1)"><app-icon name="plus" :size="24" color="#666666" /></view>
                   </view>
                 </view>
               </view>
@@ -78,27 +78,27 @@
     <view class="empty" v-else>
       <app-icon name="shopping-cart" :size="120" color="#DDDDDD" />
       <text class="empty-text">购物车是空的</text>
-      <view class="empty-btn" @tap="goShop"><text>去选购</text></view>
+      <view class="empty-btn" role="link" tabindex="0" aria-label="去商城选购" @tap="goShop" @keydown.enter="goShop" @keydown.space.prevent="goShop"><text>去选购</text></view>
     </view>
 
     <!-- 底部渐变结算栏 -->
     <view class="footer" v-if="validItems.length">
-      <view class="all-check" :class="{ checked: isAllChecked }" @tap="toggleAll">
-        <app-icon v-if="isAllChecked" name="check" :size="28" color="#FFFFFF" />
+      <view class="all-check" role="checkbox" aria-label="全选商品" :aria-checked="isAllChecked ? 'true' : 'false'" tabindex="0" @tap="toggleAll" @keydown.enter="toggleAll" @keydown.space.prevent="toggleAll">
+        <view class="check-visual" :class="{ checked: isAllChecked }"><app-icon v-if="isAllChecked" name="check" :size="28" color="#FFFFFF" /></view>
       </view>
       <text class="all-label">全选</text>
       <view class="footer-info" v-if="!editMode">
         <view class="total-row">
           <text class="total-label">合计</text>
-          <text class="total-amount">¥{{ totalAmount }}</text>
+          <text class="total-amount">¥{{ formatPrice(totalAmount) }}</text>
         </view>
-        <text class="saved">已优惠 ¥{{ savedAmount }}</text>
+        <text v-if="savedAmount > 0" class="saved">已优惠 ¥{{ formatPrice(savedAmount) }}</text>
       </view>
       <view class="footer-spacer" v-else />
-      <view class="checkout-btn" v-if="!editMode" @tap="goCheckout">
+      <view class="checkout-btn" v-if="!editMode" role="button" tabindex="0" :aria-label="`结算已选 ${selectedCount} 件商品`" @tap="goCheckout" @keydown.enter="goCheckout" @keydown.space.prevent="goCheckout">
         <text>结算({{ selectedCount }})</text>
       </view>
-      <view class="checkout-btn danger" v-else @tap="removeSelected">
+      <view class="checkout-btn danger" v-else role="button" tabindex="0" aria-label="删除已选商品" @tap="removeSelected" @keydown.enter="removeSelected" @keydown.space.prevent="removeSelected">
         <text>删除</text>
       </view>
     </view>
@@ -107,9 +107,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { navigateTo, reLaunch } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
 import { shopApi, type SkuCartItem } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const items = ref<SkuCartItem[]>([])
 const loading = ref(true)
@@ -118,15 +121,27 @@ const submitting = ref(false)
 const editMode = ref(false)
 const openId = ref<string | null>(null)
 
-onMounted(async () => {
-  loading.value = true
-  error.value = ''
-  try {
-    items.value = await shopApi.getSkuCart()
-  } catch (_e) {
-    error.value = '加载失败，请重试'
-  } finally {
-    loading.value = false
+// onShow 而非 onMounted：从商品详情/结算页返回时回刷（加购/下单后数量若不刷新会误导结算）
+let firstShow = true
+onShow(async () => {
+  if (firstShow) {
+    firstShow = false
+    loading.value = true
+    error.value = ''
+    try {
+      items.value = await shopApi.getSkuCart()
+    } catch (_e) {
+      error.value = '加载失败，请重试'
+    } finally {
+      loading.value = false
+    }
+  } else {
+    // 返回本页静默回刷（保留勾选状态，不闪 loading）
+    try {
+      await refreshSku()
+    } catch (_e) {
+      /* 静默：保留现有列表 */
+    }
   }
 })
 
@@ -145,12 +160,29 @@ function retry() {
 const validItems = computed(() => items.value.filter((i) => i.isValid))
 const invalidItems = computed(() => items.value.filter((i) => !i.isValid))
 
+// 行主体点击跳商品详情（P2-11）；左滑手势露出删除，已展开时点击先收起
 function onItemTap(item: SkuCartItem) {
-  if (openId.value === item.id) {
+  if (openId.value) {
     openId.value = null
     return
   }
-  openId.value = item.id
+  if (!item.productId) return
+  navigateTo(`/mall/product/${item.productId}`)
+}
+let touchStartX = 0
+let touchStartY = 0
+function onRowTouchStart(e: any /* uni 触摸事件经 vue-tsc 按原生签名校验，参数须 any */) {
+  touchStartX = e.touches?.[0]?.clientX ?? 0
+  touchStartY = e.touches?.[0]?.clientY ?? 0
+}
+function onRowTouchEnd(e: any /* uni 触摸事件经 vue-tsc 按原生签名校验，参数须 any */, item: SkuCartItem) {
+  const t = e.changedTouches?.[0]
+  if (!t) return
+  const dx = (t.clientX ?? 0) - touchStartX
+  const dy = (t.clientY ?? 0) - touchStartY
+  // 水平位移不足或以纵向滚动为主时不当作滑动
+  if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
+  openId.value = dx < 0 ? item.id : null
 }
 function toggleItem(item: SkuCartItem) {
   item.selected = !item.selected
@@ -162,7 +194,7 @@ function toggleAll() {
 }
 const selectedCount = computed(() => validItems.value.filter((i) => i.selected).reduce((s, i) => s + i.quantity, 0))
 const totalAmount = computed(() => validItems.value.filter((i) => i.selected).reduce((s, i) => s + i.price * i.quantity, 0))
-const savedAmount = computed(() => validItems.value.filter((i) => i.selected).reduce((s, i) => s + (i.originalPrice - i.price) * i.quantity, 0))
+const savedAmount = computed(() => validItems.value.filter((i) => i.selected).reduce((s, i) => s + Math.max(0, i.originalPrice - i.price) * i.quantity, 0))
 /** 写操作后重拉购物车，保留用户当前勾选状态 */
 async function refreshSku() {
   const selectedMap = new Map(items.value.map((i) => [i.id, i.selected]))
@@ -221,19 +253,21 @@ async function clearInvalid() {
     submitting.value = false
   }
 }
-function goShop() { reLaunch('/shop') }
+function goShop() { reLaunch('/mall') }
 function goCheckout() {
   if (submitting.value) return
   if (selectedCount.value === 0) { uni.showToast({ title: '请选择商品', icon: 'none' }); return }
   submitting.value = true
-  navigateTo('/shop/checkout')
+  // P0-1：必须携带选中项 id（结算页只认 q.items→itemIds），不带参恒"没有可结算的商品"
+  const ids = validItems.value.filter((i) => i.selected).map((i) => i.id).join(',')
+  navigateTo(`/shop/checkout?items=${ids}`)
   setTimeout(() => (submitting.value = false), 500)
 }
 </script>
 
 <style lang="scss" scoped>
 .sku-cart { min-height: 100vh; background: #F5F5F5; display: flex; flex-direction: column; }
-.nav-edit { font-size: 28rpx; color: var(--brand); }
+.nav-edit { min-width: 88rpx; min-height: 88rpx; display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: var(--brand); }
 .content { flex: 1; }
 .item-list { padding: 20rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .swipe-wrap { overflow: hidden; border-radius: 20rpx; }
@@ -252,9 +286,13 @@ function goCheckout() {
 }
 .swipe-delete text { color: #FFFFFF; font-size: 28rpx; }
 .item-check, .all-check {
+  width: 88rpx; height: 88rpx;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.check-visual {
   width: 40rpx; height: 40rpx; border-radius: 50%;
   border: 2rpx solid #CCCCCC;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
   &.checked { background: var(--brand); border-color: var(--brand); }
 }
 .item-img { width: 160rpx; height: 160rpx; border-radius: 12rpx; flex-shrink: 0; }
@@ -269,7 +307,7 @@ function goCheckout() {
 .cur { font-size: 32rpx; color: var(--brand); font-weight: 700; }
 .ori { font-size: 22rpx; color: #BBBBBB; text-decoration: line-through; }
 .stepper { display: flex; align-items: center; border: 2rpx solid #EEEEEE; border-radius: 8rpx; }
-.step-btn { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; &.disabled { opacity: 0.3; } }
+.step-btn { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; &.disabled { opacity: 0.3; } }
 .step-num { width: 56rpx; text-align: center; font-size: 26rpx; color: #1A1A1A; }
 .invalid-block { padding: 0 20rpx; }
 .invalid-header { display: flex; justify-content: space-between; align-items: center; padding: 24rpx 4rpx 0; }

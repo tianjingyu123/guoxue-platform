@@ -12,8 +12,9 @@
           <view class="reward-title-row">
             <app-icon name="sparkles" :size="36" color="#FFFFFF" />
             <text class="reward-title">邀请好友，双方有礼</text>
+            <text class="reward-soon">即将开放</text>
           </view>
-          <text class="reward-desc">邀请1位好友注册，双方各得 7天会员体验。多邀多得，上不封顶。</text>
+          <text class="reward-desc">邀请体系正在建设，开放时间、会员奖励与发放规则以正式公告为准。</text>
           <view class="reward-stats">
             <view class="rstat">
               <text class="rstat-num">{{ invitedFriends.length }}</text>
@@ -34,56 +35,58 @@
       <!-- 邀请方式 -->
       <text class="section-title">邀请方式</text>
       <view class="ways">
-        <view class="way" @tap="onShare">
+        <view class="way" role="button" aria-disabled="true" aria-label="分享链接即将开放" @tap="onShare">
           <view class="way-icon" style="background:rgba(196,30,45,0.1)">
             <app-icon name="share-2" :size="40" color="#C41E2D" />
           </view>
           <text class="way-label">分享链接</text>
+          <text class="way-status">即将开放</text>
         </view>
-        <view class="way" @tap="showPoster = true">
+        <view class="way" role="button" aria-disabled="true" aria-label="生成海报即将开放" @tap="onPoster">
           <view class="way-icon" style="background:rgba(201,169,110,0.12)">
             <app-icon name="image" :size="40" color="#C9A96E" />
           </view>
           <text class="way-label">生成海报</text>
+          <text class="way-status">即将开放</text>
         </view>
-        <view class="way" @tap="onCopy">
+        <view class="way" role="button" aria-disabled="true" aria-label="复制邀请码即将开放" @tap="onCopy">
           <view class="way-icon" style="background:rgba(46,160,67,0.1)">
-            <app-icon :name="copied ? 'check' : 'copy'" :size="40" :color="'#2EA043'" />
+            <app-icon name="copy" :size="40" color="#2EA043" />
           </view>
-          <text class="way-label">{{ copied ? '已复制' : '复制邀请码' }}</text>
+          <text class="way-label">复制邀请码</text>
+          <text class="way-status">即将开放</text>
         </view>
       </view>
 
-      <!-- 邀请码展示 -->
+      <!-- 邀请码展示（后端暂无用户专属邀请码来源，不伪造全体同码，诚实显示生成中） -->
       <view class="code-card">
         <view class="code-left">
           <text class="code-hint">我的邀请码</text>
-          <text class="code-val">{{ inviteCode }}</text>
-        </view>
-        <view class="code-btn" @tap="onCopy">
-          <text class="code-btn-txt">{{ copied ? '已复制' : '复制' }}</text>
+          <text class="code-val pending">即将开放</text>
         </view>
       </view>
 
-      <!-- 排行榜 -->
-      <view class="rank-head">
-        <view class="rank-title-row">
-          <app-icon name="crown" :size="32" color="#C9A96E" />
-          <text class="section-title inline">邀请排行榜</text>
+      <!-- 排行榜（后端无邀请排行数据时整段隐藏，不展示占位假榜） -->
+      <template v-if="leaderboard.length">
+        <view class="rank-head">
+          <view class="rank-title-row">
+            <app-icon name="crown" :size="32" color="#C9A96E" />
+            <text class="section-title inline">邀请排行榜</text>
+          </view>
+          <view class="seg">
+            <text :class="['seg-item', leaderboardTab === 'today' && 'seg-on']" @tap="leaderboardTab = 'today'">今日</text>
+            <text :class="['seg-item', leaderboardTab === 'total' && 'seg-on']" @tap="leaderboardTab = 'total'">累计</text>
+          </view>
         </view>
-        <view class="seg">
-          <text :class="['seg-item', leaderboardTab === 'today' && 'seg-on']" @tap="leaderboardTab = 'today'">今日</text>
-          <text :class="['seg-item', leaderboardTab === 'total' && 'seg-on']" @tap="leaderboardTab = 'total'">累计</text>
+        <view class="card">
+          <view v-for="(u, i) in leaderboard" :key="u.rank" :class="['rank-row', i < leaderboard.length - 1 && 'bb']">
+            <text :class="['rank-no', u.rank === 1 && 'r1', u.rank === 2 && 'r2', u.rank === 3 && 'r3']">{{ u.rank }}</text>
+            <view class="avatar"><text class="avatar-txt">{{ u.name[0] }}</text></view>
+            <text class="rank-name">{{ u.name }}</text>
+            <view class="rank-cnt"><text class="rank-cnt-num">{{ u.count }}</text><text class="rank-cnt-unit">人</text></view>
+          </view>
         </view>
-      </view>
-      <view class="card">
-        <view v-for="(u, i) in leaderboard" :key="u.rank" :class="['rank-row', i < leaderboard.length - 1 && 'bb']">
-          <text :class="['rank-no', u.rank === 1 && 'r1', u.rank === 2 && 'r2', u.rank === 3 && 'r3']">{{ u.rank }}</text>
-          <view class="avatar"><text class="avatar-txt">{{ u.name[0] }}</text></view>
-          <text class="rank-name">{{ u.name }}</text>
-          <view class="rank-cnt"><text class="rank-cnt-num">{{ u.count }}</text><text class="rank-cnt-unit">人</text></view>
-        </view>
-      </view>
+      </template>
 
       <!-- 已邀请好友 -->
       <view class="rank-head">
@@ -112,82 +115,37 @@
       <view class="empty" v-else>
         <view class="empty-icon"><app-icon name="users" :size="64" color="#9A8F80" /></view>
         <text class="empty-t">还没有邀请好友</text>
-        <text class="empty-s">快去分享邀请链接吧</text>
+        <text class="empty-s">开放后可在这里查看邀请与激活记录</text>
       </view>
 
       <view class="safe-bottom" />
     </scroll-view>
 
-    <!-- 海报弹窗 -->
-    <view class="mask" v-if="showPoster" @tap="showPoster = false">
-      <view class="poster-wrap" @tap.stop>
-        <view class="poster">
-          <view class="poster-top">
-            <view class="poster-logo"><text class="poster-logo-txt">卜</text></view>
-            <text class="poster-brand">{{ BRAND.name }}</text>
-            <text class="poster-sub">探索易学智慧</text>
-          </view>
-          <view class="poster-mid">
-            <text class="poster-mid-t">邀请你一起学习国学</text>
-            <text class="poster-mid-s">注册即送7天会员体验</text>
-          </view>
-          <view class="poster-qr">
-            <view class="qr-box"><text class="qr-txt">二维码</text></view>
-            <text class="qr-hint">长按识别二维码</text>
-            <text class="qr-code">邀请码: {{ inviteCode }}</text>
-          </view>
-        </view>
-        <view class="poster-actions">
-          <view class="pa-btn pa-cancel" @tap="showPoster = false"><text class="pa-cancel-txt">取消</text></view>
-          <view class="pa-btn pa-save" @tap="onSavePoster"><text class="pa-save-txt">保存海报</text></view>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { navigateTo } from '@/utils/router'
-import { BRAND } from '@/lib/brand'
 
-const inviteCode = 'REBU2024'
-const copied = ref(false)
-const showPoster = ref(false)
 const leaderboardTab = ref<'today' | 'total'>('total')
 
-const invitedFriends = ref([
-  { id: 1, name: '张三', registerTime: '2024-03-15 14:30', status: 'registered' },
-  { id: 2, name: '李四', registerTime: '2024-03-14 09:20', status: 'registered' },
-  { id: 3, name: '王五', registerTime: '2024-03-13 16:45', status: 'pending' },
-  { id: 4, name: '赵六', registerTime: '2024-03-12 11:00', status: 'registered' },
-])
-
-const leaderboard = ref([
-  { rank: 1, name: '周易大师', count: 128 },
-  { rank: 2, name: '张玄风', count: 96 },
-  { rank: 3, name: '陈风水', count: 72 },
-  { rank: 4, name: '李易安', count: 58 },
-  { rank: 5, name: '王命理', count: 45 },
-])
+// 后端暂无用户侧邀请数据聚合接口（user/auth 控制器无 invite 端点）→ 诚实降级为空，不伪造好友/排行
+const invitedFriends = ref<{ id: number; name: string; registerTime: string; status: string }[]>([])
+const leaderboard = ref<{ rank: number; name: string; count: number }[]>([])
 
 const registeredCount = computed(() => invitedFriends.value.filter(f => f.status === 'registered').length)
 
 function go(path: string) { navigateTo(path) }
+// 邀请码尚未生成（后端无用户专属码来源），复制/分享暂不可用，诚实提示
 function onCopy() {
-  uni.setClipboardData({ data: inviteCode, success: () => {
-    copied.value = true
-    setTimeout(() => { copied.value = false }, 2000)
-  }})
+  uni.showToast({ title: '邀请码即将开放', icon: 'none' })
 }
 function onShare() {
-  uni.setClipboardData({ data: `https://rebu.com/register?invite=${inviteCode}`, success: () => {
-    uni.showToast({ title: '链接已复制', icon: 'none' })
-  }})
+  uni.showToast({ title: '邀请功能即将开放', icon: 'none' })
 }
-function onSavePoster() {
-  uni.showToast({ title: '海报已保存到相册', icon: 'none' })
-  showPoster.value = false
+function onPoster() {
+  uni.showToast({ title: '邀请海报即将开放', icon: 'none' })
 }
 </script>
 
@@ -203,6 +161,7 @@ function onSavePoster() {
 .reward-body { position: relative; z-index: 1; }
 .reward-title-row { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }
 .reward-title { font-size: 36rpx; font-weight: 700; color: #FFFFFF; }
+.reward-soon { margin-left: auto; padding: 5rpx 12rpx; border: 1rpx solid rgba(255,255,255,0.5); border-radius: 999rpx; font-size: 18rpx; color: #FFFFFF; background: rgba(255,255,255,0.12); }
 .reward-desc { display: block; font-size: 26rpx; color: rgba(255,255,255,0.9); line-height: 1.6; }
 .reward-stats { display: flex; gap: 48rpx; margin-top: 32rpx; padding-top: 32rpx; border-top: 1rpx solid rgba(255,255,255,0.2); }
 .rstat { display: flex; flex-direction: column; align-items: center; }
@@ -211,14 +170,16 @@ function onSavePoster() {
 
 /* 邀请方式 */
 .ways { display: flex; gap: 24rpx; padding: 0 32rpx; }
-.way { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 16rpx; padding: 32rpx 0; background: #FFFFFF; border-radius: 20rpx; border: 1rpx solid #EFEAE2; }
+.way { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10rpx; padding: 28rpx 0; background: #FFFFFF; border-radius: 20rpx; border: 1rpx solid #EFEAE2; }
 .way-icon { width: 88rpx; height: 88rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .way-label { font-size: 24rpx; color: #2C2C2C; font-weight: 500; }
+.way-status { padding: 3rpx 10rpx; border-radius: 999rpx; background: #F3F0EB; color: #9A8F80; font-size: 18rpx; }
 
 /* 邀请码 */
 .code-card { display: flex; align-items: center; justify-content: space-between; margin: 32rpx; padding: 32rpx; background: rgba(201,169,110,0.08); border: 2rpx dashed #D9CDB8; border-radius: 20rpx; }
 .code-hint { display: block; font-size: 22rpx; color: #9A8F80; }
 .code-val { display: block; font-size: 40rpx; font-weight: 700; color: #C41E2D; letter-spacing: 6rpx; margin-top: 8rpx; }
+.code-val.pending { font-size: 30rpx; color: #9A8F80; letter-spacing: 2rpx; }
 .code-btn { padding: 16rpx 32rpx; background: #C41E2D; border-radius: 12rpx; }
 .code-btn-txt { font-size: 26rpx; color: #FFFFFF; font-weight: 500; }
 
@@ -265,27 +226,4 @@ function onSavePoster() {
 
 .safe-bottom { height: 48rpx; }
 
-/* 海报弹窗 */
-.mask { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; padding: 32rpx; }
-.poster-wrap { width: 100%; max-width: 560rpx; }
-.poster { border-radius: 20rpx; overflow: hidden; aspect-ratio: 9/16; background: linear-gradient(135deg, #C41E2D 0%, #B01828 55%, #C9A96E 100%); display: flex; flex-direction: column; justify-content: space-between; padding: 48rpx; }
-.poster-top { text-align: center; }
-.poster-logo { width: 96rpx; height: 96rpx; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; margin: 0 auto 24rpx; }
-.poster-logo-txt { font-size: 44rpx; font-weight: 700; color: #FFFFFF; }
-.poster-brand { display: block; font-size: 40rpx; font-weight: 700; color: #FFFFFF; }
-.poster-sub { display: block; font-size: 24rpx; color: rgba(255,255,255,0.8); margin-top: 8rpx; }
-.poster-mid { text-align: center; }
-.poster-mid-t { display: block; font-size: 34rpx; font-weight: 600; color: #FFFFFF; margin-bottom: 12rpx; }
-.poster-mid-s { display: block; font-size: 26rpx; color: rgba(255,255,255,0.8); }
-.poster-qr { background: #FFFFFF; border-radius: 20rpx; padding: 32rpx; display: flex; flex-direction: column; align-items: center; }
-.qr-box { width: 160rpx; height: 160rpx; background: #EFEAE2; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; margin-bottom: 16rpx; }
-.qr-txt { font-size: 22rpx; color: #9A8F80; }
-.qr-hint { font-size: 22rpx; color: #9A8F80; }
-.qr-code { font-size: 20rpx; color: #9A8F80; margin-top: 8rpx; }
-.poster-actions { display: flex; gap: 24rpx; margin-top: 32rpx; }
-.pa-btn { flex: 1; padding: 28rpx 0; border-radius: 20rpx; text-align: center; }
-.pa-cancel { background: rgba(255,255,255,0.2); }
-.pa-cancel-txt { font-size: 28rpx; color: #FFFFFF; font-weight: 500; }
-.pa-save { background: #FFFFFF; }
-.pa-save-txt { font-size: 28rpx; color: #C41E2D; font-weight: 600; }
 </style>

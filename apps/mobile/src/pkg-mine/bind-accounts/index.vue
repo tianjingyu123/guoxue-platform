@@ -1,494 +1,369 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { bindBenefits, mineApi, type BoundAccount } from '@/lib/mine-data'
+import AppLoading from '@/components/common/app-loading.vue'
+import { mineApi, type BoundAccount } from '@/lib/mine-data'
+import { subscribeAuthContext } from '@/utils/storage'
+import { currentBindingUser, requestBindingWechatCode, submitWechatBinding } from '@/utils/wechat-account-binding'
+// #ifdef APP-PLUS
+import { hydrateRemoteConfig, isClientFeatureEnabled } from '@/lib/remote-config'
+// #endif
+// #ifdef H5
+import { authApi } from '@/lib/auth-data'
+import { createBindingAttempt, consumeBindingAttempt, clearBindingAttempt } from '@/utils/wechat-account-binding'
+import { navigateWechatAuthorization } from '@/utils/wechat-top-level'
+// #endif
 
 const accounts = ref<BoundAccount[]>([])
 const loading = ref(true)
 const error = ref('')
-const unbindTarget = ref<BoundAccount | null>(null)
 const processing = ref(false)
-const toast = ref('')
+const notice = ref('')
+const unbindTarget = ref<BoundAccount | null>(null)
+const authorizationUrl = ref('')
+let authorizationUser = ''
+let pageUser = ''
+let disposed = false
+let fetchSequence = 0
+const wechatAvailable = ref(false)
+const providerIcon: Record<string, string> = { wechat: 'message-circle', qq: 'message-square', apple: 'smartphone' }
+const boundCount = computed(() => accounts.value.filter((account) => account.isBound).length)
+const busy = computed(() => processing.value || Boolean(authorizationUrl.value))
 
-const providerIcon: Record<string, string> = {
-  wechat: 'message-circle',
-  qq: 'message-square',
-  apple: 'smartphone',
+function cancelAuthorization() {
+  authorizationUrl.value = ''
+  authorizationUser = ''
+  // #ifdef H5
+  clearBindingAttempt(window.sessionStorage)
+  // #endif
 }
 
-const boundCount = computed(() => accounts.value.filter((a) => a.isBound).length)
-
 async function fetchData() {
+  const userId = currentBindingUser()
+  const sequence = ++fetchSequence
   loading.value = true
   error.value = ''
   try {
+    if (!userId) throw new Error('请先登录后再管理绑定账号')
     const data = await mineApi.getBoundAccounts()
-    accounts.value = data.map((a: BoundAccount) => ({ ...a }))
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载失败'
+    if (disposed || sequence !== fetchSequence || currentBindingUser() !== userId) return
+    accounts.value = data
+  } catch (cause) {
+    if (!disposed && sequence === fetchSequence) error.value = (cause as Error).message || '加载失败，请重试'
   } finally {
-    loading.value = false
+    if (!disposed && sequence === fetchSequence) loading.value = false
   }
 }
 
-function retry() {
-  fetchData()
-}
-
-onMounted(() => {
-  fetchData()
+const unsubscribe = subscribeAuthContext(() => {
+  const currentUser = currentBindingUser()
+  if (currentUser === pageUser) return
+  pageUser = currentUser
+  accounts.value = []
+  unbindTarget.value = null
+  cancelAuthorization()
+  notice.value = '登录账号已变化，请重新发起操作'
+  void fetchData()
 })
+onUnmounted(() => { disposed = true; ++fetchSequence; unsubscribe() })
 
-function showToast(msg: string) {
-  toast.value = msg
-  setTimeout(() => (toast.value = ''), 2000)
-}
-async function handleBind(acc: BoundAccount) {
-  if (processing.value) return
+async function handleBind() {
+  if (busy.value || !wechatAvailable.value) return
+  const userId = currentBindingUser()
   processing.value = true
+  notice.value = ''
   try {
-    await mineApi.toggleBind(acc.provider, true)
-    showToast(`即将跳转到${acc.name}授权页面`)
-  } catch (e) {
-    showToast((e as Error)?.message || '操作失败')
-  } finally {
-    processing.value = false
-  }
+    if (!userId) throw new Error('请先登录后再绑定微信')
+    // #ifdef APP-PLUS
+    await hydrateRemoteConfig(true)
+    if (!isClientFeatureEnabled('client_wechat_app_login')) throw new Error('APP微信授权暂不可用，请稍后重试')
+    // #endif
+    // #ifdef H5
+    const attempt = createBindingAttempt(userId, window.sessionStorage, window.crypto)
+    authorizationUser = userId
+    const url = await authApi.getWechatOAuthUrl(new URL('/h5/wechat-oauth-callback.html', window.location.origin).toString(), attempt.state)
+    if (disposed || currentBindingUser() !== userId) { cancelAuthorization(); return }
+    authorizationUrl.value = url
+    return
+    // #endif
+    // #ifdef APP-PLUS || MP-WEIXIN
+    if (disposed || currentBindingUser() !== userId) return
+    const code = await requestBindingWechatCode()
+    let channel: 'app' | 'miniprogram' = 'miniprogram'
+    // #ifdef APP-PLUS
+    channel = 'app'
+    // #endif
+    await submitWechatBinding(userId, code, channel)
+    if (disposed || currentBindingUser() !== userId) return
+    await fetchData()
+    notice.value = error.value ? '绑定已完成，状态加载失败，请重试' : '微信已绑定，可用于登录当前账号'
+    // #endif
+  } catch (cause) {
+    if (!disposed && currentBindingUser() === userId) {
+      cancelAuthorization()
+      notice.value = (cause as Error).message || '微信绑定失败，请重试'
+    }
+  } finally { processing.value = false }
 }
+
+function continueAuthorization() {
+  // #ifdef H5
+  try {
+    if (currentBindingUser() !== authorizationUser) throw new Error('登录账号已变化，请重新发起微信绑定')
+    // 同步用户手势进入微信授权，避免 XWeb 异步跳转白屏。
+    navigateWechatAuthorization(window, authorizationUrl.value)
+  } catch (cause) { cancelAuthorization(); notice.value = (cause as Error).message }
+  // #endif
+}
+
 async function handleUnbind() {
-  if (!unbindTarget.value || processing.value) return
-  processing.value = true
+  if (!unbindTarget.value || busy.value) return
+  const userId = currentBindingUser()
   const target = unbindTarget.value
+  processing.value = true
+  notice.value = ''
   try {
-    await mineApi.toggleBind(target.provider, false)
-    accounts.value = accounts.value.map((acc) =>
-      acc.provider === target.provider
-        ? { ...acc, isBound: false, accountInfo: undefined, boundAt: undefined }
-        : acc,
-    )
-  } catch (e) {
-    showToast((e as Error)?.message || '解绑失败')
-  } finally {
-    processing.value = false
-    unbindTarget.value = null
-  }
+    await mineApi.toggleBind(target.provider, false, userId)
+    if (disposed || currentBindingUser() !== userId) return
+    await fetchData()
+    notice.value = error.value ? '解绑已完成，状态加载失败，请重试' : target.name + '已解绑'
+  } catch (cause) {
+    if (!disposed && currentBindingUser() === userId) notice.value = (cause as Error).message || '解绑失败，请重试'
+  } finally { processing.value = false; unbindTarget.value = null }
 }
+
+onLoad(async (query) => {
+  pageUser = currentBindingUser()
+  // #ifdef MP-WEIXIN
+  wechatAvailable.value = true
+  // #endif
+  // #ifdef APP-PLUS
+  try { await hydrateRemoteConfig(true); wechatAvailable.value = isClientFeatureEnabled('client_wechat_app_login') } catch { wechatAvailable.value = false }
+  // #endif
+  // #ifdef H5
+  wechatAvailable.value = /MicroMessenger/i.test(navigator.userAgent)
+  if (query?.wx_bind === '1') {
+    const code = typeof query.code === 'string' ? query.code.trim() : ''
+    const state = typeof query.state === 'string' ? query.state : ''
+    const valid = consumeBindingAttempt(state, pageUser, window.sessionStorage)
+    const cleanUrl = new URL(window.location.href)
+    for (const key of ['code', 'state', 'wx_bind']) cleanUrl.searchParams.delete(key)
+    window.history.replaceState(window.history.state, '', cleanUrl.toString())
+    processing.value = true
+    try {
+      if (!valid || !code) throw new Error('微信授权已失效，请重新绑定')
+      await submitWechatBinding(pageUser, code, 'h5')
+      if (!disposed && currentBindingUser() === pageUser) notice.value = '微信已绑定，可用于登录当前账号'
+    } catch (cause) { if (!disposed) notice.value = (cause as Error).message || '微信绑定失败，请重试' }
+    finally { processing.value = false }
+  }
+  // #endif
+  if (!disposed) await fetchData()
+})
 </script>
 
 <template>
   <view class="page">
-    <!-- 导航 -->
-    <app-nav-bar title="第三方账号" :back-size="40" background="rgba(250, 248, 245, 0.95)" />
-
-    <!-- 加载/错误 -->
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
-    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
-    <scroll-view v-else scroll-y class="scroll">
-      <!-- 提示卡片 -->
-      <view class="tip-wrap">
-        <view class="tip-card">
-          <view class="tip-icon"><AppIcon name="alert-triangle" :size="16" color="#d97706" /></view>
-          <view class="tip-body">
-            <text class="tip-title">绑定提示</text>
-            <text class="tip-text">绑定第三方账号后，可使用该账号快速登录。解绑后将无法使用该方式登录，请确保已绑定其他登录方式。</text>
-          </view>
-        </view>
+    <app-nav-bar
+      title="第三方账号"
+      :back-size="40"
+      background="#faf8f5"
+    />
+    <scroll-view
+      scroll-y
+      class="scroll"
+    >
+      <view class="intro">
+        <text class="eyebrow">
+          登录与账号
+        </text><text class="title">
+          连接你的账号
+        </text><text class="description">
+          绑定后可通过微信登录同一个热卜账号。已有内容与权益保留在当前账号。
+        </text>
       </view>
-
-      <!-- 统计 -->
-      <view class="stats">
-        <text class="stats-text">已绑定 {{ boundCount }}/3 个账号</text>
-        <view v-if="boundCount >= 2" class="stats-badge"><text class="stats-badge-text">账号安全</text></view>
+      <view
+        v-if="loading"
+        class="loading"
+      >
+        <AppLoading />
       </view>
-
-      <!-- 账号列表 -->
-      <view class="list">
-        <view v-for="acc in accounts" :key="acc.provider" class="acc-card">
-          <view class="acc-icon" :style="{ background: acc.color }">
-            <AppIcon :name="providerIcon[acc.provider]" :size="24" color="#fff" />
-          </view>
-          <view class="acc-info">
-            <view class="acc-name-row">
-              <text class="acc-name">{{ acc.name }}</text>
-              <view v-if="acc.isBound" class="bound-tag">
-                <AppIcon name="check-circle" :size="12" color="#16a34a" />
-                <text class="bound-tag-text">已绑定</text>
-              </view>
+      <view
+        v-else-if="error"
+        class="error-state"
+      >
+        <text>{{ error }}</text><button
+          class="primary"
+          @tap="fetchData"
+        >
+          重新加载
+        </button>
+      </view>
+      <view
+        v-else
+        class="section"
+      >
+        <text class="section-label">
+          已绑定 {{ boundCount }} 个账号
+        </text>
+        <view class="list">
+          <view
+            v-for="acc in accounts"
+            :key="acc.provider"
+            class="account-row"
+          >
+            <view
+              class="account-icon"
+              :style="{ background: acc.color }"
+            >
+              <AppIcon
+                :name="providerIcon[acc.provider]"
+                :size="23"
+                color="#fff"
+              />
             </view>
-            <text v-if="acc.isBound" class="acc-sub">{{ acc.accountInfo }} · 绑定于 {{ acc.boundAt }}</text>
-            <text v-else class="acc-sub">未绑定，绑定后可快速登录</text>
-          </view>
-          <view v-if="acc.isBound" class="unbind-btn" @tap="unbindTarget = acc">
-            <text class="unbind-btn-text">解绑</text>
-          </view>
-          <view v-else class="bind-btn" :style="{ background: acc.color }" @tap="handleBind(acc)">
-            <AppIcon name="plus" :size="16" color="#fff" />
-            <text class="bind-btn-text">绑定</text>
+            <view class="account-info">
+              <text class="account-name">
+                {{ acc.name }}
+              </text><text class="account-sub">
+                {{ acc.isBound ? (acc.accountInfo || '已绑定') : acc.provider === 'wechat' ? (wechatAvailable ? '授权后绑定当前账号' : '请在微信内或支持微信授权的客户端绑定') : '新绑定暂未开放' }}
+              </text>
+            </view>
+            <button
+              v-if="acc.isBound"
+              class="row-action secondary"
+              :disabled="busy"
+              @tap="unbindTarget = acc"
+            >
+              解绑
+            </button>
+            <button
+              v-else-if="acc.provider === 'wechat' && wechatAvailable"
+              class="row-action primary"
+              :disabled="busy"
+              @tap="handleBind"
+            >
+              {{ processing ? '处理中' : '绑定' }}
+            </button>
+            <text
+              v-else
+              class="unavailable"
+            >
+              暂不可用
+            </text>
           </view>
         </view>
+        <text class="footnote">
+          微信绑定不会合并其他账号。若微信已绑定另一账号，请先核对账号归属。
+        </text>
       </view>
-
-      <!-- 权益 -->
-      <view class="benefits">
-        <text class="benefits-title">绑定后可享受</text>
-        <view class="benefits-grid">
-          <view v-for="(b, i) in bindBenefits" :key="i" class="benefit-cell">
-            <view class="benefit-icon"><AppIcon :name="b.icon" :size="20" color="#C41E3A" /></view>
-            <text class="benefit-name">{{ b.title }}</text>
-            <text class="benefit-desc">{{ b.desc }}</text>
-          </view>
-        </view>
+      <view
+        v-if="authorizationUrl"
+        class="authorization"
+      >
+        <AppIcon
+          name="message-circle"
+          :size="26"
+          color="#16a34a"
+        /><text class="authorization-title">
+          前往微信完成授权
+        </text><text class="description">
+          授权完成后会自动返回这里，绑定到当前热卜账号。
+        </text><button
+          class="primary"
+          @tap="continueAuthorization"
+        >
+          继续微信授权
+        </button><button
+          class="secondary"
+          @tap="cancelAuthorization"
+        >
+          取消
+        </button>
       </view>
-      <view class="safe-bottom" />
+      <view
+        v-if="notice"
+        class="notice"
+        role="status"
+        aria-live="polite"
+      >
+        <text>{{ notice }}</text>
+      </view>
+      <view class="help">
+        <AppIcon
+          name="shield"
+          :size="18"
+          color="#8a8178"
+        /><text>解绑前请保留一种可用登录方式。不能解绑最后一种登录方式。</text>
+      </view>
     </scroll-view>
-
-    <!-- 解绑确认弹窗 -->
-    <view v-if="unbindTarget" class="mask mask-fade-in" @tap="unbindTarget = null">
-      <view class="sheet sheet-slide-up" @tap.stop>
-        <text class="sheet-title">确认解绑</text>
-        <view class="sheet-acc">
-          <view class="sheet-acc-icon" :style="{ background: unbindTarget.color }">
-            <AppIcon :name="providerIcon[unbindTarget.provider]" :size="20" color="#fff" />
-          </view>
-          <view>
-            <text class="sheet-acc-name">{{ unbindTarget.name }}</text>
-            <text class="sheet-acc-sub">{{ unbindTarget.accountInfo }}</text>
-          </view>
-        </view>
-        <text class="sheet-label">解绑后：</text>
-        <view class="sheet-list">
-          <view class="sheet-li"><view class="li-dot" /><text class="li-text">无法使用该账号登录</text></view>
-          <view class="sheet-li"><view class="li-dot" /><text class="li-text">请确保已绑定手机号或其他账号</text></view>
-          <view class="sheet-li"><view class="li-dot" /><text class="li-text">解绑后可重新绑定</text></view>
-        </view>
-        <view class="sheet-actions">
-          <view class="sheet-btn ghost" @tap="unbindTarget = null"><text class="sheet-btn-text ghost-text">取消</text></view>
-          <view class="sheet-btn danger" :class="{ disabled: processing }" @tap="handleUnbind">
-            <text class="sheet-btn-text danger-text">{{ processing ? '解绑中...' : '确认解绑' }}</text>
-          </view>
-        </view>
+    <view
+      v-if="unbindTarget"
+      class="mask"
+      @tap="!processing && (unbindTarget = null)"
+    >
+      <view
+        class="sheet"
+        @tap.stop
+      >
+        <text class="sheet-title">
+          解绑{{ unbindTarget.name }}？
+        </text><text class="description">
+          {{ unbindTarget.provider === 'wechat' ? '将解除当前账号在各微信客户端的绑定。' : '解绑后将不能使用该账号登录。' }}请确认还有其他可用的登录方式。
+        </text><text
+          v-if="unbindTarget.provider !== 'wechat'"
+          class="description"
+        >
+          此渠道的新绑定尚未开放，解绑后暂不能重新绑定。
+        </text><button
+          class="danger"
+          :disabled="processing"
+          @tap="handleUnbind"
+        >
+          {{ processing ? '正在解绑…' : '确认解绑' }}
+        </button><button
+          class="secondary"
+          :disabled="processing"
+          @tap="unbindTarget = null"
+        >
+          保留绑定
+        </button>
       </view>
     </view>
-
-    <!-- toast -->
-    <view v-if="toast" class="toast"><text class="toast-text">{{ toast }}</text></view>
   </view>
 </template>
 
 <style scoped>
-.page {
-  min-height: 100vh;
-  background: #faf8f5;
-}
-
-/* 三态 */
-.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
-.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
-.error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
-.scroll {
-  height: calc(100vh - 112rpx - env(safe-area-inset-top));
-}
-.tip-wrap {
-  padding: 32rpx;
-}
-.tip-card {
-  display: flex;
-  gap: 24rpx;
-  background: #fffbeb;
-  border: 1rpx solid #fde68a;
-  border-radius: 20rpx;
-  padding: 28rpx;
-}
-.tip-icon {
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 50%;
-  background: #fef3c7;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.tip-body {
-  flex: 1;
-}
-.tip-title {
-  display: block;
-  font-size: 26rpx;
-  font-weight: 500;
-  color: #78350f;
-}
-.tip-text {
-  display: block;
-  font-size: 22rpx;
-  color: #b45309;
-  line-height: 1.6;
-  margin-top: 6rpx;
-}
-.stats {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  padding: 0 32rpx 24rpx;
-}
-.stats-text {
-  font-size: 26rpx;
-  color: #999;
-}
-.stats-badge {
-  padding: 4rpx 16rpx;
-  background: #dcfce7;
-  border-radius: 999rpx;
-}
-.stats-badge-text {
-  font-size: 20rpx;
-  color: #15803d;
-}
-.list {
-  padding: 0 32rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 24rpx;
-}
-.acc-card {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  background: #fff;
-  border-radius: 28rpx;
-  padding: 28rpx;
-  border: 1rpx solid #e8e3db;
-}
-.acc-icon {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.acc-info {
-  flex: 1;
-  min-width: 0;
-}
-.acc-name-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-.acc-name {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.bound-tag {
-  display: flex;
-  align-items: center;
-  gap: 4rpx;
-  padding: 4rpx 12rpx;
-  background: #dcfce7;
-  border-radius: 999rpx;
-}
-.bound-tag-text {
-  font-size: 20rpx;
-  color: #15803d;
-}
-.acc-sub {
-  display: block;
-  font-size: 22rpx;
-  color: #999;
-  margin-top: 6rpx;
-}
-.unbind-btn {
-  padding: 16rpx 28rpx;
-  border: 1rpx solid #e8e3db;
-  border-radius: 16rpx;
-}
-.unbind-btn-text {
-  font-size: 26rpx;
-  color: #666;
-}
-.bind-btn {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-  padding: 16rpx 28rpx;
-  border-radius: 16rpx;
-}
-.bind-btn-text {
-  font-size: 26rpx;
-  color: #fff;
-}
-.benefits {
-  padding: 48rpx 32rpx 0;
-}
-.benefits-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-  margin-bottom: 24rpx;
-}
-.benefits-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24rpx;
-}
-.benefit-cell {
-  width: calc(50% - 12rpx);
-  background: rgba(232, 227, 219, 0.4);
-  border-radius: 20rpx;
-  padding: 24rpx;
-  box-sizing: border-box;
-}
-.benefit-icon {
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 16rpx;
-  background: rgba(196, 30, 58, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 12rpx;
-}
-.benefit-name {
-  display: block;
-  font-size: 26rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.benefit-desc {
-  display: block;
-  font-size: 22rpx;
-  color: #999;
-  margin-top: 4rpx;
-}
-.safe-bottom {
-  height: calc(40rpx + env(safe-area-inset-bottom));
-}
-.mask {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: flex-end;
-}
-.sheet {
-  width: 100%;
-  background: #fff;
-  border-radius: 32rpx 32rpx 0 0;
-  padding: 48rpx 40rpx calc(40rpx + env(safe-area-inset-bottom));
-}
-.sheet-title {
-  display: block;
-  text-align: center;
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #2c2c2c;
-}
-.sheet-acc {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  background: #fef2f2;
-  border-radius: 20rpx;
-  padding: 24rpx;
-  margin-top: 32rpx;
-}
-.sheet-acc-icon {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 16rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.sheet-acc-name {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.sheet-acc-sub {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-  margin-top: 4rpx;
-}
-.sheet-label {
-  display: block;
-  font-size: 26rpx;
-  color: #999;
-  margin-top: 32rpx;
-}
-.sheet-list {
-  margin-top: 16rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-.sheet-li {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-.li-dot {
-  width: 8rpx;
-  height: 8rpx;
-  border-radius: 50%;
-  background: #dc2626;
-}
-.li-text {
-  font-size: 26rpx;
-  color: #dc2626;
-}
-.sheet-actions {
-  display: flex;
-  gap: 24rpx;
-  margin-top: 48rpx;
-}
-.sheet-btn {
-  flex: 1;
-  height: 88rpx;
-  border-radius: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.sheet-btn.ghost {
-  border: 1rpx solid #e8e3db;
-}
-.sheet-btn.danger {
-  background: #ef4444;
-}
-.sheet-btn.disabled {
-  opacity: 0.5;
-}
-.sheet-btn-text {
-  font-size: 28rpx;
-  font-weight: 500;
-}
-.ghost-text {
-  color: #2c2c2c;
-}
-.danger-text {
-  color: #fff;
-}
-.toast {
-  position: fixed;
-  bottom: 120rpx;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 60;
-  padding: 20rpx 40rpx;
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 16rpx;
-}
-.toast-text {
-  font-size: 26rpx;
-  color: #fff;
-}
+.page { min-height: 100vh; background: #faf8f5; color: #302a24; }
+.scroll { height: calc(100vh - 112rpx - env(safe-area-inset-top)); }
+.intro { padding: 42rpx 32rpx 36rpx; display: flex; flex-direction: column; gap: 16rpx; }
+.eyebrow { color: #9b7360; font-size: 22rpx; letter-spacing: 2rpx; }
+.title { font-size: 44rpx; font-weight: 650; letter-spacing: -1rpx; }
+.description { font-size: 27rpx; color: #766c63; line-height: 1.65; overflow-wrap: anywhere; }
+.section { padding: 0 24rpx; }
+.section-label { display: block; padding: 0 12rpx 16rpx; color: #8a8178; font-size: 24rpx; }
+.list { background: #fff; border: 1rpx solid #eee8e0; border-radius: 24rpx; overflow: hidden; }
+.account-row { display: flex; align-items: center; gap: 20rpx; padding: 30rpx 24rpx; }
+.account-row + .account-row { border-top: 1rpx solid #f2ece6; }
+.account-icon { width: 76rpx; height: 76rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.account-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
+.account-name { font-size: 30rpx; font-weight: 600; }
+.account-sub { font-size: 23rpx; color: #8a8178; line-height: 1.5; overflow-wrap: anywhere; }
+button { margin: 0; border-radius: 18rpx; font-size: 28rpx; line-height: 1.5; padding: 22rpx 28rpx; font-weight: 550; }
+button::after { border: 0; }
+.primary { color: #fff; background: #c41e3a; }
+.secondary { color: #64554a; background: #f4f0eb; }
+.danger { color: #fff; background: #b91c32; }
+button[disabled] { color: #877e75; background: #ece8e3; }
+.row-action { flex-shrink: 0; padding: 18rpx 24rpx; font-size: 25rpx; min-width: 96rpx; }
+.unavailable { color: #8a8178; font-size: 22rpx; flex-shrink: 0; }
+.footnote { display: block; padding: 20rpx 12rpx; font-size: 24rpx; line-height: 1.6; color: #8a8178; }
+.authorization { display: flex; flex-direction: column; gap: 20rpx; margin: 12rpx 24rpx 24rpx; padding: 30rpx; background: #fff; border: 1rpx solid #eee8e0; border-radius: 24rpx; }
+.authorization-title, .sheet-title { font-size: 34rpx; font-weight: 600; }
+.notice { margin: 20rpx 24rpx; padding: 24rpx; background: #f0ebe4; border-radius: 18rpx; font-size: 27rpx; line-height: 1.6; color: #5d5147; overflow-wrap: anywhere; }
+.help { margin: 24rpx 36rpx; padding-bottom: calc(32rpx + env(safe-area-inset-bottom)); display: flex; gap: 14rpx; font-size: 24rpx; line-height: 1.65; color: #8a8178; }
+.loading, .error-state { padding: 60rpx 32rpx; display: flex; flex-direction: column; align-items: center; gap: 24rpx; color: #766c63; }
+.mask { position: fixed; inset: 0; z-index: 999; background: rgba(32, 24, 18, .4); display: flex; align-items: flex-end; }
+.sheet { width: 100%; box-sizing: border-box; padding: 40rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); background: #fffaf6; border-radius: 32rpx 32rpx 0 0; display: flex; flex-direction: column; gap: 24rpx; }
 </style>

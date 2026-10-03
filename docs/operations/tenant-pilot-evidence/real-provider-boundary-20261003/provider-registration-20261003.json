@@ -1,0 +1,35 @@
+{
+  "head": "1abb07d75b4598d9f2b89270ff3a0a5a03f0a71a",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-provider-probe.ts": "6d881d53c97d8ed4b914ac24dcc03394813a255a9b8bc0a6561669becf84d759",
+    "apps/server/src/modules/managed-tenancy/managed-chat-provider.ts": "42bfbb09d8a4786649dfdf5efdced803eacd9f839299b96ec984378a72275813",
+    "scripts/ops/prisma-candidate/managed-provider-probe.mjs": "989f4209e0c7fa35b639d2a970094565d45c31fafb9886f22df6ad232dabd378",
+    "pilots/managed-tenancy/verify-provider-registration.mjs": "a21d849f5201ccdeec11a84a7b73774d4a4a5e88dcaf560059005e619ca1485b"
+  },
+  "checks": [
+    {
+      "name": "合成HTTP边界核验只构造一次固定官方GET模型清单请求，不生成内容，默认不授付费调用，签名绑定客户与空间",
+      "status": "PASS"
+    },
+    {
+      "name": "替换模型、密钥、客户、空间、调用授权或签名均拒绝，不能把另一客户核验记录搬来使用",
+      "status": "PASS"
+    },
+    {
+      "name": "非官方、明文、含凭据或查询串端点拒绝；错误模型、鉴权失败和超时均不签发核验、不自动重试",
+      "status": "PASS"
+    }
+  ],
+  "passed": 3,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "纯合成HTTP响应及签名验证，没有访问真实百炼账号，不代表真实API鉴权或收费通道可用",
+    "GET模型清单仅证明该只读结果，生成权限、额度、价格和输出质量仍须实际授权后的独立验收"
+  ],
+  "officialReferences": [
+    "https://help.aliyun.com/en/model-studio/list-models",
+    "https://help.aliyun.com/en/model-studio/base-url"
+  ]
+}

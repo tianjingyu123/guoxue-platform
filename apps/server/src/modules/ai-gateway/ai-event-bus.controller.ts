@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Query, Body, Param, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { AiEventBusService } from "./ai-event-bus.service";
-import { PublishEventDto, QueryEventDto } from "./dto/ai-infra.dto";
+import { QueryEventDto } from "./dto/ai-infra.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -13,15 +13,6 @@ import { Roles } from "../../common/roles.decorator";
 @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 export class AiEventBusController {
   constructor(private readonly eventBus: AiEventBusService) {}
-
-  @Post("publish")
-  @ApiOperation({ summary: "发布AI事件" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
-  async publish(@Body() dto: PublishEventDto) {
-    const id = await this.eventBus.publish(dto);
-    return { eventId: id };
-  }
 
   @Get()
   @ApiOperation({ summary: "查询事件历史" })
@@ -51,15 +42,4 @@ export class AiEventBusController {
     return { ...stats, pending, count24h };
   }
 
-  @Post(":id/process")
-  @ApiOperation({ summary: "标记事件已处理" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
-  async markProcessed(
-    @Param("id") id: string,
-    @Body() body: { agentId: string; result?: Record<string, unknown> },
-  ) {
-    await this.eventBus.markProcessed(id, body.agentId, body.result);
-    return { success: true };
-  }
 }

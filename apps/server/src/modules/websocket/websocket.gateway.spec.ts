@@ -3,6 +3,7 @@ import { AppGateway } from "./websocket.gateway";
 import { WsAuthService } from "./ws-auth.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { AuditService } from "../audit/audit.service";
 
 const mockWsAuth = {
   extractUser: jest.fn(),
@@ -10,6 +11,13 @@ const mockWsAuth = {
 
 const mockPrisma = {
   user: { findUnique: jest.fn() },
+  liveMutedUser: { upsert: jest.fn() },
+};
+
+// 弹幕审核 mock：本地快拦默认无命中；深审默认 pass（不干扰既有广播断言）
+const mockAudit = {
+  hasLocalViolation: jest.fn(() => [] as string[]),
+  classifyTextRisk: jest.fn(async () => ({ verdict: "pass" as const })),
 };
 
 // 内存假 Redis：在线态迁 Redis 后，用真实语义的假实现支撑原有行为断言
@@ -74,6 +82,7 @@ describe("AppGateway", () => {
         { provide: WsAuthService, useValue: mockWsAuth },
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: fakeRedis },
+        { provide: AuditService, useValue: mockAudit },
       ],
     }).compile();
     gw = mod.get(AppGateway);
@@ -120,6 +129,19 @@ describe("AppGateway", () => {
       for (let i = 0; i < 3; i++) gw["checkEventRate"]("s2", "typing", 3, 3000);
       const result = gw["checkEventRate"]("s2", "typing", 3, 3000);
       expect(result).toBe(false);
+    });
+  });
+
+  describe("直播事务提交广播", () => {
+    it.each([
+      ["broadcastLiveComment", "live:comment_committed"],
+      ["broadcastLiveGift", "live:gift_committed"],
+      ["broadcastLiveLike", "live:like_count"],
+    ] as const)("%s 只推送到对应直播房间", (method, event) => {
+      const payload = { id: "committed-1" };
+      gw[method]("room-1", payload);
+      expect(mockServer.to).toHaveBeenCalledWith("live:room-1");
+      expect(mockServer.emit).toHaveBeenCalledWith(event, payload);
     });
   });
 

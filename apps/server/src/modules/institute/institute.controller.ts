@@ -5,10 +5,27 @@ import { InstituteService } from "./institute.service";
 import { InstituteAssessmentService } from "./institute-assessment.service";
 import { InstituteBoardService } from "./institute-board.service";
 import { LectureArchiveService } from "./lecture-archive.service";
-import { JoinInstituteDto, CreateTaskDto, CreateEventDto, UpdateEventDto, UpdateLecturerLevelDto, CreateTaskTemplateDto, CreateDividendDto, ApproveMemberDto, AssignRoleDto, UpdateMemberDto, RecommendToTalentDto, AddSharePointDto, InviteMemberDto, CreateBoardGroupDto, ArchiveLectureDto } from "./institute.dto";
+import {
+  JoinInstituteDto,
+  CreateTaskDto,
+  CreateEventDto,
+  UpdateEventDto,
+  UpdateLecturerLevelDto,
+  CreateTaskTemplateDto,
+  CreateDividendDto,
+  ApproveMemberDto,
+  AssignRoleDto,
+  UpdateMemberDto,
+  RecommendToTalentDto,
+  AddSharePointDto,
+  InviteMemberDto,
+  CreateBoardGroupDto,
+  ArchiveLectureDto,
+} from "./institute.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("研究院")
 @Controller("institute")
@@ -46,7 +63,13 @@ export class InstituteController {
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
   ) {
-    return this.svc.listMembers({ role, status, joinYear: joinYear ? +joinYear : undefined, page: +page, pageSize: +pageSize });
+    return this.svc.listMembers({
+      role,
+      status,
+      joinYear: joinYear ? +joinYear : undefined,
+      page: +page,
+      pageSize: +pageSize,
+    });
   }
 
   @Get("members/:id")
@@ -72,7 +95,13 @@ export class InstituteController {
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
   ) {
-    return this.svc.listEvents({ type, status, upcoming: upcoming === "true", page: +page, pageSize: +pageSize });
+    return this.svc.listEvents({
+      type,
+      status,
+      upcoming: upcoming === "true",
+      page: +page,
+      pageSize: +pageSize,
+    });
   }
 
   @Get("talent-pool")
@@ -105,7 +134,10 @@ export class InstituteController {
   }
 
   @Get("lectures")
-  @ApiOperation({ summary: "大师讲座列表（公开·研-P1·Course.courseOrigin=INSTITUTE_LECTURE·仅过审·附讲师徽章信息）" })
+  @ApiOperation({
+    summary:
+      "大师讲座列表（公开·研-P1·Course.courseOrigin=INSTITUTE_LECTURE·仅过审·附讲师徽章信息）",
+  })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
@@ -115,7 +147,9 @@ export class InstituteController {
 
   @Post("lectures/archive")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "归档大师讲座（研究院管理层·选回放/直播间→沉淀为讲座课程·auditStatus 走课程审核流）" })
+  @ApiOperation({
+    summary: "归档大师讲座（研究院管理层·选回放/直播间→沉淀为讲座课程·auditStatus 走课程审核流）",
+  })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败/无回放/讲师非本院成员/重复归档" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -126,7 +160,9 @@ export class InstituteController {
   }
 
   @Get("rankings")
-  @ApiOperation({ summary: "讲师影响力榜单（公开·默认当年·任务40%+授课30%+驿站20%+资历10%·不含收入）" })
+  @ApiOperation({
+    summary: "讲师影响力榜单（公开·默认当年·任务40%+授课30%+驿站20%+资历10%·不含收入）",
+  })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "year", required: false, type: Number, description: "榜单年度（默认当年）" })
   getRankings(@Query("year") year?: string) {
@@ -253,6 +289,7 @@ export class InstituteController {
   }
 
   @Put("manage/members/:id/approve")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "审核成员（通过/拒绝）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -265,6 +302,7 @@ export class InstituteController {
   }
 
   @Put("manage/members/:id/role")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "任命管理层角色（主席/副主席/秘书长）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -278,17 +316,26 @@ export class InstituteController {
 
   @Get("manage/finance")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "研究院财务概览" })
+  @ApiOperation({
+    summary: "研究院财务概览（研究院管理层；平台 SUPER/OPERATION/FINANCE_ADMIN 免会籍可查）",
+  })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "仅研究院管理层可操作" })
   @ApiBearerAuth()
   manageFinance(@Req() req: Request, @Query("period") period?: string) {
-    return this.svc.getFinanceOverview(req.user.id, period);
+    // 平台管理角色（含财务）后台查账免研究院会籍；C 端（非管理角色）走原管理层会籍校验，行为零变化
+    const roles = req.user.roles ?? [];
+    const asAdmin = ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"].some((r) =>
+      roles.includes(r as (typeof roles)[number]),
+    );
+    return this.svc.getFinanceOverview(req.user.id, period, { asAdmin });
   }
 
   @Post("manage/dividends")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "发放分红/奖励" })
+  @ApiOperation({ summary: "发起分红/奖励分配审批（通过后生成分配记录，非到账凭证）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -298,6 +345,7 @@ export class InstituteController {
   }
 
   @Post("manage/members/:id/points")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "人工记分/积分调整（研究院管理层·可负分纠错·记录操作者）" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -311,6 +359,7 @@ export class InstituteController {
   }
 
   @Put("manage/members/:id/recommend")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "推荐成员进入人才库" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -318,7 +367,11 @@ export class InstituteController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  recommendToTalent(@Req() req: Request, @Param("id") id: string, @Body() dto: RecommendToTalentDto) {
+  recommendToTalent(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() dto: RecommendToTalentDto,
+  ) {
     return this.svc.recommendToTalentPool(req.user.id, id, dto.lecturerLevel);
   }
 
@@ -328,7 +381,10 @@ export class InstituteController {
 
   @Get("board-groups")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "私董会小组列表（本院 ACTIVE 成员可见·实时人数/满员/已入组标注·入组走圈子详情 join 审批流）" })
+  @ApiOperation({
+    summary:
+      "私董会小组列表（本院 ACTIVE 成员可见·实时人数/满员/已入组标注·入组走圈子详情 join 审批流）",
+  })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "仅研究院成员可查看" })
@@ -338,8 +394,12 @@ export class InstituteController {
   }
 
   @Post("manage/board-groups")
+  @RedLineGate(RedLine.USER_DATA, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "创建私董会小组（研究院管理层·建私密圈 FREE+needApproval·圈主=组长（本院 ACTIVE 讲席））" })
+  @ApiOperation({
+    summary:
+      "创建私董会小组（研究院管理层·建私密圈 FREE+needApproval·圈主=组长（本院 ACTIVE 讲席））",
+  })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败/组长非本院讲席成员" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -350,6 +410,7 @@ export class InstituteController {
   }
 
   @Put("manage/board-groups/:id/disband")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "解散私董会小组（研究院管理层·标记 DISBANDED·圈子本体保留由圈主自管）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -382,8 +443,8 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  createTaskTemplate(@Body() dto: CreateTaskTemplateDto) {
-    return this.svc.createTaskTemplate(dto);
+  createTaskTemplate(@Body() dto: CreateTaskTemplateDto, @Req() req: Request) {
+    return this.svc.createTaskTemplate(dto, req.user.id);
   }
 
   @Put("task-templates/:id")
@@ -396,8 +457,8 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  updateTaskTemplate(@Param("id") id: string, @Body() dto: CreateTaskTemplateDto) {
-    return this.svc.updateTaskTemplate(id, dto);
+  updateTaskTemplate(@Param("id") id: string, @Body() dto: CreateTaskTemplateDto, @Req() req: Request) {
+    return this.svc.updateTaskTemplate(id, dto, req.user.id);
   }
 
   // ════════════════════════════════════════
@@ -416,6 +477,7 @@ export class InstituteController {
   }
 
   @Put("events/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新活动" })
@@ -425,18 +487,42 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  updateEvent(@Param("id") id: string, @Body() dto: UpdateEventDto) {
-    return this.svc.updateEvent(id, dto);
+  updateEvent(@Param("id") id: string, @Body() dto: UpdateEventDto, @Req() req: Request) {
+    return this.svc.updateEvent(id, dto, req.user.id);
   }
 
   // ════════════════════════════════════════
   // 管理员接口
   // ════════════════════════════════════════
 
-  @Post("admin/members/invite")
+  @Get("admin/members")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "特邀席位：名师破格引入（平台管理·跳过全部准入门槛·可设永久免会费·操作留痕）" })
+  @ApiOperation({ summary: "平台后台研究院成员列表（含特邀与免会费留痕）" })
+  @ApiBearerAuth()
+  listAdminMembers(
+    @Req() req: Request,
+    @Query("role") role?: string,
+    @Query("status") status?: string,
+    @Query("joinYear") joinYear?: number,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.listAdminMembers({
+      role,
+      status,
+      joinYear: joinYear ? +joinYear : undefined,
+      page: +page,
+      pageSize: +pageSize,
+    }, req.user.id);
+  }
+  @Post("admin/members/invite")
+  @RedLineGate(RedLine.USER_DATA)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({
+    summary: "特邀席位：名师破格引入（平台管理·跳过全部准入门槛·可设永久免会费·操作留痕）",
+  })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败/已是研究院成员" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -447,7 +533,23 @@ export class InstituteController {
     return this.svc.inviteMember(req.user.id, dto);
   }
 
+  @Post("admin/members/:id/circle/retry")
+  @RedLineGate(RedLine.USER_DATA)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "人工重试已生效研究院会籍入专属圈（幂等）" })
+  @ApiResponse({ status: 201, description: "CREATED已补建；ALREADY_MEMBER已有成员且角色和期限保持" })
+  @ApiResponse({ status: 400, description: "院、账号、会籍、圈子或禁入状态不允许补偿" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无当前平台权限" })
+  @ApiResponse({ status: 404, description: "会籍不存在" })
+  @ApiBearerAuth()
+  retryMemberCircle(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.retryMemberCircle(req.user.id, id);
+  }
+
   @Put("members/:id")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新研究院成员信息" })
@@ -457,11 +559,12 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  updateMember(@Param("id") id: string, @Body() dto: UpdateMemberDto) {
-    return this.svc.updateMember(id, dto);
+  updateMember(@Param("id") id: string, @Body() dto: UpdateMemberDto, @Req() req: Request) {
+    return this.svc.updateMember(id, dto, req.user.id);
   }
 
   @Put("members/:id/lecturer-level")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新讲师等级" })
@@ -471,8 +574,8 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  updateLecturerLevel(@Param("id") id: string, @Body() dto: UpdateLecturerLevelDto) {
-    return this.svc.updateLecturerLevel(id, dto);
+  updateLecturerLevel(@Param("id") id: string, @Body() dto: UpdateLecturerLevelDto, @Req() req: Request) {
+    return this.svc.updateLecturerLevel(id, dto, req.user.id);
   }
 
   @Get("candidates")
@@ -483,12 +586,13 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  getCandidates() {
-    return this.svc.getSigningCandidates();
+  getCandidates(@Req() req: Request) {
+    return this.svc.getSigningCandidates(req.user.id);
   }
 
   // 任务管理（保留兼容）
   @Post("members/:id/tasks")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "添加年度任务（管理员）" })
@@ -497,11 +601,12 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  addTask(@Param("id") memberId: string, @Body() dto: CreateTaskDto) {
-    return this.svc.addTask(memberId, dto);
+  addTask(@Param("id") memberId: string, @Body() dto: CreateTaskDto, @Req() req: Request) {
+    return this.svc.addTask(memberId, dto, req.user.id);
   }
 
   @Post("tasks/:id/verify")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "验证任务" })

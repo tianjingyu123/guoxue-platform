@@ -13,8 +13,10 @@ import { EmailModule } from "../email/email.module";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { FinanceModule } from "../finance/finance.module";
+import { buildRedisTlsOptions } from "../../redis/redis-tls";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+const redisTls = buildRedisTlsOptions(redisUrl);
 
 const queues = [
   { name: "notification" },
@@ -27,6 +29,7 @@ const queues = [
     BullModule.forRoot({
       connection: {
         url: redisUrl,
+        ...(redisTls ? { tls: redisTls } : {}),
       },
       defaultJobOptions: {
         attempts: 3, // 全局重试3次，避免瞬时故障进死信

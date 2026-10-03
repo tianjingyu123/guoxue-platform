@@ -9,7 +9,7 @@ import type {
   BodyPart,
   SymptomType,
 } from "@guoxue/shared";
-import { calculateQimenYin } from "./qimen-yin.calculator";
+import { calculateQimenYin } from "./qimen.calculator";
 import { calcRiZhu } from "@guoxue/bazi-engine";
 
 // ── 九宫→人体部位映射 ──

@@ -52,7 +52,7 @@ const NAYIN_WUXING: Record<string, { wx: string; jiXiong: string; desc: string }
   "城头土": { wx: "土", jiXiong: "平", desc: "城墙厚土，稳固坚实，宜配木疏金泄" },
   "白蜡金": { wx: "金", jiXiong: "平", desc: "精致小巧之金，细腻敏感，宜配水润土生" },
   "杨柳木": { wx: "木", jiXiong: "平", desc: "柔韧飘逸之木，随风而动，宜配水土扎根" },
-  "泉中水": { wx: "水", jiXiong: "吉", desc: "甘泉之水，清澈甘甜，宜配金生木泄" },
+  "井泉水": { wx: "水", jiXiong: "吉", desc: "甘泉之水，清澈甘甜，宜配金生木泄" },
   "屋上土": { wx: "土", jiXiong: "平", desc: "屋顶之土，高而不稳，宜配木固金成" },
   "霹雳火": { wx: "火", jiXiong: "凶", desc: "雷电之火，暴烈短暂，宜配水制土晦" },
   "松柏木": { wx: "木", jiXiong: "吉", desc: "松柏长青，坚韧不拔，宜配水土金剪" },

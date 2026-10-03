@@ -19,6 +19,12 @@ export class CourseCreatorGuard implements CanActivate {
     const user = request.user;
     if (!user) throw new ForbiddenException("需通过讲师认证后才能发布或管理课程");
 
+    // 平台管理员(超管/运营)在后台直接创建与管理课程，无需讲师认证
+    const adminRoles = ["SUPER_ADMIN", "OPERATION_ADMIN"];
+    if (Array.isArray(user.roles) && user.roles.some((r: string) => adminRoles.includes(r))) {
+      return true;
+    }
+
     const cert = await this.prisma.teacherCertification.findUnique({
       where: { userId: user.id },
       select: { status: true },

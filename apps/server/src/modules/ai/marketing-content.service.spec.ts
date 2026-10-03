@@ -7,6 +7,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 
 const mockPrisma = {
+  brandConfig: { findUnique: jest.fn().mockResolvedValue(null) },
   marketingContent: {
     count: jest.fn(),
     create: jest.fn(),
@@ -36,7 +37,10 @@ describe("MarketingContentService（课-P1 AI 获客内容套件）", () => {
     svc = mod.get(MarketingContentService);
   });
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.PUBLIC_H5_URL = "https://api.rebugx.cn/h5/";
+  });
 
   // 1. 月限额：当月已达上限 → 业务异常，且不调 AI、不落库
   it("月限额：当月 count ≥ 限额 → 抛业务异常且不调AI", async () => {

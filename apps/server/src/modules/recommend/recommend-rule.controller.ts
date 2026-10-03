@@ -5,6 +5,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { CreateRecommendRuleDto, UpdateRecommendRuleDto } from "./recommend.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("推荐运营")
 @Controller("admin/recommend/rules")
@@ -31,6 +32,7 @@ export class RecommendRuleController {
   }
 
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建推荐规则" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -40,6 +42,7 @@ export class RecommendRuleController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新推荐规则" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -50,6 +53,7 @@ export class RecommendRuleController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除推荐规则" })
   @ApiResponse({ status: 200, description: "删除成功" })

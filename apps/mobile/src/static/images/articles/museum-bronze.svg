@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800">
+  <rect width="1280" height="800" fill="#102b2d"/>
+  <circle cx="640" cy="380" r="310" fill="none" stroke="#b99d62" stroke-width="2" opacity=".35"/>
+  <circle cx="640" cy="380" r="250" fill="#285457"/>
+  <path d="M470 270h340l-34 284c-10 83-71 134-136 134s-126-51-136-134z" fill="#416e68" stroke="#d1b36d" stroke-width="9"/>
+  <path d="M495 300c-110-45-139 85-50 135M785 300c110-45 139 85 50 135" fill="none" stroke="#d1b36d" stroke-width="18"/>
+  <g fill="none" stroke="#c4aa70" stroke-width="8" opacity=".8"><path d="M540 360q100-100 200 0q-100 100-200 0z"/><circle cx="640" cy="360" r="28"/><path d="M550 500h180M570 545h140"/></g>
+  <text x="74" y="112" fill="#d9c187" font-size="30" letter-spacing="10">器物里的礼乐中国</text>
+  <text x="74" y="718" fill="#f1e8cf" font-size="68" font-family="serif" font-weight="700">从一件青铜器读懂“礼”</text>
+</svg>

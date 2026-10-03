@@ -1,191 +1,155 @@
 <template>
   <view class="bd-page">
     <customer-service-fab />
-    <!-- Header -->
-    <view class="bd-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="bd-header-row">
-        <view class="bd-icon-btn" @tap="goBack">
-          <app-icon name="chevron-left" :size="40" color="#2c2c2c" />
-        </view>
-        <text class="bd-header-title">悬赏详情</text>
-        <!-- 分享外溢裂变：微信原生转发，H5/App 复制带 ref 链接 -->
-        <!-- #ifdef MP-WEIXIN -->
-        <button class="bd-icon-btn bd-share-btn" open-type="share">
-          <app-icon name="share-2" :size="40" color="#2c2c2c" />
-        </button>
-        <!-- #endif -->
-        <!-- #ifndef MP-WEIXIN -->
-        <view class="bd-icon-btn" @tap="copyShareLink">
-          <app-icon name="share-2" :size="40" color="#2c2c2c" />
-        </view>
-        <!-- #endif -->
+    <!-- 顶栏 -->
+    <view class="bd-topbar">
+      <view class="bd-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+      <text class="bd-title">悬赏问答</text>
+      <!-- 分享外溢裂变：微信原生转发，H5/App 复制带 ref 链接 -->
+      <!-- #ifdef MP-WEIXIN -->
+      <button class="bd-share bd-share-btn" open-type="share">
+        <app-icon name="share-2" :size="36" color="#2C2C2C" />
+      </button>
+      <!-- #endif -->
+      <!-- #ifndef MP-WEIXIN -->
+      <view class="bd-share" @tap="copyShareLink">
+        <app-icon name="share-2" :size="36" color="#2C2C2C" />
       </view>
+      <!-- #endif -->
     </view>
 
     <!-- Loading -->
-    <view v-if="loading" class="bd-loading">
-      <view class="bd-sk-line bd-sk-w75" />
-      <view class="bd-sk-line bd-sk-w50" />
-      <view class="bd-sk-block" />
+    <view v-if="loading" class="bd-state">
+      <view class="bd-skel" /><view class="bd-skel sm" />
     </view>
 
     <!-- Error -->
     <app-error v-else-if="error" title="悬赏加载失败" desc="网络异常，请稍后重试" @retry="loadBounty" />
 
     <!-- Not found -->
-    <view v-else-if="!bounty" class="bd-notfound">
-      <app-icon name="alert-circle" :size="96" color="#999999" />
-      <text class="bd-notfound-text">悬赏不存在或已删除</text>
+    <view v-else-if="!bounty" class="bd-state">
+      <app-icon name="alert-circle" :size="80" color="#999999" />
+      <text class="bd-state-t">悬赏不存在或已删除</text>
     </view>
 
     <template v-else>
-      <!-- Bounty Info -->
-      <view class="bd-info">
-        <!-- Amount & Status -->
-        <view class="bd-amount-card">
-          <view class="bd-amount-row">
-            <view class="bd-amount-left">
-              <app-icon name="gift" :size="40" color="#d97706" />
-              <text class="bd-amount-num">{{ bounty.bountyCoin }} 币</text>
-            </view>
-            <view class="bd-status" :class="'bd-status-' + bounty.status">
-              <text class="bd-status-text" :class="'bd-status-text-' + bounty.status">{{ statusLabel(bounty.status) }}</text>
-            </view>
-          </view>
-          <view v-if="bounty.status === 'CLAIMED' && bounty.lockExpireAt" class="bd-remain">
-            <app-icon name="clock" :size="28" color="#b45309" />
-            <text class="bd-remain-text">答主答题期限 {{ remainingLockTime(bounty.lockExpireAt) }}</text>
-          </view>
+      <!-- 悬赏横幅：金额＋状态＋进度 -->
+      <view class="bd-banner">
+        <view class="bd-banner-coin"><app-icon name="coins" :size="36" color="#C9A96E" /></view>
+        <view class="bd-banner-main">
+          <text class="bd-banner-amt">{{ bounty.bountyCoin }} <text class="bd-banner-u">金币悬赏</text></text>
+          <text class="bd-banner-sub">{{ bannerSub }}</text>
         </view>
+        <text class="bd-banner-state" :class="bounty.status === 'SETTLED' ? 'is-done' : bounty.status === 'OPEN' || bounty.status === 'CLAIMED' || bounty.status === 'ANSWERED' ? 'is-open' : 'is-off'">{{ statusLabel(bounty.status) }}</text>
+      </view>
 
-        <!-- Meta -->
-        <view class="bd-meta">
-          <text v-if="categoryLabel(bounty.category)" class="bd-cat">{{ categoryLabel(bounty.category) }}</text>
-          <text class="bd-poster-time">{{ formatBountyDateTime(bounty.createdAt) }} 发布</text>
+      <!-- 问题卡 -->
+      <view class="bd-question">
+        <text class="bd-q-title">{{ bounty.title }}</text>
+        <view class="bd-q-meta">
+          <text v-if="categoryLabel(bounty.category)" class="bd-q-cat">{{ categoryLabel(bounty.category) }}</text>
+          <text class="bd-q-time">发布于 {{ formatBountyDateTime(bounty.createdAt) }}</text>
         </view>
-
-        <!-- Title & Content -->
-        <view class="bd-content-block">
-          <text class="bd-content-title">{{ bounty.title }}</text>
-          <text class="bd-content-text">{{ bounty.description }}</text>
-        </view>
-
-        <!-- Question Images -->
+        <text class="bd-q-body">{{ bounty.description }}</text>
         <view v-if="bounty.images && bounty.images.length" class="bd-imgs">
           <image
-            v-for="(img, i) in bounty.images"
-            :key="i"
-            :src="img"
-            class="bd-img"
-            mode="widthFix"
+            v-for="(img, i) in bounty.images" :key="i" lazy-load
+            :src="img" class="bd-img" mode="aspectFill"
             @tap="previewImage(bounty.images, i)"
           />
         </view>
       </view>
 
-      <!-- Answer -->
-      <view class="bd-answers">
-        <view class="bd-answers-head">
-          <text class="bd-answers-title">答主回答</text>
-        </view>
+      <!-- 回答区（后端单人抢答模型：最多一位答主一段回答） -->
+      <text class="bd-label">{{ hasAnswer ? (bounty.status === 'SETTLED' ? '最佳答案' : '答主回答 · 待采纳') : '答主回答' }}</text>
 
-        <!-- 未有回答 -->
-        <view v-if="!hasAnswer" class="bd-answers-empty">
-          <app-icon name="message-circle" :size="80" color="#cccccc" />
-          <text class="bd-answers-empty-text">{{ answerEmptyHint }}</text>
-        </view>
+      <!-- 无回答 -->
+      <view v-if="!hasAnswer" class="bd-empty-answer">
+        <app-icon name="message-circle" :size="64" color="#CCCCCC" />
+        <text class="bd-empty-t">{{ answerEmptyHint }}</text>
+        <text v-if="bounty.status === 'CLAIMED' && bounty.lockExpireAt" class="bd-empty-sub">答主答题期限 {{ remainingLockTime(bounty.lockExpireAt) }}</text>
+      </view>
 
-        <!-- 已有回答（单一答主） -->
-        <view v-else class="bd-answer">
-          <view class="bd-answer-head">
-            <view class="bd-answer-avatar">
-              <app-icon name="user" :size="40" color="#2563eb" />
-            </view>
-            <view class="bd-answer-meta">
-              <view class="bd-answer-meta-top">
-                <text class="bd-answer-name">答主</text>
-                <view v-if="bounty.status === 'SETTLED'" class="bd-accepted">
-                  <app-icon name="check-circle" :size="24" color="#16a34a" />
-                  <text class="bd-accepted-text">已采纳</text>
-                </view>
-              </view>
-              <text v-if="bounty.answeredAt" class="bd-answer-time">{{ formatBountyDateTime(bounty.answeredAt) }}</text>
-            </view>
+      <!-- 有回答（SETTLED 金描边最佳答案 / ANSWERED 普通卡+采纳操作） -->
+      <view v-else class="bd-answer" :class="{ 'is-best': bounty.status === 'SETTLED' }">
+        <text v-if="bounty.status === 'SETTLED'" class="bd-best-badge">已采纳</text>
+        <view class="bd-a-head">
+          <view class="bd-a-avatar"><app-icon name="user" :size="34" color="#C9A96E" /></view>
+          <view class="bd-a-info">
+            <text class="bd-a-name">答主</text>
+            <text v-if="bounty.answeredAt" class="bd-a-time">{{ formatBountyDateTime(bounty.answeredAt) }}</text>
           </view>
-
-          <text class="bd-answer-content">{{ bounty.answer }}</text>
-
-          <!-- Answer Images -->
-          <view v-if="bounty.answerImages && bounty.answerImages.length" class="bd-imgs">
-            <image
-              v-for="(img, i) in bounty.answerImages"
-              :key="i"
-              :src="img"
-              class="bd-img"
-              mode="widthFix"
-              @tap="previewImage(bounty.answerImages, i)"
-            />
+        </view>
+        <text class="bd-a-body">{{ bounty.answer }}</text>
+        <view v-if="bounty.answerImages && bounty.answerImages.length" class="bd-imgs">
+          <image
+            v-for="(img, i) in bounty.answerImages" :key="i" lazy-load
+            :src="img" class="bd-img" mode="aspectFill"
+            @tap="previewImage(bounty.answerImages, i)"
+          />
+        </view>
+        <text v-if="bounty.status === 'SETTLED'" class="bd-best-earn">获得悬赏 +{{ bounty.bountyCoin }} 金币</text>
+        <view v-if="isAsker && bounty.status === 'ANSWERED'" class="bd-adopt-row">
+          <view class="bd-adopt-btn" :class="{ 'is-disabled': submitting }" @tap="onSettle">
+            <text class="bd-adopt-t">{{ submitting ? '处理中…' : `采纳并支付 ${bounty.bountyCoin} 金币` }}</text>
           </view>
         </view>
       </view>
     </template>
 
-    <!-- Bottom Actions -->
+    <!-- 底部操作栏 -->
     <view v-if="bounty" class="bd-bottom">
       <!-- 提问者视角 -->
-      <view v-if="isAsker" class="bd-bottom-row">
+      <template v-if="isAsker">
         <view
-          v-if="bounty.status === 'ANSWERED'"
-          class="bd-btn-primary"
-          :class="{ 'bd-btn-disabled': submitting }"
-          @tap="onSettle"
-        >
-          <app-icon name="award" :size="32" color="#ffffff" />
-          <text class="bd-btn-primary-text">{{ submitting ? '处理中...' : '采纳并解付赏金' }}</text>
-        </view>
-        <view
-          v-else-if="bounty.status === 'OPEN' || bounty.status === 'CLAIMED'"
-          class="bd-btn-warn"
-          :class="{ 'bd-btn-disabled': submitting }"
+          v-if="bounty.status === 'OPEN' || bounty.status === 'CLAIMED'"
+          class="bd-btn-outline" :class="{ 'is-disabled': submitting }"
           @tap="onRefund"
         >
-          <text class="bd-btn-warn-text">{{ submitting ? '处理中...' : '撤销悬赏并退款' }}</text>
+          <text class="bd-btn-outline-t">{{ submitting ? '处理中…' : '撤销悬赏并退款' }}</text>
         </view>
-        <view v-else class="bd-btn-done">
-          <text class="bd-btn-done-text">{{ statusLabel(bounty.status) }}</text>
+        <view v-else-if="bounty.status === 'ANSWERED'" class="bd-btn-primary" :class="{ 'is-disabled': submitting }" @tap="onSettle">
+          <text class="bd-btn-primary-t">{{ submitting ? '处理中…' : `采纳并支付 ${bounty.bountyCoin} 金币` }}</text>
         </view>
-      </view>
+        <view v-else class="bd-btn-done"><text class="bd-btn-done-t">{{ statusLabel(bounty.status) }}</text></view>
+      </template>
 
       <!-- 答主/围观者视角 -->
-      <view v-else class="bd-bottom-row">
+      <template v-else>
         <view v-if="bounty.status === 'OPEN'" class="bd-btn-primary" @tap="toAnswer">
-          <app-icon name="send" :size="32" color="#ffffff" />
-          <text class="bd-btn-primary-text">我要抢答</text>
+          <app-icon name="send" :size="30" color="#ffffff" />
+          <text class="bd-btn-primary-t">我要抢答</text>
         </view>
         <view v-else-if="bounty.status === 'CLAIMED' && isAnswerer" class="bd-btn-primary" @tap="toAnswer">
-          <app-icon name="edit-3" :size="32" color="#ffffff" />
-          <text class="bd-btn-primary-text">提交我的回答</text>
+          <app-icon name="edit-3" :size="30" color="#ffffff" />
+          <text class="bd-btn-primary-t">提交我的回答</text>
         </view>
-        <view v-else-if="bounty.status === 'CLAIMED'" class="bd-btn-done">
-          <text class="bd-btn-done-text">已被其他答主抢答</text>
-        </view>
-        <view v-else-if="bounty.status === 'ANSWERED' && isAnswerer" class="bd-btn-done">
-          <text class="bd-btn-done-text">回答已提交，等待采纳</text>
-        </view>
-        <view v-else class="bd-btn-done">
-          <text class="bd-btn-done-text">{{ statusLabel(bounty.status) }}</text>
-        </view>
-      </view>
+        <view v-else-if="bounty.status === 'CLAIMED'" class="bd-btn-done"><text class="bd-btn-done-t">已被其他答主抢答</text></view>
+        <view v-else-if="bounty.status === 'ANSWERED' && isAnswerer" class="bd-btn-done"><text class="bd-btn-done-t">回答已提交，等待采纳</text></view>
+        <view v-else class="bd-btn-done"><text class="bd-btn-done-t">{{ statusLabel(bounty.status) }}</text></view>
+      </template>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
+/**
+ * 悬赏问答详情 — V0 circle-consult-bounty-detail.html 还原（2026-07-10 批④）
+ * 结构：顶栏(分享) → 悬赏横幅(金额+状态+进度) → 问题卡 → 回答区(已采纳=金描边最佳答案+获赏金额；
+ *       竞答中=回答卡+提问者采纳操作) → 底部操作栏(采纳/撤销/抢答按角色与状态分支)。
+ * 口径（后端为准·记台账）：后端为单人抢答模型（claim 锁定 72h + 单一回答），V0「多位竞答/折叠其余
+ *   回答/答主从业资历」无后端支撑 → 单回答渲染、无资历行（悬赏表无用户关联，答主仅能匿名展示）；
+ *   V0「到期未采纳自动退回」无有效期字段 → 横幅按抢答锁 lockExpireAt 展示答题期限。
+ */
 import { ref, computed } from 'vue'
 import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import AppIcon from '@/components/common/app-icon.vue'
+import AppError from '@/components/common/app-error.vue'
+import CustomerServiceFab from '@/components/common/customer-service-fab.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { BRAND } from '@/lib/brand'
 import {
   bountyApi,
@@ -196,13 +160,7 @@ import {
   BOUNTY_CATEGORY_LABEL,
   type BountyQuestion,
   type BountyStatus,
-} from '@/lib/bounty-data'
-
-const statusBarHeight = ref(0)
-try {
-  const info = uni.getSystemInfoSync()
-  statusBarHeight.value = info.statusBarHeight || 0
-} catch (e) {}
+} from '@/pkg-bounty/lib/bounty-data'
 
 const bountyId = ref('')
 const myId = getMyUserId()
@@ -226,6 +184,20 @@ const answerEmptyHint = computed(() => {
   if (s === 'OPEN') return '暂无人抢答，快来抢答赢赏金'
   if (s === 'CLAIMED') return '答主已接单，正在作答中'
   return '暂无回答'
+})
+
+/** 横幅副行：状态进度说明（全按后端真实规则） */
+const bannerSub = computed(() => {
+  const b = bounty.value
+  if (!b) return ''
+  switch (b.status) {
+    case 'OPEN': return '等待达人抢答 · 未被回答前可撤销退回'
+    case 'CLAIMED': return `答主已接单 · ${remainingLockTime(b.lockExpireAt)}内作答`
+    case 'ANSWERED': return '已有回答 · 采纳后悬赏归答主'
+    case 'SETTLED': return '已采纳答主的回答 · 赏金已解付'
+    case 'REFUNDED': return '悬赏已撤销 · 金币已退回钱包'
+    default: return '悬赏已结束'
+  }
 })
 
 async function loadBounty() {
@@ -253,7 +225,7 @@ async function onSettle() {
   const res = await new Promise<boolean>((resolve) => {
     uni.showModal({
       title: '采纳并解付赏金',
-      content: `采纳后 ${bounty.value!.bountyCoin} 国学币将解付给答主，此操作不可撤销。`,
+      content: `采纳后 ${bounty.value!.bountyCoin} 金币将解付给答主，此操作不可撤销。`,
       confirmText: '确认采纳',
       success: (r) => resolve(!!r.confirm),
       fail: () => resolve(false),
@@ -277,7 +249,7 @@ async function onRefund() {
   const res = await new Promise<boolean>((resolve) => {
     uni.showModal({
       title: '撤销悬赏',
-      content: `撤销后冻结的 ${bounty.value!.bountyCoin} 国学币将退回你的钱包。`,
+      content: `撤销后托管的 ${bounty.value!.bountyCoin} 金币将退回你的钱包。`,
       confirmText: '确认撤销',
       success: (r) => resolve(!!r.confirm),
       fail: () => resolve(false),
@@ -320,7 +292,7 @@ onShareTimeline(() => toTimeline({ title: shareTitle.value, path: sharePath.valu
 
 /** H5/App 端：复制带 ref 的完整链接 + 外溢文案到剪贴板（好友点开自动记归因） */
 function copyShareLink() {
-  const link = withRef(`https://api.rebugx.cn/h5/#${sharePath.value}`)
+  const link = withRef(buildH5Url(sharePath.value))
   const text = `${shareTitle.value} 来${BRAND.name}答题赢赏金 👉 ${link}`
   uni.setClipboardData({
     data: text,
@@ -341,337 +313,129 @@ try {
 loadBounty()
 </script>
 
-<style scoped>
-.bd-page {
-  min-height: 100vh;
-  background: #ffffff;
-  padding-bottom: 180rpx;
-}
+<style scoped lang="scss">
+.bd-page { min-height: 100vh; background: var(--bg-page, #faf8f5); padding-bottom: 200rpx; }
 
-/* Header */
-.bd-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(12rpx);
-  -webkit-backdrop-filter: blur(12rpx);
-  border-bottom: 2rpx solid #e8e3db;
-}
-.bd-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 96rpx;
-  padding: 0 24rpx;
-}
-.bd-icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56rpx;
-  height: 56rpx;
-}
-.bd-header-title {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-/* 原生 share 按钮复位（去默认边框/背景/内边距，与 view 版图标按钮视觉一致） */
-.bd-share-btn {
-  padding: 0;
-  margin: 0;
-  line-height: normal;
-  background: transparent;
-  border: none;
-}
-.bd-share-btn::after {
-  border: none;
-}
-
-/* Loading / Notfound */
-.bd-loading {
-  padding: 32rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 24rpx;
-}
-.bd-sk-line {
-  height: 40rpx;
-  border-radius: 8rpx;
-  background: #ececec;
-}
-.bd-sk-w75 { width: 75%; }
-.bd-sk-w50 { width: 50%; }
-.bd-sk-block {
-  height: 256rpx;
-  border-radius: 24rpx;
-  background: #ececec;
-}
-.bd-notfound {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 200rpx 0;
-  gap: 24rpx;
-}
-.bd-notfound-text {
-  font-size: 28rpx;
-  color: #999999;
-}
-
-/* Info */
-.bd-info {
-  padding: 32rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 32rpx;
-}
-.bd-amount-card {
-  background: linear-gradient(90deg, #fffbeb 0%, #fff7ed 100%);
-  border-radius: 32rpx;
-  padding: 32rpx;
-}
-.bd-amount-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.bd-amount-left {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-.bd-amount-num {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: #d97706;
-}
-.bd-status {
-  padding: 8rpx 24rpx;
-  border-radius: 999rpx;
-}
-.bd-status-OPEN { background: #f0fdf4; }
-.bd-status-CLAIMED { background: #eff6ff; }
-.bd-status-ANSWERED { background: #fff7ed; }
-.bd-status-SETTLED { background: rgba(196, 30, 58, 0.1); }
-.bd-status-REFUNDED { background: #f5f5f4; }
-.bd-status-CLOSED { background: #f5f5f4; }
-.bd-status-EXPIRED { background: #f5f5f4; }
-.bd-status-text {
-  font-size: 26rpx;
-  font-weight: 500;
-}
-.bd-status-text-OPEN { color: #16a34a; }
-.bd-status-text-CLAIMED { color: #2563eb; }
-.bd-status-text-ANSWERED { color: #ea580c; }
-.bd-status-text-SETTLED { color: var(--brand); }
-.bd-status-text-REFUNDED { color: #999999; }
-.bd-status-text-CLOSED { color: #999999; }
-.bd-status-text-EXPIRED { color: #999999; }
-.bd-remain {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  margin-top: 24rpx;
-}
-.bd-remain-text {
-  font-size: 26rpx;
-  color: #b45309;
-}
-
-/* Meta */
-.bd-meta {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-.bd-cat {
-  font-size: 22rpx;
-  color: var(--brand);
-  background: rgba(196, 30, 58, 0.08);
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
-}
-.bd-poster-time {
-  font-size: 22rpx;
-  color: #999999;
-}
-
-/* Content */
-.bd-content-title {
-  display: block;
-  font-size: 36rpx;
-  font-weight: 600;
-  color: #2c2c2c;
-  margin-bottom: 24rpx;
-  line-height: 1.4;
-}
-.bd-content-text {
-  display: block;
-  font-size: 28rpx;
-  color: rgba(44, 44, 44, 0.8);
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-
-/* Images */
-.bd-imgs {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-}
-.bd-img {
-  width: 100%;
-  border-radius: 16rpx;
-  background: #f5f5f4;
-}
-
-/* Answers */
-.bd-answers {
-  margin-top: 16rpx;
-}
-.bd-answers-head {
+/* 顶栏 */
+.bd-topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 20rpx;
   padding: 24rpx 32rpx;
-  border-bottom: 2rpx solid #f0f0ef;
+  padding-top: calc(var(--status-bar-height, 0px) + 24rpx);
+  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
+  border-bottom: 1rpx solid var(--separator, #ede7dd);
 }
-.bd-answers-title {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.bd-answers-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 96rpx 0;
-  gap: 16rpx;
-}
-.bd-answers-empty-text {
-  font-size: 26rpx;
-  color: #999999;
-}
-.bd-answer {
-  padding: 32rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 24rpx;
-}
-.bd-answer-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 24rpx;
-}
-.bd-answer-avatar {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 999rpx;
-  background: linear-gradient(135deg, #dbeafe, #eff6ff);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.bd-answer-meta {
-  flex: 1;
-  min-width: 0;
-}
-.bd-answer-meta-top {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  flex-wrap: wrap;
-}
-.bd-answer-name {
-  font-size: 26rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.bd-accepted {
-  display: flex;
-  align-items: center;
-  gap: 4rpx;
-  padding: 2rpx 12rpx;
-  background: #f0fdf4;
-  border-radius: 8rpx;
-}
-.bd-accepted-text {
-  font-size: 20rpx;
-  color: #16a34a;
-}
-.bd-answer-time {
-  display: block;
-  font-size: 22rpx;
-  color: #999999;
-  margin-top: 4rpx;
-}
-.bd-answer-content {
-  display: block;
-  font-size: 28rpx;
-  color: rgba(44, 44, 44, 0.8);
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
+.bd-back { display: flex; padding: 8rpx; margin-left: -8rpx; }
+.bd-title { flex: 1; font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.bd-share { display: flex; padding: 8rpx; }
+/* 原生 share 按钮复位（去默认边框/背景/内边距，与 view 版图标按钮视觉一致） */
+.bd-share-btn { margin: 0; line-height: normal; background: transparent; border: none; }
+.bd-share-btn::after { border: none; }
 
-/* Bottom */
+/* 三态 */
+.bd-state { padding: 120rpx 32rpx; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
+.bd-state-t { font-size: 26rpx; color: var(--text-tertiary, #999); }
+.bd-skel { width: 100%; height: 300rpx; border-radius: 36rpx; background: #ede7dd; }
+.bd-skel.sm { height: 180rpx; }
+
+/* 悬赏横幅 */
+.bd-banner {
+  margin: 24rpx 32rpx 0; padding: 26rpx 32rpx;
+  display: flex; align-items: center; gap: 24rpx;
+  background: var(--bg-warm, #f8f4ec); border-radius: 28rpx;
+}
+.bd-banner-coin {
+  width: 76rpx; height: 76rpx; border-radius: 999rpx; flex-shrink: 0;
+  background: rgba(201, 169, 110, 0.15);
+  display: flex; align-items: center; justify-content: center;
+}
+.bd-banner-main { flex: 1; min-width: 0; }
+.bd-banner-amt { display: block; font-size: 30rpx; font-weight: 700; color: var(--gold, #c9a96e); }
+.bd-banner-u { font-size: 22rpx; font-weight: 500; color: var(--text-tertiary, #999); }
+.bd-banner-sub { display: block; font-size: 22rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; }
+.bd-banner-state { flex-shrink: 0; padding: 6rpx 18rpx; border-radius: 18rpx; font-size: 22rpx; font-weight: 500; }
+.bd-banner-state.is-open { background: var(--brand-soft, rgba(196, 30, 58, 0.08)); color: var(--brand, #c41e3a); }
+.bd-banner-state.is-done { background: rgba(91, 138, 94, 0.1); color: #5b8a5e; }
+.bd-banner-state.is-off { background: var(--bg-card, #fff); color: var(--text-tertiary, #999); }
+
+/* 问题卡 */
+.bd-question {
+  margin: 24rpx 32rpx 0; padding: 32rpx 36rpx;
+  background: var(--bg-card, #fff); border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.bd-q-title { display: block; font-size: 32rpx; font-weight: 600; line-height: 1.5; color: var(--text-primary, #2c2c2c); }
+.bd-q-meta { display: flex; align-items: center; gap: 16rpx; margin-top: 16rpx; }
+.bd-q-cat { padding: 2rpx 14rpx; border-radius: 10rpx; font-size: 20rpx; border: 1rpx solid var(--gold, #c9a96e); color: var(--gold, #c9a96e); }
+.bd-q-time { font-size: 24rpx; color: var(--text-tertiary, #999); }
+.bd-q-body { display: block; margin-top: 20rpx; font-size: 28rpx; color: var(--text-secondary, #6e6e73); line-height: 1.8; }
+.bd-imgs { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 20rpx; }
+.bd-img { width: 256rpx; height: 192rpx; border-radius: 20rpx; background: var(--bg-warm, #f8f4ec); }
+
+/* 回答区 */
+.bd-label { display: block; margin: 36rpx 36rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
+.bd-empty-answer {
+  margin: 0 32rpx; padding: 64rpx 32rpx; text-align: center;
+  background: var(--bg-card, #fff); border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+  display: flex; flex-direction: column; align-items: center; gap: 16rpx;
+}
+.bd-empty-t { font-size: 26rpx; color: var(--text-tertiary, #999); }
+.bd-empty-sub { font-size: 22rpx; color: #c97b2d; }
+
+.bd-answer {
+  position: relative; margin: 0 32rpx; padding: 28rpx 32rpx;
+  background: var(--bg-card, #fff); border-radius: 36rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.bd-answer.is-best { border: 2rpx solid var(--gold, #c9a96e); }
+.bd-best-badge {
+  position: absolute; top: -18rpx; left: 32rpx;
+  padding: 4rpx 20rpx; border-radius: 18rpx;
+  background: var(--gold, #c9a96e); color: #fff;
+  font-size: 22rpx; font-weight: 600;
+}
+.bd-a-head { display: flex; align-items: center; gap: 20rpx; margin-top: 8rpx; }
+.bd-a-avatar {
+  width: 68rpx; height: 68rpx; border-radius: 999rpx; flex-shrink: 0;
+  background: var(--bg-warm, #f8f4ec);
+  display: flex; align-items: center; justify-content: center;
+}
+.bd-a-info { flex: 1; min-width: 0; }
+.bd-a-name { display: block; font-size: 26rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.bd-a-time { display: block; font-size: 22rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; }
+.bd-a-body { display: block; margin-top: 20rpx; font-size: 28rpx; color: var(--text-secondary, #6e6e73); line-height: 1.8; }
+.bd-best-earn { display: block; margin-top: 20rpx; font-size: 24rpx; color: var(--gold, #c9a96e); font-weight: 600; }
+.bd-adopt-row { display: flex; justify-content: flex-end; margin-top: 20rpx; }
+.bd-adopt-btn { height: 64rpx; padding: 0 36rpx; border-radius: 32rpx; background: var(--brand-soft, rgba(196, 30, 58, 0.08)); display: flex; align-items: center; justify-content: center; }
+.bd-adopt-btn.is-disabled { opacity: 0.5; }
+.bd-adopt-t { font-size: 26rpx; font-weight: 600; color: var(--brand, #c41e3a); }
+
+/* 底部操作 */
 .bd-bottom {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #ffffff;
-  border-top: 2rpx solid #e8e3db;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
   padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
-}
-.bd-bottom-row {
-  display: flex;
-  gap: 24rpx;
-}
-.bd-btn-disabled {
-  opacity: 0.6;
+  background: rgba(250, 248, 245, 0.94); backdrop-filter: blur(24rpx);
+  border-top: 1rpx solid var(--separator, #ede7dd);
+  display: flex; gap: 20rpx;
 }
 .bd-btn-primary {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16rpx;
-  height: 88rpx;
-  background: var(--brand);
-  border-radius: 24rpx;
+  flex: 1; height: 92rpx; border-radius: 46rpx; background: var(--brand, #c41e3a);
+  display: flex; align-items: center; justify-content: center; gap: 12rpx;
 }
-.bd-btn-primary-text {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #ffffff;
+.bd-btn-primary.is-disabled { opacity: 0.5; }
+.bd-btn-primary:active { opacity: 0.88; }
+.bd-btn-primary-t { font-size: 30rpx; font-weight: 600; color: #fff; }
+.bd-btn-outline {
+  flex: 1; height: 92rpx; border-radius: 46rpx;
+  border: 1rpx solid var(--separator, #ede7dd); background: var(--bg-card, #fff);
+  display: flex; align-items: center; justify-content: center;
 }
-.bd-btn-warn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 88rpx;
-  background: #f59e0b;
-  border-radius: 24rpx;
-}
-.bd-btn-warn-text {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #ffffff;
-}
+.bd-btn-outline.is-disabled { opacity: 0.5; }
+.bd-btn-outline-t { font-size: 28rpx; color: var(--text-secondary, #6e6e73); }
 .bd-btn-done {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 88rpx;
-  background: #f5f5f4;
-  border-radius: 24rpx;
+  flex: 1; height: 92rpx; border-radius: 46rpx; background: var(--bg-warm, #f8f4ec);
+  display: flex; align-items: center; justify-content: center;
 }
-.bd-btn-done-text {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #999999;
-}
+.bd-btn-done-t { font-size: 28rpx; color: var(--text-tertiary, #999); }
 </style>

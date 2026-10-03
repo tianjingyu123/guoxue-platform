@@ -7,6 +7,8 @@
 import type { YangZhaiSanYaoInput, YangZhaiSanYaoResult, YangZhaiElement, YangZhaiRelation } from "@guoxue/shared";
 import { BusinessException } from "../../../common/business.exception";
 import { ErrorCode } from "../../../common/error-codes";
+// 大游年即上方引文所说的「八卦变爻之法」，实现在 bazhai.calculator，全仓库共用一份
+import { youXingMap } from "./bazhai.calculator";
 
 const DIRECTIONS: Record<string, { trigram:string; wx:string; dongXi:"东四"|"西四"; gongWei:string; luoShu:number }> = {
   "北": { trigram:"坎", wx:"水", dongXi:"东四", gongWei:"坎宫", luoShu:1 },
@@ -28,17 +30,17 @@ const DIRECTIONS: Record<string, { trigram:string; wx:string; dongXi:"东四"|"�
   "离": { trigram:"离", wx:"火", dongXi:"东四", gongWei:"离宫", luoShu:9 },
 };
 
-// 八宅大游年表
-const YOU_NIAN_TABLE: Record<string, Record<string, string>> = {
-  "坎": { "坎":"伏位","坤":"绝命","震":"天医","巽":"生气","乾":"六煞","兑":"祸害","艮":"五鬼","离":"延年" },
-  "坤": { "坎":"绝命","坤":"伏位","震":"祸害","巽":"五鬼","乾":"延年","兑":"天医","艮":"生气","离":"六煞" },
-  "震": { "坎":"天医","坤":"祸害","震":"伏位","巽":"延年","乾":"五鬼","兑":"绝命","艮":"六煞","离":"生气" },
-  "巽": { "坎":"生气","坤":"五鬼","震":"延年","巽":"伏位","乾":"祸害","兑":"六煞","艮":"绝命","离":"天医" },
-  "乾": { "坎":"六煞","坤":"延年","震":"五鬼","巽":"祸害","乾":"伏位","兑":"生气","艮":"天医","离":"绝命" },
-  "兑": { "坎":"祸害","坤":"天医","震":"绝命","巽":"六煞","乾":"生气","兑":"伏位","艮":"延年","离":"五鬼" },
-  "艮": { "坎":"五鬼","坤":"生气","震":"六煞","巽":"绝命","乾":"天医","兑":"延年","艮":"伏位","离":"祸害" },
-  "离": { "坎":"延年","坤":"六煞","震":"生气","巽":"天医","乾":"绝命","兑":"五鬼","艮":"祸害","离":"伏位" },
-};
+/**
+ * 八宅大游年——改走 `youXingMap`（翻卦变爻法），本文件不再另存一张表。
+ *
+ * 2026-09-19 合并。原先这里硬编码了一张八行的游年表，逐格核过**八行全对**，
+ * 是本仓库里最干净的一份——正因为它是对的，才拿它反过来印证了
+ * `bazhai.calculator` 那张表错了七行。
+ *
+ * 但对的重复实现同样要合并：奇门、大六壬、玄空都是栽在
+ * 「两套各自能自洽地跑出一个盘、不比对就看不出来」。游年只留一份。
+ * 原表的内容已写进 `bazhai.calculator.spec.ts` 的歌诀基准，不会丢。
+ */
 
 const YOU_NIAN_JIXIONG: Record<string, { jiXiong: "吉"|"凶"|"小吉"|"小凶"; desc: string; layoutTip: string; remedy: string; classicalRef: string }> = {
   "生气": {
@@ -130,7 +132,7 @@ function getElement(dir: string): YangZhaiElement {
 }
 
 function getRelation(a: YangZhaiElement, b: YangZhaiElement): YangZhaiRelation {
-  const youNian = YOU_NIAN_TABLE[a.trigram]?.[b.trigram] || "伏位";
+  const youNian = youXingMap(a.trigram)[b.trigram] ?? "伏位";
   const info = YOU_NIAN_JIXIONG[youNian];
   const wxRel = WX_REL_MAP[a.wuXing]?.[b.wuXing] || "比和";
 

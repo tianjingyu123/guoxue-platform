@@ -17,7 +17,7 @@ const mockSystemService = {
 const mockPrisma: any = {
   merchant: { findUnique: jest.fn(), update: jest.fn() },
   order: { aggregate: jest.fn() },
-  merchantSettlement: { findFirst: jest.fn(), create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+  merchantSettlement: { findFirst: jest.fn(), create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn(), aggregate: jest.fn() },
 };
 
 describe("MerchantSettlementService", () => {
@@ -45,11 +45,20 @@ describe("MerchantSettlementService", () => {
     it("返回收入概览", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", commissionRate: 0.8, totalSales: 10000 });
       mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 5000 }, _count: 25 });
+      // 结算单聚合三连：PAID(已结算) / PENDING(待结算) / 非CANCELLED(累计流水)
+      mockPrisma.merchantSettlement.aggregate
+        .mockResolvedValueOnce({ _sum: { paidAmount: 800, settlementAmount: 800 } })
+        .mockResolvedValueOnce({ _sum: { settlementAmount: 1200 } })
+        .mockResolvedValueOnce({ _sum: { totalRevenue: 2500 } });
       const result = await svc.getRevenueOverview("m1");
       expect(result.totalSales).toBe(5000);
       expect(result.totalOrders).toBe(25);
       expect(result.merchantShare).toBe(4000); // 5000 * 0.8
       expect(result.platformShare).toBe(1000);
+      expect(result.merchantShareRate).toBe(0.8); // 商家留成比例·命名清晰字段
+      expect(result.settledAmount).toBe(800);
+      expect(result.pendingSettlement).toBe(1200);
+      expect(result.totalRevenue).toBe(2500);
     });
 
     it("商家不存在抛出异常", async () => {

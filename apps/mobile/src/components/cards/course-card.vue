@@ -1,15 +1,17 @@
 <script setup lang="ts">
 /** 课程卡 - 从原型 components/cards/course-card.tsx 迁移(feed/rail/rank/list 四变体) */
 import { computed } from 'vue'
-import { navigateTo } from '@/utils/router'
+import { navigateToContent } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import AppIcon from '@/components/common/app-icon.vue'
-import { type CourseCardData, type CardVariant, normalizeRatio, formatCount, courseHotKind } from '@/lib/card-utils'
+import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
+import { type CourseCardData, type CardVariant, formatCount, courseHotKind } from '@/lib/card-utils'
+import { formatPrice } from '@/utils/format'
 
 const props = withDefaults(defineProps<{ data: CourseCardData; variant?: CardVariant; rank?: number }>(), {
   variant: 'feed',
 })
-const ratio = computed(() => normalizeRatio(props.data.coverRatio))
 const kind = computed(() => courseHotKind(props.data.tag))
 const hotText = computed(() => (kind.value === 'hot' ? '热销' : kind.value === 'new' ? '新品' : ''))
 const rankClass = computed(() => {
@@ -19,18 +21,17 @@ const rankClass = computed(() => {
   if (r === 3) return 'rk-3'
   return 'rk-n'
 })
-function open() {
+function open(event?: unknown) {
   track.click('course_card', { id: props.data.id })
-  navigateTo(`/course/${props.data.id}`)
+  navigateToContent(`/course/${props.data.id}`, event)
 }
 </script>
 
 <template>
   <!-- ---------- 横滑小卡 rail ---------- -->
-  <view v-if="variant === 'rail'" class="rail" hover-class="card-press" @tap="open">
-    <view class="cover r-sq">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
-      <text class="type-badge">课程</text>
+  <view v-if="variant === 'rail'" class="rail" data-content-card hover-class="card-press" @tap="open">
+    <view class="cover r-169">
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco />
     </view>
     <view class="rail-body">
       <text class="rail-title">{{ data.title }}</text>
@@ -38,17 +39,17 @@ function open() {
         <text v-if="data.free" class="price-free-sm">免费</text>
         <view v-else class="price">
           <text class="price-cny">¥</text>
-          <text class="price-num-sm">{{ data.price }}</text>
+          <text class="price-num-sm">{{ formatPrice(data.price) }}</text>
         </view>
       </view>
     </view>
   </view>
 
   <!-- ---------- 榜单卡 rank ---------- -->
-  <view v-else-if="variant === 'rank'" class="rank" hover-class="card-press" @tap="open">
+  <view v-else-if="variant === 'rank'" class="rank" data-content-card hover-class="card-press" @tap="open">
     <text class="rank-badge" :class="rankClass">{{ rank }}</text>
     <view class="rank-cover">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco :deco-size="36" />
     </view>
     <view class="rank-info">
       <text class="rank-title">{{ data.title }}</text>
@@ -56,7 +57,7 @@ function open() {
         <view v-if="data.free" class="price-free-sm">免费</view>
         <view v-else class="price">
           <text class="price-cny">¥</text>
-          <text class="price-num-sm">{{ data.price }}</text>
+          <text class="price-num-sm">{{ formatPrice(data.price) }}</text>
         </view>
         <text v-if="data.students" class="meta-soft">{{ formatCount(data.students) }}人学</text>
       </view>
@@ -64,9 +65,9 @@ function open() {
   </view>
 
   <!-- ---------- 横向列表卡 list ---------- -->
-  <view v-else-if="variant === 'list'" class="list" hover-class="card-press" @tap="open">
+  <view v-else-if="variant === 'list'" class="list" data-content-card hover-class="card-press" @tap="open">
     <view class="list-cover">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco :deco-size="44" />
     </view>
     <view class="list-body">
       <view>
@@ -77,8 +78,8 @@ function open() {
         <view v-if="data.free" class="price-free-sm">免费</view>
         <view v-else class="price">
           <text class="price-cny">¥</text>
-          <text class="price-num">{{ data.price }}</text>
-          <text v-if="data.originalPrice" class="price-orig">¥{{ data.originalPrice }}</text>
+          <text class="price-num">{{ formatPrice(data.price) }}</text>
+          <text v-if="data.originalPrice" class="price-orig">¥{{ formatPrice(data.originalPrice) }}</text>
         </view>
         <text v-if="data.students" class="meta-soft">{{ formatCount(data.students) }}人学</text>
       </view>
@@ -86,10 +87,9 @@ function open() {
   </view>
 
   <!-- ---------- 瀑布流竖卡 feed(默认) ---------- -->
-  <view v-else class="card" hover-class="card-press" @tap="open">
-    <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <image v-if="data.cover" class="cover-img" :src="data.cover" mode="aspectFill" lazy-load />
-      <text class="type-badge">课程</text>
+  <view v-else class="card" data-content-card hover-class="card-press" @tap="open">
+    <view class="cover r-169">
+      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco />
       <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
     </view>
     <view class="body">
@@ -98,15 +98,12 @@ function open() {
         <view v-if="data.free" class="price-free">免费</view>
         <view v-else class="price">
           <text class="price-cny">¥</text>
-          <text class="price-num">{{ data.price }}</text>
-          <text v-if="data.originalPrice" class="price-orig">¥{{ data.originalPrice }}</text>
+          <text class="price-num">{{ formatPrice(data.price) }}</text>
+          <text v-if="data.originalPrice" class="price-orig">¥{{ formatPrice(data.originalPrice) }}</text>
         </view>
       </view>
       <view v-if="data.teacher" class="author">
-        <view class="avatar">
-          <image lazy-load v-if="data.teacherAvatar" class="avatar-img" :src="data.teacherAvatar" mode="aspectFill" />
-          <text v-else class="avatar-ph">{{ data.teacher.charAt(0) }}</text>
-        </view>
+        <smart-avatar :src="data.teacherAvatar" :name="data.teacher" class="avatar" />
         <text class="author-name">{{ data.teacher }}</text>
         <text v-if="data.students" class="author-trail">{{ formatCount(data.students) }}人学</text>
       </view>
@@ -116,19 +113,21 @@ function open() {
 </template>
 
 <style scoped lang="scss">
-.card { overflow: hidden; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); margin-bottom: 12rpx; }
+.card { overflow: hidden; background: var(--surface); border: 1rpx solid rgba(201,169,110,0.18); border-radius: 24rpx; box-shadow: 0 8rpx 24rpx rgba(61,43,29,0.06); margin-bottom: 12rpx; }
 .card-press { transform: scale(0.98); }
 .cover { position: relative; width: 100%; background: var(--surface-sunken); overflow: hidden; }
-.r-34 { padding-bottom: 133.33%; }
+.r-169 { padding-bottom: 56.25%; } /* 课程卡容器 16:9（规范§五修订：容器跟随课程素材自然形态·不裁切）·X5 禁 aspect-ratio 用 padding 法 */
 .r-sq { padding-bottom: 100%; }
 .cover-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-.type-badge { position: absolute; top: 16rpx; left: 16rpx; z-index: 10; font-size: 20rpx; padding: 2rpx 14rpx; border-radius: 999rpx; color: rgba(255,255,255,0.95); font-weight: 500; background: rgba(0,0,0,0.45); }
 .hot-badge { position: absolute; top: 16rpx; right: 16rpx; z-index: 10; font-size: 20rpx; padding: 2rpx 14rpx; border-radius: 999rpx; font-weight: 500; }
 .hot-red { background: var(--brand); color: #fff; }
 .hot-new { background: rgba(0,0,0,0.45); color: rgba(255,255,255,0.95); }
-.body { padding: 18rpx; }
-.title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 28rpx; font-weight: 500; color: var(--text-strong); line-height: 1.5; margin-bottom: 12rpx; }
-.price-row { margin-bottom: 12rpx; }
+.body { position: relative; z-index: 2; margin-top: -18rpx; padding: 22rpx 18rpx 18rpx; border-radius: 22rpx 22rpx 0 0; background: linear-gradient(180deg, rgba(255,255,255,0.98), var(--surface)); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14rpx 10rpx; }
+.title { grid-column: 1 / 3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 28rpx; font-weight: 600; color: var(--text-strong); line-height: 1.45; margin: 0; }
+.price-row { grid-column: 2; grid-row: 2; margin: 0; flex-shrink: 0; }
+.body > .author { grid-column: 1; grid-row: 2; min-width: 0; padding-top: 12rpx; border-top: 1rpx solid rgba(201,169,110,0.18); }
+.body > .price-row { padding-top: 12rpx; border-top: 1rpx solid rgba(201,169,110,0.18); }
+.body > .price-row .price-orig { display: none; }
 .price { display: flex; align-items: baseline; }
 .price-cny { color: var(--brand); font-weight: 700; font-size: 22rpx; }
 .price-num { color: var(--brand); font-weight: 700; font-size: 32rpx; margin-left: 2rpx; }
@@ -145,7 +144,7 @@ function open() {
 .meta-soft { font-size: 22rpx; color: var(--text-soft); flex-shrink: 0; }
 
 /* rail 横滑小卡 */
-.rail { flex-shrink: 0; width: 300rpx; overflow: hidden; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
+.rail { flex-shrink: 0; width: 360rpx; overflow: hidden; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); } /* 16:9 横卡宽 360rpx（封面高 202rpx） */
 .rail-body { padding: 16rpx; }
 .rail-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 26rpx; color: var(--text-strong); line-height: 1.35; margin-bottom: 8rpx; min-height: 72rpx; }
 .price-row-sm { display: flex; align-items: baseline; }
@@ -157,14 +156,14 @@ function open() {
 .rk-2 { background: #B8B8C0; color: #fff; }
 .rk-3 { background: #C9885B; color: #fff; }
 .rk-n { background: var(--surface-sunken); color: var(--text-soft); }
-.rank-cover { flex-shrink: 0; position: relative; width: 96rpx; height: 96rpx; border-radius: 16rpx; overflow: hidden; background: var(--surface-sunken); }
+.rank-cover { flex-shrink: 0; position: relative; width: 160rpx; height: 90rpx; border-radius: 12rpx; overflow: hidden; background: var(--surface-sunken); } /* 16:9 课程卡容器（规范§五修订） */
 .rank-info { flex: 1; min-width: 0; }
 .rank-title { display: block; font-size: 26rpx; font-weight: 500; color: var(--text-strong); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .rank-meta { display: flex; align-items: center; gap: 16rpx; margin-top: 6rpx; }
 
 /* list 横向列表卡 */
 .list { display: flex; gap: 24rpx; padding: 16rpx; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
-.list-cover { flex-shrink: 0; position: relative; width: 240rpx; height: 240rpx; border-radius: 20rpx; overflow: hidden; background: var(--surface-sunken); }
+.list-cover { flex-shrink: 0; position: relative; width: 240rpx; height: 135rpx; border-radius: 16rpx; overflow: hidden; background: var(--surface-sunken); } /* 16:9 课程卡容器（规范§五修订） */
 .list-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 4rpx 0; }
 .list-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 28rpx; font-weight: 500; color: var(--text-strong); line-height: 1.35; margin-bottom: 8rpx; }
 .list-foot { display: flex; align-items: flex-end; justify-content: space-between; }

@@ -3,7 +3,7 @@
  * SuperAdminDashboard.vue — 超级管理员总览面板
  * 全站核心指标 + 第三方服务健康监控 + 营收趋势
  */
-import { ref, onMounted, onBeforeUnmount } from "vue"
+import { ref, shallowRef, onMounted, onBeforeUnmount } from "vue"
 import type { Component } from "vue"
 import { useRouter } from "vue-router"
 import { api } from "@/api"
@@ -11,6 +11,7 @@ import GreetingHeader from "@/components/GreetingHeader.vue"
 import AnimatedCounter from "@/components/AnimatedCounter.vue"
 import AnomalyAlert from "@/components/AnomalyAlert.vue"
 import ChartCard from "@/components/ChartCard.vue"
+import { firstChartTooltipDatum, type ChartOption } from "@/utils/chart"
 import { User, Goods, Plus, WarningFilled, ChatDotRound, Reading, DataLine, Money,
   Setting, Lock, Operation, Connection, Odometer, Monitor, CaretTop, CaretBottom } from "@element-plus/icons-vue"
 
@@ -25,7 +26,7 @@ const quickActions: QuickAction[] = [
   { label: "角色权限", path: "/system/role-permission", icon: Lock },
   { label: "功能开关", path: "/system/feature-flags", icon: Operation },
   { label: "第三方配置", path: "/system/third-party", icon: Connection },
-  { label: "管理驾驶舱", path: "/admin/cockpit", icon: Odometer },
+  { label: "管理驾驶舱", path: "/cockpit", icon: Odometer },
   { label: "平台综合大屏", path: "/bigscreen/platform", icon: Monitor },
 ]
 // 待办角标（真实计数，无则为 0 不显示）
@@ -39,7 +40,8 @@ const cardRoutes: Record<string, string> = {
   "待处理举报":  "/reports",
   "圈子总数":   "/circles",
   "课程总数":   "/courses",
-  "系统健康":   "/system/role-permission",
+  // 系统健康卡点击应看错误监控（角色权限页与健康无关·2026-07-18 修）
+  "系统健康":   "/system/error-monitor",
 }
 
 function onCardClick(card: CardDef) {
@@ -48,14 +50,14 @@ function onCardClick(card: CardDef) {
 }
 
 // ==================== 报警信息 ====================
-/** 报警条目（字段宽松 optional） */
-interface AlertItem { text?: string; count?: number; level?: 'critical' | 'warning' | 'info' }
+/** 报警条目（字段宽松 optional·后端 RiskAlert 字段为 title + 大写 level，展示前做映射） */
+interface AlertItem { text?: string; title?: string; count?: number; level?: string }
 const alerts = ref<AlertItem[]>([])
 
 // ==================== 统计卡片 ====================
 interface CardDelta { value: number; dir: "up" | "down" | "flat"; label: string }
-interface CardDef { label: string; value: number; icon: Component; delta?: CardDelta }
-const cards = ref<CardDef[]>([])
+interface CardDef { label: string; value: number; icon: Component; delta?: CardDelta; format?: "number" | "currency" }
+const cards = shallowRef<CardDef[]>([])
 
 /** 日环比：仅当昨日基准>0 时计算，否则 undefined（诚实留白） */
 function makeDelta(todayVal: number, yesterdayVal: number, label = "环比昨日"): CardDelta | undefined {
@@ -73,8 +75,7 @@ const loading = ref(true)
 const loadError = ref(false)
 
 // ==================== 营收趋势 (ECharts) ====================
-// revenueOption 为 ECharts option，类型为复杂联合，框架类型不匹配，保留 any
-const revenueOption = ref<any>({})
+const revenueOption = ref<ChartOption>({})
 const hasRevenue = ref(false)
 
 /** 构建营收趋势折线图 option */
@@ -112,9 +113,8 @@ function buildRevenueOption(dates: string[], values: number[]) {
       trigger: "axis", backgroundColor: "#fff",
       borderColor: "#F0F0F0", borderWidth: 1,
       textStyle: { color: "#1A1A1A", fontSize: 13 },
-      // params 为 ECharts tooltip 回调参数（复杂联合类型），保留 any
-      formatter: (params: any) => {
-        const p = params[0]
+      formatter: (params: unknown) => {
+        const p = firstChartTooltipDatum(params)
         return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
                 <div>营收：<span style="color:#4ECDC4;font-weight:600">¥${Number(p.value).toLocaleString()}</span></div>`
       },
@@ -146,11 +146,12 @@ async function load() {
       { label: "总用户数",   value: s.totalUsers ?? 0,   icon: User },
       { label: "总订单数",   value: s.totalOrders ?? 0,  icon: Goods },
       { label: "今日新增用户", value: s.todayNewUsers ?? 0, icon: Plus },
-      { label: "今日营收",   value: s.todayRevenue ?? 0, icon: Money },
+      { label: "今日营收",   value: s.todayRevenue ?? 0, icon: Money, format: "currency" },
       { label: "待处理举报",  value: s.pendingReports ?? 0, icon: WarningFilled },
       { label: "圈子总数",   value: s.totalCircles ?? 0, icon: ChatDotRound },
       { label: "课程总数",   value: s.totalCourses ?? 0, icon: Reading },
-      { label: "系统健康",   value: s.systemOk ?? 1,     icon: DataLine },
+      // systemOk 缺失时用 -1 表示"未知"，展示灰态，不能兜底成"正常"假绿灯（2026-07-18 修）
+      { label: "系统健康",   value: s.systemOk ?? -1,    icon: DataLine },
     ]
 
     // 真实日环比：今日新增用户/今日营收 vs 昨日同口径（后端 stats 已补昨日基准）
@@ -186,12 +187,13 @@ async function load() {
     badges.value = { "/system/third-party": abnormal }
 
     // 报警取前 3 条（后端返回 {alerts:[],total,...} 对象，非裸数组，需取 .alerts）
+    // 字段映射：后端 RiskAlert 文案在 title（非 text）、level 为大写 WARN/DANGER/CRITICAL（AnomalyAlert 内部归一小写）
     const rawAlert = alertRes.data
     const list: AlertItem[] = Array.isArray(rawAlert)
       ? rawAlert
       : ((rawAlert as { alerts?: AlertItem[] })?.alerts ?? [])
     alerts.value = list.slice(0, 3).map((a: AlertItem) => ({
-      text: a.text, count: a.count, level: a.level ?? "warning",
+      text: a.title ?? a.text ?? "", count: a.count, level: a.level ?? "warning",
     }))
   } catch {
     loadError.value = true
@@ -223,11 +225,11 @@ onBeforeUnmount(() => {
         快捷操作
       </div>
       <div class="qa-grid">
-        <div
+        <router-link
           v-for="qa in quickActions"
           :key="qa.path"
           class="qa-item"
-          @click="router.push(qa.path)"
+          :to="qa.path"
         >
           <el-badge
             :value="badges[qa.path] || 0"
@@ -241,7 +243,7 @@ onBeforeUnmount(() => {
             </div>
           </el-badge>
           <span class="qa-label">{{ qa.label }}</span>
-        </div>
+        </router-link>
       </div>
     </div>
 
@@ -263,120 +265,124 @@ onBeforeUnmount(() => {
     </el-result>
 
     <template v-else>
-    <!-- 报警行 -->
-    <div
-      v-if="alerts.length"
-      class="alerts-row"
-    >
-      <AnomalyAlert
-        v-for="a in alerts"
-        :key="a.text"
-        v-bind="a"
-      />
-    </div>
-
-    <!-- 统计卡片 4×2 -->
-    <el-row
-      :gutter="20"
-      class="stats-row"
-    >
-      <el-col
-        v-for="card in cards"
-        :key="card.label"
-        :xs="24"
-        :sm="12"
-        :md="6"
+      <!-- 报警行 -->
+      <div
+        v-if="alerts.length"
+        class="alerts-row"
       >
-        <div
-          class="stat-card"
-          @click="onCardClick(card)"
+        <AnomalyAlert
+          v-for="a in alerts"
+          :key="a.text"
+          v-bind="a"
+        />
+      </div>
+
+      <!-- 统计卡片 4×2 -->
+      <el-row
+        :gutter="20"
+        class="stats-row"
+      >
+        <el-col
+          v-for="card in cards"
+          :key="card.label"
+          :xs="24"
+          :sm="12"
+          :md="6"
         >
-          <div class="stat-card__top">
-            <span class="stat-card__label">{{ card.label }}</span>
-            <div class="stat-card__icon">
-              <el-icon :size="18">
-                <component :is="card.icon" />
+          <div
+            class="stat-card"
+            @click="onCardClick(card)"
+          >
+            <div class="stat-card__top">
+              <span class="stat-card__label">{{ card.label }}</span>
+              <div class="stat-card__icon">
+                <el-icon :size="18">
+                  <component :is="card.icon" />
+                </el-icon>
+              </div>
+            </div>
+            <div
+              class="stat-card__value"
+              :class="{ 'stat-card__value--alert': card.label === '待处理举报' && card.value > 0 }"
+            >
+              <template v-if="card.label === '系统健康'">
+                <!-- 三态：1=正常绿 / 0=异常红 / 字段缺失=未知灰（禁止假绿灯） -->
+                <el-tag
+                  :type="card.value === 1 ? 'success' : card.value === 0 ? 'danger' : 'info'"
+                  size="small"
+                  effect="dark"
+                >
+                  {{ card.value === 1 ? '正常' : card.value === 0 ? '异常' : '未知' }}
+                </el-tag>
+              </template>
+              <template v-else>
+                <AnimatedCounter
+                  :value="card.value"
+                  :format="card.format"
+                />
+              </template>
+            </div>
+            <div
+              v-if="card.delta"
+              class="stat-card__delta"
+              :class="`stat-card__delta--${card.delta.dir}`"
+            >
+              <el-icon :size="12">
+                <component :is="card.delta.dir === 'down' ? CaretBottom : CaretTop" />
               </el-icon>
+              <span>{{ card.delta.value }}% {{ card.delta.label }}</span>
             </div>
           </div>
-          <div
-            class="stat-card__value"
-            :class="{ 'stat-card__value--alert': card.label === '待处理举报' && card.value > 0 }"
-          >
-            <template v-if="card.label === '系统健康'">
-              <el-tag
-                :type="card.value === 1 ? 'success' : 'danger'"
-                size="small"
-                effect="dark"
-              >
-                {{ card.value === 1 ? '正常' : '异常' }}
-              </el-tag>
-            </template>
-            <template v-else>
-              <AnimatedCounter :value="card.value" />
-            </template>
-          </div>
-          <div
-            v-if="card.delta"
-            class="stat-card__delta"
-            :class="`stat-card__delta--${card.delta.dir}`"
-          >
-            <el-icon :size="12">
-              <component :is="card.delta.dir === 'down' ? CaretBottom : CaretTop" />
-            </el-icon>
-            <span>{{ card.delta.value }}% {{ card.delta.label }}</span>
-          </div>
-        </div>
-      </el-col>
-    </el-row>
+        </el-col>
+      </el-row>
 
-    <!-- 服务健康状态 -->
-    <div
-      v-if="healthList.length"
-      class="section-card"
-    >
-      <div class="section-card__title">
-        第三方服务状态
-      </div>
-      <div class="health-grid">
-        <div
-          v-for="h in healthList"
-          :key="h.name"
-          class="health-item"
-        >
-          <span class="health-name">{{ h.label }}</span>
-          <el-tag
-            :type="statusType(h.status)"
-            size="small"
-            effect="light"
-          >
-            {{ h.status === 'ok' ? '正常' : h.status === 'error' ? '异常' : '降级' }}
-          </el-tag>
-        </div>
-      </div>
-    </div>
-
-    <!-- 营收趋势折线图 -->
-    <el-row
-      :gutter="20"
-      class="charts-row"
-    >
-      <el-col
-        :xs="24"
-        :md="24"
+      <!-- 服务健康状态 -->
+      <div
+        v-if="healthList.length"
+        class="section-card"
       >
-        <ChartCard
-          v-if="hasRevenue"
-          title="营收趋势"
-          :option="revenueOption"
-          :height="320"
-        />
-        <el-empty
-          v-else
-          description="暂无营收趋势数据"
-        />
-      </el-col>
-    </el-row>
+        <div class="section-card__title">
+          第三方服务状态
+        </div>
+        <div class="health-grid">
+          <div
+            v-for="h in healthList"
+            :key="h.name"
+            class="health-item"
+          >
+            <span class="health-name">{{ h.label }}</span>
+            <el-tag
+              :type="statusType(h.status)"
+              size="small"
+              effect="light"
+            >
+              {{ h.status === 'ok' ? '正常' : h.status === 'error' ? '异常' : '降级' }}
+            </el-tag>
+          </div>
+        </div>
+      </div>
+
+      <!-- 营收趋势折线图 -->
+      <el-row
+        :gutter="20"
+        class="charts-row"
+      >
+        <el-col
+          :xs="24"
+          :md="24"
+        >
+          <ChartCard
+            v-if="hasRevenue"
+            title="营收趋势"
+            :option="revenueOption"
+            :height="320"
+          />
+          <el-empty
+            v-else
+            description="暂无营收趋势数据"
+          />
+        </el-col>
+      </el-row>
     </template>
   </div>
 </template>
@@ -411,11 +417,13 @@ onBeforeUnmount(() => {
 .section-card__title { font-size: 14px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 16px; }
 .qa-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
 .qa-item {
+  text-decoration: none;
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 16px 8px; border-radius: 12px; cursor: pointer;
   background: var(--color-bg-page); transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .qa-item:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.qa-item:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 3px; }
 .qa-icon {
   width: 44px; height: 44px; border-radius: 12px;
   background: rgba(255,107,107,0.1); color: #FF6B6B;

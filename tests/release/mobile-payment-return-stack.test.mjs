@@ -1,0 +1,202 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { createRequire } from 'node:module'
+import { runInNewContext } from 'node:vm'
+
+const root = process.cwd()
+const source = file => readFileSync(resolve(root, file), 'utf8')
+
+test('汇付仅按服务端已确认的同一订单直达圈子或课程，未知结果回订单', () => {
+  const ts = createRequire(resolve(root, 'apps/mobile/package.json'))('typescript')
+  const code = ts.transpileModule(source('apps/mobile/src/utils/existing-order-huifu.ts'), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText
+  const exports = {}
+  function load(file, dependencies = {}) {
+    const exports = {}
+    runInNewContext(ts.transpileModule(source(file), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText,
+      { exports, require: name => { assert.ok(dependencies[name], name); return dependencies[name] } })
+    return exports
+  }
+  const query = load('apps/mobile/src/utils/query-string.ts')
+  const paidNext = load('apps/mobile/src/lib/paid-order-next.ts', { '@/utils/query-string': query })
+  runInNewContext(code, { exports, require: () => paidNext })
+  const route = exports.confirmedHuifuDestination
+  const base = { id: 'o 1', amount: 10, status: 'PAID', type: 'CIRCLE_JOIN', targetId: 'c/1' }
+  assert.equal(route('o 1', base), '/circles/c%2F1?paymentSuccess=1&paymentOrderId=o%201')
+  assert.equal(route('o 1', { ...base, type: 'CIRCLE_RENEW' }), '/circles/c%2F1?paymentSuccess=1&paymentOrderId=o%201')
+  assert.equal(route('o 1', { ...base, type: 'COURSE' }), '/course/c%2F1')
+  for (const order of [null, { ...base, id: 'other' }, { ...base, targetId: null },
+    ...['PENDING', 'REFUNDED', 'CANCELLED', 'UNKNOWN'].map(status => ({ ...base, status }))]) {
+    assert.equal(route('o 1', order), '/orders/o%201?paymentReturn=1')
+  }
+  assert.equal(route('o 1', { ...base, type: 'PRODUCT' }), '/orders/o%201?paymentReturn=1')
+  const page = source('apps/mobile/src/pkg-shop/huifu-paying/index.vue')
+  assert.match(page, /confirmedHuifuDestination\(orderId, verifiedOrder, returnContext\)/u)
+  const context = { returnVoiceScene: 'report_dialogue', returnVoiceContextId: 'r&1', returnVoiceSectionId: 's1', redirect: 'https://example.com' }
+  assert.equal(route('o 1', { ...base, type: 'VOICE_MINUTES' }, context), '/pkg-agent/agent/xiaobu-voice?scene=report_dialogue&contextId=r%261&sectionId=s1')
+  assert.equal(route('o 1', { ...base, type: 'XIAOBU_REPORT', targetId: 'r1:general' }), '/pkg-paipan/bazi/ai-report?recordId=r1&reportType=general')
+  assert.equal(route('o 1', { ...base, type: 'XIAOBU_MEMBER' }, { returnRecordId: 'r1' }), '/pkg-paipan/bazi/ai-report?recordId=r1')
+  assert.equal(route('o 1', { ...base, type: 'PRACTITIONER_PRO' }), '/pkg-workspace/index/index')
+  assert.equal(route('o 1', { ...base, type: 'MEMBER' }), '/vip?paymentSuccess=1')
+  assert.equal(route('o 1', { ...base, type: 'VOICE_MINUTES' }, { returnVoiceScene: 'evil', returnVoiceContextId: 'x' }), '/pkg-agent/agent/xiaobu-voice-topup')
+  const cashier = exports.existingOrderCashierRoute('o 1', 'alipay', true, context)
+  assert.ok(cashier.includes('returnVoiceContextId=r%261'))
+  assert.ok(!cashier.includes('redirect'))
+  assert.match(page, /assertAccount\(\); verifiedOrder = order/u)
+})
+
+test('支付成功、取消和结果页使用根路由结束交易栈', () => {
+  const paying = source('apps/mobile/src/pkg-shop/paying/index.vue')
+  const success = source('apps/mobile/src/pkg-shop/pay-success/index.vue')
+  const huifu = source('apps/mobile/src/pkg-shop/huifu-paying/index.vue')
+
+  assert.match(paying, /reLaunch\(paidBusinessTarget\(order\)\)/u)
+  assert.match(paying, /reLaunch\(paidBusinessTarget\(st\)\)/u)
+  assert.match(paying, /reLaunch\(returnTarget\(\)\)/u)
+  assert.match(success, /reLaunch\(`\/orders\/\$\{orderInfo\.orderId\}\?paymentReturn=1`\)/u)
+  assert.match(success, /reLaunch\('\/mall'\)/u)
+  assert.match(huifu, /reLaunch\(orderId \? `\/orders\/\$\{encodeURIComponent\(orderId\)\}\?paymentReturn=1` : '\/orders'\)/u)
+})
+
+test('服务端确认圈子订单已付后直接进圈子，普通订单仍走核验结果页', async () => {
+  const paying = source('apps/mobile/src/pkg-shop/paying/index.vue')
+  const queryString = source('apps/mobile/src/utils/query-string.ts').replace('export function queryString', 'function queryString')
+  const startTarget = paying.indexOf('function paidBusinessTarget(')
+  const endTarget = paying.indexOf('\nfunction startCountdown(', startTarget)
+  const startComplete = paying.indexOf('async function completePaidOrder(')
+  const endComplete = paying.indexOf('\nfunction clearTimers(', startComplete)
+  assert.ok(startTarget >= 0 && endTarget > startTarget && startComplete >= 0 && endComplete > startComplete)
+  const requireMobile = createRequire(resolve(root, 'apps/mobile/package.json'))
+  const ts = requireMobile('typescript')
+  const nextExports = {}
+  runInNewContext(ts.transpileModule(
+    `${queryString}\n${source('apps/mobile/src/lib/paid-order-next.ts').replace(/^import .*$/m, '')}`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
+  ).outputText, { exports: nextExports })
+  const executable = ts.transpileModule(
+    `${queryString}\n${paying.slice(startTarget, endTarget)}\n${paying.slice(startComplete, endComplete)}\nglobalThis.runPaid = completePaidOrder`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } },
+  ).outputText
+
+  for (const [state, expected, origin = {}] of [
+    [{ type: 'CIRCLE_JOIN', targetId: 'circle 1' }, '/circles/circle%201?paymentSuccess=1&paymentOrderId=order-1'],
+    [{ type: 'CIRCLE_RENEW', targetId: 'circle 1' }, '/circles/circle%201?paymentSuccess=1&paymentOrderId=order-1'],
+    [{ type: 'COURSE', targetId: 'course 1' }, '/courses/course%201?paymentSuccess=1'],
+    [{ type: 'MEMBER' }, '/vip?paymentSuccess=1'],
+    [{ type: 'XIAOBU_REPORT', targetId: 'record:general' }, '/pkg-paipan/bazi/ai-report?recordId=record&reportType=general'],
+    [{ type: 'XIAOBU_MEMBER' }, '/pkg-agent/agent/xiaobu-member'],
+    [{ type: 'VOICE_MINUTES' }, '/pkg-agent/agent/xiaobu-voice-topup'],
+    [{ type: 'PRACTITIONER_PRO' }, '/pkg-workspace/index/index'],
+    [{ type: 'VOICE_MINUTES' }, '/pkg-agent/agent/xiaobu-voice?scene=circle_assistant&contextId=c%201', { scene: 'circle_assistant', contextId: 'c 1' }],
+    [{ type: 'XIAOBU_MEMBER' }, '/pkg-paipan/bazi/ai-report?recordId=r%201', { recordId: 'r 1' }],
+    [{ type: 'GOODS', targetId: 'goods-1' }, '/shop/pay-success?orderId=order-1'],
+  ]) {
+    const routes = []
+    let settlementCalls = 0
+    const context = {
+      orderId: { value: 'order-1' }, status: { value: 'paying' }, amount: { value: '1' },
+      payMethod: { value: 'wechat' }, leaving: false,
+      returnLiveRoomId: { value: '' }, returnRecordId: { value: origin.recordId || '' },
+      returnVoiceScene: { value: origin.scene || '' }, returnVoiceContextId: { value: origin.contextId || '' }, returnVoiceSectionId: { value: '' },
+      paidOrderNext: nextExports.paidOrderNext,
+      settleCircleIfNeeded: async () => { settlementCalls += 1 },
+      clearTimers: () => {}, track: { purchase: () => {} },
+      reLaunch: (route) => routes.push(['reLaunch', route]),
+      redirectTo: (route) => routes.push(['redirectTo', route]),
+      setTimeout: (callback) => callback(),
+    }
+    runInNewContext(executable, context)
+    await context.runPaid(state, true)
+    assert.equal(settlementCalls, 1)
+    assert.deepEqual(routes, [[state.type === 'GOODS' ? 'redirectTo' : 'reLaunch', expected]])
+  }
+})
+
+test('支付后订单详情返回订单中心，订单中心再返回商城', () => {
+  const detail = source('apps/mobile/src/pkg-order/detail/index.vue')
+  const list = source('apps/mobile/src/pkg-order/list/index.vue')
+
+  assert.match(detail, /custom-back @back="handleBack"/u)
+  assert.match(detail, /if \(fromPayment\.value\) \{ reLaunch\('\/orders\?paymentReturn=1'\); return \}/u)
+  assert.match(list, /custom-back @back="handleBack"/u)
+  assert.match(list, /if \(fromPayment\.value\) \{ reLaunch\('\/mall'\); return \}/u)
+})
+
+test('App 跳入小程序后账号不符立即止步，未发起支付的查单故障不会无限等待', async () => {
+  const ts = createRequire(resolve(root, 'apps/mobile/package.json'))('typescript')
+  const paying = source('apps/mobile/src/pkg-shop/paying/index.vue')
+  const start = paying.indexOf('async function checkOrderBeforePay(')
+  const end = paying.indexOf('\nfunction resumePolling(', start)
+  assert.ok(start >= 0 && end > start)
+  const helper = ts.transpileModule(source('apps/mobile/src/lib/payment-recovery.ts'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS },
+  }).outputText
+  const payment = {}
+  runInNewContext(helper, { exports: payment })
+  const executable = ts.transpileModule(`${paying.slice(start, end)}\nglobalThis.runCheck = checkOrderBeforePay`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
+  }).outputText
+
+  for (const [message, returned, expectedStatus, expectedDenied, expectedPoll] of [
+    ['只能查看自己的订单', false, 'failed', true, 0],
+    ['订单不存在', false, 'failed', false, 0],
+    ['network failed', false, 'failed', false, 0],
+    ['network failed', true, 'confirming', false, 1],
+  ]) {
+    const state = { status: { value: 'loading' }, failReason: { value: '' }, orderAccessDenied: { value: false } }
+    let polls = 0
+    let paymentCalls = 0
+    const context = {
+      ...state, checkingOrder: false, submitting: { value: false }, leaving: false,
+      orderId: { value: 'order-1' }, iosPaymentGuard: false,
+      shopApi: { getOrderPayState: async (_orderId, fresh) => { assert.equal(fresh, true); throw new Error(message) } },
+      orderLookupFailure: payment.orderLookupFailure,
+      clearTimers: () => {}, resumePolling: () => { polls += 1; state.status.value = 'confirming' },
+      startPaying: () => { paymentCalls += 1 },
+    }
+    runInNewContext(executable, context)
+    await context.runCheck(returned)
+    assert.equal(state.status.value, expectedStatus, message)
+    assert.equal(state.orderAccessDenied.value, expectedDenied, message)
+    assert.equal(polls, expectedPoll, message)
+    assert.equal(paymentCalls, 0, message)
+  }
+  assert.match(paying, /orderAccessDenied \? '使用下单账号登录'/u)
+  assert.match(paying, /clearAuthSession\(\)[\s\S]*?uni\.setStorageSync\('login:redirect', redirect\)/u)
+})
+
+test('小程序微信付款参数缺失或预下单失败时直接报错，不把未调起支付误判为待确认', async () => {
+  const ts = createRequire(resolve(root, 'apps/mobile/package.json'))('typescript')
+  const paying = source('apps/mobile/src/pkg-shop/paying/index.vue')
+  const start = paying.indexOf('  let paymentParamsReady = false')
+  const end = paying.indexOf('  // #endif', start)
+  assert.ok(start >= 0 && end > start)
+  const executable = ts.transpileModule(`async function runPayment() {\n${paying.slice(start, end)}\n}\nglobalThis.runPayment = runPayment`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
+  }).outputText
+  for (const payParams of [null, { timeStamp: '1', nonceStr: 'n', package: '', paySign: 's' }]) {
+    const status = { value: 'paying' }
+    const failReason = { value: '' }
+    let requests = 0
+    let clears = 0
+    const context = {
+      status, failReason, leaving: false,
+      isRecharge: { value: false }, orderId: { value: 'order-1' },
+      shopApi: { payOrderJsapi: async () => {
+        if (payParams === null) throw new Error('预下单失败')
+        return payParams
+      } },
+      clearTimers: () => { clears += 1 },
+      uni: { requestPayment: () => { requests += 1 } },
+    }
+    runInNewContext(executable, context)
+    await context.runPayment()
+    assert.equal(status.value, 'failed')
+    assert.ok(failReason.value)
+    assert.equal(requests, 0)
+    assert.equal(clears, 1)
+  }
+})

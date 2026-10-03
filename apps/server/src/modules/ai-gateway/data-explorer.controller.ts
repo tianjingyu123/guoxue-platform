@@ -4,6 +4,7 @@ import { DataExplorerService } from "./data-explorer.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { DataExplorerQueryDto } from "./dto/ai-infra.dto";
 
 @ApiTags("🤖 AI数据探索")
 @Controller("ai/data-explorer")
@@ -17,8 +18,8 @@ export class DataExplorerController {
   @ApiOperation({ summary: "自然语言查询数据" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  async ask(@Body() body: { question: string }) {
-    return this.explorer.ask(body.question);
+  async ask(@Body() body: DataExplorerQueryDto) {
+    return this.explorer.ask(body.question.trim());
   }
 
   @Get("schema")

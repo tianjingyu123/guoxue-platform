@@ -35,7 +35,7 @@
                 :type="latest.status === 'SUCCESS' ? 'success' : 'danger'"
                 size="small"
               >
-                {{ latest.status || '未知' }}
+                {{ statusText(latest.status) }}
               </el-tag>
             </div>
             <div>时间：{{ formatDate(latest.createdAt) }}</div>
@@ -72,6 +72,16 @@
       </el-button>
     </el-alert>
 
+    <el-alert
+      v-if="!loading && !loadError && latest && list.length === 0"
+      type="info"
+      :closable="false"
+      show-icon
+      title="备份文件列表为空，但存在最新备份状态记录"
+      description="可能原因：备份文件在服务器本地目录未纳入列表接口，或历史文件已被清理轮转。以「最新备份状态」卡片为准；如需核实请检查服务器备份目录。"
+      style="margin-bottom:12px"
+    />
+
     <el-table
       v-loading="loading"
       :data="list"
@@ -105,7 +115,7 @@
             :type="row.status === 'SUCCESS' ? 'success' : 'danger'"
             size="small"
           >
-            {{ row.status || '-' }}
+            {{ statusText(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -123,7 +133,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 
 interface BackupItem {
@@ -139,6 +149,10 @@ const list = ref<BackupItem[]>([]); const latest = ref<BackupItem | null>(null)
 
 onMounted(() => { fetchList(); fetchLatest() })
 function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
+function statusText(s?: string) {
+  const map: Record<string, string> = { SUCCESS: '成功', FAILED: '失败', RUNNING: '进行中', PENDING: '等待中' }
+  return (s && map[s]) || s || '未知'
+}
 function formatSize(bytes?: number) {
   if (!bytes && bytes !== 0) return '-'
   if (bytes < 1024) return bytes + ' B'
@@ -157,11 +171,19 @@ async function fetchList() {
 }
 
 async function manualBackup() {
+  // L3：全库备份是重操作，会占用数据库与磁盘 IO，需确认
+  try {
+    await ElMessageBox.confirm('将立即对生产数据库执行一次全量备份，期间可能短暂增加数据库负载与磁盘占用。确定执行？', '手动备份确认', { type: 'warning', confirmButtonText: '开始备份' })
+  } catch { return }
   backingUp.value = true
-  try { await api.post('/system/backup/manual'); ElMessage.success('备份任务已触发，请稍后查看状态'); fetchLatest() } catch { } finally { backingUp.value = false }
+  try { await api.post('/system/backup/manual'); ElMessage.success('备份任务已触发，请稍后查看状态'); fetchLatest(); fetchList() } catch { } finally { backingUp.value = false }
 }
 
 async function uploadToCos() {
+  // L3：上传 COS 产生外网流量与存储费用，需确认
+  try {
+    await ElMessageBox.confirm('将把最新备份文件上传至腾讯云 COS（异地容灾），会产生外网流量与对象存储费用。确定上传？', '上传 COS 确认', { type: 'warning', confirmButtonText: '开始上传' })
+  } catch { return }
   uploading.value = true
   try { await api.post('/system/backup/upload-cos'); ElMessage.success('COS上传任务已触发'); fetchLatest() } catch { } finally { uploading.value = false }
 }

@@ -1,0 +1,549 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-01T18:01:50.509Z",
+  "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+  "testFixtureCommit": "e5e379d91f154e84484bb612dcde386197623504",
+  "sourceSha256": "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277",
+  "parent": "062f78238f2bf8bb23e1c2884baf990cb34a8246",
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "ci": {
+    "testsSkipped": 133,
+    "logs": [
+      {
+        "tests": "Tests:       50 skipped, 3035 passed, 3085 total",
+        "name": "单元测试 (2/3)",
+        "sha256": "f02f302e992960fbf158458346b106d4927f20e6476c7c3e5479d0c42cace47b",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "jobId": 110497206814
+      },
+      {
+        "tests": "Tests:       39 skipped, 3047 passed, 3086 total",
+        "name": "单元测试 (3/3)",
+        "sha256": "cdb8a80414f0aef80702f8a63e040bc3e6f1e83886e09301c1e7aefca90c4173",
+        "suites": "Test Suites: 10 skipped, 220 passed, 220 of 230 total",
+        "jobId": 110497206936
+      },
+      {
+        "tests": "Tests:       44 skipped, 2849 passed, 2893 total",
+        "name": "单元测试 (1/3)",
+        "sha256": "a0f91124cd52500a16e8879f45c5f0fbce740ebd301738279ff2329a8196e879",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "jobId": 110497206977
+      }
+    ],
+    "jobsPassed": 8,
+    "checkedAt": "2026-10-01T17:52:16.0095955Z",
+    "testsPassed": 8931,
+    "suitesSkipped": 26,
+    "suitesPassed": 664,
+    "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "status": "success",
+    "runId": 36900015643
+  },
+  "linux": {
+    "compiledReport": {
+      "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+      "sourceSha256": "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277",
+      "version": [
+        {
+          "server_version": "18.4 (Debian 18.4-1.pgdg13+1)"
+        }
+      ],
+      "compiledService": true,
+      "concurrentRequests": 2,
+      "created": 1,
+      "quotaRejected": 1,
+      "stored": 3,
+      "passed": true
+    },
+    "realSupplier": false,
+    "sourceSha256": "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277",
+    "artifactSha256": "6209b98d0b224953e548f230d939ab4b384416d2cfe1c5f2d2063a03f5b5ee30",
+    "artifactId": 11180429724,
+    "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "fullFormalDockerImage": false,
+    "suitesPassed": 17,
+    "realJwt": false,
+    "runId": 36900373723,
+    "passed": true,
+    "checkedAt": "2026-10-01T17:44:23.1588582Z",
+    "verificationHead": "2602c89da298680d9caaa8a3f184bc61d0be28f2",
+    "skipped": 0,
+    "postgresServiceCleanup": "官方作业 Stop containers 成功",
+    "testsPassed": 113,
+    "postgresVersion": "18.4 (Debian 18.4-1.pgdg13+1)"
+  },
+  "audio": {
+    "serviceCleanup": "官方 Stop containers 成功",
+    "realObjectStorage": false,
+    "verificationHead": "f0dfeccf924a6522a16d5002a9af22202c322ec8",
+    "realSupplier": false,
+    "separateProcessesCovered": false,
+    "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "passed": true,
+    "sourceSha256": "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277",
+    "artifactSha256": "6902668e4697ea76096bfc01a23e30152f0b33b9fa19e7ce8112771f737a807d",
+    "resourceReleaseCovered": false,
+    "sourcePackage": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-10-01T17:56:34.897Z",
+      "archive": "audio-source.tar.gz",
+      "sha256": "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277",
+      "releaseId": "launch-20261001-9c8e5e1a2",
+      "commit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+      "expectedCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+      "fileCount": 4439,
+      "allowDirty": false,
+      "success": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "errors": [],
+      "warnings": []
+    },
+    "forceExit": true,
+    "postgresVersion": "18.4 (Debian 18.4-1.pgdg13+1)",
+    "runId": 36903044022,
+    "artifactId": 11182467598,
+    "skipped": 0,
+    "testsPassed": 4,
+    "redisVersion": "redis_version:7.4.11",
+    "checkedAt": "2026-10-01T17:59:54.984502Z"
+  },
+  "skipInventory": {
+    "originalSkipped": 133,
+    "originalSoftwareVerified": 104,
+    "hardwareDeferred": 29,
+    "newRegressionPassed": 1,
+    "items": [
+      {
+        "file": "apps/server/src/modules/voice/xiaozhi/xiaozhi-terminal.integration.spec.ts",
+        "count": 20,
+        "status": "硬件明确暂缓"
+      },
+      {
+        "file": "apps/server/src/modules/shop/shop-order.local-db.http.spec.ts",
+        "count": 4,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/shop/shop-order.local-db.spec.ts",
+        "count": 8,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/course/course-access.local-db.http.spec.ts",
+        "count": 3,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/bot/bot.quota.postgres.spec.ts",
+        "count": 6,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/xiaozhi/xiaozhi-firmware.spec.ts",
+        "count": 5,
+        "status": "硬件明确暂缓"
+      },
+      {
+        "file": "apps/server/src/modules/tts/audiobook.integration.spec.ts",
+        "count": 5,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/bot/bot.purchase.postgres.spec.ts",
+        "count": 4,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/bot/bot.quota.http.postgres.spec.ts",
+        "count": 4,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/shop/after-sale-access.local-db.http.spec.ts",
+        "count": 2,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/xiaozhi/xiaozhi-multi-instance.integration.spec.ts",
+        "count": 3,
+        "status": "硬件明确暂缓"
+      },
+      {
+        "file": "apps/server/src/modules/tts/audio-asset.service.integration.spec.ts",
+        "count": 4,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/notification/notification-access.local-db.http.spec.ts",
+        "count": 2,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/shop/shop-payment-notification.local-db.spec.ts",
+        "count": 3,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/course/course-review-status.local-db.http.spec.ts",
+        "count": 1,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+        "count": 3,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/xiaozhi/xiaozhi-alert-delivery.integration.spec.ts",
+        "count": 1,
+        "status": "硬件明确暂缓"
+      },
+      {
+        "file": "apps/server/src/modules/shop/shop-refund-notification.local-db.spec.ts",
+        "count": 2,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/classic/classic-derived.integration.spec.ts",
+        "count": 5,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/xiaobu-commerce.integration.spec.ts",
+        "count": 5,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+        "count": 17,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/practitioner/practitioner-report-concurrency.integration.spec.ts",
+        "count": 2,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/voice-http.integration.spec.ts",
+        "count": 7,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/circle-voice-revenue.integration.spec.ts",
+        "count": 4,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/voice-topup.integration.spec.ts",
+        "count": 3,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/voice-quota.service.integration.spec.ts",
+        "count": 4,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/voice-device-handoff.integration.spec.ts",
+        "count": 6,
+        "status": "本轮软件补验通过"
+      }
+    ]
+  },
+  "localCommerce": {
+    "passed": 25,
+    "passingSuites": 8,
+    "initialWrongPathSuites": 1,
+    "wrongPath": "circle/circle-membership-expiry.local-db.spec.ts",
+    "correctedPath": "circle/services/circle-membership-expiry.local-db.spec.ts",
+    "correctedPassed": 3
+  },
+  "botFixture": {
+    "beforeHttpFailed": 8,
+    "afterHttpPassed": 9,
+    "typescript": true,
+    "eslintErrors": 0,
+    "warnings": 17,
+    "productionGuardsBypassed": false
+  },
+  "runtimeScope": {
+    "localPostgres": "16.13",
+    "officialPostgres": "18.4",
+    "officialRedis": "7.4.11",
+    "fullFormalImageSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "fullFormalImageForThisSource": true,
+    "realSupplier": false,
+    "realObjectStorage": false,
+    "finalDevice": false,
+    "formalImagePostgres": "18.6；目标补丁18.4另有113项源码/编译专项，并非同一正式镜像",
+    "formalImageReleaseId": "isolated-9c8e5e1a2"
+  },
+  "cleanup": {
+    "preserved": true,
+    "stopped": true,
+    "sharedServicesTouched": false,
+    "portsUsed": [
+      55461,
+      55439
+    ],
+    "dataDirectory": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-intake-review-20260930\\gx-deploy-91\\artifacts\\channel-intake-20260930\\voice-quota-real-db-9695462de\\data",
+    "checkedAt": "2026-10-01T18:00:18.1421175Z"
+  },
+  "evidence": [
+    {
+      "path": "artifacts/channel-intake-20260930/practitioner-lock-ci-verified.json",
+      "bytes": 1221,
+      "sha256": "85925f3b5a671a8b8b55932aa3dd7b568bab9bcd9a2c2d83c7d41a583e40de06"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/practitioner-lock-linux-verified.json",
+      "bytes": 1129,
+      "sha256": "71d4b6ccea97b2285ba83be82565155406f5cbf6d03d082392789d31ac690d23"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/audio-assets-linux-verified.json",
+      "bytes": 1329,
+      "sha256": "67189f1951f4363987b6805896de79da335b1a7804aff7d7192ea9f7a7e71a12"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/local-real-db-cleanup.json",
+      "bytes": 363,
+      "sha256": "7d882d681df6c5b65f10a28d1951b567f97091652f8bd9ca96cca7d7e326f01a"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/practitioner-lock-draft-archive.json",
+      "bytes": 757,
+      "sha256": "5f9ce7353c57186ccfafb54a7d33e8c900606cbbf115f8a6f05eae22f183e4db"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/skipped-inventory.json",
+      "bytes": 73818,
+      "sha256": "61ee9067b54cb4579467ce75bfcb4460dac74771add0df848309f35e2175087f"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/jest-practitioner-after.json",
+      "bytes": 25765,
+      "sha256": "2657c229c5731549eecd632ee41508e5151adf5dff0cc53a525d8034ca96049f"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/jest-bot-audiobook-result.json",
+      "bytes": 50917,
+      "sha256": "c873acbf40e4ef295a75807d5003d92f5cbd5777086e21d955febc1881b0109c"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/jest-bot-http-final.json",
+      "bytes": 4877,
+      "sha256": "416434ae3f5b626a63326d4d20b1eeb514f1b817c90172b6e0565e3b6c6a22c9"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/jest-commerce-access-result.json",
+      "bytes": 13746,
+      "sha256": "0d2da653aa455484e712058d7dc62adcc6ebe121fc06feb75e085d6e21656148"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/jest-circle-expiry-result.json",
+      "bytes": 2036,
+      "sha256": "6c1977c3367c0ae942c83be98a843c0aec5dda878185e3aeffa94cc648b5eabd"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/bot-fixture-typecheck-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/bot-fixture-eslint.log",
+      "bytes": 1979,
+      "sha256": "b8b28cf1deb20e0478b0477e6529b96964b93cc90fc68ee07cf66e6a9f015c1f"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/eslint.log",
+      "bytes": 1648,
+      "sha256": "a7809a9153a87f7cc67ac665cadd42a8a8850a57ca9540d480948b021c46789a"
+    }
+  ],
+  "noActions": [
+    "生产部署",
+    "生产迁移",
+    "真实资金",
+    "真实通知",
+    "付费打包",
+    "渠道发布",
+    "master合并"
+  ],
+  "rollbackOrder": [
+    "后续交付文档",
+    "e5e379d91测试夹具",
+    "9c8e5e1a2报告修复",
+    "原批次按原记录逆序"
+  ],
+  "formalImage": {
+    "realChannels": false,
+    "passed": true,
+    "image": "sha256:e6934e19bc32b15190f3d08d883f4c4be1a7a45367b4936ac68ac65b2bea4b70",
+    "businessSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry",
+      "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions",
+      "free-course-full-http-postcommit-notification-failure-and-permissions",
+      "live-booking-real-db-failures-retry-concurrency-and-http-target-permissions"
+    ],
+    "cleanupAllConfirmed": true,
+    "verificationSource": "2809aa1896550b02e65ae8abb920a3f4c5ed4415",
+    "runId": 36905399615,
+    "runtimeReportSha256": "ad8c849fec52a6bcea82a8a92cbae55eafd0002ba57cb281f226ee339f20264d",
+    "production": false,
+    "checksPassed": 26,
+    "checkedAt": "2026-10-01T18:23:02.6213824Z",
+    "artifact": {
+      "officialDigestMatches": true,
+      "bytes": 59655,
+      "id": 11183971553,
+      "sha256": "5e533af816c0d2289bcf9bcc4157638b861cea784e53f8cb575e123744b893ff"
+    },
+    "sourceArchiveSha256": "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277"
+  },
+  "handoffCi": {
+    "testsSkipped": 134,
+    "status": "success",
+    "testsPassed": 8931,
+    "suitesPassed": 664,
+    "logs": [
+      {
+        "name": "单元测试 (1/3)",
+        "sha256": "0fcf44c6d2317bcf0bbfa5951cf4cdc0891e701d3dde90cb90536a48e9f7a88d",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "jobId": 110510376465,
+        "tests": "Tests:       44 skipped, 2849 passed, 2893 total"
+      },
+      {
+        "name": "单元测试 (3/3)",
+        "sha256": "cb7df7b58ca8eeaace22daaf3b65baf402d2f6fbe11863fd24b1474a1ffc8208",
+        "suites": "Test Suites: 10 skipped, 220 passed, 220 of 230 total",
+        "jobId": 110510376605,
+        "tests": "Tests:       40 skipped, 3047 passed, 3087 total"
+      },
+      {
+        "name": "单元测试 (2/3)",
+        "sha256": "9d4abd0d04afc09197472031646763a6efc5bea96a7c1856933152afe2fa2338",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "jobId": 110510376692,
+        "tests": "Tests:       50 skipped, 3035 passed, 3085 total"
+      }
+    ],
+    "sourceCommit": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
+    "jobsPassed": 8,
+    "checkedAt": "2026-10-01T18:18:12.5630338Z",
+    "runId": 36903974810,
+    "suitesSkipped": 26
+  },
+  "reception": {
+    "production": false,
+    "masterMerged": false,
+    "stagingHead": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
+    "testFixtureCommit": "e5e379d91f154e84484bb612dcde386197623504",
+    "reception": "三批逐次ff-only",
+    "checkedAt": "2026-10-01T18:09:30.2873706Z",
+    "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "rootWorktreeTouched": false,
+    "bothClean": true,
+    "before": "062f78238f2bf8bb23e1c2884baf990cb34a8246",
+    "runtimeEquivalent": true,
+    "reviewHead": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
+    "conflicts": 0
+  },
+  "imageVerificationFailure": {
+    "correctedStrictIdentity": true,
+    "build": "success",
+    "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "artifactSha256": "27c411900dde7a2c93b18ebbffb7b7ec022819c7f5b273b1433b433a62da5b59",
+    "runtimeVerification": "failure",
+    "runId": 36904112870,
+    "databaseContainersCreated": false,
+    "result": "验证脚本历史标签断言失败",
+    "logSha256": "7d33e01c025dbd8afacedbc52147e46dbf1135060f507cfa78311e32efef7e4e",
+    "production": false,
+    "verificationHead": "d56b3210bfb9ae77b14421769f8dcf293bfec819",
+    "checkedAt": "2026-10-01T18:15:24.6230448Z"
+  },
+  "additionalEvidence": [
+    {
+      "path": "artifacts/channel-intake-20260930/report-lock-image-verified.json",
+      "bytes": 2494,
+      "sha256": "5811cf911a5418bf28006b338b2b3ba0959459fbf708414e2ed349a484e39a27"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/report-lock-image-before-diagnosis.json",
+      "bytes": 593,
+      "sha256": "7230737b6308dbf9f18e49ba65e47d6449e8c010aef1721a824da361980c3675"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/report-lock-handoff-ci-verified.json",
+      "bytes": 1221,
+      "sha256": "ed9a7f37460349080abce22260b9ba80e29bc4e4830c617621baa377928e195f"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/report-lock-final-heads.json",
+      "bytes": 557,
+      "sha256": "716181cee2c6e8ebe5b74149e2dffcfce3a39c21b2a79d7adb06f44d84f058d0"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/report-lock-notification-input-bindings.json",
+      "bytes": 2725,
+      "sha256": "39a7adfbe097bd433ddcb2279b2d52f4dd6bf9872c04669c01601aae469110c3"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/bot-fixture-eslint-baseline.log",
+      "bytes": 2022,
+      "sha256": "349436a889c69d878e9057bea63cf95483e12cbb94a967af003f1ac74bd3c9ea"
+    }
+  ],
+  "evidenceArchive": {
+    "draft": true,
+    "files": 31,
+    "bytes": 37386,
+    "releaseId": 401198425,
+    "officialDigestMatches": true,
+    "published": false,
+    "checkedAt": "2026-10-01T18:23:38.5361915Z",
+    "name": "report-lock-evidence-9c8e5e1a2.tar.gz",
+    "sha256": "7f55f11b94369438647a61ef76d0ca040d8256b28f122e2369c93b31934895d8",
+    "assetId": 603860871,
+    "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "reextractAllHashesExact": true
+  }
+}

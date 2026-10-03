@@ -5,6 +5,7 @@ import { RagService } from "./rag.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("RAG Prompt模板")
 @Controller("admin/rag/templates")
@@ -62,6 +63,7 @@ export class AdminRagController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除模板" })
   @ApiResponse({ status: 200, description: "删除成功" })

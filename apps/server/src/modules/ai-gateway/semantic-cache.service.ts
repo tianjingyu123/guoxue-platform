@@ -64,7 +64,11 @@ export class SemanticCacheService {
     private readonly vector: VectorService,
   ) {}
 
-  async lookup(scene: string, query: string): Promise<string | null> {
+  async lookup(scene: string, query: string, scopeKey?: string): Promise<string | null> {
+    // 数据隔离修复(后端审计P1)：圈主助理等按实体隔离的场景传 scopeKey(如 circleId)，
+    // 将其并入缓存作用域，使 L0/L0.5/L1 三级全部按实体分区，杜绝 A 圈答案命中返回给 B 圈。
+    // 路由仍用原始 scene(不含 scopeKey)，故不影响模型选路。
+    if (scopeKey) scene = `${scene}#${scopeKey}`;
     const normalized = normalizeQuery(query);
     if (normalized.length < 4) return null;
 
@@ -97,6 +101,9 @@ export class SemanticCacheService {
       this.logger.warn(`持久层精确匹配查询失败: ${err.message}`);
     }
 
+    // 解读已按原文及章节隔离，精确未命中后无需再调用向量模型。
+    if (scene.startsWith("classic_translate#")) return null;
+
     // L1: PostgreSQL 向量相似度搜索
     try {
       const [queryVec] = await this.vector.embed([normalized]);
@@ -124,7 +131,10 @@ export class SemanticCacheService {
     response: string,
     model?: string,
     tokenUsage?: Record<string, number>,
+    scopeKey?: string,
   ): Promise<void> {
+    // 与 lookup 对称：写入时同样并入 scopeKey，保证按实体分区存储。
+    if (scopeKey) scene = `${scene}#${scopeKey}`;
     const normalized = normalizeQuery(query);
     if (normalized.length < 4) return;
 
@@ -147,12 +157,12 @@ export class SemanticCacheService {
     model: string,
     tokenUsage?: Record<string, number>,
   ): Promise<void> {
-    const expiryHours = SCENE_EXPIRY_HOURS[scene] ?? DEFAULT_EXPIRY_HOURS;
+    const expiryHours = SCENE_EXPIRY_HOURS[scene.split("#")[0]] ?? DEFAULT_EXPIRY_HOURS;
     const expiresAt = new Date(Date.now() + expiryHours * 3600_000);
 
     let vectorJson: string | null = null;
     try {
-      const [vec] = await this.vector.embed([queryText]);
+      const [vec] = scene.startsWith("classic_translate#") ? [] : await this.vector.embed([queryText]);
       if (vec && vec.length > 0) {
         vectorJson = JSON.stringify(vec);
       }

@@ -1,0 +1,15 @@
+{
+ "tool": "zidian-plaza",
+ "tz": "Asia/Shanghai",
+ "mode": "groups",
+ "source": "服务端引擎（起名字库 31 字审校降级、手写诗词出处纠错、开源姓名样本热度接入后的回归指纹；数据真伪由独立来源核验）",
+ "generatedAt": "2026-09-22",
+ "calls": 100,
+ "groups": 4,
+ "byGroup": {
+  "none": "f9ac2fc344a8a48d",
+  "single": "93ebb5ebfa586e33",
+  "combo": "daa5dc9e00bb1b14",
+  "combo2": "dca2ab24415498fe"
+ }
+}

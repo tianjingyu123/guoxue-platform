@@ -134,13 +134,15 @@
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="报名费（分）">
+            <el-form-item label="报名费（元）">
               <el-input-number
                 v-model="form.entryFee"
                 :min="0"
-                :step="100"
+                :step="1"
+                :precision="2"
                 style="width:100%"
               />
+              <span class="hint">0=免费报名，提交时自动按分存储</span>
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -341,11 +343,16 @@
           :key="idx"
           class="judge-row"
         >
-          <el-input
-            v-model="judge.userId"
-            placeholder="评委用户ID"
-            style="width:260px"
-          />
+          <el-tooltip
+            content="填写平台用户ID：到「用户管理」搜索该评委的账号，复制用户ID粘贴到此处"
+            placement="top"
+          >
+            <el-input
+              v-model="judge.userId"
+              placeholder="评委用户ID（从用户管理复制）"
+              style="width:260px"
+            />
+          </el-tooltip>
           <el-input
             v-model="judge.title"
             placeholder="头衔（如：特邀评审）"
@@ -406,14 +413,15 @@
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="总奖金池（分）">
+              <el-form-item label="总奖金池（元）">
                 <el-input-number
                   v-model="form.totalPrize"
                   :min="0"
                   :step="100"
+                  :precision="2"
                   style="width:100%"
                 />
-                <span class="hint">{{ form.totalPrize > 0 ? '= ¥' + (form.totalPrize / 100).toFixed(2) : '' }}</span>
+                <span class="hint">{{ form.totalPrize > 0 ? '= ¥' + form.totalPrize.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) : '0=无现金奖池' }}</span>
               </el-form-item>
             </el-col>
           </el-row>
@@ -439,7 +447,8 @@
                   v-model="prize.prize"
                   :min="0"
                   :step="100"
-                  placeholder="奖金(分)"
+                  :precision="2"
+                  placeholder="奖金(元)"
                   style="width:140px"
                 />
                 <el-input
@@ -538,8 +547,10 @@
 import { ref, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
+import type { FormInstance } from "element-plus";
 import { Delete } from "@element-plus/icons-vue";
 import { competitionApi } from "@/api";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 
 const router = useRouter();
 
@@ -564,7 +575,7 @@ interface StageForm {
 
 const step = ref(0);
 const submitting = ref(false);
-const basicFormRef = ref<any>(null); // el-form 实例引用，保留 any
+const basicFormRef = ref<FormInstance>();
 
 const form = reactive({
   title: "",
@@ -587,6 +598,10 @@ const form = reactive({
   prizes: [] as { rank: string; title: string; prize: number; description: string }[],
   shareCommitmentRequired: false,
 });
+const { captureBaseline } = useUnsavedChanges(
+  () => form,
+  { message: "赛事创建向导中还有未提交的配置，离开后将丢失。确定离开？" },
+);
 
 const basicRules = {
   title: [{ required: true, message: "请输入赛事标题", trigger: "blur" }],
@@ -668,12 +683,13 @@ async function submit() {
       format: form.format,
       description: form.description || undefined,
       rules: form.rules || undefined,
-      entryFee: Number(form.entryFee) || 0,
+      // 表单以「元」输入，后端字段以「分」存储（prisma entryFee/totalPrize 注释已核实）：提交时 ×100
+      entryFee: Math.round((Number(form.entryFee) || 0) * 100),
       maxParticipants: Number(form.maxParticipants) || 0,
       voteWeight: form.voteWeight,
       shareCommitmentRequired: form.shareCommitmentRequired,
       prizeType: form.prizeType,
-      totalPrize: Number(form.totalPrize) || 0,
+      totalPrize: Math.round((Number(form.totalPrize) || 0) * 100),
       stagesConfig: form.stagesConfig.map((s, i) => ({
         seq: i + 1,
         name: s.name.trim(),
@@ -687,13 +703,16 @@ async function submit() {
       ...(form.judgePanel.length > 0
         ? { judgePanel: form.judgePanel.map((j) => ({ userId: j.userId.trim(), title: j.title.trim(), weight: j.weight })) }
         : {}),
-      ...(form.prizes.length > 0 ? { prizes: form.prizes } : {}),
+      ...(form.prizes.length > 0
+        ? { prizes: form.prizes.map((p) => ({ ...p, prize: Math.round((Number(p.prize) || 0) * 100) })) }
+        : {}),
     };
 
     const { data } = await competitionApi.create(payload);
     // 按 stagesConfig 生成 CompetitionStage 行（幂等）
     await competitionApi.generateStages(data.id);
     ElMessage.success("赛事创建成功，阶段已生成");
+    captureBaseline();
     router.replace(`/competitions/${data.id}`);
   } catch {
     ElMessage.error("创建失败，请检查配置后重试");

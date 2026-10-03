@@ -2,19 +2,41 @@
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { seedPoetry } from "./seeds/poetry.seed";
+import { buildPhoneFields } from "../src/common/crypto.util";
 
 const prisma = new PrismaClient();
 
+const isProduction = process.env.NODE_ENV === "production";
+
+function getSeedPassword(envName: string): string {
+  const configured = process.env[envName]?.trim();
+  if (!configured) {
+    throw new Error(`${envName} 未配置；seed 不再使用代码内置密码`);
+  }
+  if (configured.length < 12) {
+    throw new Error(`${envName} 至少需要 12 个字符`);
+  }
+  return configured;
+}
+
 async function main() {
+  if (isProduction && process.env.ALLOW_PRODUCTION_SEED !== "true") {
+    throw new Error("生产环境默认禁止执行演示 seed；完成备份和审批后才可显式设置 ALLOW_PRODUCTION_SEED=true");
+  }
+
+  const adminSeedPassword = getSeedPassword("SEED_ADMIN_PASSWORD");
+  const teacherSeedPassword = getSeedPassword("SEED_TEACHER_PASSWORD");
+  const operatorSeedPassword = getSeedPassword("SEED_OPERATOR_PASSWORD");
+
   console.log("🌱 开始填充种子数据...");
 
   // 1. 创建管理员用户
-  const adminPwd = await bcrypt.hash("guoxue123", 10);
+  const adminPwd = await bcrypt.hash(adminSeedPassword, 10);
   const admin = await prisma.user.upsert({
     where: { phone: "13800000000" },
-    update: {},
+    update: buildPhoneFields("13800000000"),
     create: {
-      phone: "13800000000",
+      ...buildPhoneFields("13800000000"),
       nickname: "国学管理员",
       avatar: "/static/avatars/admin.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd } },
@@ -24,12 +46,12 @@ async function main() {
   console.log("✅ 管理员: " + admin.nickname);
 
   // 2. 创建讲师用户
-  const teacherPwd = await bcrypt.hash("teacher123", 10);
+  const teacherPwd = await bcrypt.hash(teacherSeedPassword, 10);
   const teacher = await prisma.user.upsert({
     where: { phone: "13800000001" },
-    update: {},
+    update: buildPhoneFields("13800000001"),
     create: {
-      phone: "13800000001",
+      ...buildPhoneFields("13800000001"),
       nickname: "李玄明",
       avatar: "/static/avatars/teacher1.png",
       auths: { create: { provider: "PASSWORD", credential: teacherPwd } },
@@ -39,9 +61,9 @@ async function main() {
 
   const teacher2 = await prisma.user.upsert({
     where: { phone: "13800000002" },
-    update: {},
+    update: buildPhoneFields("13800000002"),
     create: {
-      phone: "13800000002",
+      ...buildPhoneFields("13800000002"),
       nickname: "王清音",
       avatar: "/static/avatars/teacher2.png",
       auths: { create: { provider: "PASSWORD", credential: teacherPwd } },
@@ -51,12 +73,12 @@ async function main() {
   console.log("✅ 讲师: " + teacher.nickname + ", " + teacher2.nickname);
 
   // 2.5 创建新管理角色用户
-  const adminPwd2 = await bcrypt.hash("admin123", 10);
+  const adminPwd2 = await bcrypt.hash(operatorSeedPassword, 10);
   await prisma.user.upsert({
     where: { phone: "13800000003" },
-    update: {},
+    update: buildPhoneFields("13800000003"),
     create: {
-      phone: "13800000003",
+      ...buildPhoneFields("13800000003"),
       nickname: "财务管理员",
       avatar: "/static/avatars/admin.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
@@ -65,9 +87,9 @@ async function main() {
   });
   await prisma.user.upsert({
     where: { phone: "13800000004" },
-    update: {},
+    update: buildPhoneFields("13800000004"),
     create: {
-      phone: "13800000004",
+      ...buildPhoneFields("13800000004"),
       nickname: "客服管理员",
       avatar: "/static/avatars/admin.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
@@ -76,9 +98,9 @@ async function main() {
   });
   await prisma.user.upsert({
     where: { phone: "13800000005" },
-    update: {},
+    update: buildPhoneFields("13800000005"),
     create: {
-      phone: "13800000005",
+      ...buildPhoneFields("13800000005"),
       nickname: "商品品控",
       avatar: "/static/avatars/admin.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
@@ -86,10 +108,10 @@ async function main() {
     },
   });
   await prisma.user.upsert({
-    where: { phone: "13800000001" },
-    update: {},
+    where: { phone: "13800000006" },
+    update: buildPhoneFields("13800000006"),
     create: {
-      phone: "13800000001",
+      ...buildPhoneFields("13800000006"),
       nickname: "运营管理员",
       avatar: "/static/avatars/admin.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
@@ -97,17 +119,17 @@ async function main() {
     },
   });
   await prisma.user.upsert({
-    where: { phone: "13800000002" },
-    update: {},
+    where: { phone: "13800000007" },
+    update: buildPhoneFields("13800000007"),
     create: {
-      phone: "13800000002",
+      ...buildPhoneFields("13800000007"),
       nickname: "内容审核员",
       avatar: "/static/avatars/admin.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
       roles: { create: { roleType: "CONTENT_AUDITOR" } },
     },
   });
-  console.log("✅ 新角色: 运营/内容审核/财务/客服/商品品控 (密码均为 admin123)");
+  console.log("✅ 新角色: 运营/内容审核/财务/客服/商品品控（密码由 SEED_OPERATOR_PASSWORD 提供，不输出明文）");
 
   // 3. 创建圈子
   const circlesData = [
@@ -583,7 +605,7 @@ async function main() {
           // 演示数据：时长按内容篇幅推导(8~30分)、首章免费试看、音视频课配演示媒体
           duration: Math.round(Math.min(1800, Math.max(480, (ch.content?.length ?? 900) / 1.4))),
           freeTrial: ch.sortOrder === 0,
-          mediaUrl: c.type === "TEXT" ? null : DEMO_MEDIA_URL[c.type],
+          mediaUrl: DEMO_MEDIA_URL[c.type],
         },
       });
     }
@@ -2220,9 +2242,9 @@ async function main() {
   // 24. 创建示范分站
   const stationUser = await prisma.user.upsert({
     where: { phone: "13900000001" },
-    update: {},
+    update: buildPhoneFields("13900000001"),
     create: {
-      phone: "13900000001",
+      ...buildPhoneFields("13900000001"),
       nickname: "长安国学馆",
       avatar: "/static/avatars/station1.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd } },
@@ -2251,9 +2273,9 @@ async function main() {
   // 25. 创建运营商
   const operatorUser = await prisma.user.upsert({
     where: { phone: "13900000002" },
-    update: {},
+    update: buildPhoneFields("13900000002"),
     create: {
-      phone: "13900000002",
+      ...buildPhoneFields("13900000002"),
       nickname: "国学推广合伙人",
       avatar: "/static/avatars/operator1.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd } },
@@ -2315,12 +2337,24 @@ async function main() {
   }
   console.log("✅ 内容管理: " + sampleContents.length + " 篇");
 
-  // 28. 研究院成员
+  // 28. 研究院与成员
+  const institute = await (prisma as any).institute.create({
+    data: {
+      name: "华夏国学研究院",
+      intro: "汇聚国学讲师与研修者，开展课程、活动与内容共建。",
+      adminUserId: admin.id,
+      contactName: admin.nickname,
+      contactPhone: admin.phone,
+      status: "ACTIVE",
+    },
+  });
   await (prisma as any).instituteMember.create({
     data: {
+      instituteId: institute.id,
       userId: teacher2.id,
       role: "TYPE_A",
       deposit: 3000,
+      joinYear: new Date().getFullYear(),
       tasksCompleted: 2,
       tasksRequired: 5,
       status: "ACTIVE",
@@ -2397,17 +2431,21 @@ async function main() {
 
   // 31. 经典阅读进度（为管理员在学习经典时记录进度）
   const classicChapters = await prisma.classicChapter.findMany({ take: 20 });
-  for (let i = 0; i < Math.min(classicChapters.length, 15); i++) {
+  // ReadingProgress 按「用户 + 书籍」唯一，每本书仅取一个章节。
+  const progressChapters = Array.from(
+    new Map(classicChapters.map((chapter) => [chapter.bookId, chapter])).values(),
+  ).slice(0, 15);
+  for (const chapter of progressChapters) {
     await prisma.readingProgress.create({
       data: {
         userId: admin.id,
-        bookId: classicChapters[i].bookId,
-        chapterId: classicChapters[i].id,
+        bookId: chapter.bookId,
+        chapterId: chapter.id,
         progress: Math.floor(Math.random() * 100) + 1,
       },
     });
   }
-  console.log("✅ 阅读进度: " + Math.min(classicChapters.length, 15) + " 条");
+  console.log("✅ 阅读进度: " + progressChapters.length + " 条");
 
   // 32. 书签
   const firstBook = await prisma.classicBook.findFirst();
@@ -2566,11 +2604,13 @@ async function main() {
     { key: "ai_translate", name: "AI翻译", description: "AI文言文-白话文翻译功能", enabled: true, percentage: 100 },
     { key: "ai_bazi_analysis", name: "AI八字分析", description: "AI命理分析功能（消耗虚拟币）", enabled: true, percentage: 100 },
     { key: "live_streaming", name: "直播功能", description: "直播间创建与观看", enabled: true, percentage: 100 },
-    { key: "ebook_feature", name: "电子书", description: "电子书阅读、购买、进度同步", enabled: true, percentage: 100 },
+    // 🔴 2026-07-14 关停：电子书板块 07-08 瘦身时已整体下线（前端 pkg-ebook 分包删除、
+    //    后端 /ebook/* 全部移除）。开关留着但置 false，避免任何地方误判"电子书还在"。
+    { key: "ebook_feature", name: "电子书（已下线）", description: "板块 2026-07-08 下线，前后端均已移除", enabled: false, percentage: 0 },
     { key: "coin_recharge", name: "虚拟币充值", description: "微信/支付宝/银联充值虚拟币", enabled: true, percentage: 100 },
     { key: "member_system", name: "会员系统", description: "会员等级、权益、自动续费", enabled: true, percentage: 100 },
     { key: "shop_feature", name: "商城", description: "商品浏览与购买", enabled: true, percentage: 100 },
-    { key: "recommend_engine", name: "推荐引擎", description: "个性化推荐、冷启动、A/B实验", enabled: true, percentage: 100 },
+    { key: "recommend_algorithm", name: "推荐算法", description: "个性化推荐、冷启动、A/B实验", enabled: true, percentage: 100 },
     { key: "paipan_ziwei", name: "紫微斗数排盘", description: "紫微斗数命盘计算", enabled: true, percentage: 100 },
     { key: "circle_feature", name: "圈子", description: "用户圈子创建与互动", enabled: true, percentage: 100 },
     { key: "same_city_feature", name: "同城推荐", description: "基于LBS的同城内容推荐", enabled: true, percentage: 100 },
@@ -2584,6 +2624,9 @@ async function main() {
     { key: "debug_log", name: "调试日志", description: "输出详细调试日志", enabled: false, percentage: 0 },
     { key: "content_review_ai", name: "AI内容审核", description: "使用AI辅助内容审核", enabled: false, percentage: 0 },
     { key: "merchant_onboarding", name: "商家入驻", description: "商家入驻申请入口开关", enabled: false, percentage: 0 },
+    { key: "live_start", name: "直播开播", description: "允许主播开始直播；关闭时不影响已创建记录和历史回放", enabled: true, percentage: 100 },
+    { key: "member_purchase", name: "会员购买", description: "允许创建会员购买订单；关闭时不影响已有会员权益", enabled: true, percentage: 100 },
+    { key: "shop_checkout", name: "商城结算", description: "允许创建商城订单；关闭时不影响已有订单支付和履约", enabled: true, percentage: 100 },
     { key: "merchant_backend", name: "商家后台", description: "商家后台管理功能开关", enabled: false, percentage: 0 },
     { key: "merchant_auto_approve", name: "商品上架自动审核", description: "商家商品上架自动审核通过，无需人工审核", enabled: false, percentage: 0 },
     { key: "merchant_deposit_auto", name: "保证金自动计算", description: "根据经营类目自动计算保证金金额", enabled: true, percentage: 100 },
@@ -2826,9 +2869,9 @@ async function main() {
   await seedPoetry(prisma);
 
   console.log("\n🎉 种子数据填充完成！");
-  console.log("   管理员: 13800000000 / guoxue123");
-  console.log("   讲师1:  13800000001 / teacher123");
-  console.log("   讲师2:  13800000002 / teacher123");
+  console.log("   管理员: 13800000000 / 密码由 SEED_ADMIN_PASSWORD 提供（不输出明文）");
+  console.log("   讲师1:  13800000001 / 密码由 SEED_TEACHER_PASSWORD 提供（不输出明文）");
+  console.log("   讲师2:  13800000002 / 密码由 SEED_TEACHER_PASSWORD 提供（不输出明文）");
 }
 
 main()

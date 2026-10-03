@@ -25,7 +25,7 @@
       <el-col :span="6">
         <el-card shadow="hover">
           <el-statistic
-            title="进行中"
+            title="进行中（当前页）"
             :value="activeCount"
           />
         </el-card>
@@ -33,7 +33,7 @@
       <el-col :span="6">
         <el-card shadow="hover">
           <el-statistic
-            title="已停用"
+            title="草稿/已结束（当前页）"
             :value="inactiveCount"
           />
         </el-card>
@@ -41,8 +41,8 @@
       <el-col :span="6">
         <el-card shadow="hover">
           <el-statistic
-            title="折扣总数"
-            :value="list.length"
+            title="折扣总数（全部）"
+            :value="total || list.length"
           />
         </el-card>
       </el-col>
@@ -148,7 +148,7 @@
           <el-button
             size="small"
             type="danger"
-            @click="del(row.id)"
+            @click="del(row)"
           >
             删除
           </el-button>
@@ -367,7 +367,7 @@ const courseOptions = ref<CourseOption[]>([]); const courseSearchLoading = ref(f
 const circleOptions = ref<CircleOption[]>([]); const circleSearchLoading = ref(false)
 
 onMounted(() => { fetchList(); loadPages() })
-async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.items || data.pages || data.data || [] } catch { /* 忽略 */ } }
+async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = Array.isArray(data) ? data : (data.items || data.pages || data.data || []) } catch { /* 忽略 */ } }
 const activeCount = computed(() => list.value.filter((d: DiscountRow) => d.status === 'ACTIVE').length)
 const inactiveCount = computed(() => list.value.filter((d: DiscountRow) => d.status !== 'ACTIVE').length)
 
@@ -436,6 +436,15 @@ async function save() {
 }
 async function activate(id: string) { try { await marketingApi.updateDiscount(id, { status: 'ACTIVE' }); ElMessage.success('已启用'); fetchList() } catch { ElMessage.error('启用失败') } }
 async function deactivate(id: string) { try { await marketingApi.updateDiscount(id, { status: 'ENDED' }); ElMessage.success('已停用'); fetchList() } catch { ElMessage.error('操作失败') } }
-async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteDiscount(id); ElMessage.success('已删除'); fetchList() } catch { /* 用户取消 */ } }
+async function del(row: DiscountRow) {
+  // 删除确认带影响预告：进行中的折扣删除后商品立即恢复原价
+  const scopeDesc = (row.productIds?.length || row.courseIds?.length || row.circleIds?.length)
+    ? `影响 商品×${row.productIds?.length || 0} / 课程×${row.courseIds?.length || 0} / 圈子×${row.circleIds?.length || 0}`
+    : '影响全场商品'
+  const warn = row.status === 'ACTIVE'
+    ? `该折扣正在进行中（${scopeDesc}），删除后用户端立即恢复原价。`
+    : '删除后不可恢复。'
+  try { await ElMessageBox.confirm(`${warn}确定删除？`, '删除折扣', { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' }); await marketingApi.deleteDiscount(row.id); ElMessage.success('已删除'); fetchList() } catch { /* 用户取消 */ }
+}
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

@@ -17,18 +17,9 @@
     </view>
 
     <template v-else>
-    <!-- 超时倒计时条 -->
-    <view class="timer-bar" :class="{ urgent: isUrgent }">
-      <view class="timer-left">
-        <app-icon name="clock" :size="28" :color="isUrgent ? '#EF4444' : '#FF6B35'" />
-        <text class="timer-text" :class="{ urgent: isUrgent }">请在 {{ countdown.m }}:{{ countdown.s }} 内完成支付</text>
-      </view>
-      <text v-if="isUrgent" class="timer-warn">即将超时</text>
-    </view>
-
     <scroll-view scroll-y class="content">
       <!-- 地址 -->
-      <view class="address-card" @tap="showAddress = true">
+      <view class="address-card" role="button" tabindex="0" aria-label="选择或添加收货地址" @tap="onAddressCardTap" @keydown.enter="onAddressCardTap" @keydown.space.prevent="onAddressCardTap">
         <app-icon name="map-pin" :size="40" color="#C41E3A" />
         <view class="address-info" v-if="currentAddress">
           <view class="addr-top">
@@ -37,6 +28,10 @@
             <view v-if="currentAddress.isDefault" class="default-tag"><text>默认</text></view>
           </view>
           <text class="addr-detail">{{ currentAddress.province }}{{ currentAddress.city }}{{ currentAddress.district }}{{ currentAddress.address }}</text>
+        </view>
+        <view v-else class="address-empty">
+          <text class="address-empty-title">{{ addresses.length > 0 ? '选择收货地址' : '添加收货地址' }}</text>
+          <text class="address-empty-hint">{{ addresses.length > 0 ? '请选择已有地址，或添加新地址' : '请填写收货人、手机号和详细地址' }}</text>
         </view>
         <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
       </view>
@@ -58,97 +53,121 @@
       </view>
 
       <!-- 优惠券 -->
-      <view class="cell" @tap="showCoupon = true">
+      <view class="cell" role="button" tabindex="0" aria-label="选择优惠券" @tap="showCoupon = true" @keydown.enter="showCoupon = true" @keydown.space.prevent="showCoupon = true">
         <view class="cell-left">
           <app-icon name="tag" :size="36" color="#C41E3A" />
           <text class="cell-label">优惠券</text>
         </view>
-        <text class="cell-value active">{{ selectedCoupon ? '-¥' + selectedCoupon.value : (coupons.length > 0 ? coupons.length + '张可用' : '暂无可用') }}</text>
+        <!-- 券抵扣与明细行同口径（displayCouponDiscount=后端试算，多商品券仅抵首单），避免顶部显原始面值与明细不一致 -->
+        <text class="cell-value active">{{ selectedCoupon ? (estimate ? '-¥' + displayCouponDiscount.toFixed(2) : '核算中') : (coupons.length > 0 ? coupons.length + '张可用' : '暂无可用') }}</text>
         <app-icon name="chevron-right" :size="32" color="#999999" />
       </view>
 
-      <!-- 支付方式 -->
-      <view class="pay-card">
-        <text class="pay-title">支付方式</text>
-        <view v-for="m in payMethods" :key="m.id" class="pay-item" @tap="payMethod = m.id">
-          <view class="pay-badge" :style="{ background: m.badgeColor }"><text>{{ m.badge }}</text></view>
-          <text class="pay-name">{{ m.name }}</text>
-          <view class="radio" :class="{ checked: payMethod === m.id }">
-            <view v-if="payMethod === m.id" class="radio-dot" />
-          </view>
+      <view class="pay-card pay-card--fast">
+        <app-icon name="zap" :size="36" color="#22c55e" />
+        <view class="pay-description">
+          <text class="pay-name">快捷支付</text>
+          <text class="pay-reason">提交后将按当前环境直接打开安全收银台</text>
         </view>
       </view>
 
-      <!-- 价格明细 -->
+      <!-- 价格明细（后端试算优先：与下单定价引擎同口径，含券后价与分销自购立减；试算不可用回退前端预估） -->
       <view class="amount-card">
         <text class="amount-title">价格明细</text>
-        <view class="amount-row"><text>商品金额</text><text class="amount-val">¥{{ goodsTotal.toFixed(2) }}</text></view>
-        <view class="amount-row"><text>运费</text><text class="amount-val">免运费</text></view>
-        <view class="amount-row" v-if="selectedCoupon"><text>优惠券抵扣</text><text class="discount">-¥{{ selectedCoupon.value.toFixed(2) }}</text></view>
-        <view class="amount-row total"><text>实付金额</text><text class="pay-amount">¥{{ payTotal.toFixed(2) }}</text></view>
+        <view class="amount-row"><text>商品金额</text><text class="amount-val">¥{{ displayGoods.toFixed(2) }}</text></view>
+        <view class="amount-row">
+          <text>运费</text>
+          <text class="amount-val">{{ currentAddress ? (estimate ? (estimate.shippingFee > 0 ? '¥' + estimate.shippingFee.toFixed(2) : '免运费') : '核算中') : '选择地址后核算' }}</text>
+        </view>
+        <view class="amount-row" v-if="displayCouponDiscount > 0"><text>优惠券抵扣</text><text class="discount">-¥{{ displayCouponDiscount.toFixed(2) }}</text></view>
+        <!-- 分销自购立减：仅后端试算确认有该身份优惠时展示（拿不到身份不猜） -->
+        <view class="amount-row" v-if="estimate && estimate.selfDiscount > 0"><text>分销自购立减</text><text class="discount">-¥{{ estimate.selfDiscount.toFixed(2) }}</text></view>
+        <view class="amount-row total"><text>{{ estimate ? '实付金额' : '金额待核算' }}</text><text class="pay-amount">{{ estimate ? '¥' + displayPayTotal.toFixed(2) : '—' }}</text></view>
+        <text v-if="!estimate" class="estimate-tip">{{ estimateLoading ? '正在核算价格与运费…' : '价格与运费核算暂不可用，提交时将重新核对。' }}</text>
       </view>
       <view style="height: 140rpx;" />
     </scroll-view>
 
+    <view v-if="pendingAttempt" class="pending-attempt">
+      <text>上次下单结果待确认。重复提交会沿用原请求。</text>
+      <view role="link" tabindex="0" aria-label="查看我的订单" @tap="navigateTo('/pkg-order/list/index')" @keydown.enter="navigateTo('/pkg-order/list/index')" @keydown.space.prevent="navigateTo('/pkg-order/list/index')">查看订单 ›</view>
+    </view>
     <!-- 底部支付栏 -->
     <view class="footer">
       <view class="footer-total">
         <view class="ft-line">
-          <text class="ft-label">合计:</text>
-          <text class="ft-amount">¥{{ payTotal.toFixed(2) }}</text>
+          <text class="ft-label">{{ estimate ? '合计:' : '待核算:' }}</text>
+          <text class="ft-amount">{{ estimate ? '¥' + displayPayTotal.toFixed(2) : '—' }}</text>
         </view>
-        <text v-if="selectedCoupon" class="ft-saved">已优惠 ¥{{ selectedCoupon.value }}</text>
+        <text v-if="displaySaved > 0" class="ft-saved">已优惠 ¥{{ displaySaved.toFixed(2) }}</text>
       </view>
-      <view class="pay-btn" @tap="submitOrder"><text>提交订单</text></view>
+      <view class="pay-btn" role="button" tabindex="0" :aria-disabled="submitting ? 'true' : 'false'" @tap="submitOrder" @keydown.enter="submitOrder" @keydown.space.prevent="submitOrder"><text>{{ submitting ? '提交中…' : '提交订单' }}</text></view>
     </view>
 
     <!-- 地址选择 -->
-    <view v-if="showAddress" class="mask" @tap="showAddress = false">
-      <view class="sheet" @tap.stop>
-        <text class="sheet-title">选择收货地址</text>
-        <view v-for="a in addresses" :key="a.id" class="addr-option" @tap="selectAddress(a)">
+    <view v-if="showAddress" class="mask" @tap="showAddress = false" @touchmove.self.prevent>
+      <view class="sheet address-sheet" role="dialog" aria-modal="true" aria-label="选择收货地址" tabindex="-1" @tap.stop>
+        <view class="sheet-head">
+          <text class="sheet-title">选择收货地址</text>
+          <view class="sheet-close" role="button" tabindex="0" aria-label="关闭地址选择" @tap="showAddress = false" @keydown.enter="showAddress = false" @keydown.space.prevent="showAddress = false"><app-icon name="x" :size="30" color="#666666" /></view>
+        </view>
+        <view v-for="a in addresses" :key="a.id" class="addr-option" role="button" tabindex="0" :aria-label="`选择收货地址：${a.name}，${a.province}${a.city}${a.district}${a.address}`" @tap="selectAddress(a)" @keydown.enter="selectAddress(a)" @keydown.space.prevent="selectAddress(a)">
           <view class="addr-option-info">
             <view class="addr-top"><text class="addr-name">{{ a.name }}</text><text class="addr-phone">{{ a.phone }}</text></view>
             <text class="addr-detail">{{ a.province }}{{ a.city }}{{ a.district }}{{ a.address }}</text>
           </view>
           <app-icon v-if="currentAddress && currentAddress.id === a.id" name="check" :size="36" color="#C41E3A" />
         </view>
+        <!-- 添加新地址入口（新用户无地址时的唯一通道，此前缺失导致卡死） -->
+        <view
+          role="button" tabindex="0" aria-label="添加新收货地址"
+          style="display:flex;align-items:center;justify-content:center;gap:10rpx;padding:28rpx;margin-top:12rpx;border:2rpx dashed #C41E3A;border-radius:16rpx;"
+          @tap="goAddAddress"
+          @keydown.enter="goAddAddress" @keydown.space.prevent="goAddAddress"
+        >
+          <app-icon name="plus" :size="32" color="#C41E3A" />
+          <text style="font-size:28rpx;color:#C41E3A;font-weight:500;">添加新地址</text>
+        </view>
       </view>
     </view>
 
     <!-- 优惠券选择 -->
-    <view v-if="showCoupon" class="mask" @tap="showCoupon = false">
-      <view class="sheet" @tap.stop>
-        <text class="sheet-title">选择优惠券</text>
-        <view class="coupon-option" @tap="selectCoupon(null)">
+    <view v-if="showCoupon" class="mask" @tap="showCoupon = false" @touchmove.self.prevent>
+      <view class="sheet coupon-sheet" role="dialog" aria-modal="true" aria-label="选择优惠券" tabindex="-1" @tap.stop>
+        <view class="sheet-head">
+          <text class="sheet-title">选择优惠券</text>
+          <view class="sheet-close" role="button" tabindex="0" aria-label="关闭优惠券选择" @tap="showCoupon = false" @keydown.enter="showCoupon = false" @keydown.space.prevent="showCoupon = false"><app-icon name="x" :size="30" color="#666666" /></view>
+        </view>
+        <view class="coupon-option" role="button" tabindex="0" aria-label="不使用优惠券" @tap="selectCoupon(null)" @keydown.enter="selectCoupon(null)" @keydown.space.prevent="selectCoupon(null)">
           <text>不使用优惠券</text>
           <view class="radio" :class="{ checked: !selectedCoupon }"><view v-if="!selectedCoupon" class="radio-dot" /></view>
         </view>
-        <view v-for="c in coupons" :key="c.id" class="coupon-option" @tap="selectCoupon(c)">
+        <view v-for="c in coupons" :key="c.id" class="coupon-option" role="button" tabindex="0" :aria-label="`使用优惠券：${c.name}`" @tap="selectCoupon(c)" @keydown.enter="selectCoupon(c)" @keydown.space.prevent="selectCoupon(c)">
           <view><text class="co-name">{{ c.name }} -¥{{ c.value }}</text><text class="co-min">满{{ c.minAmount }}可用</text></view>
           <view class="radio" :class="{ checked: selectedCoupon && selectedCoupon.id === c.id }"><view v-if="selectedCoupon && selectedCoupon.id === c.id" class="radio-dot" /></view>
         </view>
       </view>
     </view>
 
-    <!-- 超时警告 -->
-    <view v-if="showTimeout" class="mask center">
-      <view class="dialog" @tap.stop>
-        <app-icon name="clock" :size="80" color="#FF8800" />
-        <text class="dialog-title">支付超时</text>
-        <text class="dialog-desc">订单支付时间已超时，请重新下单</text>
-        <view class="dialog-btn" @tap="onTimeout"><text>重新下单</text></view>
-      </view>
-    </view>
     </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import { redirectTo } from '@/utils/router'
-import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon } from '@/lib/shop-data'
+import { ref, computed, watch, onMounted } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import { redirectTo, navigateTo } from '@/utils/router'
+import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon, type OrderEstimate } from '@/lib/shop-data'
+// #ifdef APP-PLUS
+import { isAndroidPaymentPlatform, androidPaymentMethods, assertAndroidPaymentMethod } from '@/utils/android-payment-options'
+// #endif
+// #ifdef H5
+import { existingOrderCashierRoute, isHuifuChannel } from '@/utils/existing-order-huifu'
+import { h5PaymentOptions } from '@/utils/h5-payment-options'
+import { getRemoteConfig, hydrateRemoteConfig } from '@/lib/remote-config'
+// #endif
+import { requestKeysFor, hasPendingCheckoutAttempt, clearCheckoutAttempt } from '@/lib/checkout-request-keys'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 const loading = ref(true)
 const error = ref('')
@@ -161,8 +180,21 @@ const selectedCoupon = ref<CheckoutCoupon | null>(null)
 const payMethod = ref('wechat')
 const showAddress = ref(false)
 const showCoupon = ref(false)
-const showTimeout = ref(false)
+useOverlayScrollLock(() => showAddress.value, {
+  onEscape: () => { showAddress.value = false },
+  focusContainerSelector: '.address-sheet',
+  initialFocusSelector: '.address-sheet .sheet-close',
+})
+useOverlayScrollLock(() => showCoupon.value, {
+  onEscape: () => { showCoupon.value = false },
+  focusContainerSelector: '.coupon-sheet',
+  initialFocusSelector: '.coupon-sheet .sheet-close',
+})
 const submitting = ref(false)
+const pendingAttempt = ref(hasPendingCheckoutAttempt())
+// 多商品逐单创建时，缓存已成功建单；失败重试只复用同一结算选择下的订单。
+const createdOrders = new Map<string, { id: string; amount: number }>()
+let createdOrderSelection = ''
 
 // 结算来源：立即购买(productId+skuId+quantity) 或 购物车结算(itemIds)
 const source = ref<{ productId?: string; skuId?: string; quantity?: number; itemIds?: string[] }>({})
@@ -171,7 +203,54 @@ const contentSource = ref<{ type?: string; id?: string }>({})
 const SOURCE_TYPES = ['LIVE', 'ARTICLE', 'VIDEO']
 
 const goodsTotal = computed(() => items.value.reduce((s: number, i: any) => s + i.price * i.quantity, 0))
-const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.value?.value || 0)))
+/*
+ * 后端试算（POST /shop/orders/estimate）：与下单定价引擎同口径（活动价×数量 − 券 − 分销自购立减），
+ * 保证「展示价 = 下单实付」。多商品与提交订单同规则逐单试算（券只用于第一单）后求和。
+ * 报价失效或请求失败时不展示旧的「实付」，提交前必须重新取得服务端试算。
+ */
+const estimate = ref<OrderEstimate | null>(null)
+const estimateLoading = ref(false)
+let estimateSeq = 0
+async function refreshEstimate() {
+  const seq = ++estimateSeq
+  estimate.value = null
+  if (!items.value.length || !currentAddress.value) { estimateLoading.value = false; return }
+  estimateLoading.value = true
+  try {
+    const results: OrderEstimate[] = []
+    for (let i = 0; i < items.value.length; i++) {
+      const it = items.value[i]
+      results.push(await shopApi.estimateOrder({
+        targetId: it.productId,
+        skuId: it.skuId,
+        quantity: it.quantity,
+        couponId: i === 0 ? selectedCoupon.value?.id : undefined,
+        addressId: currentAddress.value.id,
+      }))
+    }
+    if (seq !== estimateSeq) return // 过期响应丢弃（快速切换券）
+    estimate.value = results.reduce((acc, r) => ({
+      goodsAmount: acc.goodsAmount + r.goodsAmount,
+      shippingFee: acc.shippingFee + r.shippingFee,
+      couponDiscount: acc.couponDiscount + r.couponDiscount,
+      selfDiscount: acc.selfDiscount + r.selfDiscount,
+      payableAmount: acc.payableAmount + r.payableAmount,
+    }), { goodsAmount: 0, shippingFee: 0, couponDiscount: 0, selfDiscount: 0, payableAmount: 0 })
+  } catch (e) {
+    if (seq !== estimateSeq) return
+    estimate.value = null
+    console.warn('[checkout] 订单试算失败，需重新核对后提交', e)
+  } finally {
+    if (seq === estimateSeq) estimateLoading.value = false
+  }
+}
+watch([items, selectedCoupon, currentAddress], () => { refreshEstimate() }, { deep: false })
+
+// 展示口径：只有服务端试算可用时才显示实付金额和优惠。
+const displayGoods = computed(() => estimate.value ? estimate.value.goodsAmount : goodsTotal.value)
+const displayCouponDiscount = computed(() => estimate.value?.couponDiscount || 0)
+const displayPayTotal = computed(() => estimate.value?.payableAmount || 0)
+const displaySaved = computed(() => displayCouponDiscount.value + (estimate.value?.selfDiscount || 0))
 
 async function fetchCheckoutData() {
   error.value = ''
@@ -182,6 +261,22 @@ async function fetchCheckoutData() {
     addresses.value = result.addresses || []
     coupons.value = result.coupons || []
     payMethods.value = result.payMethods || []
+    // #ifdef APP-PLUS
+    if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) {
+      payMethods.value = androidPaymentMethods()
+      payMethod.value = 'alipay'
+    }
+    // #endif
+    // #ifdef H5
+    await hydrateRemoteConfig(true)
+    const options = h5PaymentOptions(typeof navigator === 'undefined' ? '' : navigator.userAgent, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top)
+    payMethods.value = payMethods.value.map(item => ({ ...item, ...options.find(option => option.id === item.id) }))
+    const inWechat = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('micromessenger')
+    const preferred = inWechat ? 'wechat' : 'alipay'
+    payMethod.value = payMethods.value.some(item => item.id === preferred && item.enabled)
+      ? preferred
+      : payMethods.value.find(item => item.enabled)?.id || ''
+    // #endif
     currentAddress.value = addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
     if (!items.value.length) error.value = '没有可结算的商品，请返回重新选择'
   } catch (e) {
@@ -204,38 +299,101 @@ onLoad((q) => {
   if (SOURCE_TYPES.includes(srcType) && srcId) contentSource.value = { type: srcType, id: srcId }
 })
 
-// 15分钟倒计时
-const remain = ref(15 * 60 * 1000)
-const countdown = computed(() => formatCountdown(remain.value))
-const isUrgent = computed(() => remain.value <= 180 * 1000)
-let timer: ReturnType<typeof setInterval> | null = null
 onMounted(async () => {
   await fetchCheckoutData()
-  timer = setInterval(() => {
-    remain.value -= 1000
-    if (remain.value <= 0) {
-      remain.value = 0
-      showTimeout.value = true
-      if (timer) clearInterval(timer)
-    }
-  }, 1000)
 })
-onUnmounted(() => { if (timer) clearInterval(timer) })
 
-function selectAddress(a: ShippingAddress) { currentAddress.value = a; showAddress.value = false }
-function selectCoupon(c: CheckoutCoupon | null) { selectedCoupon.value = c; showCoupon.value = false }
+function canChangeOrderSelection() {
+  if (hasPendingCheckoutAttempt()) {
+    uni.showToast({ title: '上次下单结果待确认，请先到我的订单核对', icon: 'none' })
+    return false
+  }
+  if (!createdOrders.size && !submitting.value) return true
+  uni.showToast({ title: createdOrders.size ? '已有订单生成，请先完成当前订单' : '订单提交中，请稍候', icon: 'none' })
+  return false
+}
+function selectAddress(a: ShippingAddress) {
+  if (!canChangeOrderSelection()) return
+  currentAddress.value = a
+  showAddress.value = false
+}
+function selectCoupon(c: CheckoutCoupon | null) {
+  if (!canChangeOrderSelection()) return
+  selectedCoupon.value = c
+  showCoupon.value = false
+}
+
+// 无地址时从卡片直接进入新增页；已有地址时保留地址选择弹层。
+function onAddressCardTap() {
+  if (!currentAddress.value && addresses.value.length === 0) {
+    goAddAddress()
+    return
+  }
+  showAddress.value = true
+}
+
+// 跳地址编辑页新增地址（结算弹层无地址时的入口）
+function goAddAddress() {
+  showAddress.value = false
+  navigateTo('/pkg-account/address-edit/index')
+}
+// 从地址编辑页返回时刷新地址列表（新增地址立即可选）；首次加载中跳过避免重复请求
+async function refreshAddressesOnReturn() {
+  if (loading.value || !source.value || submitting.value) return
+  try {
+    const result = await shopApi.getCheckout(source.value)
+    if (submitting.value) return
+    addresses.value = result.addresses || []
+    // 同一地址可能已改省份；替换为新对象，触发报价重算。已删除则回落到有效地址。
+    currentAddress.value = addresses.value.find((a: ShippingAddress) => a.id === currentAddress.value?.id)
+      || addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
+  } catch { /* 请求失败时保留当前选择，提交仍由服务端校验。 */ }
+}
+onShow(() => { void refreshAddressesOnReturn() })
 
 async function submitOrder() {
   if (submitting.value) return
   if (!items.value.length) { uni.showToast({ title: '没有可结算的商品', icon: 'none' }); return }
   if (!currentAddress.value) { uni.showToast({ title: '请选择收货地址', icon: 'none' }); return }
+  const selection = JSON.stringify({
+    addressId: currentAddress.value.id,
+    couponId: selectedCoupon.value?.id,
+    items: items.value.map((it) => [it.productId, it.skuId, it.quantity]),
+  })
+  if (createdOrders.size && selection !== createdOrderSelection) {
+    uni.showToast({ title: '结算内容已变化，请到我的订单处理已生成订单', icon: 'none' })
+    return
+  }
   submitting.value = true
+  if (!estimate.value) {
+    await refreshEstimate()
+    if (!estimate.value) {
+      submitting.value = false
+      uni.showToast({ title: '价格与运费核算失败，请重试', icon: 'none' })
+      return
+    }
+  }
   try {
+    // #ifdef APP-PLUS
+    assertAndroidPaymentMethod(uni.getSystemInfoSync().platform, payMethod.value)
+    // #endif
+    // #ifdef H5
+    await hydrateRemoteConfig(true)
+    const option = h5PaymentOptions(typeof navigator === 'undefined' ? '' : navigator.userAgent, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top).find(item => item.id === payMethod.value)
+    if (!option?.enabled) throw new Error(option?.reason || '请选择当前可用的支付方式')
+    // #endif
+    // 请求发出前落本地键；若响应丢失，同一结算内容再次提交仍可由服务端返回原单。
+    const requestKeys = requestKeysFor(selection, items.value.length)
+    pendingAttempt.value = true
     const couponId = selectedCoupon.value?.id
     // 后端为单商品下单（无合并支付）：多商品逐个创建订单，券仅用于第一单；先支付第一笔，其余在「我的订单」继续支付
     const orders: { id: string; amount: number }[] = []
     for (let i = 0; i < items.value.length; i++) {
       const it = items.value[i]
+      const key = String(i)
+      // 已成功建过的订单（上次提交中途失败留下）直接复用，不再重复下单
+      const cached = createdOrders.get(key)
+      if (cached) { orders.push(cached); continue }
       const order = await shopApi.createOrder({
         type: 'PRODUCT',
         targetId: it.productId,
@@ -243,36 +401,52 @@ async function submitOrder() {
         quantity: it.quantity,
         couponId: i === 0 ? couponId : undefined,
         addressId: currentAddress.value.id,
+        clientRequestId: requestKeys[i],
         // 内容场景来源（佣-V2-P3）：直播/文章/视频入口透传，随订单落库
         sourceContentType: contentSource.value.type,
         sourceContentId: contentSource.value.id,
       })
-      orders.push({ id: order.id, amount: order.amount })
+      if (order.status !== 'PENDING' && order.status !== 'PAID') {
+        throw new Error('原订单状态已变化，请到我的订单核对后再结算')
+      }
+      const rec = { id: order.id, amount: order.amount }
+      if (!createdOrderSelection) createdOrderSelection = selection
+      createdOrders.set(key, rec) // 建单成功立即缓存，失败重试时该商品跳过
+      orders.push(rec)
     }
     const first = orders[0]
+    clearCheckoutAttempt()
+    pendingAttempt.value = false
     if (orders.length > 1) {
       uni.showToast({ title: `已创建${orders.length}笔订单，先支付第一笔`, icon: 'none' })
     }
-    redirectTo(`/shop/paying?orderId=${first.id}&method=${payMethod.value}&amount=${first.amount}`)
+    const liveReturn = contentSource.value.type === 'LIVE' && contentSource.value.id
+      ? `&returnLiveRoomId=${encodeURIComponent(contentSource.value.id)}`
+      : ''
+    // #ifdef H5
+    if (isHuifuChannel(payMethod.value)) {
+      redirectTo(existingOrderCashierRoute(first.id, payMethod.value, true))
+      return
+    }
+    // #endif
+    redirectTo(`/shop/paying?orderId=${first.id}&method=${payMethod.value}&amount=${first.amount}${liveReturn}`)
     // 成功跳转后不重置 submitting（页面已离开）
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
     submitting.value = false
   }
 }
-function onTimeout() { redirectTo('/shop/pay-timeout') }
 </script>
 
 <style lang="scss" scoped>
 .checkout { min-height: 100vh; background: #F5F5F5; display: flex; flex-direction: column; }
 
-.timer-bar { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 30rpx; background: #FFF5E6; &.urgent { background: #FEF2F2; } }
-.timer-left { display: flex; align-items: center; gap: 12rpx; }
-.timer-text { font-size: 26rpx; color: #FF6B35; &.urgent { color: #EF4444; } }
-.timer-warn { font-size: 22rpx; color: #EF4444; }
 .content { flex: 1; }
 .address-card { display: flex; align-items: center; gap: 16rpx; background: #FFFFFF; margin: 20rpx; padding: 28rpx 24rpx; border-radius: 20rpx; }
 .address-info { flex: 1; display: flex; flex-direction: column; gap: 10rpx; }
+.address-empty { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
+.address-empty-title { font-size: 30rpx; font-weight: 600; color: #1A1A1A; }
+.address-empty-hint { font-size: 24rpx; line-height: 1.4; color: #999999; }
 .addr-top { display: flex; align-items: center; gap: 16rpx; }
 .addr-name { font-size: 30rpx; font-weight: 600; color: #1A1A1A; }
 .addr-phone { font-size: 26rpx; color: #666666; }
@@ -300,6 +474,9 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .pay-badge { width: 56rpx; height: 56rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; }
 .pay-badge text { color: #FFFFFF; font-size: 28rpx; }
 .pay-name { font-size: 28rpx; color: #1A1A1A; }
+.pay-description { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
+.pay-reason { font-size: 22rpx; color: #888; }
+.pay-item.disabled { opacity: .6; }
 .radio { width: 40rpx; height: 40rpx; border-radius: 50%; border: 2rpx solid #CCCCCC; margin-left: auto; display: flex; align-items: center; justify-content: center; &.checked { border-color: var(--brand); } }
 .radio-dot { width: 22rpx; height: 22rpx; border-radius: 50%; background: var(--brand); }
 .amount-card { background: #FFFFFF; margin: 0 20rpx; padding: 24rpx; border-radius: 20rpx; }
@@ -318,18 +495,17 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .ft-saved { font-size: 22rpx; color: #16A34A; }
 .pay-btn { margin-left: auto; padding: 20rpx 60rpx; border-radius: 40rpx; background: linear-gradient(90deg, var(--brand), #C8453E); }
 .pay-btn text { color: #FFFFFF; font-size: 30rpx; font-weight: 600; }
+.pending-attempt { padding: 18rpx 30rpx; background: #FFF5E6; color: #744B17; font-size: 24rpx; display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.pending-attempt view { flex-shrink: 0; color: #8E4218; font-weight: 600; }
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; &.center { align-items: center; justify-content: center; } }
-.sheet { width: 100%; background: #FFFFFF; border-radius: 24rpx 24rpx 0 0; padding: 32rpx; max-height: 70vh; }
+.sheet { width: 100%; box-sizing: border-box; background: #FFFFFF; border-radius: 24rpx 24rpx 0 0; padding: 24rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); max-height: 70vh; overflow-y: auto; }
+.sheet-head { position: sticky; top: -24rpx; z-index: 1; display: flex; align-items: center; justify-content: space-between; background: #FFFFFF; }
 .sheet-title { font-size: 32rpx; font-weight: 600; color: #1A1A1A; display: block; margin-bottom: 24rpx; }
+.sheet-close { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; }
 .addr-option, .coupon-option { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 0; border-bottom: 2rpx solid #F5F5F5; }
 .addr-option-info { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
 .co-name { font-size: 28rpx; color: #1A1A1A; display: block; }
 .co-min { font-size: 24rpx; color: #999999; }
-.dialog { width: 560rpx; background: #FFFFFF; border-radius: 24rpx; padding: 48rpx 40rpx; display: flex; flex-direction: column; align-items: center; gap: 20rpx; }
-.dialog-title { font-size: 34rpx; font-weight: 600; color: #1A1A1A; }
-.dialog-desc { font-size: 28rpx; color: #666666; text-align: center; }
-.dialog-btn { margin-top: 12rpx; width: 100%; height: 88rpx; border-radius: 44rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
-.dialog-btn text { color: #FFFFFF; font-size: 30rpx; }
 
 /* 加载态 */
 .loading-zone { padding: 20rpx; display: flex; flex-direction: column; gap: 20rpx; }

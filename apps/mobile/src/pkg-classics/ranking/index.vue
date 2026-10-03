@@ -48,6 +48,7 @@ function goDetail(id: string) {
 </script>
 
 <template>
+  <app-safe-area-top />
   <view class="ranking-page">
     <ClassicsHeader title="推荐榜" />
 

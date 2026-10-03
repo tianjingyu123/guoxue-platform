@@ -3,7 +3,9 @@ import { AiGatewayController } from "./ai-gateway.controller";
 import { AiGatewayService } from "./ai-gateway.service";
 import { ModelRouterService } from "./model-router.service";
 import { AiLoggerService } from "./ai-logger.service";
+import { AiUsageRecordService } from "./ai-usage-record.service";
 import { VectorService } from "./vector.service";
+import { HunyuanEmbeddingService } from "./hunyuan-embedding.service";
 import { RagService } from "./rag.service";
 import { KnowledgeSyncService } from "./knowledge-sync.service";
 import { KnowledgeSyncController } from "./knowledge-sync.controller";
@@ -21,6 +23,7 @@ import { MarketplaceService } from "./marketplace.service";
 import { MarketplaceController } from "./marketplace.controller";
 import { SemanticCacheService } from "./semantic-cache.service";
 import { StreamUnifierService } from "./stream-unifier.service";
+import { ChatSceneAccessService } from "./chat-scene-access.service";
 import { KnowledgeGraphService } from "./knowledge-graph.service";
 import { UserKnowledgeService } from "./user-knowledge.service";
 import { KnowledgeQualityService } from "./knowledge-quality.service";
@@ -45,27 +48,37 @@ import { CollaborationService } from "./collaboration.service";
 import { CollaborationController } from "./collaboration.controller";
 import { AnomalyDetectorService } from "./anomaly-detector.service";
 import { AnomalyDetectorController } from "./anomaly-detector.controller";
+import { AiOpsBridgeService } from "./ai-ops-bridge.service";
 import { DataExplorerService } from "./data-explorer.service";
 import { DataExplorerController } from "./data-explorer.controller";
 import { SystemModule } from "../system/system.module";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { RedisModule } from "../../redis/redis.module";
 import { TtsModule } from "../tts/tts.module";
+import { MemberModule } from "../member/member.module";
+import { ZhixuanController } from "./zhixuan.controller";
+import { ZhixuanService } from "./zhixuan.service";
+import { RecommendationService } from "../bot/recommendation.service";
 
 @Module({
-  imports: [SystemModule, PrismaModule, RedisModule, TtsModule],
-  controllers: [AiGatewayController, CustomerServiceController, KnowledgeSyncController, AdminDedupController, AdminModelRoutingController, PublishAssistController, MediaAiController, AdminRagController, MarketplaceController, QualityScorerController, PlatformKnowledgeController, AiEventBusController, CapabilityRegistryController, DecisionLedgerController, CollaborationController, AnomalyDetectorController, DataExplorerController],
+  imports: [SystemModule, PrismaModule, RedisModule, TtsModule, MemberModule],
+  controllers: [AiGatewayController, ZhixuanController, CustomerServiceController, KnowledgeSyncController, AdminDedupController, AdminModelRoutingController, PublishAssistController, MediaAiController, AdminRagController, MarketplaceController, QualityScorerController, PlatformKnowledgeController, AiEventBusController, CapabilityRegistryController, DecisionLedgerController, CollaborationController, AnomalyDetectorController, DataExplorerController],
   providers: [
     AiGatewayService,
+    ZhixuanService,
     ModelRouterService,
     AiLoggerService,
+    AiUsageRecordService,
     SemanticCacheService,
     StreamUnifierService,
+    ChatSceneAccessService,
     QualityScorerService,
     VectorService,
+    HunyuanEmbeddingService,
     RagService,
     KnowledgeSyncService,
     CustomerServiceService,
+    RecommendationService,
     AdminDedupService,
     PublishAssistService,
     MediaAiService,
@@ -86,8 +99,9 @@ import { TtsModule } from "../tts/tts.module";
     DecisionLedgerService,
     CollaborationService,
     AnomalyDetectorService,
+    AiOpsBridgeService,
     DataExplorerService,
   ],
-  exports: [AiGatewayService, ModelRouterService, AiLoggerService, VectorService, RagService, KnowledgeSyncService, SemanticCacheService, StreamUnifierService, MultiAgentService, MultimodalService, EdgeAiService, KnowledgeGraphService, UserKnowledgeService, PlatformKnowledgeService, AiEventBusService, CapabilityRegistryService, DecisionLedgerService, CollaborationService, AnomalyDetectorService, DataExplorerService],
+  exports: [AiGatewayService, ModelRouterService, AiLoggerService, VectorService, HunyuanEmbeddingService, RagService, KnowledgeSyncService, SemanticCacheService, StreamUnifierService, MultiAgentService, MultimodalService, EdgeAiService, KnowledgeGraphService, UserKnowledgeService, PlatformKnowledgeService, AiEventBusService, CapabilityRegistryService, DecisionLedgerService, CollaborationService, AnomalyDetectorService, DataExplorerService],
 })
 export class AiGatewayModule {}

@@ -34,11 +34,45 @@ describe("TtsController", () => {
   });
 
   it("GET /tts/synthesize — 文本转语音GET", async () => {
-    const req: any = { user: { id: "u1" } };
-    const res: any = { set: jest.fn(), send: jest.fn() };
-    await ctrl.synthesizeGet(req, "你好", "female", "1.0", res);
-    expect(mockTtsSvc.synthesize).toHaveBeenCalledWith({ text: "你好", voice: "female", rate: "1.0" });
+    const req: any = { user: { id: "u1" }, headers: {} };
+    const res: any = { set: jest.fn(), send: jest.fn(), status: jest.fn().mockReturnThis(), end: jest.fn() };
+    await ctrl.synthesizeGet(req, "你好", "female", "1.0", "poetry", "110", "2", res);
+    expect(mockTtsSvc.synthesize).toHaveBeenCalledWith({
+      text: "你好",
+      voice: "female",
+      rate: "1.0",
+      emotion: "poetry",
+      emotionIntensity: 110,
+      segmentRate: 2,
+    });
+    expect(res.set).toHaveBeenCalledWith(expect.objectContaining({
+      "Accept-Ranges": "bytes",
+      "Content-Length": "5",
+    }));
     expect(res.send).toHaveBeenCalled();
+  });
+
+  it("GET /tts/synthesize — Range 请求返回 206 音频分片", async () => {
+    const req: any = { headers: { range: "bytes=1-3" } };
+    const res: any = { set: jest.fn(), send: jest.fn(), status: jest.fn().mockReturnThis(), end: jest.fn() };
+    await ctrl.synthesizeGet(req, "你好", "female", "1.0", undefined, undefined, undefined, res);
+    expect(res.status).toHaveBeenCalledWith(206);
+    expect(res.set).toHaveBeenCalledWith(expect.objectContaining({
+      "Accept-Ranges": "bytes",
+      "Content-Length": "3",
+      "Content-Range": "bytes 1-3/5",
+    }));
+    expect(res.send).toHaveBeenCalledWith(Buffer.from("udi"));
+  });
+
+  it("GET /tts/synthesize — 非法 Range 返回 416", async () => {
+    const req: any = { headers: { range: "bytes=99-100" } };
+    const res: any = { set: jest.fn(), send: jest.fn(), status: jest.fn().mockReturnThis(), end: jest.fn() };
+    await ctrl.synthesizeGet(req, "你好", "female", "1.0", undefined, undefined, undefined, res);
+    expect(res.status).toHaveBeenCalledWith(416);
+    expect(res.set).toHaveBeenCalledWith(expect.objectContaining({ "Content-Range": "bytes */5" }));
+    expect(res.end).toHaveBeenCalled();
+    expect(res.send).not.toHaveBeenCalled();
   });
 
   it("GET /tts/voices — 获取语音列表", async () => {

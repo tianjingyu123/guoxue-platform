@@ -10,6 +10,14 @@
 import { reactive } from "vue";
 import { systemApi } from "@/api";
 
+const publicApiOrigin = String(import.meta.env.VITE_API_URL || "")
+  .trim()
+  .replace(/\/+$/, "");
+const DEFAULT_H5_URL = String(
+  import.meta.env.VITE_PUBLIC_H5_URL ||
+    (publicApiOrigin ? `${publicApiOrigin}/h5/` : "https://api.rebugx.cn/h5/"),
+);
+
 export interface BrandConfig {
   /** 站名（全称） */
   name: string;
@@ -39,6 +47,8 @@ export interface BrandConfig {
   serviceEmail: string;
   /** 客服微信 */
   serviceWechat: string;
+  /** 企业微信人工客服二维码 */
+  serviceWechatQrUrl: string;
   /** 协议主体：公司全称 */
   companyName: string;
   /** 协议主体：平台名 */
@@ -61,6 +71,7 @@ const FIELD_MAP: Record<string, keyof BrandConfig> = {
   servicePhone: "servicePhone",
   serviceEmail: "serviceEmail",
   serviceWechat: "serviceWechat",
+  serviceWechatQrUrl: "serviceWechatQrUrl",
   companyName: "companyName",
   platformName: "platformName",
 };
@@ -76,10 +87,11 @@ export const BRAND = reactive<BrandConfig>({
   qrGuide: "长按识别 · 开启国学之旅",
   logoUrl: "",
   primaryColor: "#c41e3a",
-  h5Url: "https://api.rebugx.cn/h5/",
+  h5Url: DEFAULT_H5_URL,
   servicePhone: "",
   serviceEmail: "support@rebu.com",
   serviceWechat: "rebu_guoxue",
+  serviceWechatQrUrl: "",
   companyName: "",
   platformName: "热卜国学",
 });

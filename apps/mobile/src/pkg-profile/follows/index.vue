@@ -52,39 +52,68 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from '@/utils/router'
+import { mineApi } from '@/lib/mine-data'
 
-const followingUsers = [
-  { id: 1, name: '玄易大师', bio: '国学研究者，专注八字命理30年', isVerified: true },
-  { id: 2, name: '子平先生', bio: '《渊海子平》研究专家，授课千余场', isVerified: true },
-  { id: 3, name: '紫微学堂', bio: '紫微斗数教学，通俗易懂', isVerified: false },
-  { id: 4, name: '风水堪舆师', bio: '环境风水咨询，阳宅布局', isVerified: true },
-  { id: 5, name: '易学爱好者小王', bio: '学习中，欢迎交流', isVerified: false },
-]
-const followerUsers = [
-  { id: 6, name: '命理学徒', bio: '正在学习八字命理', isVerified: false, isFollowing: false },
-  { id: 7, name: '国学新手', bio: '对传统文化很感兴趣', isVerified: false, isFollowing: true },
-  { id: 8, name: '道法自然', bio: '道家文化爱好者，修身养性', isVerified: true, isFollowing: false },
-  { id: 9, name: '周易研习社', bio: '周易研究小组，共同进步', isVerified: false, isFollowing: false },
-  { id: 10, name: '玄门弟子', bio: '跟随师父学习中', isVerified: false, isFollowing: true },
-  { id: 11, name: '易经初学者', bio: '刚开始接触易经', isVerified: false, isFollowing: false },
-]
+// 展示用结构（后端仅返回 id/nickname/avatar，无 bio/认证字段，故 bio 用关系提示、isVerified 恒 false）
+interface DisplayUser { id: string; name: string; bio: string; isVerified: boolean }
 
+const followingUsers = ref<DisplayUser[]>([])
+const followerUsers = ref<DisplayUser[]>([])
 const tab = ref<'following' | 'followers'>('following')
 const keyword = ref('')
-const state = ref<Record<number, boolean>>({})
-followingUsers.forEach(u => { state.value[u.id] = true })
-followerUsers.forEach(u => { state.value[u.id] = u.isFollowing })
+const loading = ref(false)
+const state = ref<Record<string, boolean>>({})
+const submittingId = ref<string | null>(null)
 
-const current = computed(() => tab.value === 'following' ? followingUsers : followerUsers)
+// 真连：GET /users/:id/following + /users/:id/followers（复用 mineApi.getFollowData 的交叉互关计算）
+async function fetchData() {
+  loading.value = true
+  try {
+    const res = await mineApi.getFollowData()
+    followingUsers.value = res.following.map((u) => ({
+      id: u.id, name: u.name || '用户',
+      bio: u.isFollowedBy ? '互相关注' : '', isVerified: false,
+    }))
+    followerUsers.value = res.followers.map((u) => ({
+      id: u.id, name: u.name || '用户',
+      bio: u.isFollowing ? '互相关注' : '关注了你', isVerified: false,
+    }))
+    const s: Record<string, boolean> = {}
+    res.following.forEach((u) => { s[u.id] = true })
+    res.followers.forEach((u) => { s[u.id] = u.isFollowing })
+    state.value = s
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '加载失败', icon: 'none' })
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(fetchData)
+
+const current = computed(() => tab.value === 'following' ? followingUsers.value : followerUsers.value)
 const filtered = computed(() => {
   const k = keyword.value.trim().toLowerCase()
   if (!k) return current.value
   return current.value.filter(u => u.name.toLowerCase().includes(k) || u.bio.toLowerCase().includes(k))
 })
-function toggle(id: number) { state.value[id] = !state.value[id] }
-function goUser(id: number) { navigateTo('/user/' + id) }
+
+async function toggle(id: string) {
+  if (submittingId.value) return
+  submittingId.value = id
+  const next = !state.value[id]
+  try {
+    if (next) await mineApi.followUser(id)
+    else await mineApi.unfollowUser(id)
+    state.value[id] = next
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
+  } finally {
+    submittingId.value = null
+  }
+}
+function goUser(id: string) { navigateTo('/user/' + id) }
 </script>
 
 <style scoped>

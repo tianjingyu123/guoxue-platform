@@ -6,6 +6,7 @@ import { createE2eApp } from "./e2e-setup"
 describe("Live E2E", () => {
   let app: INestApplication
   let prisma: any
+  let redis: any
   let jwt: JwtService
   let token: string
   let adminToken: string
@@ -14,6 +15,7 @@ describe("Live E2E", () => {
     const ctx = await createE2eApp()
     app = ctx.app
     prisma = ctx.prisma
+    redis = ctx.redis
     jwt = app.get(JwtService)
     token = jwt.sign({ sub: "u1" })
     adminToken = jwt.sign({ sub: "admin1" })
@@ -48,21 +50,23 @@ describe("Live E2E", () => {
     })
 
     it("创建直播间成功", async () => {
+      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
       prisma.liveRoom.create.mockResolvedValue({ id: "r1", title: "国学直播", products: [] })
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/rooms")
         .set("Authorization", `Bearer ${token}`)
-        .send({ title: "国学直播", hostUserId: "u1" })
+        .send({ title: "国学直播", hostUserId: "u1", circleId: "c1" })
         .expect(201)
       expect(res.body.id).toBe("r1")
     })
 
     it("关联课程创建直播间", async () => {
+      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
       prisma.liveRoom.create.mockResolvedValue({ id: "r2", title: "课程直播", courseId: "co1", products: [] })
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/rooms")
         .set("Authorization", `Bearer ${token}`)
-        .send({ title: "课程直播", hostUserId: "u1", courseId: "co1" })
+        .send({ title: "课程直播", hostUserId: "u1", courseId: "co1", circleId: "c1" })
         .expect(201)
       expect(res.body.courseId).toBe("co1")
     })
@@ -105,6 +109,109 @@ describe("Live E2E", () => {
       await request(app.getHttpServer())
         .get("/api/v1/live/rooms/nonexistent")
         .expect(404)
+    })
+  })
+
+  describe("GET /api/v1/live/rooms/:id/comments", () => {
+    const circleRoom = {
+      id: "r1", hostUserId: "host1", userId: "creator1", circleId: "c1",
+      visibility: "CIRCLE_ONLY", auditStatus: "APPROVED", status: "LIVING",
+    }
+
+    it("匿名和圈外用户不能读取圈内直播公屏", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue(circleRoom)
+      await request(app.getHttpServer()).get("/api/v1/live/rooms/r1/comments").expect(404)
+
+      prisma.circleMember.findFirst.mockResolvedValue(null)
+      await request(app.getHttpServer())
+        .get("/api/v1/live/rooms/r1/comments")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(404)
+      expect(prisma.comment.findMany).not.toHaveBeenCalled()
+    })
+
+    it("圈成员只能读取公开且未软删除评论，页大小最多20", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue(circleRoom)
+      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
+      prisma.comment.findMany.mockResolvedValue([{ id: "comment1", status: "PUBLISHED", deletedAt: null }])
+      prisma.comment.count.mockResolvedValue(1)
+
+      const res = await request(app.getHttpServer())
+        .get("/api/v1/live/rooms/r1/comments?pageSize=100")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200)
+      expect(res.body.pageSize).toBe(20)
+      expect(prisma.comment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          targetType: "LIVESTREAM", targetId: "r1", parentId: null,
+          status: "PUBLISHED", deletedAt: null,
+        },
+        include: expect.objectContaining({
+          replies: expect.objectContaining({ where: { status: "PUBLISHED", deletedAt: null } }),
+        }),
+        take: 20,
+      }))
+    })
+
+    it("watch-context 返回服务端能力布尔且在线头像固定为空", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue(circleRoom)
+      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
+      prisma.liveMutedUser.findUnique.mockResolvedValue(null)
+
+      const res = await request(app.getHttpServer())
+        .get("/api/v1/live/rooms/r1/watch-context")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200)
+      expect(res.body.viewer).toEqual(expect.objectContaining({
+        canComment: true, canLike: true, canGift: true,
+      }))
+      expect(res.body.interaction.allowGift).toBe(true)
+      expect(res.body.online.avatars).toEqual([])
+    })
+  })
+
+  describe("POST /api/v1/live/rooms/:id/comment|like", () => {
+    const circleRoom = {
+      id: "r1", hostUserId: "host1", userId: "creator1", circleId: "c1",
+      visibility: "CIRCLE_ONLY", auditStatus: "APPROVED", status: "LIVING",
+      imGroupId: null,
+    }
+
+    it("圈外用户不能写入评论或点赞", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue(circleRoom)
+      prisma.circleMember.findFirst.mockResolvedValue(null)
+
+      await request(app.getHttpServer())
+        .post("/api/v1/live/rooms/r1/comment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ content: "绕过评论" })
+        .expect(404)
+      await request(app.getHttpServer())
+        .post("/api/v1/live/rooms/r1/like")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(404)
+      expect(prisma.comment.create).not.toHaveBeenCalled()
+      expect(prisma.like.upsert).not.toHaveBeenCalled()
+    })
+
+    it("有效圈成员可通过专属端点评论和点赞", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue(circleRoom)
+      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
+      prisma.liveMutedUser.findUnique.mockResolvedValue(null)
+      prisma.comment.create.mockResolvedValue({ id: "comment1", content: "讲得好" })
+      prisma.like.upsert.mockResolvedValue({ id: "like1" })
+      prisma.like.count.mockResolvedValue(1)
+
+      await request(app.getHttpServer())
+        .post("/api/v1/live/rooms/r1/comment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ content: "讲得好" })
+        .expect(201)
+      const likeRes = await request(app.getHttpServer())
+        .post("/api/v1/live/rooms/r1/like")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(201)
+      expect(likeRes.body.likeCount).toBe(1)
     })
   })
 
@@ -168,7 +275,9 @@ describe("Live E2E", () => {
   describe("PUT /api/v1/live/rooms/:id/replay", () => {
     it("设置直播回放成功", async () => {
       mockAdminUser()
-      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING" })
+      prisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r1", status: "ENDED", userId: "host1", circleId: null, courseId: null, title: "直播",
+      })
       prisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "REPLAY", replayUrl: "https://replay.example.com/v.mp4" })
       const res = await request(app.getHttpServer())
         .put("/api/v1/live/rooms/r1/replay")
@@ -176,6 +285,20 @@ describe("Live E2E", () => {
         .send({ replayUrl: "https://replay.example.com/v.mp4" })
         .expect(200)
       expect(res.body.replayUrl).toBe("https://replay.example.com/v.mp4")
+      expect(prisma.liveRoom.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ replayStatus: "PUBLISHED", replayPublishedBy: "admin1" }),
+      }))
+    })
+
+    it("直播未结束不能发布回放", async () => {
+      mockAdminUser()
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING" })
+      await request(app.getHttpServer())
+        .put("/api/v1/live/rooms/r1/replay")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ replayUrl: "https://replay.example.com/v.mp4" })
+        .expect(400)
+      expect(prisma.liveRoom.update).not.toHaveBeenCalled()
     })
   })
 
@@ -183,12 +306,26 @@ describe("Live E2E", () => {
 
   describe("POST /api/v1/live/rooms/:id/book", () => {
     it("预约直播成功", async () => {
-      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "WAITING" })
+      prisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r1", status: "WAITING", startTime: new Date(Date.now() + 60 * 60 * 1000),
+      })
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/rooms/r1/book")
         .set("Authorization", `Bearer ${token}`)
         .expect(201)
       expect(res.body.booked).toBe(true)
+      expect(prisma.liveBooking.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        where: { roomId_userId: { roomId: "r1", userId: "u1" } },
+      }))
+    })
+
+    it("未配置开播时间不能预约", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "WAITING", startTime: null })
+      await request(app.getHttpServer())
+        .post("/api/v1/live/rooms/r1/book")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(400)
+      expect(prisma.liveBooking.upsert).not.toHaveBeenCalled()
     })
   })
 
@@ -215,13 +352,14 @@ describe("Live E2E", () => {
 
   describe("POST /api/v1/live/rooms/:id/mics", () => {
     it("上麦成功", async () => {
-      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1" })
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING", hostUserId: "host1" })
+      prisma.liveMic.findFirst.mockResolvedValue(null)
       prisma.liveMic.findUnique.mockResolvedValue(null)
       prisma.liveMic.create.mockResolvedValue({ id: "m1", liveRoomId: "r1", userId: "u1", position: 1, status: "OCCUPIED" })
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/rooms/r1/mics")
         .set("Authorization", `Bearer ${token}`)
-        .send({ userId: "u1", position: 1 })
+        .send({ position: 1 })
         .expect(201)
       expect(res.body.position).toBe(1)
     })
@@ -229,9 +367,11 @@ describe("Live E2E", () => {
 
   describe("GET /api/v1/live/rooms/:id/mics", () => {
     it("获取麦位列表", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", hostUserId: "host1" })
       prisma.liveMic.findMany.mockResolvedValue([])
       const res = await request(app.getHttpServer())
         .get("/api/v1/live/rooms/r1/mics")
+        .set("Authorization", `Bearer ${token}`)
         .expect(200)
       expect(Array.isArray(res.body)).toBe(true)
     })
@@ -308,16 +448,31 @@ describe("Live E2E", () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/callback")
         .send({ stream_param: "room_r1", event_type: 100, video_url: "https://replay.example.com/live.mp4" })
-        .expect(201)
+        .expect(200)
       expect(res.body.code).toBe(0)
     })
 
-    it("推流回调处理成功", async () => {
+    it("按腾讯云 stream_id 识别推流，并忽略 stream_param 中的鉴权参数", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1" })
+      redis.getJson.mockResolvedValue(null)
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/callback")
-        .send({ stream_param: "room_r1", event_type: 1 })
-        .expect(201)
+        .send({
+          stream_id: "room_r1",
+          stream_param: "txSecret=secret&txTime=12345678",
+          event_type: 1,
+        })
+        .expect(200)
       expect(res.body.code).toBe(0)
+      expect(prisma.liveRoom.findUnique).toHaveBeenCalledWith({
+        where: { id: "r1" },
+        select: { id: true },
+      })
+      expect(redis.setJson).toHaveBeenCalledWith(
+        "live:stream-status:r1",
+        expect.objectContaining({ status: "online" }),
+        expect.any(Number),
+      )
     })
   })
 

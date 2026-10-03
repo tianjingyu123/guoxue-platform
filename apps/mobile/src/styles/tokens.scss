@@ -5,12 +5,18 @@
    ============================================================ */
 
 /* ---------- ① 原始调色板（仅供语义层引用，组件禁止直接用） ---------- */
-:root {
+:root,
+page {
+  /* ⚠️ 全站锁定浅色：暗色未全站适配（hex 与 var 混用会在系统深色下半翻转花屏），
+     强制浏览器只用浅色配色，防止原生控件/表单被 UA 强制深色。待暗色专项重构后再放开。 */
+  color-scheme: light;
   /* 故宫红 */
   --gugong-red: #c41e3a;
   --gugong-red-soft: #d94452;
   --gugong-red-deep: #a01830;
-  /* 珠宝金 */
+  /* 珠宝金 —— 🔴 金色纪律（视觉签名系统批0定稿）：金=荣誉与稀缺，滥用即廉价。
+     白名单（允许用金）：会员/成就/精华/认证/圈主/评分星/收藏选中态；
+     黑名单（禁止用金）：普通按钮/价格/普通图标。 */
   --jewel-gold: #c9a96e;
   --jewel-gold-soft: #d4b87d;
   --jewel-gold-deep: #b8985f;
@@ -42,7 +48,8 @@
 }
 
 /* ---------- ② 语义令牌 · 浅色 ---------- */
-:root {
+:root,
+page {
   --touch-target-min: 88rpx; /* 44px */
   --radius: 16rpx;           /* 0.5rem */
 
@@ -54,7 +61,10 @@
 
   --bg-paper: var(--xuan-paper);
   --brand: var(--gugong-red);
-  --brand-soft: var(--gugong-red-soft);
+  /* ⚠️ 语义修正（董事长 2026-07-11 真机"红底红字看不清"真凶）：
+     V0 还原体系里 --brand-soft = 品牌色 8% 透明浅底（红字浅红底按钮），全站 25 处按此使用；
+     旧定义误指实红 #d94452 导致 fallback 永不生效 → 红底红字。实红浅色请用 --gugong-red-soft。 */
+  --brand-soft: rgba(196, 30, 58, 0.08);
   --gold: var(--jewel-gold);
   --gold-foreground: var(--ink);
   --text-ink: var(--ink);
@@ -102,7 +112,12 @@
   --ebook-text-soft: #64748b;
 }
 
-/* ---------- ② 语义令牌 · 深色（与原型一致的整套覆盖） ---------- */
+/* ---------- ② 语义令牌 · 深色（暂时禁用） ----------
+   ⚠️ 暗色未全站适配：全站 250+ 文件硬编码 hex（不随令牌翻转）与少数 var()（随令牌翻转）
+   混用，H5 端系统开深色会触发 prefers-color-scheme 半翻转 → 花屏 + 文字消失。
+   真做暗色需数千处 hex→var 大重构（待专项拍板）。当前先锁死浅色，禁用系统深色自动翻转，
+   保证浅色全平台一致可读。下方整套深色覆盖（含 @media 与 .theme-dark 手动 class）暂时注释停用。
+
 @media (prefers-color-scheme: dark) {
   :root {
     --xuan-paper: #1a1815;
@@ -118,7 +133,6 @@
     --classics-bg: #1a1815;
   }
 }
-/* 手动暗色 class（小程序无 prefers-color-scheme 时用） */
 .theme-dark {
   --xuan-paper: #1a1815;
   --pure-white: #211e1a;
@@ -130,15 +144,32 @@
   --jewel-gold: #d4b87d;
   --classics-bg: #1a1815;
 }
+---------- 深色语义令牌注释结束 ---------- */
 
 /* ---------- 字族 ---------- */
-:root {
+:root,
+page {
   --font-sans: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --font-serif: 'Noto Serif SC', 'Songti SC', 'STSong', serif;
 }
 
+/* ---------- 字号阶梯（《全平台体验标准 V1.0》§二 · 全平台唯一字号真源） ----------
+   新代码禁止手写字号魔法数字，一律引用下列变量。
+   caption 22rpx 为全站最小字号，禁止更小（纯装饰性徽标数字除外）。
+   正文行高统一 1.6（page 全局已设，见 App.vue）。 */
+:root,
+page {
+  --fs-display: 44rpx;   /* 特大标题/金额 · font-weight 700 */
+  --fs-title-lg: 36rpx;  /* 页面主标题 · font-weight 600 */
+  --fs-title: 32rpx;     /* 卡片/区块标题 · font-weight 600 */
+  --fs-body: 30rpx;      /* 正文 · font-weight 400 */
+  --fs-body-sm: 26rpx;   /* 次要正文 · font-weight 400 */
+  --fs-caption: 22rpx;   /* 辅助说明（最小值·禁止更小） · font-weight 400 */
+}
+
 /* ---------- 五行专属色 + indigo 辅助色（从原型 globals.css 1:1 迁移） ---------- */
-:root {
+:root,
+page {
   --wuxing-wood: #2d8a4e;   /* 木 - 青绿色 */
   --wuxing-fire: #c41e3a;   /* 火 - 朱红色 */
   --wuxing-earth: #b8860b;  /* 土 - 土黄色 */
@@ -147,6 +178,55 @@
   --indigo: #2d5a87;
   --indigo-light: #e8f0f5;
 }
+
+/* ============================================================
+   对话体验令牌 · 2026-09-22
+   以系统级清晰层级为目标，保留热卜品牌色作为动作色。
+   对话类页面优先引用本层，避免各页面重复创造视觉语言。
+   ============================================================ */
+:root,
+page {
+  --agent-canvas: #f5f5f7;
+  --agent-surface: #ffffff;
+  --agent-surface-soft: #f8f8fa;
+  --agent-ink: #1d1d1f;
+  --agent-secondary: #6e6e73;
+  --agent-tertiary: #8e8e93;
+  --agent-border: rgba(60, 60, 67, 0.18);
+  --agent-border-soft: rgba(60, 60, 67, 0.10);
+  --agent-accent: #2b8a82;
+  --agent-accent-soft: rgba(43, 138, 130, 0.10);
+  --agent-radius-sm: 12rpx;
+  --agent-radius-md: 18rpx;
+  --agent-radius-lg: 24rpx;
+  --agent-shadow: 0 8rpx 28rpx rgba(31, 35, 41, 0.06);
+  --agent-ease: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* ============================================================
+   圈子体验令牌 · 苹果级信息层级批 · 2026-09-22
+   圈子页面只引用这一层，不改变平台既有品牌动作色、权限和业务语义。
+   ============================================================ */
+:root,
+page {
+  --circle-canvas: #f5f5f7;
+  --circle-surface: #ffffff;
+  --circle-surface-soft: #f8f8fa;
+  --circle-ink: #1d1d1f;
+  --circle-secondary: #6e6e73;
+  --circle-tertiary: #8e8e93;
+  --circle-border: rgba(60, 60, 67, 0.18);
+  --circle-border-soft: rgba(60, 60, 67, 0.10);
+  --circle-accent: #2b6f68;
+  --circle-accent-soft: rgba(43, 111, 104, 0.10);
+  --circle-radius-sm: 12rpx;
+  --circle-radius-md: 18rpx;
+  --circle-radius-lg: 24rpx;
+  --circle-shadow: 0 8rpx 28rpx rgba(31, 35, 41, 0.06);
+  --circle-ease: cubic-bezier(.22, 1, .36, 1);
+}
+/* ⚠️ 五行色深色覆盖同样暂时禁用（原因见上方语义令牌深色段说明）：先锁浅色，待暗色专项重构。
+
 @media (prefers-color-scheme: dark) {
   :root {
     --wuxing-wood: #4ade80;
@@ -163,6 +243,7 @@
   --wuxing-metal: #fcd34d;
   --wuxing-water: #60a5fa;
 }
+---------- 五行色深色覆盖注释结束 ---------- */
 
 /* ---------- 五行类名工具类（供 :class 动态绑定, App/小程序端 scoped 外全局可用） ---------- */
 .wx-wood { color: var(--wuxing-wood); }
@@ -180,7 +261,8 @@
    诗词板块专属配色系统（从原型 globals.css 1:1 迁移）
    定位：深色沉浸式文化体验——深棕夜色为底，琥珀金为点缀
    ============================================================ */
-:root {
+:root,
+page {
   --poem-bg:          #1c1208;   /* 页面底色：深夜棕黑 */
   --poem-bg-2:        #241a0e;   /* 次级背景 */
   --poem-surface:     #2e1f10;   /* 卡片/面板底色 */
@@ -195,4 +277,25 @@
   --poem-ai-soft:     rgba(155, 126, 200, 0.18); /* AI 浅底 */
   --poem-red:         #c0433a;   /* 点赞红 */
   --poem-line:        rgba(255, 210, 140, 0.08); /* 分隔线 */
+}
+
+/* ============================================================
+   视觉签名系统 · 批0收编层（2026-07-17）
+   收编：此前全站大量写法 var(--bg-page, ...) / var(--bg-warm, #f8f4ec) /
+   var(--separator, ...) / var(--text-primary, ...) 等，变量从未定义，
+   全靠 fallback 空转。本层正式定义这批语义令牌，自此统一生效、可全局调优。
+   ============================================================ */
+:root,
+page {
+  --bg-page: var(--xuan-paper);        /* 页面底：宣纸 */
+  --bg-card: var(--pure-white);        /* 卡片底：纯白 */
+  --bg-warm: #f8f4ec;                  /* 暖底：米宣（区块衬底） */
+  --separator: #ede7dd;                /* 分隔线：暖灰 */
+  --text-primary: var(--ink);          /* 主文字：墨 */
+  --text-secondary: var(--ink-2);      /* 次文字 */
+  --text-tertiary: var(--ink-3);       /* 辅助文字 */
+  /* 墨线：两端渐隐的手绘感分隔线（配 .ink-divider 使用，见 signature.scss） */
+  --ink-line: linear-gradient(90deg, transparent, rgba(74, 58, 44, 0.16) 18%, rgba(74, 58, 44, 0.16) 82%, transparent);
+  /* 印泥红渐变：印章/盖章类点缀专用（brand-seal 朱文底），禁用于普通按钮 */
+  --seal-gradient: linear-gradient(160deg, #d94452, #c41e3a 45%, #a01830);
 }

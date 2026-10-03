@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { SearchService } from "./search.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
 
 const mockRedis = {
   getJson: jest.fn().mockResolvedValue(null),
@@ -50,11 +51,113 @@ describe("SearchService", () => {
       expect(result).toHaveProperty("contents");
     });
 
+    it("Content 公开搜索使用发布/分站/定时门禁，且不复用旧缓存", async () => {
+      const result = await svc.search({ q: "旧内容", type: "content" });
+      expect(result.contents).toEqual([]);
+      const sqls = mockPrisma.$queryRawUnsafe.mock.calls.map((args: unknown[]) => String(args[0]))
+        .filter((sql: string) => sql.includes('FROM "Content"'));
+      expect(sqls).toHaveLength(2);
+      for (const sql of sqls) {
+        expect(sql).toContain('"status" = \'PUBLISHED\'');
+        expect(sql).toContain('"stationId" IS NULL');
+        expect(sql).toContain('"scheduledAt" <= NOW()');
+      }
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockRedis.setJson).not.toHaveBeenCalled();
+    });
+
+    it("文章/课程只搜索全平台开放且未删除的内容（全文与模糊回退两条路径都不含圈内私有）", async () => {
+      await svc.search({ q: "私有测试", type: "article" });
+      await svc.search({ q: "私有测试课", type: "course" });
+      const sqls = mockPrisma.$queryRawUnsafe.mock.calls.map((c: unknown[]) => String(c[0]));
+      const articleSql = sqls.filter((sql: string) => sql.includes('"Article"'));
+      const courseSql = sqls.filter((sql: string) => sql.includes('"Course"'));
+      expect(articleSql.length).toBeGreaterThanOrEqual(2);
+      expect(courseSql.length).toBeGreaterThanOrEqual(2);
+      for (const sql of [...articleSql, ...courseSql]) {
+        expect(sql).toContain(`"visibility" = 'PLATFORM'`);
+        expect(sql).toContain(`"deletedAt" IS NULL`);
+      }
+    });
+
+    it("古籍只搜索公开口径（已发布 + 已审计可商用许可），全文与模糊两条路径一致", async () => {
+      mockPrisma.$queryRawUnsafe.mockClear();
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
+      await svc.search({ q: "周易版权待审", type: "classic" });
+      const sqls = mockPrisma.$queryRawUnsafe.mock.calls.map((c: unknown[]) => String(c[0])).filter((s: string) => s.includes('"ClassicBook"'));
+      expect(sqls.length).toBeGreaterThanOrEqual(1);
+      for (const sql of sqls) {
+        expect(sql).toContain(`"status" = 'PUBLISHED'`);
+        expect(sql).toContain(`FROM "ClassicCopyright" cc`);
+        expect(sql).toContain(`cc."auditedAt" IS NOT NULL`);
+        expect(sql).toContain(`'PUBLIC-DOMAIN'`);
+        expect(sql).not.toContain(`'CC-BY-NC`);
+      }
+    });
+
+    it("视频公开搜索两条路径均排除圈内、私密及未审核内容", async () => {
+      await svc.search({ q: "视频公开门禁", type: "video" });
+      const sqls = mockPrisma.$queryRawUnsafe.mock.calls
+        .map((c: unknown[]) => String(c[0]))
+        .filter((sql: string) => sql.includes('FROM "Video"'));
+      expect(sqls).toHaveLength(2);
+      for (const sql of sqls) {
+        expect(sql).toContain(`"status" = 'PUBLISHED'`);
+        expect(sql).toContain(`"auditStatus" = 'APPROVED'`);
+        expect(sql).toContain(`"visibility" = 'PLATFORM'`);
+        expect(sql).toContain(`"isPrivate" = false`);
+      }
+    });
+
+    it("fresh 检索跳过旧缓存且不写入新缓存", async () => {
+      await svc.search({ q: "已下架视频", type: "video", fresh: true });
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockRedis.setJson).not.toHaveBeenCalled();
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalled();
+    });
+
+    it("普通搜索也不再返回撤权前的 Redis 旧结果", async () => {
+      mockRedis.getJson.mockResolvedValueOnce({ articles: [{ id: "revoked", title: "已撤下" }] });
+      const result = await svc.search({ q: "已撤下", type: "article" });
+      expect(result.articles).toEqual([]);
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockRedis.setJson).not.toHaveBeenCalled();
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalled();
+    });
+
+    it("自定义权重结果不复用无权重缓存", async () => {
+      await svc.search({ q: "论语", type: "article", weightMap: new Map([["article:all", 2]]) });
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockRedis.setJson).not.toHaveBeenCalled();
+    });
+
     it("指定 type 只搜索对应类型（全文搜索排名）", async () => {
       mockPrisma.$queryRawUnsafe.mockResolvedValue([{ id: "a1", title: "论语", rank: 0.8 }]);
       const result = await svc.search({ q: "论语", type: "article" });
       expect(result.articles).toHaveLength(1);
       expect(result.courses).toBeUndefined();
+    });
+
+    it("精确隔离联调记录且保留正常搜索结果", async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([
+        { id: PUBLIC_QUARANTINED_IDS.product[0], title: "联调商品", rank: 1 },
+        { id: "normal-product", title: "正常商品", rank: 0.8 },
+      ]);
+
+      const result = await svc.search({ q: "商品", type: "product" });
+
+      expect(result.products).toEqual([{ id: "normal-product", title: "正常商品", rank: 0.8 }]);
+    });
+
+    it("文章搜索同样隔离精确联调记录", async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([
+        { id: PUBLIC_QUARANTINED_IDS.article[0], title: "联调文章", rank: 1 },
+        { id: "normal-article", title: "正常文章", rank: 0.8 },
+      ]);
+
+      const result = await svc.search({ q: "文章", type: "article" });
+
+      expect(result.articles).toEqual([{ id: "normal-article", title: "正常文章", rank: 0.8 }]);
     });
 
     it("空查询返回空结果", async () => {
@@ -120,6 +223,17 @@ describe("SearchService", () => {
       const result = await svc.suggest("论语");
       expect(result.length).toBeGreaterThan(0);
       expect(result[0].type).toBe("article");
+    });
+
+    it("联想建议不含圈内私有文章/课程", async () => {
+      await svc.suggest("论语");
+      const texts = mockPrisma.$queryRaw.mock.calls.map((c: any[]) => (c[0] as string[]).join("?"));
+      const article = texts.find((t: string) => t.includes('"Article"'))!;
+      const course = texts.find((t: string) => t.includes('"Course"'))!;
+      for (const t of [article, course]) {
+        expect(t).toContain(`"visibility" = 'PLATFORM'`);
+        expect(t).toContain(`"deletedAt" IS NULL`);
+      }
     });
 
     it("空关键字返回空数组", async () => {

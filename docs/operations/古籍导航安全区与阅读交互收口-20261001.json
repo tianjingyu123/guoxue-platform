@@ -1,0 +1,799 @@
+{
+  "generatedAt": "2026-10-01T08:56:32.104Z",
+  "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+  "previousIntegrationHead": "fdf34a03c596156724a65301557448af32ee3159",
+  "receivedCommits": [
+    "50badb47c9ed409243ac758eba7495570f251e96",
+    "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10"
+  ],
+  "conflicts": [],
+  "releaseId": "launch-20261001-a21dace32",
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（完整CI、23组镜像、小程序模拟器及只读H5；正式设备与真实渠道未覆盖）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "miniRuntime": {
+    "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "documentationHead": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "startedAt": "2026-10-01T08:34:07.351Z",
+    "simulation": true,
+    "realDevice": false,
+    "authenticated": false,
+    "deliberateBusinessWrites": false,
+    "checks": [
+      {
+        "name": "首页真实古籍书名封面可见",
+        "passed": true,
+        "covers": [
+          {
+            "title": "查看渊海子平",
+            "box": {
+              "left": 8,
+              "top": 284.375,
+              "width": 184,
+              "height": 245.3125
+            },
+            "hasFallback": true
+          },
+          {
+            "title": "查看史记",
+            "box": {
+              "left": 198,
+              "top": 284.375,
+              "width": 184,
+              "height": 245.3125
+            },
+            "hasFallback": true
+          }
+        ],
+        "screenshot": {
+          "file": "classics-home.png",
+          "sha256": "d62b88f13cfe6bf4658fec8493a9e38c6eda0e19fd4ec8f22e31affeffadcc52"
+        },
+        "originalImageDecoded": false
+      },
+      {
+        "name": "真实古籍卡片进入详情并返回首页",
+        "passed": true,
+        "title": "渊海子平",
+        "chaptersShown": 1,
+        "detailPath": "pkg-classics/detail/index"
+      },
+      {
+        "name": "古籍详情右侧分享不被微信胶囊挡住",
+        "passed": true,
+        "share": {
+          "left": 243,
+          "top": 49,
+          "width": 45,
+          "height": 45
+        },
+        "capsule": {
+          "width": 87,
+          "height": 32,
+          "left": 296,
+          "top": 51,
+          "right": 383,
+          "bottom": 83
+        },
+        "screenshot": {
+          "file": "classics-detail.png",
+          "sha256": "77e875fd05ee0e8ba3f838f562042f62151815df366a36ba45555d7de1f88b18"
+        },
+        "openAndCloseVerified": true
+      },
+      {
+        "name": "游客阅读页查词按钮与正文可访问",
+        "passed": true,
+        "dictionary": {
+          "left": 241,
+          "top": 48,
+          "width": 45,
+          "height": 45
+        },
+        "paragraphs": 2467,
+        "screenshot": {
+          "file": "classics-reader.png",
+          "sha256": "f508df8edb477cd5b61819f74a270939c8fbca75e91a9e07e9228222f3931143"
+        },
+        "openCloseAndBackVerified": true
+      }
+    ],
+    "capsule": {
+      "width": 87,
+      "height": 32,
+      "left": 296,
+      "top": 51,
+      "right": 383,
+      "bottom": 83
+    },
+    "statusBarHeight": 47,
+    "detailShare": {
+      "share": {
+        "left": 243,
+        "top": 49,
+        "width": 45,
+        "height": 45
+      },
+      "capsule": {
+        "width": 87,
+        "height": 32,
+        "left": 296,
+        "top": 51,
+        "right": 383,
+        "bottom": 83
+      },
+      "screenshot": {
+        "file": "classics-detail.png",
+        "sha256": "77e875fd05ee0e8ba3f838f562042f62151815df366a36ba45555d7de1f88b18"
+      },
+      "openAndCloseVerified": true
+    },
+    "readerDictionary": {
+      "dictionary": {
+        "left": 241,
+        "top": 48,
+        "width": 45,
+        "height": 45
+      },
+      "paragraphs": 2467,
+      "screenshot": {
+        "file": "classics-reader.png",
+        "sha256": "f508df8edb477cd5b61819f74a270939c8fbca75e91a9e07e9228222f3931143"
+      },
+      "openCloseAndBackVerified": true
+    },
+    "finishedAt": "2026-10-01T08:34:26.652Z",
+    "inputsUnchanged": true,
+    "passed": 4,
+    "failed": 0
+  },
+  "h5": {
+    "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "startedAt": "2026-10-01T08:33:39.586Z",
+    "realDevice": false,
+    "scope": "本地H5构建；仅匿名公开详情/章节原文GET访问真实API，其他外部请求隔离，不查词、不计费、不创建断句缓存",
+    "checks": [
+      {
+        "width": 320,
+        "passed": true,
+        "share": {
+          "x": 270.890625,
+          "y": 0,
+          "width": 44,
+          "height": 44
+        },
+        "dictionary": {
+          "x": 274.296875,
+          "y": 0,
+          "width": 44,
+          "height": 44
+        },
+        "publicReads": 3,
+        "blockedWrites": 0,
+        "uncaughtErrors": 0,
+        "overlayOpenCloseAndKeyboardBack": true
+      },
+      {
+        "width": 390,
+        "passed": true,
+        "share": {
+          "x": 338.015625,
+          "y": 2.078125,
+          "width": 45.75,
+          "height": 45.75
+        },
+        "dictionary": {
+          "x": 342.171875,
+          "y": 1.03125,
+          "width": 45.75,
+          "height": 45.75
+        },
+        "publicReads": 3,
+        "blockedWrites": 0,
+        "uncaughtErrors": 0,
+        "overlayOpenCloseAndKeyboardBack": true
+      },
+      {
+        "width": 768,
+        "passed": true,
+        "share": {
+          "x": 718,
+          "y": 2,
+          "width": 44,
+          "height": 44
+        },
+        "dictionary": {
+          "x": 722,
+          "y": 1,
+          "width": 44,
+          "height": 44
+        },
+        "publicReads": 3,
+        "blockedWrites": 0,
+        "uncaughtErrors": 0,
+        "overlayOpenCloseAndKeyboardBack": true
+      }
+    ],
+    "finishedAt": "2026-10-01T08:33:47.152Z",
+    "publicResponseCacheEntries": 2
+  },
+  "clientArtifacts": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T08:37:40.273Z",
+    "releaseId": "launch-20261001-a21dace32",
+    "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "auditFile": "artifacts/channel-intake-20260930/package-a21dace32/client-artifacts.json",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5423,
+      "bytes": 53958112,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 505,
+        "bytes": 6487585,
+        "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1180,
+        "bytes": 11086442,
+        "contentSha256": "a06c162686168b0d40a9bd3804310bb21b15e2330193986e99b0c0568d718b9c",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2756,
+        "bytes": 11067495,
+        "contentSha256": "d0597e664db914b31f4f5fd79be0e377ea3c34b22ada17d77d0886a8399f666b",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 492,
+        "bytes": 12838560,
+        "contentSha256": "26c20fa6e470d1f28423876425607e2e98bed91bb1273079d7d86067c51f846c",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12478030,
+        "contentSha256": "6d6ab0344e99f5c88b6deea2f63d32ddb512d454f061a73f4203d15b269ddead",
+        "matches": true
+      }
+    ],
+    "errors": []
+  },
+  "publicConfiguration": {
+    "api": "https://api.rebugx.cn",
+    "h5": "https://gx.yrydai.com/h5/",
+    "assets": "https://static.rebugx.cn",
+    "file": "apps/mobile/.env.production",
+    "keys": [
+      "VITE_API_URL",
+      "VITE_PUBLIC_H5_URL",
+      "VITE_PUBLIC_ASSET_ORIGIN"
+    ],
+    "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b",
+    "target": "腾讯云北京两节点；公开构建配置已显式核对，非因文件来自根工作区而默认正确",
+    "schemaVersion": 1,
+    "kind": "guoxue-client-public-config-binding",
+    "generatedAt": "2026-10-01T08:36:27.286Z",
+    "releaseId": "launch-20261001-a21dace32",
+    "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "fingerprintAlgorithm": "sha256"
+  },
+  "miniPreview": {
+    "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "mainBytes": 1964904,
+    "maxSubpackage": {
+      "name": "/pkg-paipan/",
+      "size": 1959687
+    },
+    "totalBytes": 12742889,
+    "subpackageCount": 33,
+    "mainRemaining": 132248,
+    "maxSubpackageRemaining": 137465,
+    "previewOnly": true,
+    "uploaded": false,
+    "published": false
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T08:37:08.934Z",
+    "archive": "gx-deploy-91-launch-20261001-a21dace32.tar.gz",
+    "sha256": "deb31bae066ad27e035525a965c4579cbb26675df3c4fea112212b8aaa1bd033",
+    "releaseId": "launch-20261001-a21dace32",
+    "commit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "expectedCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "fileCount": 4433,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "androidResource": {
+    "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "checkedAt": "2026-10-01T08:37:39.302Z",
+    "webAudit": {
+      "success": true,
+      "errors": [],
+      "files": 489,
+      "changedFiles": [
+        "app-service.js",
+        "manifest.json"
+      ],
+      "appId": "__UNI__277B108",
+      "versionCode": "254",
+      "genericBundleSha256": "8c088f8228bd668b7d0ee57d354ecd5e32061d12fea3ddb0e9412779466f7421",
+      "officialBundleSha256": "4ff2c166a7ef2a9904c8e712107499de18eff29c612695a7050e2e9bfa5e3c5a",
+      "spaceBound": true
+    },
+    "nativeChecks": [
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/config.json",
+        "bytes": 70,
+        "sha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+        "genericSha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+        "exact": true,
+        "allowedDifference": null
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/libs/rebu-resource-updater.aar",
+        "bytes": 33238,
+        "sha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+        "genericSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+        "exact": true,
+        "allowedDifference": null
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/src/index.kt",
+        "bytes": 1149,
+        "sha256": "3738ba28858b91aa73b429c8d0b706bcfb78afe968fd986615b68e73a40685d9",
+        "genericSha256": "1eb3b1bdf674ed3eb982615f065c5b06bdada4504d287aae27f91c1d9b164606",
+        "exact": false,
+        "allowedDifference": "仅空间绑定新增 import io.dcloud.unicloud.*"
+      }
+    ],
+    "files": 492,
+    "bytes": 12832030,
+    "contentSha256": "943668a36b3221b224e3aa12bd5d963cddc25bcdd273598a171be40bd950aefb",
+    "archive": "artifacts/releases/android254-hbuilder-a21dace32-resources.tar.gz",
+    "archiveBytes": 2853707,
+    "archiveSha256": "ae598f3a2417001ceae7e490d4f882c70850a8d81e0837492b08f13d3a4603fe",
+    "archiveExtractedAllFilesExact": true,
+    "signedApk": false,
+    "paidPackaging": false,
+    "oneClickEnabled": false
+  },
+  "draftArchive": {
+    "releaseId": 400779632,
+    "published": false,
+    "assets": [
+      {
+        "name": "gx-deploy-91-launch-20261001-a21dace32.tar.gz",
+        "officialDigestMatches": true,
+        "bytes": 15712531,
+        "sha256": "deb31bae066ad27e035525a965c4579cbb26675df3c4fea112212b8aaa1bd033",
+        "assetId": 602807556
+      },
+      {
+        "name": "android254-hbuilder-a21dace32-resources.tar.gz",
+        "officialDigestMatches": true,
+        "bytes": 2853707,
+        "sha256": "ae598f3a2417001ceae7e490d4f882c70850a8d81e0837492b08f13d3a4603fe",
+        "assetId": 602808002
+      }
+    ],
+    "checkedAt": "2026-10-01T08:38:04.9562011Z",
+    "draft": true,
+    "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "tag": "launch-20261001-a21dace32"
+  },
+  "ci": {
+    "status": "success",
+    "suitesPassed": 662,
+    "testsPassed": 8899,
+    "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "checkedAt": "2026-10-01T08:52:07.2696222Z",
+    "logs": [
+      {
+        "jobId": 110287590901,
+        "sha256": "e4f9ff6d9a3dcf1916cfd30a7c7651b4b2a1c5cec1e3e5249c13a445cf1aed5c",
+        "name": "单元测试 (2/3)",
+        "tests": "Tests:       50 skipped, 3022 passed, 3072 total",
+        "suites": "Test Suites: 8 skipped, 221 passed, 221 of 229 total"
+      },
+      {
+        "jobId": 110287590957,
+        "sha256": "2f5f940b621c510dd24ee57a0b364954487fc1e3c1b6eb95e55c8c1ab2dac522",
+        "name": "单元测试 (3/3)",
+        "tests": "Tests:       39 skipped, 3038 passed, 3077 total",
+        "suites": "Test Suites: 10 skipped, 219 passed, 219 of 229 total"
+      },
+      {
+        "jobId": 110287590959,
+        "sha256": "37e36f05737e8f4286bf795244b1a3ff95c6a0717768bc87157ad388b818aa05",
+        "name": "单元测试 (1/3)",
+        "tests": "Tests:       44 skipped, 2839 passed, 2883 total",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total"
+      }
+    ],
+    "suitesSkipped": 26,
+    "testsSkipped": 133,
+    "runId": 36836955292,
+    "jobsPassed": 8
+  },
+  "image": {
+    "sourceArchiveSha256": "deb31bae066ad27e035525a965c4579cbb26675df3c4fea112212b8aaa1bd033",
+    "runId": 36837605774,
+    "production": false,
+    "checkedAt": "2026-10-01T08:47:57.7925060Z",
+    "verificationSource": "533d225a3f6e89608c5cca34f56a152b66a09a5f",
+    "realChannels": false,
+    "image": "sha256:9d463749de53d914f7d0c3155d3e3bb1ffd3861d7ad3d50550772b039ffea916",
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry"
+    ],
+    "artifact": {
+      "officialDigestMatches": true,
+      "bytes": 55259,
+      "id": 11149589264,
+      "sha256": "3d47969a8a82d36763308f18f01b8383a31392f1e1ba81afde203c4fe09233a2"
+    },
+    "businessSource": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "runtimeReportSha256": "496bf5c7b575b4950acfa0e0607d1c24ed4c3a6dbb2b8e5fdfb3175070ec34bb",
+    "passed": true,
+    "cleanupAllConfirmed": true,
+    "checksPassed": 23
+  },
+  "evidenceArchive": {
+    "published": false,
+    "assetId": 602836581,
+    "sha256": "21858ada58e689ea7750308b24b214b88b1b5c4d62fd4ba1391530f060b4dc47",
+    "reextractAllHashesExact": true,
+    "releaseId": 400779632,
+    "draft": true,
+    "name": "classics-final-evidence-a21dace32.tar.gz",
+    "officialDigestMatches": true,
+    "bytes": 361498,
+    "files": 32,
+    "checkedAt": "2026-10-01T08:56:08.5528984Z",
+    "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10"
+  },
+  "mainlineReadback": {
+    "draft": true,
+    "baseSha": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "mergeableState": "clean",
+    "mergeable": true,
+    "baseRef": "master",
+    "headRef": "codex/launch-review-20260930",
+    "actualMainHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "state": "open",
+    "checkedAt": "2026-10-01T08:56:31.9554195Z",
+    "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+    "headSha": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "defaultBranch": "master",
+    "prNumber": 1
+  },
+  "historyLimits": [
+    "7e原始SDK2通过2失败：详情分享/查词与胶囊重叠，不标为通过",
+    "50badb47c水平避让4组通过，但没有证明状态栏垂直安全",
+    "实际状态栏47px后新增a21修复，最终4组同时断言顶部安全和操作闭环",
+    "a21首次SDK超时0项未计为通过；只读诊断页面和AppID就绪后在新目录复测",
+    "前批7e通用搜索6组、合成H5三屏宽及8899项CI保留原来源，不写成本轮新跑",
+    "21/23商店静态检查来源50badb47c，manifest等输入与a21等效，非完整商店验收",
+    "Git tar把绝对Windows盘符当远程地址；本机没有Windows原生tar。两次工具失败均未产生归档；保留目录逐项验真后，以已确认Git GNU tar和相对路径补归档，无覆盖或清理",
+    "首次证据附件上传响应提前结束；08:55:49Z官方只读确认同名附件为0后才重试，最终602836581官方摘要匹配。未盲目重发、覆盖或公开发布。"
+  ],
+  "storeReadiness": {
+    "schemaVersion": 1,
+    "kind": "guoxue-store-readiness",
+    "generatedAt": "2026-10-01T08:25:59.735Z",
+    "releaseId": "launch-20261001-50badb47c",
+    "success": false,
+    "strict": false,
+    "summary": {
+      "total": 23,
+      "passed": 21,
+      "failed": 2,
+      "externalBlockers": 2,
+      "configurationBlockers": 0,
+      "codeBlockers": 0
+    },
+    "checks": [
+      {
+        "name": "DCloud AppID 已配置",
+        "pass": true,
+        "detail": "正式云打包需要沿用受控 DCloud AppID",
+        "kind": "配置"
+      },
+      {
+        "name": "Android 包名已冻结",
+        "pass": true,
+        "detail": "必须与应用商店现有热卜国学包名完全一致",
+        "kind": "配置"
+      },
+      {
+        "name": "iOS Bundle ID 已冻结",
+        "pass": true,
+        "detail": "必须与 App Store Connect 现有应用完全一致",
+        "kind": "配置"
+      },
+      {
+        "name": "鸿蒙 Bundle Name 已冻结",
+        "pass": true,
+        "detail": "必须与 AppGallery 现有热卜国学应用完全一致",
+        "kind": "配置"
+      },
+      {
+        "name": "展示版本号格式有效",
+        "pass": true,
+        "detail": "当前值 1.1.1",
+        "kind": "代码"
+      },
+      {
+        "name": "构建号格式有效",
+        "pass": true,
+        "detail": "当前值 254",
+        "kind": "代码"
+      },
+      {
+        "name": "热卜星火目标小程序 AppID 已切换",
+        "pass": true,
+        "detail": "当前配置 wx06397e8ab26bed9e；目标为热卜星火 wx06397e8ab26bed9e",
+        "kind": "配置"
+      },
+      {
+        "name": "微信合法域名校验已开启",
+        "pass": true,
+        "detail": "提审包不得使用 urlCheck:false",
+        "kind": "配置"
+      },
+      {
+        "name": "App 原生 SDK/插件配置已完成",
+        "pass": false,
+        "detail": "还须提供与本次 releaseId 绑定的 Android/iOS 正式候选包麦克风授权及双向通话证据",
+        "kind": "外部"
+      },
+      {
+        "name": "鸿蒙 App 编译器与构建命令已接入",
+        "pass": true,
+        "detail": "鸿蒙元服务（mp-harmony）不能替代 AppGallery 所需的 HarmonyOS NEXT App 安装包",
+        "kind": "代码"
+      },
+      {
+        "name": "App 启动版本检查已接通",
+        "pass": true,
+        "detail": "客户端、服务端和强制更新策略必须同时存在",
+        "kind": "代码"
+      },
+      {
+        "name": "DCloud AppID 与旧版一致",
+        "pass": true,
+        "detail": "DCloud AppID 改变会破坏原应用云打包身份与相关服务配置",
+        "kind": "配置"
+      },
+      {
+        "name": "微信小程序 AppID 与热卜星火发布基线一致",
+        "pass": true,
+        "detail": "新系统必须发布到热卜星火，禁止误发到被限制分享的热卜国学旧小程序",
+        "kind": "配置"
+      },
+      {
+        "name": "Android 包名与旧版一致",
+        "pass": true,
+        "detail": "包名不一致会被商店识别为新应用，老用户无法覆盖升级",
+        "kind": "配置"
+      },
+      {
+        "name": "iOS Bundle ID 与旧版一致",
+        "pass": true,
+        "detail": "Bundle ID 不一致会被 App Store 识别为新应用",
+        "kind": "配置"
+      },
+      {
+        "name": "鸿蒙 Bundle Name 与旧版一致",
+        "pass": true,
+        "detail": "Bundle Name 不一致会被 AppGallery 识别为新应用，旧版无法覆盖升级",
+        "kind": "配置"
+      },
+      {
+        "name": "Android 构建号高于线上旧版",
+        "pass": true,
+        "detail": "当前 254；必须高于线上 versionCode",
+        "kind": "配置"
+      },
+      {
+        "name": "iOS 构建号高于线上旧版",
+        "pass": true,
+        "detail": "当前 254；必须高于线上 CFBundleVersion",
+        "kind": "配置"
+      },
+      {
+        "name": "展示版本号高于 Android 线上旧版",
+        "pass": true,
+        "detail": "当前 1.1.1；必须高于 Android 线上 versionName",
+        "kind": "配置"
+      },
+      {
+        "name": "展示版本号高于 iOS 线上旧版",
+        "pass": true,
+        "detail": "当前 1.1.1；必须高于 iOS 线上 CFBundleShortVersionString",
+        "kind": "配置"
+      },
+      {
+        "name": "鸿蒙构建号高于线上旧版",
+        "pass": true,
+        "detail": "当前 254；必须高于 AppGallery 线上 versionCode",
+        "kind": "配置"
+      },
+      {
+        "name": "展示版本号高于鸿蒙线上旧版",
+        "pass": true,
+        "detail": "当前 1.1.1；必须高于 AppGallery 线上 versionName",
+        "kind": "配置"
+      },
+      {
+        "name": "鸿蒙正式签名资料已核验",
+        "pass": false,
+        "detail": "须在 HBuilderX/DevEco 核验受控发布证书，再生成 .app 并确认可覆盖安装线上旧版",
+        "kind": "外部"
+      }
+    ]
+  },
+  "applePublicBaseline": {
+    "checkedAt": "2026-10-01T08:26:22.099Z",
+    "officialReadOnly": true,
+    "status": 200,
+    "count": 1,
+    "app": {
+      "trackId": 6756602923,
+      "bundleId": "com.rebu.iosapprebu",
+      "version": "1.0.5",
+      "minimumOsVersion": "13.0",
+      "trackViewUrl": "https://apps.apple.com/cn/app/%E7%83%AD%E5%8D%9C%E5%9B%BD%E5%AD%A6/id6756602923?uo=4"
+    },
+    "sourceCandidate": "50badb47c9ed409243ac758eba7495570f251e96"
+  },
+  "uncovered": [
+    "登录态消息搜索",
+    "最终Android254/iOS/Harmony签名包与匹配设备",
+    "手机号一键登录云函数及两节点接线",
+    "真实支付退款权益返回",
+    "旧排盘分享接收完整真机旅程",
+    "语音额度、真IM和受控直播",
+    "通知尚缺触发入口及真实渠道",
+    "25条生产迁移、最终停写备份、两节点同包部署",
+    "最终运营清理、容量告警和维护窗口验收",
+    "古籍原图解码与内容授权核验（当前公开接口封面为null；书名兜底和匿名正文可访问已实测）"
+  ],
+  "notPerformed": [
+    "部署",
+    "生产迁移",
+    "真实通知或资金操作",
+    "云函数上传",
+    "计费取号",
+    "付费打包",
+    "小程序上传审核或发布"
+  ],
+  "rollbackOrder": [
+    "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "50badb47c9ed409243ac758eba7495570f251e96"
+  ],
+  "rollbackScope": "仅本批新增隔离代码逐提交revert；文档独立。通用搜索及此前礼物/体积等按其原记录逆序，不混成不可拆分补丁。",
+  "reuseScope": "与7e对比后端/依赖/迁移/管理后台输入无差异；25条副本升级仍为70ee历史，未生产迁移。镜像已为a21重新构建验证。",
+  "evidencePackage": {
+    "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "checkedAt": "2026-10-01T08:53:25.924Z",
+    "archive": "artifacts/releases/classics-final-evidence-a21dace32.tar.gz",
+    "bytes": 361498,
+    "sha256": "21858ada58e689ea7750308b24b214b88b1b5c4d62fd4ba1391530f060b4dc47",
+    "files": 32,
+    "reextractAllHashesExact": true,
+    "publicRelease": false,
+    "excluded": [
+      "二维码",
+      "环境文件",
+      "凭据",
+      "授权存储值",
+      "完整章节响应"
+    ],
+    "toolRecovery": "Git tar把绝对Windows盘符当远程地址；本机没有Windows原生tar。两次工具失败均未产生归档；保留目录逐项验真后，以已确认Git GNU tar和相对路径补归档，无覆盖或清理"
+  },
+  "evidenceFiles": [
+    {
+      "path": "artifacts/channel-intake-20260930/classics-safe-top-runtime-a21dace32-v2/runtime-report.json",
+      "sha256": "f46eacc0fc73c1c32433d39ebc29e673fe88fa532e6c46ef8952216a76ceed6a"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/classics-safe-top-h5/runtime-report.json",
+      "sha256": "8d88a432985b292417539089824c2b6623ba00bd9108f5aa1a519a90be05512c"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/classics-final-ci-verified.json",
+      "sha256": "a2150cfc12583a6985d55c49612c933922bb05fbb4d45bbb6ee8930ab9388b15"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/classics-final-image-verified.json",
+      "sha256": "b510872198914da1262f1c8600597ba71ad16b5507cd93b2dd09492af57e9ad0"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/classics-final-evidence-archive.json",
+      "sha256": "77df47d1a3d5006bceb3ce86fe38a0b93753ff86f84316f4f6968c0d03ef00c9"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/classics-final-evidence-package.json",
+      "sha256": "c0785ed491d182069ebf40d8bb9b1364525502200f4f8728ec704e20af23cbe8"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/classics-native-status-readonly.json",
+      "sha256": "8d3a2343bb3c5d09cb0bafbc1fd75649621ce1c4e762f6be7332c46b01980b9b"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/cover-public-readonly.json",
+      "sha256": "e50ac09103ae1d22478630c292db4340d44b585cae4a7c910453e68a1c2eda4a"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-a21dace32/client-artifacts-post-tools-verified.json",
+      "sha256": "20e1c6f1a983fbddb65bdbd4566a43465c2266fc337358d7bdf76c3033dfb51e"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-a21dace32/client-config.json",
+      "sha256": "1305829bdd8a2886e1b7cc4a0c08a058ee60ab0b31cb01395623782ac9a774b2"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-a21dace32/source-freeze.json",
+      "sha256": "980ad78e032a23340a67bf555bd84a1f5cdf1e67577263b4dcdda695b357db0b"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-a21dace32/fixed-package-verified.json",
+      "sha256": "9a3bbeae5a54bf11635ae989b7239ff18aa3e2a7193e0fae25843f50f730ce23"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/hbuilder-a21dace32-verified.json",
+      "sha256": "3192b7fcb4d2f72d834b68adba71a7bc2a00b161a7f7e5e5f31a42e0c17f0aa4"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/classics-final-preview-sizes.json",
+      "sha256": "cdde236b0220b24ec9677a5a1851c1262011ed2cf661197818a3f9ed87c75f0e"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/classics-source-pr-readback-20261001T085631.json",
+      "sha256": "ad01157f44145d890ec1f52fadef4fef6b14fb929c46dd2a92307dbea0274a96"
+    }
+  ]
+}

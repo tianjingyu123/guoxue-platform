@@ -6,6 +6,7 @@ import { UnifiedPricingService } from "../pricing/unified-pricing.service"
 import { AuditService } from "../audit/audit.service"
 import { BusinessException } from "../../common/business.exception"
 import { makeMockPrisma, makeMockRedis, makeMockUnifiedPricing, makeMockAudit } from "./shop-test-mocks"
+import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine"
 
 const mockPrisma = makeMockPrisma()
 const mockRedis = makeMockRedis()
@@ -57,6 +58,17 @@ describe("ShopProductService", () => {
       mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", title: "书", skus: [], circle: null })
       const result = await svc.getProduct("p1")
       expect(result.id).toBe("p1")
+      expect(mockPrisma.product.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "p1", deletedAt: null, status: "ON_SALE" },
+      }))
+    })
+
+    it("管理审核详情可查看未发布商品，但仍排除已删除商品", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p-pending", title: "待审商品", skus: [], circle: null })
+      await svc.getProduct("p-pending", undefined, undefined, true)
+      expect(mockPrisma.product.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "p-pending", deletedAt: null },
+      }))
     })
 
     it("商品不存在抛出 NotFoundException", async () => {
@@ -72,6 +84,41 @@ describe("ShopProductService", () => {
       const result = await svc.listProducts({ page: 1, pageSize: 10 })
       expect(result.total).toBe(1)
       expect(result.products).toHaveLength(1)
+    })
+
+    // P0 状态过滤（商城收敛·断流止血）：C 端缺省只出在售，管理端 ALL 查全量，支持逗号多值
+    it("不传 status 默认只查 ON_SALE（C 端防待审/下架曝光）", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([])
+      mockPrisma.product.count.mockResolvedValue(0)
+      await svc.listProducts({ page: 1, pageSize: 10 })
+      const arg = mockPrisma.product.findMany.mock.calls.at(-1)![0]
+      expect(arg.where.status).toBe("ON_SALE")
+      expect(arg.where.id).toEqual({ notIn: [...PUBLIC_QUARANTINED_IDS.product] })
+    })
+
+    it("status=ALL 查全量（管理端工作队列·不加状态过滤）", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([])
+      mockPrisma.product.count.mockResolvedValue(0)
+      await svc.listProducts({ page: 1, pageSize: 10, status: "ALL" })
+      const arg = mockPrisma.product.findMany.mock.calls.at(-1)![0]
+      expect(arg.where.status).toBeUndefined()
+      expect(arg.where.id).toBeUndefined()
+    })
+
+    it("status 逗号多值转 in 查询", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([])
+      mockPrisma.product.count.mockResolvedValue(0)
+      await svc.listProducts({ page: 1, pageSize: 10, status: "PENDING,OFF_SHELF" })
+      const arg = mockPrisma.product.findMany.mock.calls.at(-1)![0]
+      expect(arg.where.status).toEqual({ in: ["PENDING", "OFF_SHELF"] })
+    })
+
+    it("显式单值 status 照常过滤", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([])
+      mockPrisma.product.count.mockResolvedValue(0)
+      await svc.listProducts({ page: 1, pageSize: 10, status: "PENDING" })
+      const arg = mockPrisma.product.findMany.mock.calls.at(-1)![0]
+      expect(arg.where.status).toBe("PENDING")
     })
 
     // P2-4 分页入参加固：非法 page 归一化，防 skip:NaN 进 Prisma 抛 500
@@ -100,7 +147,12 @@ describe("ShopProductService", () => {
       expect(result[0].price).toBe(199)
       expect(result[0].originalPrice).toBe(199) // 无原价回落现价
       const args = mockPrisma.product.findMany.mock.calls[0][0]
-      expect(args.where).toEqual({ status: "ON_SALE", deletedAt: null, sceneTags: { has: "节气时令" } })
+      expect(args.where).toEqual({
+        id: { notIn: [...PUBLIC_QUARANTINED_IDS.product] },
+        status: "ON_SALE",
+        deletedAt: null,
+        sceneTags: { has: "节气时令" },
+      })
       expect(args.orderBy).toEqual([{ salesCount: "desc" }, { createdAt: "desc" }])
       expect(args.take).toBe(6)
     })
@@ -117,6 +169,31 @@ describe("ShopProductService", () => {
       mockPrisma.product.findMany.mockResolvedValue([])
       const result = await svc.listProductsByScene("学业考试")
       expect(result).toEqual([])
+    })
+  })
+
+  describe("getStore", () => {
+    it("店铺主页商品列表排除精确隔离商品", async () => {
+      (mockPrisma.merchant as any).findFirst = jest.fn().mockResolvedValue({
+        id: "merchant-1",
+        userId: "merchant-user",
+        shopName: "国学雅集",
+        shopLogo: null,
+        shopIntro: null,
+        openedAt: new Date(),
+        creditGrade: "B",
+      })
+      mockPrisma.product.findMany.mockResolvedValue([])
+      mockPrisma.product.count.mockResolvedValue(0)
+      mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 0 } })
+      mockPrisma.order.count.mockResolvedValue(0)
+      ;(mockPrisma.productReview as any).aggregate = jest.fn().mockResolvedValue({ _avg: { rating: null }, _count: 0 })
+
+      await svc.getStore("merchant-1")
+
+      expect(mockPrisma.product.findMany.mock.calls.at(-1)![0].where.id).toEqual({
+        notIn: [...PUBLIC_QUARANTINED_IDS.product],
+      })
     })
   })
 
@@ -142,10 +219,20 @@ describe("ShopProductService", () => {
   })
 
   describe("deleteProduct", () => {
-    it("删除成功", async () => {
-      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", userId: "u1" })
+    it("删除采用软删除并保留订单关联", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", userId: "u1", status: "OFF_SHELF" })
       const result = await svc.deleteProduct("u1", "p1")
       expect(result.success).toBe(true)
+      expect(mockPrisma.product.update).toHaveBeenCalledWith({
+        where: { id: "p1" },
+        data: { status: "OFF_SHELF", deletedAt: expect.any(Date) },
+      })
+      expect(mockPrisma.product.delete).not.toHaveBeenCalled()
+    })
+
+    it("普通用户不能直接删除在售商品", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", userId: "u1", status: "ON_SALE" })
+      await expect(svc.deleteProduct("u1", "p1")).rejects.toThrow("请先下架商品")
     })
   })
 

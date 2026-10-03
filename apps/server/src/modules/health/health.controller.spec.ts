@@ -6,13 +6,14 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 
 const mockPrisma = { $queryRaw: jest.fn() };
-const mockRedis = { get: jest.fn(), set: jest.fn() };
+const mockRedis = { pingShared: jest.fn(), set: jest.fn(), get: jest.fn() };
 
 describe("HealthController", () => {
   let ctrl: HealthController;
 
   beforeEach(async () => {
     mockPrisma.$queryRaw.mockResolvedValue([{ 1: 1 }]);
+    mockRedis.pingShared.mockResolvedValue(undefined);
     mockRedis.set.mockResolvedValue("OK");
     mockRedis.get.mockResolvedValue("1");
 
@@ -33,34 +34,44 @@ describe("HealthController", () => {
   it("应被定义", () => expect(ctrl).toBeDefined());
 
   describe("GET /health", () => {
-    it("DB和Redis都正常时返回ok", async () => {
+    it("DB和Redis都正常时返回脱敏健康摘要", async () => {
       const result = await ctrl.check();
+      expect(result.status).toBe("ok");
+      expect(result.checks.db.status).toBe("ok");
+      expect(result.checks.redis.status).toBe("ok");
+      expect(result).not.toHaveProperty("memory");
+      expect(result.checks.db).not.toHaveProperty("latencyMs");
+      expect(result.checks.db).not.toHaveProperty("error");
+    });
+
+    it("DB异常时返回503", async () => {
+      mockPrisma.$queryRaw.mockRejectedValue(new Error("DB down"));
+      await expect(ctrl.check()).rejects.toMatchObject({ status: 503 });
+    });
+
+    it("Redis异常时返回503", async () => {
+      mockRedis.pingShared.mockRejectedValue(new Error("Redis down"));
+      await expect(ctrl.check()).rejects.toMatchObject({ status: 503 });
+    });
+  });
+
+  describe("GET /health/detail", () => {
+    it("返回完整依赖检查", async () => {
+      const result = await ctrl.detail();
       expect(["ok", "degraded"]).toContain(result.status);
       expect(result.checks.db.status).toBe("ok");
       expect(result.checks.redis.status).toBe("ok");
     });
 
-    it("DB异常时返回degraded", async () => {
-      mockPrisma.$queryRaw.mockRejectedValue(new Error("DB down"));
-      const result = await ctrl.check();
-      expect(result.checks.db.status).toBe("fail");
-    });
-
-    it("Redis异常时返回degraded", async () => {
-      mockRedis.get.mockRejectedValue(new Error("Redis down"));
-      const result = await ctrl.check();
-      expect(result.checks.redis.status).toBe("fail");
-    });
-
     it("返回内存信息", async () => {
-      const result = await ctrl.check();
+      const result = await ctrl.detail();
       expect(result.memory).toBeDefined();
       expect(result.memory.rss).toBeDefined();
       expect(result.memory.heapUsed).toBeDefined();
     });
 
     it("返回运行时间", async () => {
-      const result = await ctrl.check();
+      const result = await ctrl.detail();
       expect(result.uptime).toBeGreaterThan(0);
     });
   });
@@ -71,10 +82,9 @@ describe("HealthController", () => {
       expect(result.status).toBe("ready");
     });
 
-    it("DB异常时返回not_ready", async () => {
+    it("DB异常时返回503", async () => {
       mockPrisma.$queryRaw.mockRejectedValue(new Error("DB down"));
-      const result = await ctrl.ready();
-      expect(result.status).toBe("not_ready");
+      await expect(ctrl.ready()).rejects.toMatchObject({ status: 503 });
     });
   });
 

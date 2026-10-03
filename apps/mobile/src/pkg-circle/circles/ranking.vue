@@ -3,21 +3,25 @@
  * 圈子排行榜（视觉层沿用原型 app/circles/ranking/page.tsx；逻辑层重写为真连后端）
  * 渐变顶部 + 三Tab + 前3名台阶式 + 4名后列表 + 三态
  * 注：原型"高质量/精华率"Tab 后端无支撑(臆想指标)，改为后端支持的"内容数"(postCount)。
- *     三Tab 对应后端 sortBy: memberCount / activityScore / postCount。
+ *     三Tab 对应后端 sortBy: memberCount / activityScore(成员+帖子) / postCount。
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleApi, formatMembers, type RankingCircle, type RankSortBy } from '@/lib/circle-data'
 
 type RankTab = 'members' | 'active' | 'content'
 const tabs: { value: RankTab; label: string; sortBy: RankSortBy; sub: string }[] = [
   { value: 'members', label: '成员数', sortBy: 'memberCount', sub: '成员' },
-  { value: 'active', label: '最活跃', sortBy: 'activityScore', sub: '帖子' },
+  { value: 'active', label: '综合', sortBy: 'activityScore', sub: '人＋帖' },
   { value: 'content', label: '内容数', sortBy: 'postCount', sub: '内容' },
 ]
 
 const activeTab = ref<RankTab>('members')
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const loading = ref(true)
 const error = ref('')
 const items = ref<RankingCircle[]>([])
@@ -26,18 +30,20 @@ const currentTab = computed(() => tabs.find(t => t.value === activeTab.value)!)
 const top3 = computed(() => items.value.slice(0, 3))
 const rest = computed(() => items.value.slice(3))
 
-/** 当前 Tab 展示的数值：成员数走万分位格式化，帖子/内容数直接显示 */
+/** 当前 Tab 展示的数值必须与排序口径一致，综合=成员数+帖子数。 */
 function valOf(c?: RankingCircle): string {
   if (!c) return ''
-  return activeTab.value === 'members' ? formatMembers(c.memberCount) : String(c.postCount)
+  if (activeTab.value === 'members') return formatMembers(c.memberCount)
+  return String(activeTab.value === 'active' ? c.memberCount + c.postCount : c.postCount)
 }
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    items.value = await circleApi.getRanking(currentTab.value.sortBy)
+    items.value = await circleApi.getRanking(currentTab.value.sortBy, { throwOnError: true })
   } catch {
+    items.value = []
     error.value = '加载失败'
   } finally {
     loading.value = false
@@ -57,25 +63,24 @@ onMounted(load)
 
 <template>
   <view class="rk">
-    <!-- 渐变顶部 -->
-    <view class="rk-top">
+    <!-- 标题与指标切换 -->
+    <view class="rk-top" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
       <view class="rk-head">
-        <view @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
+        <view class="rk-back" role="button" tabindex="0" aria-label="返回" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#1D1D1F" /></view>
         <text class="rk-title">圈子排行榜</text>
-        <app-icon name="trophy" :size="44" color="#FCD34D" />
       </view>
       <view class="rk-tabs">
-        <view v-for="tab in tabs" :key="tab.value" class="rk-tab" :class="{ on: activeTab === tab.value }" @tap="switchTab(tab.value)">
+        <view v-for="tab in tabs" :key="tab.value" class="rk-tab" :class="{ on: activeTab === tab.value }" role="tab" tabindex="0" :aria-selected="activeTab === tab.value" @tap="switchTab(tab.value)" @keydown.enter="switchTab(tab.value)">
           <text class="rk-tab-txt" :class="{ on: activeTab === tab.value }">{{ tab.label }}</text>
         </view>
       </view>
     </view>
 
     <!-- 加载 / 错误 / 空 三态 -->
-    <view v-if="loading" class="rk-state"><text class="rk-state-txt">加载中…</text></view>
+    <view v-if="loading" class="rk-state"><AppLoading /></view>
     <view v-else-if="error" class="rk-state">
       <text class="rk-state-txt">{{ error }}</text>
-      <view class="rk-state-btn" @tap="load">重试</view>
+      <view class="rk-state-btn" role="button" tabindex="0" @tap="load" @keydown.enter="load">重试</view>
     </view>
     <view v-else-if="!items.length" class="rk-state"><text class="rk-state-txt">暂无排行数据</text></view>
 
@@ -83,9 +88,9 @@ onMounted(load)
       <!-- 前3名台阶式 -->
       <view class="rk-podium">
         <!-- 第2名 -->
-        <view class="rk-pod rk-pod-2">
+        <view v-if="top3[1]" class="rk-pod rk-pod-2" role="button" tabindex="0" :aria-label="`查看第2名${top3[1].name}`" @tap="openCircle(top3[1].id)" @keydown.enter="openCircle(top3[1].id)">
           <view class="rk-pod-avatar-wrap">
-            <image lazy-load :src="top3[1]?.cover" class="rk-pod-avatar silver" mode="aspectFill" />
+            <view class="rk-pod-avatar silver"><smart-cover :src="top3[1]?.cover" :title="top3[1]?.name" type="circle" deco :deco-size="44" /></view>
             <view class="rk-pod-rank silver">2</view>
           </view>
           <text class="rk-pod-name">{{ top3[1]?.name }}</text>
@@ -93,10 +98,10 @@ onMounted(load)
           <text class="rk-pod-sub">{{ currentTab.sub }}</text>
         </view>
         <!-- 第1名 -->
-        <view class="rk-pod rk-pod-1">
-          <view class="rk-pod-crown"><app-icon name="crown" :size="32" color="#F59E0B" /></view>
+        <view class="rk-pod rk-pod-1" role="button" tabindex="0" :aria-label="`查看第1名${top3[0].name}`" @tap="openCircle(top3[0].id)" @keydown.enter="openCircle(top3[0].id)">
+          <view class="rk-pod-crown"><app-icon name="crown" :size="32" color="#826329" /></view>
           <view class="rk-pod-avatar-wrap">
-            <image lazy-load :src="top3[0]?.cover" class="rk-pod-avatar gold" mode="aspectFill" />
+            <view class="rk-pod-avatar gold"><smart-cover :src="top3[0]?.cover" :title="top3[0]?.name" type="circle" deco :deco-size="50" /></view>
             <view class="rk-pod-rank gold">1</view>
           </view>
           <text class="rk-pod-name">{{ top3[0]?.name }}</text>
@@ -104,9 +109,9 @@ onMounted(load)
           <text class="rk-pod-sub">{{ currentTab.sub }}</text>
         </view>
         <!-- 第3名 -->
-        <view class="rk-pod rk-pod-2">
+        <view v-if="top3[2]" class="rk-pod rk-pod-2" role="button" tabindex="0" :aria-label="`查看第3名${top3[2].name}`" @tap="openCircle(top3[2].id)" @keydown.enter="openCircle(top3[2].id)">
           <view class="rk-pod-avatar-wrap">
-            <image lazy-load :src="top3[2]?.cover" class="rk-pod-avatar bronze" mode="aspectFill" />
+            <view class="rk-pod-avatar bronze"><smart-cover :src="top3[2]?.cover" :title="top3[2]?.name" type="circle" deco :deco-size="44" /></view>
             <view class="rk-pod-rank bronze">3</view>
           </view>
           <text class="rk-pod-name">{{ top3[2]?.name }}</text>
@@ -119,7 +124,7 @@ onMounted(load)
       <view class="rk-list">
         <view v-for="c in rest" :key="c.id" class="rk-row" @tap="openCircle(c.id)">
           <text class="rk-row-rank">{{ c.rank }}</text>
-          <image lazy-load :src="c.cover" class="rk-row-avatar" mode="aspectFill" />
+          <view class="rk-row-avatar"><smart-cover :src="c.cover" :title="c.name" type="circle" deco :deco-size="34" /></view>
           <view class="rk-row-main">
             <view class="rk-row-name-row">
               <text class="rk-row-name">{{ c.name }}</text>
@@ -138,49 +143,52 @@ onMounted(load)
 </template>
 
 <style scoped lang="scss">
-.rk { min-height: 100vh; background: var(--bg-paper, #FAF8F5); }
-.rk-top { background: linear-gradient(135deg, var(--brand), #8B0000); padding: 24rpx 32rpx 128rpx; padding-top: calc(48rpx + var(--status-bar-height, 0px)); }
-.rk-head { display: flex; align-items: center; gap: 24rpx; margin-bottom: 48rpx; }
-.rk-title { flex: 1; font-size: 40rpx; font-weight: 700; color: #fff; }
-.rk-tabs { display: flex; background: rgba(255,255,255,0.1); border-radius: 24rpx; padding: 8rpx; gap: 8rpx; }
-.rk-tab { flex: 1; padding: 16rpx 0; border-radius: 16rpx; text-align: center; }
-.rk-tab.on { background: #fff; }
-.rk-tab-txt { font-size: 28rpx; font-weight: 500; color: rgba(255,255,255,0.8); }
-.rk-tab-txt.on { color: var(--brand, var(--brand)); }
+.rk { min-height: 100vh; background: var(--circle-canvas, #F5F5F7); }
+.rk-top { background: var(--circle-surface, #fff); padding: 16rpx 32rpx 28rpx; padding-top: calc(32rpx + var(--status-bar-height, 0px)); border-bottom: 1rpx solid var(--circle-border-soft, #ECECF0); }
+.rk-head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 24rpx; }
+.rk-back { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.rk-title { flex: 1; font-size: 36rpx; font-weight: 650; color: var(--circle-ink, #1D1D1F); }
+.rk-tabs { display: flex; background: var(--circle-surface-soft, #F8F8FA); border-radius: 20rpx; padding: 6rpx; gap: 6rpx; }
+.rk-tab { flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 16rpx; text-align: center; }
+.rk-tab.on { background: #fff; box-shadow: 0 2rpx 8rpx rgba(31,35,41,.08); }
+.rk-tab-txt { font-size: 28rpx; font-weight: 500; color: var(--circle-secondary, #6E6E73); }
+.rk-tab-txt.on { color: var(--circle-ink, #1D1D1F); font-weight: 650; }
 /* 三态 */
 .rk-state { display: flex; flex-direction: column; align-items: center; gap: 24rpx; padding: 160rpx 0; }
-.rk-state-txt { font-size: 28rpx; color: #999; }
-.rk-state-btn { padding: 12rpx 48rpx; border-radius: 999rpx; background: var(--brand, var(--brand)); color: #fff; font-size: 26rpx; }
+.rk-state-txt { font-size: 28rpx; color: var(--circle-secondary, #6E6E73); }
+.rk-state-btn { min-height: 44px; padding: 0 48rpx; display: flex; align-items: center; border-radius: 999rpx; background: var(--brand, var(--brand)); color: #fff; font-size: 26rpx; }
 /* 台阶 */
-.rk-podium { display: flex; gap: 16rpx; padding: 0 32rpx; margin-top: -80rpx; align-items: flex-end; }
-.rk-pod { flex: 1; display: flex; flex-direction: column; align-items: center; background: var(--card, #fff); border-radius: 24rpx; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06); padding-bottom: 24rpx; }
-.rk-pod-2 { margin-top: 48rpx; padding-top: 16rpx; border: 2rpx solid var(--border, #EDE8E0); }
-.rk-pod-1 { border: 2rpx solid #FDE68A; }
-.rk-pod-crown { width: 100%; background: rgba(251,191,36,0.2); padding: 8rpx 0; text-align: center; border-radius: 24rpx 24rpx 0 0; margin-bottom: 16rpx; display: flex; justify-content: center; }
+.rk-podium { display: flex; justify-content: center; gap: 16rpx; padding: 0 32rpx; margin-top: 28rpx; align-items: flex-end; }
+.rk-pod { flex: 1; max-width: 220rpx; display: flex; flex-direction: column; align-items: center; background: var(--circle-surface, #fff); border-radius: 24rpx; box-shadow: 0 8rpx 28rpx rgba(31,35,41,.06); padding-bottom: 24rpx; }
+.rk-pod-2 { margin-top: 32rpx; padding-top: 16rpx; border: 1rpx solid var(--circle-border-soft, #ECECF0); }
+.rk-pod-1 { border: 1rpx solid rgba(130,99,41,.35); }
+.rk-pod-crown { width: 100%; background: #F9F6EE; padding: 8rpx 0; text-align: center; border-radius: 24rpx 24rpx 0 0; margin-bottom: 16rpx; display: flex; justify-content: center; }
 .rk-pod-avatar-wrap { position: relative; margin-bottom: 16rpx; }
-.rk-pod-avatar { width: 112rpx; height: 112rpx; border-radius: 24rpx; border: 4rpx solid #CBD5E1; }
-.rk-pod-avatar.gold { width: 128rpx; height: 128rpx; border-color: #FBBF24; }
-.rk-pod-avatar.silver { border-color: #CBD5E1; }
-.rk-pod-avatar.bronze { border-color: #FDBA74; }
+.rk-pod-avatar { width: 112rpx; height: 112rpx; border-radius: 24rpx; border: 2rpx solid #D8DCE1; overflow: hidden; }
+.rk-pod-avatar.gold { width: 128rpx; height: 128rpx; border-color: #B6A079; }
+.rk-pod-avatar.silver { border-color: #BFC6CC; }
+.rk-pod-avatar.bronze { border-color: #CBB5A4; }
 .rk-pod-rank { position: absolute; bottom: -8rpx; right: -8rpx; width: 40rpx; height: 40rpx; border-radius: 999rpx; font-size: 22rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; color: #fff; }
-.rk-pod-rank.gold { background: #FBBF24; color: #78350F; }
-.rk-pod-rank.silver { background: #94A3B8; }
-.rk-pod-rank.bronze { background: #FB923C; }
-.rk-pod-name { font-size: 24rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); text-align: center; padding: 0 8rpx; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rk-pod-value { font-size: 28rpx; font-weight: 700; color: var(--brand, var(--brand)); margin-top: 4rpx; }
-.rk-pod-value.gold { font-size: 32rpx; color: #D97706; }
-.rk-pod-sub { font-size: 20rpx; color: #999; }
+.rk-pod-rank.gold { background: #826329; }
+.rk-pod-rank.silver { background: #87919B; }
+.rk-pod-rank.bronze { background: #A77B61; }
+.rk-pod-name { font-size: 24rpx; font-weight: 500; color: var(--circle-ink, #1D1D1F); text-align: center; padding: 0 8rpx; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-pod-value { font-size: 28rpx; font-weight: 700; color: var(--circle-ink, #1D1D1F); margin-top: 4rpx; }
+.rk-pod-value.gold { font-size: 32rpx; color: #826329; }
+.rk-pod-sub { font-size: 22rpx; color: var(--circle-secondary, #6E6E73); }
+.rk-pod:active { background: #F8F8FA; }
+.rk-pod:focus-visible, .rk-tab:focus-visible, .rk-back:focus-visible { outline: 2px solid #2B6F68; outline-offset: 2px; }
 /* 列表 */
 .rk-list { padding: 32rpx; display: flex; flex-direction: column; gap: 16rpx; }
-.rk-row { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; background: var(--card, #fff); border-radius: 24rpx; border: 2rpx solid var(--border, #EDE8E0); }
-.rk-row-rank { width: 48rpx; text-align: center; font-size: 28rpx; font-weight: 700; color: #999; flex-shrink: 0; }
-.rk-row-avatar { width: 88rpx; height: 88rpx; border-radius: 20rpx; flex-shrink: 0; }
+.rk-row { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; background: var(--circle-surface, #fff); border-radius: 24rpx; border: 1rpx solid var(--circle-border-soft, #ECECF0); }
+.rk-row-rank { width: 48rpx; text-align: center; font-size: 28rpx; font-weight: 700; color: var(--circle-secondary, #6E6E73); flex-shrink: 0; }
+.rk-row-avatar { width: 88rpx; height: 88rpx; border-radius: 20rpx; flex-shrink: 0; overflow: hidden; }
 .rk-row-main { flex: 1; min-width: 0; }
 .rk-row-name-row { display: flex; align-items: center; gap: 12rpx; }
-.rk-row-name { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280rpx; }
-.rk-row-cat { font-size: 20rpx; padding: 2rpx 12rpx; background: #F5F0E8; color: #999; border-radius: 8rpx; flex-shrink: 0; }
-.rk-row-owner { font-size: 24rpx; color: #999; margin-top: 4rpx; }
+.rk-row-name { font-size: 28rpx; font-weight: 500; color: var(--circle-ink, #1D1D1F); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280rpx; }
+.rk-row-cat { font-size: 22rpx; padding: 2rpx 12rpx; background: #F2F5F4; color: #2B6F68; border-radius: 8rpx; flex-shrink: 0; }
+.rk-row-owner { font-size: 24rpx; color: var(--circle-secondary, #6E6E73); margin-top: 4rpx; }
 .rk-row-val { text-align: right; flex-shrink: 0; }
-.rk-row-value { display: block; font-size: 28rpx; font-weight: 700; color: var(--brand, var(--brand)); }
-.rk-row-sub { font-size: 20rpx; color: #999; }
+.rk-row-value { display: block; font-size: 28rpx; font-weight: 700; color: var(--circle-ink, #1D1D1F); }
+.rk-row-sub { font-size: 22rpx; color: var(--circle-secondary, #6E6E73); }
 </style>

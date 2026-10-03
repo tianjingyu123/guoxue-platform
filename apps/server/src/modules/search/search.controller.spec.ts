@@ -2,7 +2,9 @@ import { Test } from "@nestjs/testing";
 import { SearchController } from "./search.controller";
 import { SearchService } from "./search.service";
 import { SearchWeightService } from "./search-weight.service";
+import { ContentGuideService } from "./content-guide.service";
 import { ThrottleGuard } from "../../common/throttle.guard";
+import { HEADERS_METADATA } from "@nestjs/common/constants";
 
 const mockSearchSvc = {
   search: jest.fn().mockResolvedValue({ q: "论语", articles: [], courses: [], products: [] }),
@@ -18,6 +20,10 @@ const mockWeightSvc = {
   getWeightMap: jest.fn().mockResolvedValue(new Map([["article:all", 1.0]])),
 };
 
+const mockGuideSvc = {
+  guide: jest.fn().mockResolvedValue({ query: "论语", cards: [] }),
+};
+
 describe("SearchController", () => {
   let ctrl: SearchController;
 
@@ -27,6 +33,7 @@ describe("SearchController", () => {
       providers: [
         { provide: SearchService, useValue: mockSearchSvc },
         { provide: SearchWeightService, useValue: mockWeightSvc },
+        { provide: ContentGuideService, useValue: mockGuideSvc },
       ],
     })
       .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })
@@ -40,6 +47,12 @@ describe("SearchController", () => {
     const result: any = await ctrl.search("论语", undefined, 1 as any, 20 as any);
     expect(result).toHaveProperty("articles");
     expect(mockWeightSvc.getWeightMap).toHaveBeenCalled();
+  });
+
+  it("公开搜索、语义与导览响应均禁止浏览器缓存", () => {
+    for (const handler of [SearchController.prototype.search, SearchController.prototype.semanticSearch, SearchController.prototype.contentGuide]) {
+      expect(Reflect.getMetadata(HEADERS_METADATA, handler)).toContainEqual({ name: "Cache-Control", value: "no-store" });
+    }
   });
 
   it("GET /search/hot — 热门搜索", async () => {

@@ -13,16 +13,18 @@ import { PaymentProviderFactory } from "./payment-factory"
 import { WechatPayService } from "./wechat-pay.service"
 import { AlipayService } from "./alipay.service"
 import { UnionpayService } from "./unionpay.service"
+import { HuifuService } from "../huifu/huifu.service"
 import { CoinService } from "../coin/coin.service"
 import { WebhookService } from "../webhook/webhook.service"
 import { RedisService } from "../../redis/redis.service"
 import { AuditService } from "../audit/audit.service"
 import { MemberBenefitService } from "../member/member-benefit.service"
 import { BusinessException } from "../../common/business.exception"
+import { EntitlementService } from "../entitlement/entitlement.service"
 import {
   makeMockPrisma, makeMockRedis, makeMockCommission, makeMockUnifiedPricing,
   makeMockWechatPay, makeMockAlipay, makeMockUnionpay, makeMockCoin, makeMockWebhook,
-  makeMockPaymentFactory, makeMockMemberBenefit, makeMockAudit,
+  makeMockPaymentFactory, makeMockMemberBenefit, makeMockAudit, makeMockHuifu, makeMockEntitlement,
 } from "./shop-test-mocks"
 
 // ShopService 拆分后为 facade + 目录/履约辅助（评价/物流/运费/购物车）。
@@ -39,6 +41,8 @@ const mockWebhook = makeMockWebhook()
 const mockPaymentFactory = makeMockPaymentFactory()
 const mockMemberBenefit = makeMockMemberBenefit()
 const mockAudit = makeMockAudit()
+const mockHuifu = makeMockHuifu()
+const mockEntitlement = makeMockEntitlement()
 
 describe("ShopService（facade·目录/履约辅助）", () => {
   let svc: ShopService
@@ -65,6 +69,8 @@ describe("ShopService（facade·目录/履约辅助）", () => {
         { provide: WebhookService, useValue: mockWebhook },
         { provide: AuditService, useValue: mockAudit },
         { provide: MemberBenefitService, useValue: mockMemberBenefit },
+        { provide: HuifuService, useValue: mockHuifu },
+        { provide: EntitlementService, useValue: mockEntitlement },
       ],
     }).compile()
     svc = mod.get(ShopService)
@@ -73,6 +79,14 @@ describe("ShopService（facade·目录/履约辅助）", () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
+
+  it("银联 txnType=04 回调应路由退款主链并返回已处理", async () => {
+    const refundSvc = (svc as any).refundSvc;
+    const spy = jest.spyOn(refundSvc, "handleUnionpayRefundNotify").mockResolvedValue(undefined);
+    await expect(svc.handleUnionpayNotify({ txnType: "04", merchantOrderId: "o1", respCode: "00" }))
+      .resolves.toBe(true);
+    expect(spy).toHaveBeenCalled();
+  });
 
   // ═══════════════════ 商品评价 ═══════════════════
 
@@ -173,6 +187,29 @@ describe("ShopService（facade·目录/履约辅助）", () => {
     it("待付款订单不可更新物流", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PENDING" })
       await expect(svc.updateLogistics("o1", { logisticsNo: "SF456" })).rejects.toThrow(BusinessException)
+    })
+  })
+
+  describe("购物车 SKU 归属与生命周期", () => {
+    it("拒绝把其他商品的 SKU 加入当前商品", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({
+        id: "p1", status: "ON_SALE", deletedAt: null, stock: 10,
+        skus: [{ id: "sku-p1", stock: 5 }],
+      })
+
+      await expect(svc.addToCart("u1", "p1", "sku-other", 1))
+        .rejects.toThrow("SKU不存在、已停用或与商品不匹配")
+      expect(mockRedis.setJson).not.toHaveBeenCalled()
+    })
+
+    it("多规格商品必须先选择有效 SKU", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({
+        id: "p1", status: "ON_SALE", deletedAt: null, stock: 10,
+        skus: [{ id: "sku-p1", stock: 5 }],
+      })
+
+      await expect(svc.addToCart("u1", "p1", undefined, 1)).rejects.toThrow("请选择商品规格")
+      expect(mockRedis.setJson).not.toHaveBeenCalled()
     })
   })
 })

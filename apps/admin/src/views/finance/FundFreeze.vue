@@ -21,6 +21,8 @@ const list = ref<FreezeRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
+// 按订单号筛选（后端 getFreezeRecords 支持 orderId 参数）
+const filterOrderId = ref('')
 
 const freezeVisible = ref(false)
 const freezeForm = reactive({ userId: '', amount: null as number | null, orderId: '', reason: '' })
@@ -31,14 +33,18 @@ const unfreezeReason = ref('')
 
 onMounted(() => fetchList())
 
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
-function formatMoney(v: number | string | null | undefined) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
+function formatDate(d: string) { return d ? new Date(d).toLocaleString('zh-CN', { hour12: false }) : '—' }
+function formatMoney(v: number | string | null | undefined) {
+  if (v == null) return '—'
+  return '¥' + Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 async function fetchList() {
   loading.value = true
   error.value = false
   try {
     const params: Record<string, string | number> = { page: page.value, pageSize }
+    if (filterOrderId.value.trim()) params.orderId = filterOrderId.value.trim()
     // 后端 getFreezeRecords 返回 { items, total, ... }，列表元素为含 frozenAmount 的 Order 记录
     const { data } = await financeApi.listFreezes(params)
     list.value = data.items ?? []
@@ -114,6 +120,17 @@ function handleExport() {
     <div class="toolbar">
       <h3>资金冻结/解冻</h3>
       <div class="toolbar-right">
+        <el-input
+          v-model="filterOrderId"
+          placeholder="按订单号筛选"
+          clearable
+          style="width:220px"
+          @clear="page = 1; fetchList()"
+          @keyup.enter="page = 1; fetchList()"
+        />
+        <el-button @click="page = 1; fetchList()">
+          查询
+        </el-button>
         <el-button
           type="warning"
           @click="openFreeze"
@@ -125,6 +142,16 @@ function handleExport() {
         </el-button>
       </div>
     </div>
+
+    <!-- 冻结能力真实口径说明（诚实：拦截随最新后端部署生效） -->
+    <el-alert
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+      title="冻结生效范围：用户名下存在冻结资金期间，其提现审批与打款将被拦截"
+      description="拦截能力随最新后端部署生效，部署前冻结仅记录、不拦截出款。每次冻结/解冻的操作人、金额与原因均写入审计日志（系统-审计日志可查），本列表为订单快照、不含原因字段。"
+    />
 
     <el-result
       v-if="error && !loading"
@@ -163,6 +190,7 @@ function handleExport() {
         <el-table-column
           label="冻结金额"
           width="130"
+          align="right"
         >
           <template #default="{ row }">
             <span style="font-weight:600;color:#f56c6c">{{ formatMoney(row.frozenAmount) }}</span>
@@ -171,6 +199,7 @@ function handleExport() {
         <el-table-column
           label="订单金额"
           width="130"
+          align="right"
         >
           <template #default="{ row }">
             {{ formatMoney(row.payAmount ?? row.amount) }}
@@ -216,7 +245,7 @@ function handleExport() {
 
       <el-empty
         v-if="!loading && list.length === 0"
-        description="暂无冻结记录"
+        :description="filterOrderId ? '该订单号下无冻结记录，换个订单号试试' : '暂无冻结中的资金'"
         style="margin-top:40px"
       />
 
@@ -238,7 +267,8 @@ function handleExport() {
     >
       <el-alert
         type="warning"
-        title="冻结操作将阻止用户提现和使用余额，请谨慎操作"
+        title="冻结期间该用户的提现将不予通过与打款，请谨慎操作"
+        description="操作人与冻结原因将写入审计日志备查。冻结金额不应超过订单实付金额（超出部分无实际资金对应）。"
         show-icon
         :closable="false"
         style="margin-bottom:16px"

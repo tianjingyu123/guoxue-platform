@@ -1,30 +1,207 @@
 {
-  "name": "热卜国学",
-  "appid": "",
-  "description": "国学知识平台 · 探寻东方智慧",
-  "versionName": "0.1.0",
-  "versionCode": "100",
-  "transformPx": false,
-  "app-plus": {
-    "usingComponents": true,
-    "splashscreen": { "alwaysShowBeforeRender": true, "waiting": true },
-    "modules": {},
-    "distribute": {
-      "android": { "permissions": [] },
-      "ios": {},
-      "sdkConfigs": {}
-    }
-  },
-  "quickapp": {},
-  "mp-weixin": {
-    "appid": "",
-    "setting": { "urlCheck": false, "es6": true, "minified": true },
-    "usingComponents": true,
-    "lazyCodeLoading": "requiredComponents"
-  },
-  "h5": {
-    "title": "热卜国学",
-    "router": { "mode": "history" }
-  },
-  "vueVersion": "3"
+    "name" : "热卜国学",
+    "appid" : "__UNI__277B108",
+    "description" : "国学知识平台 · 探寻东方智慧",
+    "versionName" : "1.1.1",
+    "versionCode" : "254",
+    "transformPx" : false,
+    "uniStatistics" : {
+        "enable" : false
+    },
+    "app-plus" : {
+        "runmode" : "liberate",
+        "usingComponents" : true,
+        "splashscreen" : {
+            "alwaysShowBeforeRender" : true,
+            "waiting" : true
+        },
+        "privacy" : {
+            "prompt" : "template",
+            "template" : {
+                "title" : "服务协议和隐私政策",
+                "message" : "欢迎使用热卜国学。请您审慎阅读并充分理解《用户协议》和《隐私政策》。为保障账号安全、改进产品性能及提供视频直播、语音连麦等功能，应用将在您同意后按功能需要处理设备标识、操作日志和网络状态；相机与麦克风仅在您主动开播或连麦期间使用。<br/>您可阅读<a href=\"https://gx.yrydai.com/h5/pkg-settings/user-agreement/index\">《用户协议》</a>和<a href=\"https://gx.yrydai.com/h5/pkg-settings/privacy-policy/index\">《隐私政策》</a>了解详细信息。若您同意，请点击“同意并继续”。",
+                "buttonAccept" : "同意并继续",
+                "buttonRefuse" : "暂不同意",
+                "second" : {
+                    "title" : "确认提示",
+                    "message" : "进入应用前，您需要先同意<a href=\"https://gx.yrydai.com/h5/pkg-settings/user-agreement/index\">《用户协议》</a>和<a href=\"https://gx.yrydai.com/h5/pkg-settings/privacy-policy/index\">《隐私政策》</a>；若仍不同意，应用将退出。",
+                    "buttonAccept" : "同意并继续",
+                    "buttonRefuse" : "退出应用"
+                }
+            }
+        },
+        "modules" : {
+            "Geolocation" : {},
+            "OAuth" : {},
+            "Payment" : {},
+            "Share" : {},
+            "VideoPlayer" : {}
+        },
+        "nativePlugins" : {
+            "TRTCCloudUniPlugin-TRTCCloudImpl" : {
+                "__plugin_info__" : {
+                    "name" : "【官方】腾讯云实时音视频SDK",
+                    "description" : "uni-app TRTC SDK 是腾讯云实时音视频通讯解决方案在 uni-app 上的 SDK，提供实时音视频服务",
+                    "platforms" : "Android,iOS",
+                    "url" : "https://ext.dcloud.net.cn/plugin?id=7774",
+                    "android_package_name" : "com.rebu.apprebu",
+                    "ios_bundle_id" : "com.rebu.iosapprebu",
+                    "isCloud" : true,
+                    "bought" : 1,
+                    "pid" : "7774",
+                    "parameters" : {}
+                }
+            }
+        },
+        "distribute" : {
+            "android" : {
+                "packagename" : "com.rebu.apprebu",
+                "custompermissions" : true,
+                "usesCleartextTraffic" : false,
+                "targetSdkVersion" : 35,
+                "excludePermissions" : [
+                    "<uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_PHONE_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_MEDIA_VIDEO\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_MEDIA_VISUAL_USER_SELECTED\"/>",
+                    "<uses-permission android:name=\"android.permission.INSTALL_PACKAGES\"/>",
+                    "<uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\"/>",
+                    "<uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION\"/>"
+                ],
+                "permissions" : [
+                    "<uses-permission android:name=\"android.permission.INTERNET\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\"/>",
+                    "<uses-permission android:name=\"android.permission.CAMERA\"/>",
+                    "<uses-permission android:name=\"android.permission.RECORD_AUDIO\"/>",
+                    "<uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\"/>",
+                    "<uses-permission android:name=\"android.permission.BLUETOOTH\"/>",
+                    "<uses-permission android:name=\"android.permission.BLUETOOTH_CONNECT\"/>",
+                    "<uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\"/>"
+                ]
+            },
+            "ios" : {
+                "appid" : "com.rebu.iosapprebu",
+                "privacyDescription" : {
+                    "NSCameraUsageDescription" : "用于主播发起视频直播，仅在用户主动开播期间采集画面。",
+                    "NSMicrophoneUsageDescription" : "用于主播视频直播、直播连麦与实时语音互动，仅在用户主动开播、连麦或通话期间采集声音。",
+                    "NSPhotoLibraryAddUsageDescription" : "用于在您主动点击保存图片时，将排盘图片或当前页面截图添加到手机相册。此操作不读取您的相册。",
+                    "NSLocationWhenInUseUsageDescription" : "用于排盘真太阳时读取当前位置，仅在您主动使用定位功能时访问。"
+                },
+                "capabilities" : {
+                    "entitlements" : {
+                        "com.apple.developer.associated-domains" : [ "applinks:api.rebugx.cn", "applinks:gx.yrydai.com" ],
+                        "com.apple.developer.applesignin" : [ "Default" ]
+                    }
+                },
+                "dSYMs" : false
+            },
+            "icons" : {
+                "android" : {
+                    "ldpi" : "unpackage/res/icons/48x48.png",
+                    "mdpi" : "unpackage/res/icons/48x48.png",
+                    "hdpi" : "unpackage/res/icons/72x72.png",
+                    "xhdpi" : "unpackage/res/icons/96x96.png",
+                    "xxhdpi" : "unpackage/res/icons/144x144.png",
+                    "xxxhdpi" : "unpackage/res/icons/192x192.png"
+                },
+                "ios" : {
+                    "appstore" : "unpackage/res/icons/1024x1024.png",
+                    "iphone" : {
+                        "app@2x" : "unpackage/res/icons/120x120.png",
+                        "app@3x" : "unpackage/res/icons/180x180.png",
+                        "notification@2x" : "unpackage/res/icons/40x40.png",
+                        "notification@3x" : "unpackage/res/icons/60x60.png",
+                        "settings@2x" : "unpackage/res/icons/58x58.png",
+                        "settings@3x" : "unpackage/res/icons/87x87.png",
+                        "spotlight@2x" : "unpackage/res/icons/80x80.png",
+                        "spotlight@3x" : "unpackage/res/icons/120x120.png"
+                    },
+                    "ipad" : {
+                        "app" : "unpackage/res/icons/76x76.png",
+                        "app@2x" : "unpackage/res/icons/152x152.png",
+                        "notification" : "unpackage/res/icons/20x20.png",
+                        "notification@2x" : "unpackage/res/icons/40x40.png",
+                        "proapp@2x" : "unpackage/res/icons/167x167.png",
+                        "settings" : "unpackage/res/icons/29x29.png",
+                        "settings@2x" : "unpackage/res/icons/58x58.png",
+                        "spotlight" : "unpackage/res/icons/40x40.png",
+                        "spotlight@2x" : "unpackage/res/icons/80x80.png"
+                    }
+                }
+            },
+            "sdkConfigs" : {
+                "oauth" : {
+                    "univerify" : {},
+                    "apple" : {},
+                    "weixin" : {
+                        "appid" : "wxb3c0f47634f99c0b",
+                        "UniversalLinks" : "https://api.rebugx.cn/h5/"
+                    }
+                },
+                "share" : {
+                    "weixin" : {
+                        "appid" : "wxb3c0f47634f99c0b",
+                        "UniversalLinks" : "https://api.rebugx.cn/h5/"
+                    }
+                },
+                "payment" : {
+                    "alipay" : {
+                        "__platform__" : [ "android" ]
+                    },
+                    "weixin" : {
+                        "appid" : "wxb3c0f47634f99c0b",
+                        "UniversalLinks" : "https://api.rebugx.cn/h5/"
+                    },
+                    "appleiap" : {}
+                }
+            }
+        }
+    },
+    "quickapp" : {},
+    "app-harmony" : {
+        "distribute" : {
+            "bundleName" : "com.rebu.apprebu",
+            "icons" : {
+                "foreground" : "unpackage/res/icons/1024x1024.png",
+                "background" : "unpackage/res/icons/harmony-background.png"
+            },
+            "modules" : {
+                "uni-oauth" : {
+                    "weixin" : {
+                        "appid" : "wxb3c0f47634f99c0b"
+                    }
+                }
+            }
+        }
+    },
+    "mp-weixin" : {
+        "appid" : "wx06397e8ab26bed9e",
+        "setting" : {
+            "urlCheck" : true,
+            "es6" : true,
+            "minified" : true
+        },
+        "permission" : {
+            "scope.record" : {
+                "desc" : "用于直播连麦与实时语音互动，仅在用户主动使用时采集声音"
+            }
+        },
+        "usingComponents" : true,
+        "lazyCodeLoading" : "requiredComponents",
+        "optimization" : {
+            "subPackages" : true
+        }
+    },
+    "h5" : {
+        "title" : "热卜国学",
+        "router" : {
+            "mode" : "history"
+        }
+    },
+    "vueVersion" : "3"
 }

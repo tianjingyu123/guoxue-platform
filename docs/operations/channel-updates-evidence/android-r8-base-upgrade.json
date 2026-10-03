@@ -1,0 +1,153 @@
+{
+  "verifiedAt": "2026-10-01T01:18:40.452Z",
+  "minified": true,
+  "api": "34",
+  "packageName": "cn.rebu.resourceprobe",
+  "evidence": [
+    {
+      "checkpoint": "BASE_JOURNAL_SYNCED",
+      "versionCode": 25,
+      "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+      "sourceDirty": false,
+      "minified": true,
+      "apkSha256": "15cd1ecfd0604d2fc18d4cfc95b9c8d1ef3ae3a9e66a2981fac4869f09109c57",
+      "installation": {
+        "method": "官方 adb；必要时按实际 UI 层级完成正常防护扫描",
+        "steps": []
+      },
+      "logs": [
+        "         1790817360.445  8527  8527 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817360.481  8527  8527 I REBU_RESOURCE_PROBE: BASE_KILL_AT BASE_JOURNAL_SYNCED\r",
+        "         1790817360.584  8564  8564 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817360.594  8564  8564 I REBU_RESOURCE_PROBE: BASE_OLD_MOVED complete-base\r",
+        "         1790817360.596  8564  8564 I REBU_RESOURCE_PROBE: BASE_NEW_MOVED complete-base\r",
+        "         1790817360.598  8564  8564 I REBU_RESOURCE_PROBE: BASE_PREVIOUS_MOVED complete-base\r",
+        "         1790817360.602  8564  8564 I REBU_RESOURCE_PROBE: BASE_COMMITTED complete-base\r",
+        "         1790817360.602  8564  8564 I REBU_RESOURCE_PROBE: BASE_ARCHIVE kept=true,previous=true\r",
+        "         1790817360.602  8564  8564 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=21,nativeBuild=25\r",
+        "         1790817360.913  8636  8636 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817360.918  8636  8636 I REBU_RESOURCE_PROBE: BASE_ARCHIVE kept=true,previous=true\r",
+        "         1790817360.918  8636  8636 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=25\r",
+        "         1790817360.933  8636  8636 I REBU_RESOURCE_PROBE: UPGRADE_USER_DATA sessionDecrypted=true,dataPreserved=true\r",
+        "         1790817361.165  8636  8757 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "checkpoint": "BASE_OLD_MOVED",
+      "versionCode": 26,
+      "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+      "sourceDirty": false,
+      "minified": true,
+      "apkSha256": "b5d960fde80cf1d276e75a9926cac7a3d9b4805c7fd72ceff9c3bf1399d8eb26",
+      "installation": {
+        "method": "官方 adb；必要时按实际 UI 层级完成正常防护扫描",
+        "steps": []
+      },
+      "logs": [
+        "         1790817412.108  9445  9445 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817412.143  9445  9445 I REBU_RESOURCE_PROBE: BASE_JOURNAL_SYNCED complete-base\r",
+        "         1790817412.146  9445  9445 I REBU_RESOURCE_PROBE: BASE_KILL_AT BASE_OLD_MOVED\r",
+        "         1790817412.246  9476  9476 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817412.254  9476  9476 I REBU_RESOURCE_PROBE: BASE_NEW_MOVED complete-base\r",
+        "         1790817412.255  9476  9476 I REBU_RESOURCE_PROBE: BASE_PREVIOUS_MOVED complete-base\r",
+        "         1790817412.258  9476  9476 I REBU_RESOURCE_PROBE: BASE_COMMITTED complete-base\r",
+        "         1790817412.258  9476  9476 I REBU_RESOURCE_PROBE: BASE_ARCHIVE kept=true,previous=true\r",
+        "         1790817412.259  9476  9476 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=14,nativeBuild=26\r",
+        "         1790817412.472  9476  9570 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r",
+        "         1790817413.359  9655  9655 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817413.364  9655  9655 I REBU_RESOURCE_PROBE: BASE_ARCHIVE kept=true,previous=true\r",
+        "         1790817413.364  9655  9655 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=15,nativeBuild=26\r",
+        "         1790817413.381  9655  9655 I REBU_RESOURCE_PROBE: UPGRADE_USER_DATA sessionDecrypted=true,dataPreserved=true\r",
+        "         1790817413.633  9655  9749 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "checkpoint": "BASE_NEW_MOVED",
+      "versionCode": 27,
+      "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+      "sourceDirty": false,
+      "minified": true,
+      "apkSha256": "528e347a0b488d6014c3399cd3425283f30b12d86a47b5eec0d623b3ce7fc383",
+      "installation": {
+        "method": "官方 adb；必要时按实际 UI 层级完成正常防护扫描",
+        "steps": []
+      },
+      "logs": [
+        "         1790817445.494 10405 10405 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817445.548 10405 10405 I REBU_RESOURCE_PROBE: BASE_JOURNAL_SYNCED complete-base\r",
+        "         1790817445.550 10405 10405 I REBU_RESOURCE_PROBE: BASE_OLD_MOVED complete-base\r",
+        "         1790817445.553 10405 10405 I REBU_RESOURCE_PROBE: BASE_KILL_AT BASE_NEW_MOVED\r",
+        "         1790817445.660 10440 10440 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817445.922 10481 10481 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817445.931 10481 10481 I REBU_RESOURCE_PROBE: BASE_COMMITTED complete-base\r",
+        "         1790817445.932 10481 10481 I REBU_RESOURCE_PROBE: BASE_ARCHIVE kept=true,previous=true\r",
+        "         1790817445.932 10481 10481 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=11,nativeBuild=27\r",
+        "         1790817445.947 10481 10481 I REBU_RESOURCE_PROBE: UPGRADE_USER_DATA sessionDecrypted=true,dataPreserved=true\r",
+        "         1790817446.162 10481 10579 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "checkpoint": "BASE_PREVIOUS_MOVED",
+      "versionCode": 28,
+      "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+      "sourceDirty": false,
+      "minified": true,
+      "apkSha256": "2f4b368dafb0c98a6a7e54737adf1d30c4d71de4b7c1cb6c66ff3574d5eb304f",
+      "installation": {
+        "method": "官方 adb；必要时按实际 UI 层级完成正常防护扫描",
+        "steps": []
+      },
+      "logs": [
+        "         1790817479.542 11222 11222 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817479.573 11222 11222 I REBU_RESOURCE_PROBE: BASE_JOURNAL_SYNCED complete-base\r",
+        "         1790817479.576 11222 11222 I REBU_RESOURCE_PROBE: BASE_OLD_MOVED complete-base\r",
+        "         1790817479.577 11222 11222 I REBU_RESOURCE_PROBE: BASE_NEW_MOVED complete-base\r",
+        "         1790817479.578 11222 11222 I REBU_RESOURCE_PROBE: BASE_KILL_AT BASE_PREVIOUS_MOVED\r",
+        "         1790817479.681 11250 11250 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817479.692 11250 11250 I REBU_RESOURCE_PROBE: BASE_COMMITTED complete-base\r",
+        "         1790817479.693 11250 11250 I REBU_RESOURCE_PROBE: BASE_ARCHIVE kept=true,previous=true\r",
+        "         1790817479.693 11250 11250 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=13,nativeBuild=28\r",
+        "         1790817479.906 11250 11345 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r",
+        "         1790817480.378 11382 11382 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817480.383 11382 11382 I REBU_RESOURCE_PROBE: BASE_ARCHIVE kept=true,previous=true\r",
+        "         1790817480.383 11382 11382 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=8,nativeBuild=28\r",
+        "         1790817480.411 11382 11382 I REBU_RESOURCE_PROBE: UPGRADE_USER_DATA sessionDecrypted=true,dataPreserved=true\r",
+        "         1790817480.629 11382 11534 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "checkpoint": "BASE_COMMITTED",
+      "versionCode": 29,
+      "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+      "sourceDirty": false,
+      "minified": true,
+      "apkSha256": "86aa6a3d4518b6e6e5cf66b4122db29a39def8825d38742769c640b9173cd3fb",
+      "installation": {
+        "method": "官方 adb；必要时按实际 UI 层级完成正常防护扫描",
+        "steps": []
+      },
+      "logs": [
+        "         1790817517.720 12195 12195 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817517.752 12195 12195 I REBU_RESOURCE_PROBE: BASE_JOURNAL_SYNCED complete-base\r",
+        "         1790817517.755 12195 12195 I REBU_RESOURCE_PROBE: BASE_OLD_MOVED complete-base\r",
+        "         1790817517.757 12195 12195 I REBU_RESOURCE_PROBE: BASE_NEW_MOVED complete-base\r",
+        "         1790817517.758 12195 12195 I REBU_RESOURCE_PROBE: BASE_PREVIOUS_MOVED complete-base\r",
+        "         1790817517.761 12195 12195 I REBU_RESOURCE_PROBE: BASE_KILL_AT BASE_COMMITTED\r",
+        "         1790817517.862 12224 12224 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817517.866 12224 12224 I REBU_RESOURCE_PROBE: BASE_ARCHIVE kept=true,previous=true\r",
+        "         1790817517.866 12224 12224 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=29\r",
+        "         1790817518.158 12267 12267 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817518.163 12267 12267 I REBU_RESOURCE_PROBE: BASE_ARCHIVE kept=true,previous=true\r",
+        "         1790817518.163 12267 12267 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=29\r",
+        "         1790817518.178 12267 12267 I REBU_RESOURCE_PROBE: UPGRADE_USER_DATA sessionDecrypted=true,dataPreserved=true\r",
+        "         1790817518.391 12267 12369 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    }
+  ],
+  "formalPackageUnchanged": true,
+  "limits": [
+    "独立测试签名 APK，同包升级保留数据",
+    "不是 DCloud SDK 资源释放和完整包验收",
+    "五个检查点真实杀进程；小型夹具不证明正式包启动耗时"
+  ]
+}

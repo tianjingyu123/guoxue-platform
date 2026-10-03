@@ -1,0 +1,4945 @@
+{
+  "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（本轮 CI、镜像及客户端定向范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "originalHead": "aeb2ec2bfd9889e403761f6ee68410f742e74e58",
+  "originalFork": "7edbeede79419e94534d49cb01f85b7ecbc4295f",
+  "receivedCommits": [
+    {
+      "original": "75f65241df4515b5259758f095eb3fc3ec20b6c7",
+      "received": "3db2eb5feb597f4912ceb18786c8c569e7f1a438"
+    },
+    {
+      "original": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6",
+      "received": "34a616bd77f61f82bcc116e9bca598adb801a7ed"
+    },
+    {
+      "original": "b144aa309f9eab36ac4f61968ae7fda35c91934b",
+      "received": "c709ec61902d63b307a25fcca1682c97e193c0ae"
+    },
+    {
+      "original": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "received": "c3cf358e836b976bcbfa4ca35d46eae9537cda22"
+    },
+    {
+      "original": "17f710c00782e8afa4bccadd0002ba50decf3952",
+      "received": "05b42f49f27d7c9a689481b5ba4674ee175f439a"
+    },
+    {
+      "original": "02d30a6da4c36a82c4ea9f4d9d246a1da6e83743",
+      "received": "e01cedd627cbb54bcd6308253236e58e2862d0be"
+    },
+    {
+      "original": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+      "received": "3820dd43c9d81967ab944c1f6098bcfcbd33ec14"
+    },
+    {
+      "original": "1668a0cf62ed81f417b8e7729e5f0b9259432ecf",
+      "received": "b6510359ebbc59bc4e4633aebfc6507f6cf405e7"
+    },
+    {
+      "original": "08d986d61c7e24398940960b242ceb5c793a48f9",
+      "received": "db4361af1b5fb851e2948b8b5c06aa4146c71197"
+    },
+    {
+      "original": "56d3634a0fe3bb61526621b1a6356766f4cf2c76",
+      "received": "009c31eaa7d8cc67d18bd3636d23750e61f7eb97"
+    },
+    {
+      "original": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+      "received": "ea91925f80d313d9b1283a94d6530f073e56b76e"
+    },
+    {
+      "original": "aeb2ec2bfd9889e403761f6ee68410f742e74e58",
+      "received": "2bd75dbdb01f627447633d6ccf932cefa07efe85"
+    }
+  ],
+  "corrections": [
+    "2fade742799c736b5140b4bb27c3585af1456e57 保证渠道迁移失败整批回滚并限制空构建号重复",
+    "8d9baa56f28584ed9daf672ad4b166888c2f24e9 对齐渠道迁移索引与Prisma截断命名规则",
+    "d5db6a1e35332f935856772fe0f820a03a91dd3a 修复渠道接收后的端到端测试桩及商店版本证据绑定",
+    "f04114afa6d33206cd9e3478e3477a4b3b8b046c 修复登录兴趣旅程测试对多行路由导入的加载",
+    "14f46a06924eb3c5ecef1faebe27f98ec31a82fd 区分正式原生配置模板与隔离展示测试的域名审计用途",
+    "0b65f8d0033b15431df35c8954d590a728c8ca4a 同步渠道空库基线及升级路径的数据库约束",
+    "c38db680053ef6cf126a66f5656e98fe1243819e 对齐会员服务错误态测试与现有页面文案",
+    "8c6ff72a7c1e406ea184382f7f04fca783c659b2 为正式运行镜像补齐空库初始化所需的psql客户端",
+    "70ee2418d091c9bea87878a8ff89b879a12e28b9 对齐渠道模型属性顺序以通过Prisma生成绑定校验",
+    "877306a56339cb0c0b7c3429a86dc8b248775529 补齐正式H5分享域的App原生入口和安全路由解析"
+  ],
+  "migration": {
+    "total": 128,
+    "targetCompleted": 103,
+    "pending": 25,
+    "new": "20260930090000_app_distribution_and_operations",
+    "sha256": "69ec1173ee000dccd78f82309e42caf64e6498760da8104ce7ddbcdc53f860aa",
+    "productionApplied": false,
+    "previous24Rehearsal": "历史证据，不等效当前25条",
+    "rehearsal": {
+      "schemaVersion": 1,
+      "result": "PASS",
+      "scope": "70ee2418 固定候选在既有生产备份临时隔离恢复库上的 25 条完整升级演练",
+      "candidate": {
+        "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+        "sourceArchiveSha256": "959138e76b4dc9eb6203409bf3461d0262adcf32673a1a0e9990d968c9531d90",
+        "candidateBundleSha256": "ba543f71e11b0bd3cda8b418d95d4e4e513b7b50dac84d9ebbc701f6468a5b00",
+        "newMigrationSha256": "69ec1173ee000dccd78f82309e42caf64e6498760da8104ce7ddbcdc53f860aa"
+      },
+      "backup": {
+        "path": "/opt/guoxue/backups/release-bf7f9863-20260930/guoxue-bf7f9863-20260930T064107Z.dump",
+        "bytes": 1815229877,
+        "sha256": "e0248b9e05f155af95c4cb46ece50a14fc1680219f085b119eed0731ef2d99e5"
+      },
+      "successfulExecution": {
+        "invocationId": "inv-e9buh10ixm",
+        "taskId": "invt-e9buh10ixn",
+        "scriptSha256": "f45e7c3161553fc20567d86a94f1bac9d5fef7923d38971cf7144221d06a64cd",
+        "exitCode": 0,
+        "startedUtc": "2026-10-01T04:42:42Z",
+        "endedUtc": "2026-10-01T04:44:43Z",
+        "totalSeconds": 121
+      },
+      "validation": {
+        "completedMigrationsBefore": 103,
+        "completedMigrationsAfter": 128,
+        "failedMigrationsBefore": 0,
+        "failedMigrationsAfter": 0,
+        "publicTablesBefore": 353,
+        "publicTablesAfter": 384,
+        "duplicateBuildGroupsBefore": 0,
+        "baselineTablesCompared": 352,
+        "baselineRowCountMismatches": 0,
+        "appVersionHistoryRows": 1,
+        "appVersionHistoryDigestBefore": "b2a6e8e1ae11b3f16cfed8921686650e",
+        "appVersionHistoryDigestAfter": "b2a6e8e1ae11b3f16cfed8921686650e",
+        "featureFlagHistoryRows": 5,
+        "featureFlagHistoryDigestBefore": "65cc069759fb7153e82cbe64f414afa7",
+        "featureFlagHistoryDigestAfter": "65cc069759fb7153e82cbe64f414afa7",
+        "activePlatformKeysBefore": 1,
+        "activePlatformKeysTransformedValid": 1,
+        "validatedChecks": 4,
+        "nullsNotDistinctUniqueIndex": 1,
+        "legacyDeniedSlots": 3,
+        "distributionRows": 3,
+        "resourceReleaseRows": 0
+      },
+      "cleanupVerification": {
+        "invocationId": "inv-e9bujvg7ch",
+        "taskId": "invt-e9bujvg7ci",
+        "exitCode": 0,
+        "cleanupExitCode": 0,
+        "cleanupUtc": "2026-10-01T04:44:43Z",
+        "shadowContainer": "absent",
+        "runnerContainer": "absent",
+        "productionServerStatus": "running",
+        "productionServerHealth": "healthy"
+      },
+      "finalEvidenceCollection": {
+        "invocationId": "inv-d9bumf0fgs",
+        "taskId": "invt-d9bumf0fgt",
+        "scriptSha256": "31afa0e726bf094dd4c30a20ab86d1c69ff0639d8bdf1c066a7354c5ba2d5beb",
+        "exitCode": 0
+      },
+      "remoteEvidenceSha256": {
+        "result.txt": "5c56062a638dae40c1748330147b406fffbda28ae61e172c96474f86eecc1ae9",
+        "cleanup-result.txt": "d483bff5230f528d6b643334809d46abd7aa01bc6e1f65f2d31bfe7144542b6c",
+        "prisma-migrate-deploy.log": "6a5aead2f183df0ad28e6ea8a881206dd098ffa14f2d0941156d63525c908473",
+        "prisma-migrate-status.log": "00aa72f2e313ddcd54830e85e0780aed1818567048a23310557885e4c50eb4a1",
+        "applied-25.txt": "3f33f4f13c40154e1020fd26e0d8327d474e313e8fbde4d53f47e7d013b3c1aa",
+        "expected-25.txt": "3f33f4f13c40154e1020fd26e0d8327d474e313e8fbde4d53f47e7d013b3c1aa",
+        "counts-before.tsv": "93c948d2ce05d6f7b4a057635b253aa00e8893cb782ad912df34a3fdfe03c4cc",
+        "counts-after.tsv": "ec46e660c64d171630f2b7157b293c6d1a2c4428707a0c495e857df135b861ea",
+        "counts-baseline-compare.tsv": "4c5eb5a3eacd051b6d50b3f4c2d6d5175256d2848c800089d7f3ad6439e7b0df",
+        "migration-files.sha256": "53ecaf703067100a88523c474f60c020ef62deff1a473eafb55255ca9f3961fd",
+        "candidate-prisma-70ee2418.tar.gz": "ba543f71e11b0bd3cda8b418d95d4e4e513b7b50dac84d9ebbc701f6468a5b00"
+      },
+      "limitations": {
+        "postgresRestoreVersion": "18.6",
+        "productionTargetVersion": "18.4",
+        "note": "同为 PostgreSQL 18，但存在补丁版本差异；本记录不是生产迁移、部署或发布放行。"
+      },
+      "priorScriptFailures": [
+        {
+          "invocationId": "inv-a9bu700ta1",
+          "taskId": "invt-a9bu700ta2",
+          "reason": "验收摘要错误包含按设计改写的 activePlatformKey；25 条迁移本身全部成功。"
+        },
+        {
+          "invocationId": "inv-e9buad02bu",
+          "taskId": "invt-e9buad02bv",
+          "reason": "验收脚本的 activePlatformKey SQL 引号错误；25 条迁移本身全部成功。"
+        },
+        {
+          "invocationId": "inv-e9budn0asv",
+          "taskId": "invt-e9budn0asw",
+          "reason": "检查点在 featureflag_after 赋值前引用变量；25 条迁移本身全部成功。"
+        }
+      ],
+      "mainReceiverVerification": {
+        "checkedAt": "2026-10-01T04:49:21.527Z",
+        "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+        "passed": true,
+        "scriptSha256": "f45e7c3161553fc20567d86a94f1bac9d5fef7923d38971cf7144221d06a64cd",
+        "run": {
+          "invocationId": "inv-e9buh10ixm",
+          "taskId": "invt-e9buh10ixn",
+          "instanceId": "ins-0sen8yvf",
+          "status": "SUCCESS",
+          "exitCode": 0,
+          "dropped": 0,
+          "rawReceiptSha256": "65d79525631b458e5858a87f9fc34c04888dcf4eed00aa290c410fabc86e2e19",
+          "fields": {
+            "status": "PASS",
+            "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+            "sourceArchiveSha256": "959138e76b4dc9eb6203409bf3461d0262adcf32673a1a0e9990d968c9531d90",
+            "candidateBundleSha256": "ba543f71e11b0bd3cda8b418d95d4e4e513b7b50dac84d9ebbc701f6468a5b00",
+            "backupSha256": "e0248b9e05f155af95c4cb46ece50a14fc1680219f085b119eed0731ef2d99e5",
+            "postgresRestoreVersion": "18.6",
+            "productionToolVersion": "18.4",
+            "prismaCliVersion": "6.19.3",
+            "startedUtc": "2026-10-01T04:42:42Z",
+            "endedUtc": "2026-10-01T04:44:43Z",
+            "totalSeconds": "121",
+            "restoreSeconds": "107",
+            "migrateSeconds": "1",
+            "completedMigrationsBefore": "103",
+            "completedMigrationsAfter": "128",
+            "failedMigrationsBefore": "0",
+            "failedMigrationsAfter": "0",
+            "publicTablesBefore": "353",
+            "publicTablesAfter": "384",
+            "duplicateBuildGroupsBefore": "0",
+            "baselineTablesCompared": "352",
+            "baselineRowCountMismatches": "0",
+            "appVersionHistoryBefore": "1\tb2a6e8e1ae11b3f16cfed8921686650e",
+            "appVersionHistoryAfter": "1\tb2a6e8e1ae11b3f16cfed8921686650e",
+            "featureFlagHistoryBefore": "5\t65cc069759fb7153e82cbe64f414afa7",
+            "featureFlagHistoryAfter": "5\t65cc069759fb7153e82cbe64f414afa7",
+            "activePlatformKeysBefore": "1",
+            "activePlatformKeysTransformedValid": "1",
+            "validatedChecks": "4",
+            "nullsNotDistinctUniqueIndex": "1",
+            "legacyDeniedSlots": "3",
+            "distributionRows": "3",
+            "resourceReleaseRows": "0",
+            "shadowNetwork": "none",
+            "runnerNetwork": "container:8cf6eb10397606a51c5e8095cdc086f74f1e9cd40ebcea914e5dc5e253bfaa07",
+            "productionServerState": "running",
+            "productionServerImage": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484"
+          }
+        },
+        "cleanup": {
+          "invocationId": "inv-e9bujvg7ch",
+          "taskId": "invt-e9bujvg7ci",
+          "instanceId": "ins-0sen8yvf",
+          "status": "SUCCESS",
+          "exitCode": 0,
+          "dropped": 0,
+          "rawReceiptSha256": "eac791b2078e3ab6cc31bae33afcf41c35a8c24272c52bd19031fd533e9bfb40",
+          "fields": {
+            "cleanupExitCode": "0",
+            "cleanupUtc": "2026-10-01T04:44:43Z",
+            "status": "PASS",
+            "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+            "sourceArchiveSha256": "959138e76b4dc9eb6203409bf3461d0262adcf32673a1a0e9990d968c9531d90",
+            "candidateBundleSha256": "ba543f71e11b0bd3cda8b418d95d4e4e513b7b50dac84d9ebbc701f6468a5b00",
+            "backupSha256": "e0248b9e05f155af95c4cb46ece50a14fc1680219f085b119eed0731ef2d99e5",
+            "postgresRestoreVersion": "18.6",
+            "productionToolVersion": "18.4",
+            "prismaCliVersion": "6.19.3",
+            "startedUtc": "2026-10-01T04:42:42Z",
+            "endedUtc": "2026-10-01T04:44:43Z",
+            "totalSeconds": "121",
+            "restoreSeconds": "107",
+            "migrateSeconds": "1",
+            "completedMigrationsBefore": "103",
+            "completedMigrationsAfter": "128",
+            "failedMigrationsBefore": "0",
+            "failedMigrationsAfter": "0",
+            "publicTablesBefore": "353",
+            "publicTablesAfter": "384",
+            "duplicateBuildGroupsBefore": "0",
+            "baselineTablesCompared": "352",
+            "baselineRowCountMismatches": "0",
+            "appVersionHistoryBefore": "1\tb2a6e8e1ae11b3f16cfed8921686650e",
+            "appVersionHistoryAfter": "1\tb2a6e8e1ae11b3f16cfed8921686650e",
+            "featureFlagHistoryBefore": "5\t65cc069759fb7153e82cbe64f414afa7",
+            "featureFlagHistoryAfter": "5\t65cc069759fb7153e82cbe64f414afa7",
+            "activePlatformKeysBefore": "1",
+            "activePlatformKeysTransformedValid": "1",
+            "validatedChecks": "4",
+            "nullsNotDistinctUniqueIndex": "1",
+            "legacyDeniedSlots": "3",
+            "distributionRows": "3",
+            "resourceReleaseRows": "0",
+            "shadowNetwork": "none",
+            "runnerNetwork": "container:8cf6eb10397606a51c5e8095cdc086f74f1e9cd40ebcea914e5dc5e253bfaa07",
+            "productionServerState": "running",
+            "productionServerImage": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484",
+            "productionServerHealth": "healthy"
+          }
+        },
+        "temporaryContainersAbsent": true,
+        "productionUnchanged": true,
+        "limits": [
+          "PG18.6恢复镜像与目标PG18.4补丁不同",
+          "在线历史备份不是维护停写最终回退备份",
+          "隔离副本成功不是生产迁移、部署或资金操作授权"
+        ]
+      },
+      "finalRecordSha256": "d35a5107472bdd53cc8081395da2a194b17d18c00ecca2b066f89de5ea1aa29b",
+      "collectionRawReceiptSha256": "0e1e08c1ba4ef7d3616e20dd92ce0a57213841cc8d3274eae361fe6c17ae54c6",
+      "backupUnchangedAfterVerified": true
+    }
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T05:54:58.818Z",
+    "archive": "gx-deploy-91-launch-20260930-877306a56.tar.gz",
+    "sha256": "13da6718f9ee830fc7aeeb1c93ca10684ce3afd06544db87d27d2c7cc2741e0a",
+    "releaseId": "launch-20260930-877306a56",
+    "commit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "expectedCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "fileCount": 4433,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": [],
+    "bytes": 15708468,
+    "draftReleaseId": 400686156,
+    "assetId": 602556247,
+    "draft": true
+  },
+  "clients": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T05:54:26.109Z",
+    "releaseId": "launch-20260930-877306a56",
+    "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "auditFile": "artifacts/channel-intake-20260930/client-artifacts-877306a56.json",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5423,
+      "bytes": 53933258,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 505,
+        "bytes": 6487585,
+        "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1180,
+        "bytes": 11080592,
+        "contentSha256": "783a7f1fd3a1ad6f81460a32c6379faeb6e28f9069ce974e0b5e723c94ee437b",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2756,
+        "bytes": 11061803,
+        "contentSha256": "9f6c55e7895606bc497ad0c610e2da5609be54fde07bd6a81a20798496e94ae3",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 492,
+        "bytes": 12831904,
+        "contentSha256": "85c37a08d6aea02fa74a3fc9d1fdcc76b31eb497b0db235d0b0da666239dbb8f",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12471374,
+        "contentSha256": "65f4ce53d2a3287be81a582773ceb6858d6cc688e39fec416e2b7bd3cc79485b",
+        "matches": true
+      }
+    ],
+    "errors": [],
+    "afterOfficialToolsAllFilesExact": true
+  },
+  "mini": {
+    "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "officialPreviewSucceeded": true,
+    "infoSha256": "6d6185f55be14e10e4a6175c362309e1d42aeee4d203f7dbeb3b0c7903a0c3d0",
+    "logSha256": "3f8da15c54db859c13fa48f99fdb3422e7c8ba17fece64c4e032ec1acda2c489",
+    "mainBytes": 1964711,
+    "mainRemainingBytes": 132441,
+    "maxSubpackage": "/pkg-paipan/",
+    "maxSubpackageBytes": 1959687,
+    "maxSubpackageRemainingBytes": 137465,
+    "subpackageCount": 33,
+    "totalBytes": 12736898,
+    "noUpload": true,
+    "noReview": true,
+    "noDeviceAcceptance": true
+  },
+  "localEvidence": {
+    "jest": {
+      "suites": 17,
+      "passed": 393
+    },
+    "nodePassed": 52,
+    "e2eAndOperationHttp": 85,
+    "onboarding": 12,
+    "store": 6,
+    "domain": 7,
+    "baselineAndErrorSurface": 9,
+    "syntheticUpgrade": 3,
+    "emptyBaseline": 3,
+    "realLocalDbServiceGroups": 10,
+    "sfcHttpDomGroups": 8,
+    "channelDryRuns": 18,
+    "prismaBinding": 5,
+    "gateSource": "c38db680053ef6cf126a66f5656e98fe1243819e"
+  },
+  "ci": {
+    "status": "success",
+    "checkedAt": "2026-10-01T06:06:08.5117605Z",
+    "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "logs": [
+      {
+        "name": "单元测试 (3/3)",
+        "sha256": "1d0f9910bb58fe8611bccd8976bab5d0de281846f937560e24dec783896fc30f",
+        "jobId": 110238904675,
+        "tests": "Tests:       39 skipped, 3038 passed, 3077 total",
+        "suites": "Test Suites: 10 skipped, 219 passed, 219 of 229 total"
+      },
+      {
+        "name": "单元测试 (1/3)",
+        "sha256": "c686fc3ed8ecf2326531812c630787687b513037c96b2989871c9be3ff3fb5ff",
+        "jobId": 110238904718,
+        "tests": "Tests:       44 skipped, 2839 passed, 2883 total",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total"
+      },
+      {
+        "name": "单元测试 (2/3)",
+        "sha256": "da7190b061b3dba1e7c376c706d2fe88d182264a409a971c19a44b31d7b007bb",
+        "jobId": 110238904785,
+        "tests": "Tests:       50 skipped, 3022 passed, 3072 total",
+        "suites": "Test Suites: 8 skipped, 221 passed, 221 of 229 total"
+      }
+    ],
+    "suitesSkipped": 26,
+    "suitesPassed": 662,
+    "runId": 36821725413,
+    "testsPassed": 8899,
+    "testsSkipped": 133,
+    "jobsPassed": 8,
+    "jobs": [
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "TypeScript 类型检查",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238549248",
+        "id": 110238549248
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "迁移与上线代码门禁",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238549549",
+        "id": 110238549549
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "ESLint + Prettier",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238549595",
+        "id": 110238549595
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "单元测试 (3/3)",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238904675",
+        "id": 110238904675
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "单元测试 (1/3)",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238904718",
+        "id": 110238904718
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "单元测试 (2/3)",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238904785",
+        "id": 110238904785
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "构建产物",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110241722896",
+        "id": 110241722896
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "测试结果汇总",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110241722959",
+        "id": 110241722959
+      }
+    ],
+    "runs": [
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "headSha": "877306a56339cb0c0b7c3429a86dc8b248775529",
+        "event": "pull_request",
+        "name": "CI — 国学平台",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821730993",
+        "id": 36821730993
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "headSha": "877306a56339cb0c0b7c3429a86dc8b248775529",
+        "event": "push",
+        "name": "CI — 国学平台",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413",
+        "id": 36821725413
+      }
+    ]
+  },
+  "linux": {
+    "checksPassed": 23,
+    "cleanupAllConfirmed": true,
+    "checkedAt": "2026-10-01T06:11:13.0865674Z",
+    "sourceArchiveSha256": "13da6718f9ee830fc7aeeb1c93ca10684ce3afd06544db87d27d2c7cc2741e0a",
+    "production": false,
+    "runtimeReportSha256": "354766f962b9cecaa8ca99d44d7ca403092602af074bd076c266cd87400291ef",
+    "image": "sha256:427805227dc5168b47473eb28c7f6766f93643c47ec25cd49846b5c626471238",
+    "passed": true,
+    "businessSource": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "artifact": {
+      "id": 11144335384,
+      "sha256": "cee69c7e7eced2f1c979c67fbedbe4dd76a35b994b1169797ceaf442b4766bcf",
+      "officialDigestMatches": true,
+      "bytes": 55313
+    },
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry"
+    ],
+    "runId": 36822565877,
+    "verificationSource": "5aa0b22e394746c08103080c2fa241c216c3e3f7",
+    "realChannels": false
+  },
+  "cloudChanges": false,
+  "realMoney": false,
+  "realNotifications": false,
+  "miniUpload": false,
+  "paidPackaging": false,
+  "mainlineReadback": {
+    "defaultBranch": "master",
+    "mergeableState": "clean",
+    "state": "open",
+    "headSha": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "mergeable": true,
+    "actualMainHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "baseRef": "master",
+    "checkedAt": "2026-10-01T04:47:43.3015922Z",
+    "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+    "draft": true,
+    "prNumber": 1,
+    "baseSha": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "headRef": "codex/launch-review-20260930"
+  },
+  "android254Inputs": {
+    "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "kind": "同源本地原生AAR与普通App资源编译输入",
+    "versionCode": 254,
+    "appId": "__UNI__277B108",
+    "runmode": "liberate",
+    "packageName": "com.rebu.apprebu",
+    "configEnabled": false,
+    "native": {
+      "sourceSha": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+      "sourceDirty": false,
+      "config": {
+        "enabled": false,
+        "identity": {
+          "applicationId": "rebu",
+          "productId": "rebu",
+          "platform": "android",
+          "channelId": "legacy",
+          "packageName": "com.rebu.apprebu",
+          "runtimeAppId": "__UNI__277B108",
+          "nativeBuild": 254,
+          "nativeFingerprint": ""
+        },
+        "clientKey": "",
+        "signingCertificateSha256": "",
+        "apiBase": "https://api.rebugx.cn/api/v1",
+        "resourceOrigins": [],
+        "publicRoots": {}
+      },
+      "cryptoDependency": {
+        "version": "1.86",
+        "sha256": "fc50334d4d87b4272e72fa95ca748ead05bdef02ef760a5b13f64ffee317cd81",
+        "bundled": false,
+        "androidMinApi": 26,
+        "licenseSha256": "b3fd8f55ca32cd4378eaef13e26893688bb4ae27ccb13b756aa823deaa17fc0e"
+      },
+      "aarSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2"
+    },
+    "resources": {
+      "files": 492,
+      "bytes": 12832051,
+      "contentSha256": "e1a8ef52b4cb827f678436d263f0e47dea00b4a168998f07bf2fa885b474b92d",
+      "bundleSha256": "73a7a3dc9fd36d77a205b5ba12d7696d4b7aeb40ed5046d3786f97deb434ffd1",
+      "manifestSha256": "6c9bf4c9db44e8dda9b079df15c57f285ac14c6357bc8e2098909e4614ba6a3d"
+    },
+    "limits": [
+      "普通资源历史输入保留；本轮HBuilderX官方导出已独立核验，仍未取得同版签名APK",
+      "AAR模板C关闭、签名/基座指纹空值只用于关闭配置输入，非已验完整包身份",
+      "未启用WGT/JS，未消费云打包额度、未安装手机、未证明R8/UTS启动钩子或恢复日记链路"
+    ],
+    "nativePayloadEquivalence": {
+      "entries": 16,
+      "payloadsIdentical": true,
+      "archiveBytesMayDiffer": "ZIP元数据与时间戳"
+    },
+    "explicitDistributionInputs": {
+      "VITE_APP_APPLICATION_ID": "rebu",
+      "VITE_APP_CHANNEL_ID": "legacy",
+      "VITE_APP_CLIENT_KEY": "",
+      "VITE_APP_RESOURCE_VERSION": "0",
+      "note": "显式固化既有默认值，未注册新选择器；本次App资源身份独立于固定包内历史五端资源，不混用摘要"
+    }
+  },
+  "imAndCustomerService": {
+    "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "receivedAncestors": [
+      "879acfb4ba890cfd6e293a100287ab7b131e7d44",
+      "c16388f307b2bead3716f135531d75e9fccf4859",
+      "c1ca9d80f"
+    ],
+    "ancestorCheckPassed": true,
+    "qrSha256": "a88cfa6426f3bdddeca712c2609e38e70b588adca63e1d350d6b9160e25e9629",
+    "qrBytes": 4774,
+    "codeCandidateIncluded": true,
+    "selectedDualProcessFallbackRuntimePassed": true,
+    "imMigrationIn25Rehearsal": true,
+    "productionImMigrationApplied": false,
+    "actualTencentImVerified": false,
+    "finalCustomerServiceJourneyVerified": false,
+    "limits": [
+      "二维码静态文件和数据库URL历史预置，不等于本版后台在线配置或公开接口已验",
+      "最终手机二维码预览/长按/保存、工单提交/回复、两用户消息及两节点代理仍需终验",
+      "群聊/好友/音视频等待腾讯IM/TRTC开通，保留未来恢复能力"
+    ]
+  },
+  "android254OfficialInputs": {
+    "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "checkedAt": "2026-10-01T05:56:28.683Z",
+    "webAudit": {
+      "success": true,
+      "errors": [],
+      "files": 489,
+      "changedFiles": [
+        "app-service.js",
+        "manifest.json"
+      ],
+      "appId": "__UNI__277B108",
+      "versionCode": "254",
+      "genericBundleSha256": "969db3a71a046e93f70901f98c5ead0f063b8c1e92422384dac9dba31c9a5d56",
+      "officialBundleSha256": "42837d712bb51dc3121551c59f5b9fa1f6e8162102c7e3dea00ccad0fe93ec39",
+      "spaceBound": true
+    },
+    "nativeChecks": [
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/config.json",
+        "bytes": 70,
+        "sha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+        "genericSha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+        "exact": true
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/libs/rebu-resource-updater.aar",
+        "bytes": 33238,
+        "sha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+        "genericSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+        "exact": true
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/src/index.kt",
+        "bytes": 1149,
+        "sha256": "3738ba28858b91aa73b429c8d0b706bcfb78afe968fd986615b68e73a40685d9",
+        "genericSha256": "1eb3b1bdf674ed3eb982615f065c5b06bdada4504d287aae27f91c1d9b164606",
+        "exact": false,
+        "allowedDifference": "import io.dcloud.unicloud.*"
+      }
+    ],
+    "manifestInputs": [
+      {
+        "path": "apps/mobile/AndroidManifest.xml",
+        "sha256": "2afffbbb463753596dba496b572bb93d7ac689d3bcc8e3732f1f5747cf64f3e0"
+      },
+      {
+        "path": "apps/mobile/src/AndroidManifest.xml",
+        "sha256": "2afffbbb463753596dba496b572bb93d7ac689d3bcc8e3732f1f5747cf64f3e0"
+      },
+      {
+        "path": "apps/mobile/src/manifest.json",
+        "sha256": "7e098e4af9c49b98dcc622d07282b6e6543a5e7b40b817300fe6ad0e0c53da5b"
+      }
+    ],
+    "files": 492,
+    "bytes": 12825374,
+    "contentSha256": "e8bd85ef9f9928b57cb4a3aadab180fc7ede7b40b2062ccaa50dc5ce978a6079",
+    "archive": "artifacts/releases/android254-hbuilder-877306a56-resources.tar.gz",
+    "archiveBytes": 2853329,
+    "archiveSha256": "02e728f1e0a8c777adf855fb7bd0f5e17ac42e43cb6cf656331de362ef8b0b46",
+    "archiveExtractedAllFilesExact": true,
+    "signedApk": false,
+    "paidPackaging": false,
+    "oneClickEnabled": false
+  },
+  "currentTargetReadonlyPreflight": {
+    "checkedAt": "2026-10-01T05:26:45.26Z",
+    "verified": true,
+    "resultSha256": "9f9d45b599a8ddcf2acdd73509bb35e7b0a1ca9cf0e9acb575348e5b8792ce8d",
+    "scriptSha256": "08d3be2b0d9d149750dc6dd2450548712bc9b4ab40ce4d51303b606318ad7f46",
+    "identityScriptSha256": "a9e0e09a532addce4f03601725ba465c482a53b7f3f08650f955ccb253797d06",
+    "receipts": [
+      {
+        "role": "A",
+        "kind": "preflight",
+        "instanceId": "ins-0sen8yvf",
+        "invocationId": "inv-d9bvn6gp4g",
+        "taskId": "invt-d9bvn6gp4h",
+        "status": "SUCCESS",
+        "exitCode": 0,
+        "dropped": 0,
+        "rawReceiptSha256": "6057b127eda2a6a020c3996efbe0b1e43cde4a43d4f970b64684cc1fe9bd32ed",
+        "savedOutputExact": true
+      },
+      {
+        "role": "A",
+        "kind": "identity",
+        "instanceId": "ins-0sen8yvf",
+        "invocationId": "inv-d9bvpp03jv",
+        "taskId": "invt-d9bvpp03jw",
+        "status": "SUCCESS",
+        "exitCode": 0,
+        "dropped": 0,
+        "rawReceiptSha256": "70ff54321b769e918a94653eacf99def759590dd3b24ddd92afa0aed6bdae741",
+        "savedOutputExact": true
+      },
+      {
+        "role": "B",
+        "kind": "preflight",
+        "instanceId": "ins-n0sqc627",
+        "invocationId": "inv-a9bvnwg7ck",
+        "taskId": "invt-a9bvnwg7cm",
+        "status": "SUCCESS",
+        "exitCode": 0,
+        "dropped": 0,
+        "rawReceiptSha256": "4f09e1bf896048277743b7322d545550e2166c5be82b927934bcc38467a3bcab",
+        "savedOutputExact": true
+      },
+      {
+        "role": "B",
+        "kind": "identity",
+        "instanceId": "ins-n0sqc627",
+        "invocationId": "inv-c9bvpsg8u6",
+        "taskId": "invt-c9bvpsg8u7",
+        "status": "SUCCESS",
+        "exitCode": 0,
+        "dropped": 0,
+        "rawReceiptSha256": "fff2b34673ef77df1ea98c3d43d8eb95ef7c9c5b2ed6131b388a1e49bf46188f",
+        "savedOutputExact": true
+      }
+    ],
+    "result": {
+      "schemaVersion": 1,
+      "scope": "北京两节点当前运行环境只读预检",
+      "clientDate": "2026-09-30",
+      "scriptSha256": "08d3be2b0d9d149750dc6dd2450548712bc9b4ab40ce4d51303b606318ad7f46",
+      "identityScriptSha256": "a9e0e09a532addce4f03601725ba465c482a53b7f3f08650f955ccb253797d06",
+      "candidate": {
+        "businessSourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+        "expectedMigrationCount": 128,
+        "note": "候选身份仅用于差距比较，本次没有部署候选或执行迁移。"
+      },
+      "nodes": [
+        {
+          "role": "A",
+          "tatNode": "guoxue2",
+          "instanceId": "ins-0sen8yvf",
+          "hostname": "VM-0-10-ubuntu",
+          "preflightInvocationId": "inv-d9bvn6gp4g",
+          "preflightTaskId": "invt-d9bvn6gp4h",
+          "preflightExitCode": 0,
+          "preflightDroppedBytes": 0,
+          "identityInvocationId": "inv-d9bvpp03jv",
+          "identityTaskId": "invt-d9bvpp03jw",
+          "identityExitCode": 0,
+          "identityDroppedBytes": 0,
+          "containerStatus": "running",
+          "containerHealth": "healthy",
+          "containerImage": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484",
+          "imageRepoTag": "guoxue-server:wechat-scheme-4e11bd06-wechat-scheme-4e11bd06.XMHO9VlR",
+          "releaseIdentityPresent": false,
+          "ociRevisionPresent": false,
+          "completedMigrations": 103,
+          "unfinishedMigrations": 0,
+          "rolledBackMigrations": 1,
+          "runtimeMigrationDirs": 103,
+          "runtimePendingMigrations": 0,
+          "candidateMigrationGap": 25,
+          "univerifySecretKeyCount": 0,
+          "univerifySecretReady": false,
+          "runtimeUniverifySecretReady": false,
+          "redisConfigPresent": true,
+          "runtimeRedisConfigured": true,
+          "redisPing": "ok",
+          "rootBytesTotal": 308988768256,
+          "rootBytesAvailable": 138391465984,
+          "rootPercentUsed": 54,
+          "memoryBytesTotal": 16230629376,
+          "memoryBytesAvailable": 12539248640
+        },
+        {
+          "role": "B",
+          "tatNode": "guoxue1",
+          "instanceId": "ins-n0sqc627",
+          "hostname": "VM-0-14-ubuntu",
+          "preflightInvocationId": "inv-a9bvnwg7ck",
+          "preflightTaskId": "invt-a9bvnwg7cm",
+          "preflightExitCode": 0,
+          "preflightDroppedBytes": 0,
+          "identityInvocationId": "inv-c9bvpsg8u6",
+          "identityTaskId": "invt-c9bvpsg8u7",
+          "identityExitCode": 0,
+          "identityDroppedBytes": 0,
+          "containerStatus": "running",
+          "containerHealth": "healthy",
+          "containerImage": "sha256:e47d5a8c92151d28cd493ea269a066e32038ea3560855a67b15afc26d43d0eb7",
+          "imageRepoTag": "guoxue-server:wechat-scheme-4e11bd06-wechat-scheme-4e11bd06.S1Vudo6x",
+          "releaseIdentityPresent": false,
+          "ociRevisionPresent": false,
+          "completedMigrations": 103,
+          "unfinishedMigrations": 0,
+          "rolledBackMigrations": 1,
+          "runtimeMigrationDirs": 103,
+          "runtimePendingMigrations": 0,
+          "candidateMigrationGap": 25,
+          "univerifySecretKeyCount": 0,
+          "univerifySecretReady": false,
+          "runtimeUniverifySecretReady": false,
+          "redisConfigPresent": true,
+          "runtimeRedisConfigured": true,
+          "redisPing": "ok",
+          "rootBytesTotal": 308988768256,
+          "rootBytesAvailable": 235398422528,
+          "rootPercentUsed": 21,
+          "memoryBytesTotal": 16230629376,
+          "memoryBytesAvailable": 13479837696
+        }
+      ],
+      "conclusions": {
+        "bothHealthy": true,
+        "bothRedisConfiguredAndReachable": true,
+        "bothUniverifySecretReady": false,
+        "productionCandidateDeployed": false,
+        "productionMigrationExecuted": false,
+        "exactRunningSourceCommitVerifiable": false
+      },
+      "notCovered": [
+        "没有部署、迁移、重启、改配置或调用取号",
+        "没有证明 Redis ACL、跨节点幂等、防重放和失联恢复",
+        "没有证明云函数已部署、手机号取号可用或签名 APK 同版",
+        "镜像没有 release-id 或 OCI revision/version，不能把当前镜像绑定到源码 commit",
+        "runtimePendingMigrations=0 仅表示旧运行镜像自身的103目录已应用；相对70ee候选仍差25条"
+      ]
+    },
+    "limits": [
+      "仅当前旧版只读状态，不是候选部署或最终维护备份",
+      "Redis只读PING不证明同一Redis身份、ACL、防重放或跨节点幂等",
+      "运行镜像无发布源码身份，不能从标签推断源码commit"
+    ],
+    "localVerifiedReceiptSha256": "b1eaf3b1219e6ae5a8127b4d187f4899c72c70495d4d6087ef096c97b9479843"
+  },
+  "currentPhoneReadonly": {
+    "checkedAt": "2026-10-01T05:20:38.216575Z",
+    "devices": [
+      {
+        "model": "LE2100",
+        "android": "14",
+        "transport": "其他已授权ADB通道",
+        "installedPackage": "com.rebu.apprebu",
+        "versionCode": "253",
+        "versionName": "1.1.0",
+        "matches254": false,
+        "readOnly": true
+      },
+      {
+        "model": "Android SDK built for x86_64",
+        "android": "8.0.0",
+        "transport": "其他已授权ADB通道",
+        "installedPackage": "com.rebu.apprebu",
+        "versionCode": "",
+        "versionName": "",
+        "matches254": false,
+        "readOnly": true
+      }
+    ],
+    "noInstall": true,
+    "noPayment": true,
+    "noAppLaunch": true,
+    "localReceiptSha256": "6eabce137764c6cc7f19412db2a3d7373d98c69fc203812c3536bad7cbb719cc"
+  },
+  "previousValidatedSourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+  "latestH5EntryFix": {
+    "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "parentBusinessSource": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "checkedAt": "2026-10-01T06:11:13.0865674Z",
+    "fixes": [
+      "Android独立登记正式H5域名且保持API回跳",
+      "按已审计构建H5配置接受分享路由，保留HTTPS/路径/端口/敏感参数限制",
+      "iOS关联域声明补正式H5，既有微信UniversalLinks不变"
+    ],
+    "regression": {
+      "linkAndShare": {
+        "passed": 61,
+        "failed": 0,
+        "logSha256": "e51f8fac43310944ff915325e3b3c588bb6d869a13c0ab4d48f7e03a0f7e4d5f"
+      },
+      "nativeBundle": {
+        "passed": 297,
+        "failed": 0,
+        "logSha256": "9ad7f650e535f24a4b625a78c2314a60a2cd878f71e9f553d87d7ac8105e20cd"
+      },
+      "overlapNotSummed": true,
+      "typecheck": {
+        "passed": true,
+        "logSha256": "99bdd9c86490f797989178369f41fa63af2086c1984036071c2d7d3323ba7d76"
+      },
+      "eslint": {
+        "passed": true
+      },
+      "build": {
+        "mobileTargets": [
+          "H5",
+          "微信小程序",
+          "App",
+          "鸿蒙App"
+        ],
+        "logSha256": "6b7eab2b3489c5e26f15dcd21e35a0e33bfcc127baef35d3178cb00714d23d0d",
+        "adminRebuilt": false,
+        "adminInputsEquivalentTo70ee": true
+      }
+    },
+    "fixedPackage": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-10-01T05:54:58.818Z",
+      "archive": "gx-deploy-91-launch-20260930-877306a56.tar.gz",
+      "sha256": "13da6718f9ee830fc7aeeb1c93ca10684ce3afd06544db87d27d2c7cc2741e0a",
+      "releaseId": "launch-20260930-877306a56",
+      "commit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+      "expectedCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+      "fileCount": 4433,
+      "allowDirty": false,
+      "success": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "errors": [],
+      "warnings": [],
+      "bytes": 15708468,
+      "draftReleaseId": 400686156,
+      "assetId": 602556247,
+      "draft": true
+    },
+    "clients": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-10-01T05:54:26.109Z",
+      "releaseId": "launch-20260930-877306a56",
+      "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+      "auditFile": "artifacts/channel-intake-20260930/client-artifacts-877306a56.json",
+      "success": true,
+      "counts": {
+        "targets": 5,
+        "files": 5423,
+        "bytes": 53933258,
+        "errors": 0
+      },
+      "targets": [
+        {
+          "directory": "apps/admin/dist",
+          "files": 505,
+          "bytes": 6487585,
+          "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+          "matches": true
+        },
+        {
+          "directory": "apps/mobile/dist/build/h5",
+          "files": 1180,
+          "bytes": 11080592,
+          "contentSha256": "783a7f1fd3a1ad6f81460a32c6379faeb6e28f9069ce974e0b5e723c94ee437b",
+          "matches": true
+        },
+        {
+          "directory": "apps/mobile/dist/build/mp-weixin",
+          "files": 2756,
+          "bytes": 11061803,
+          "contentSha256": "9f6c55e7895606bc497ad0c610e2da5609be54fde07bd6a81a20798496e94ae3",
+          "matches": true
+        },
+        {
+          "directory": "apps/mobile/dist/build/app",
+          "files": 492,
+          "bytes": 12831904,
+          "contentSha256": "85c37a08d6aea02fa74a3fc9d1fdcc76b31eb497b0db235d0b0da666239dbb8f",
+          "matches": true
+        },
+        {
+          "directory": "apps/mobile/dist/build/app-harmony",
+          "files": 490,
+          "bytes": 12471374,
+          "contentSha256": "65f4ce53d2a3287be81a582773ceb6858d6cc688e39fec416e2b7bd3cc79485b",
+          "matches": true
+        }
+      ],
+      "errors": [],
+      "afterOfficialToolsAllFilesExact": true
+    },
+    "officialAndroidResource": {
+      "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+      "checkedAt": "2026-10-01T05:56:28.683Z",
+      "webAudit": {
+        "success": true,
+        "errors": [],
+        "files": 489,
+        "changedFiles": [
+          "app-service.js",
+          "manifest.json"
+        ],
+        "appId": "__UNI__277B108",
+        "versionCode": "254",
+        "genericBundleSha256": "969db3a71a046e93f70901f98c5ead0f063b8c1e92422384dac9dba31c9a5d56",
+        "officialBundleSha256": "42837d712bb51dc3121551c59f5b9fa1f6e8162102c7e3dea00ccad0fe93ec39",
+        "spaceBound": true
+      },
+      "nativeChecks": [
+        {
+          "path": "uni_modules/rebu-resource-updater/utssdk/app-android/config.json",
+          "bytes": 70,
+          "sha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+          "genericSha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+          "exact": true
+        },
+        {
+          "path": "uni_modules/rebu-resource-updater/utssdk/app-android/libs/rebu-resource-updater.aar",
+          "bytes": 33238,
+          "sha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+          "genericSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+          "exact": true
+        },
+        {
+          "path": "uni_modules/rebu-resource-updater/utssdk/app-android/src/index.kt",
+          "bytes": 1149,
+          "sha256": "3738ba28858b91aa73b429c8d0b706bcfb78afe968fd986615b68e73a40685d9",
+          "genericSha256": "1eb3b1bdf674ed3eb982615f065c5b06bdada4504d287aae27f91c1d9b164606",
+          "exact": false,
+          "allowedDifference": "import io.dcloud.unicloud.*"
+        }
+      ],
+      "manifestInputs": [
+        {
+          "path": "apps/mobile/AndroidManifest.xml",
+          "sha256": "2afffbbb463753596dba496b572bb93d7ac689d3bcc8e3732f1f5747cf64f3e0"
+        },
+        {
+          "path": "apps/mobile/src/AndroidManifest.xml",
+          "sha256": "2afffbbb463753596dba496b572bb93d7ac689d3bcc8e3732f1f5747cf64f3e0"
+        },
+        {
+          "path": "apps/mobile/src/manifest.json",
+          "sha256": "7e098e4af9c49b98dcc622d07282b6e6543a5e7b40b817300fe6ad0e0c53da5b"
+        }
+      ],
+      "files": 492,
+      "bytes": 12825374,
+      "contentSha256": "e8bd85ef9f9928b57cb4a3aadab180fc7ede7b40b2062ccaa50dc5ce978a6079",
+      "archive": "artifacts/releases/android254-hbuilder-877306a56-resources.tar.gz",
+      "archiveBytes": 2853329,
+      "archiveSha256": "02e728f1e0a8c777adf855fb7bd0f5e17ac42e43cb6cf656331de362ef8b0b46",
+      "archiveExtractedAllFilesExact": true,
+      "signedApk": false,
+      "paidPackaging": false,
+      "oneClickEnabled": false
+    },
+    "mini": {
+      "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+      "officialPreviewSucceeded": true,
+      "infoSha256": "6d6185f55be14e10e4a6175c362309e1d42aeee4d203f7dbeb3b0c7903a0c3d0",
+      "logSha256": "3f8da15c54db859c13fa48f99fdb3422e7c8ba17fece64c4e032ec1acda2c489",
+      "mainBytes": 1964711,
+      "mainRemainingBytes": 132441,
+      "maxSubpackage": "/pkg-paipan/",
+      "maxSubpackageBytes": 1959687,
+      "maxSubpackageRemainingBytes": 137465,
+      "subpackageCount": 33,
+      "totalBytes": 12736898,
+      "noUpload": true,
+      "noReview": true,
+      "noDeviceAcceptance": true
+    },
+    "phone": {
+      "checkedAt": "2026-10-01T05:47:09.828Z",
+      "model": "LE2100",
+      "android": "14",
+      "installedVersionCode": "253",
+      "domains": [
+        {
+          "host": "api.rebugx.cn",
+          "state": "legacy_failure"
+        }
+      ],
+      "targets": [
+        {
+          "host": "api.rebugx.cn",
+          "status": 200,
+          "redirected": false,
+          "contentType": "application/json",
+          "sha256": "1fe72fdd1a2f762e206831ce46d16cc4d6f153741f9f4fee53611ee88bda829e",
+          "packageRelationMatch": true,
+          "knownCertificateMatch": true,
+          "resolvedActivity": "com.heytap.browser/com.android.browser.RealBrowserActivity",
+          "noActivityLaunched": true
+        },
+        {
+          "host": "gx.yrydai.com",
+          "status": 200,
+          "redirected": false,
+          "contentType": "application/json",
+          "sha256": "1fe72fdd1a2f762e206831ce46d16cc4d6f153741f9f4fee53611ee88bda829e",
+          "packageRelationMatch": true,
+          "knownCertificateMatch": true,
+          "resolvedActivity": "com.heytap.browser/com.android.browser.RealBrowserActivity",
+          "noActivityLaunched": true
+        }
+      ],
+      "userDefaultsChanged": false,
+      "verificationForced": false,
+      "noLaunch": true,
+      "noInstall": true,
+      "noPayment": true
+    },
+    "ci": {
+      "status": "success",
+      "checkedAt": "2026-10-01T06:06:08.5117605Z",
+      "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+      "logs": [
+        {
+          "name": "单元测试 (3/3)",
+          "sha256": "1d0f9910bb58fe8611bccd8976bab5d0de281846f937560e24dec783896fc30f",
+          "jobId": 110238904675,
+          "tests": "Tests:       39 skipped, 3038 passed, 3077 total",
+          "suites": "Test Suites: 10 skipped, 219 passed, 219 of 229 total"
+        },
+        {
+          "name": "单元测试 (1/3)",
+          "sha256": "c686fc3ed8ecf2326531812c630787687b513037c96b2989871c9be3ff3fb5ff",
+          "jobId": 110238904718,
+          "tests": "Tests:       44 skipped, 2839 passed, 2883 total",
+          "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total"
+        },
+        {
+          "name": "单元测试 (2/3)",
+          "sha256": "da7190b061b3dba1e7c376c706d2fe88d182264a409a971c19a44b31d7b007bb",
+          "jobId": 110238904785,
+          "tests": "Tests:       50 skipped, 3022 passed, 3072 total",
+          "suites": "Test Suites: 8 skipped, 221 passed, 221 of 229 total"
+        }
+      ],
+      "suitesSkipped": 26,
+      "suitesPassed": 662,
+      "runId": 36821725413,
+      "testsPassed": 8899,
+      "testsSkipped": 133,
+      "jobsPassed": 8,
+      "jobs": [
+        {
+          "status": "completed",
+          "conclusion": "success",
+          "name": "TypeScript 类型检查",
+          "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238549248",
+          "id": 110238549248
+        },
+        {
+          "status": "completed",
+          "conclusion": "success",
+          "name": "迁移与上线代码门禁",
+          "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238549549",
+          "id": 110238549549
+        },
+        {
+          "status": "completed",
+          "conclusion": "success",
+          "name": "ESLint + Prettier",
+          "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238549595",
+          "id": 110238549595
+        },
+        {
+          "status": "completed",
+          "conclusion": "success",
+          "name": "单元测试 (3/3)",
+          "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238904675",
+          "id": 110238904675
+        },
+        {
+          "status": "completed",
+          "conclusion": "success",
+          "name": "单元测试 (1/3)",
+          "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238904718",
+          "id": 110238904718
+        },
+        {
+          "status": "completed",
+          "conclusion": "success",
+          "name": "单元测试 (2/3)",
+          "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238904785",
+          "id": 110238904785
+        },
+        {
+          "status": "completed",
+          "conclusion": "success",
+          "name": "构建产物",
+          "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110241722896",
+          "id": 110241722896
+        },
+        {
+          "status": "completed",
+          "conclusion": "success",
+          "name": "测试结果汇总",
+          "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110241722959",
+          "id": 110241722959
+        }
+      ],
+      "runs": [
+        {
+          "status": "completed",
+          "conclusion": "success",
+          "headSha": "877306a56339cb0c0b7c3429a86dc8b248775529",
+          "event": "pull_request",
+          "name": "CI — 国学平台",
+          "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821730993",
+          "id": 36821730993
+        },
+        {
+          "status": "completed",
+          "conclusion": "success",
+          "headSha": "877306a56339cb0c0b7c3429a86dc8b248775529",
+          "event": "push",
+          "name": "CI — 国学平台",
+          "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413",
+          "id": 36821725413
+        }
+      ]
+    },
+    "backendEvidence": {
+      "source": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+      "pathsCompared": [
+        "apps/admin",
+        "apps/server",
+        "packages",
+        "scripts",
+        "docker",
+        ".github"
+      ],
+      "allEqual": true,
+      "oldImageIdentityNotReusedForNewPackage": true,
+      "migration25RehearsalReusedByExactInputs": true
+    },
+    "oneClick": {
+      "spaceInfoSucceeded": true,
+      "cloudFunctionListEmpty": true,
+      "infoLogSha256": "600cabc7f68bc78f88d20ec1b4ce0ca7b23b122804de1c762129b33973ed8d46",
+      "listLogSha256": "98c8e7f5794439263edbaea3bdd642e0fd417f21b0a096e60bb043b52e98e17e",
+      "deployed": false,
+      "realPhoneRetrieval": false,
+      "defaultEnabled": false
+    },
+    "status": [
+      "代码候选完成",
+      "隔离验证完成（本轮 CI、镜像及客户端定向范围）",
+      "线上状态未知",
+      "待发布决策"
+    ],
+    "releaseDecision": "NO-GO",
+    "rollback": [
+      "纯文档接续提交先撤回",
+      "877306a56恢复到972908de0文档/70ee业务源码"
+    ],
+    "limitations": [
+      "旧253包系统api域名legacy_failure，两个链接均解析浏览器；未强制批准、改默认或覆装",
+      "新Android过滤器须最终签名APK验manifest合并与自然冷热启动",
+      "iOS新增域声明不证明签名TeamID/profile/entitlement、微信注册或真机入站通过",
+      "CI与新版镜像按实际运行状态记录，不将70ee整体成功冒充877本轮结果",
+      "手机号函数、两节点共享签名及最终启用版真实授权仍待接通",
+      "未部署、未迁移、未真实通知、未支付、未新付费打包、未小程序上传/审核"
+    ],
+    "linux": {
+      "checksPassed": 23,
+      "cleanupAllConfirmed": true,
+      "checkedAt": "2026-10-01T06:11:13.0865674Z",
+      "sourceArchiveSha256": "13da6718f9ee830fc7aeeb1c93ca10684ce3afd06544db87d27d2c7cc2741e0a",
+      "production": false,
+      "runtimeReportSha256": "354766f962b9cecaa8ca99d44d7ca403092602af074bd076c266cd87400291ef",
+      "image": "sha256:427805227dc5168b47473eb28c7f6766f93643c47ec25cd49846b5c626471238",
+      "passed": true,
+      "businessSource": "877306a56339cb0c0b7c3429a86dc8b248775529",
+      "artifact": {
+        "id": 11144335384,
+        "sha256": "cee69c7e7eced2f1c979c67fbedbe4dd76a35b994b1169797ceaf442b4766bcf",
+        "officialDigestMatches": true,
+        "bytes": 55313
+      },
+      "checks": [
+        "image-identity",
+        "prisma-source-compile-runtime-binding",
+        "grpc-security-version-in-runtime-image",
+        "admin-h5-base-and-public-config",
+        "postgres-major-match",
+        "formal-empty-bootstrap-ledger-and-channel-constraints",
+        "production-entrypoint-health-public-http",
+        "real-jwt-global-guards-cross-user-and-admin-roles",
+        "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+        "sensitive-feedback-roles-mask-audit-limit-and-validation",
+        "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+        "signed-encrypted-http-payment-refund-rollback-notification-retry",
+        "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+        "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+        "merchant-shipping-ownership-replay-rollback-and-concurrency",
+        "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+        "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+        "circle-post-published-state-context-preview-and-notification-target-permissions",
+        "competition-disclosure-finished-only-and-public-state-boundary",
+        "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+        "redis7-two-process-notification-idempotency",
+        "database-unique-after-redis-key-loss",
+        "notification-failure-release-and-two-process-retry"
+      ],
+      "runId": 36822565877,
+      "verificationSource": "5aa0b22e394746c08103080c2fa241c216c3e3f7",
+      "realChannels": false
+    }
+  },
+  "previousFixedPackage": {
+    "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "fileCount": 4433,
+    "sha256": "959138e76b4dc9eb6203409bf3461d0262adcf32673a1a0e9990d968c9531d90",
+    "size": 15709813,
+    "releaseId": 400058667,
+    "assetId": 602421574,
+    "draft": true
+  },
+  "previousMini": {
+    "mainBytes": 1905046,
+    "mainRemaining": 192106,
+    "maxSubpackageBytes": 1950310,
+    "maxSubpackageRemaining": 146842,
+    "totalBytes": 12595090,
+    "subpackages": 33,
+    "scope": "官方preview及11页合成503故障闭包，非手机业务验收"
+  },
+  "previousAndroid254OfficialInputs": {
+    "checkedAt": "2026-10-01T05:17:31.306Z",
+    "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "exportHead": "6eb824177322357737aa41599424433530e8ade4",
+    "sourceInputsEquivalent": true,
+    "officialLocalExportExitCode": 0,
+    "compiler": "HBuilderX 5.23.2026080626",
+    "archive": "artifacts/releases/android254-hbuilder-6eb82417-resources.tar.gz",
+    "archiveBytes": 2852295,
+    "archiveSha256": "a80cefc3bdae3edd91d79f76f5be84d26612bd87748c960af844dae39bb494e9",
+    "files": 492,
+    "bytes": 12825225,
+    "contentSha256": "18e7f449069082ea370eb1faf9a4083f3bf37a97a46d8dad0410055b655e62f3",
+    "archiveExtractedAllFilesExact": true,
+    "logSha256": "68f7095327c8082af5e4a02f76b314a64edb3e353bce1399a58c4663e336d77c",
+    "webAudit": {
+      "success": true,
+      "errors": [],
+      "files": 489,
+      "changedFiles": [
+        "app-service.js",
+        "manifest.json"
+      ],
+      "appId": "__UNI__277B108",
+      "versionCode": "254",
+      "genericBundleSha256": "fcd6ecf28f41c75e9a34c21502237d7037bbffa2672e80d049e98cfd5a9f4673",
+      "officialBundleSha256": "d40404703341d70a41584712865f4f5c44a1b87272c01c1de66a37e0a052632a",
+      "spaceBound": true
+    },
+    "nativePartition": {
+      "sourceSha": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+      "exportHead": "6eb824177322357737aa41599424433530e8ade4",
+      "compiler": "HBuilderX 5.23",
+      "webFiles": 489,
+      "nativeFiles": 3,
+      "native": [
+        {
+          "path": "uni_modules/rebu-resource-updater/utssdk/app-android/config.json",
+          "officialBytes": 70,
+          "genericBytes": 70,
+          "officialSha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+          "genericSha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+          "exact": true,
+          "allowedCompilerDifference": null
+        },
+        {
+          "path": "uni_modules/rebu-resource-updater/utssdk/app-android/libs/rebu-resource-updater.aar",
+          "officialBytes": 33238,
+          "genericBytes": 33238,
+          "officialSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+          "genericSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+          "exact": true,
+          "allowedCompilerDifference": null
+        },
+        {
+          "path": "uni_modules/rebu-resource-updater/utssdk/app-android/src/index.kt",
+          "officialBytes": 1149,
+          "genericBytes": 1121,
+          "officialSha256": "3738ba28858b91aa73b429c8d0b706bcfb78afe968fd986615b68e73a40685d9",
+          "genericSha256": "1eb3b1bdf674ed3eb982615f065c5b06bdada4504d287aae27f91c1d9b164606",
+          "exact": false,
+          "allowedCompilerDifference": "仅HBuilderX空间绑定生成 import io.dcloud.unicloud.*；其余Kotlin逐字节一致"
+        }
+      ],
+      "originalStrictWwwAuditPassed": false,
+      "originalFailurePreserved": true,
+      "webProjection": "generic-web-only-6eb82417",
+      "projectionPurpose": "仅对独立Web分区作严格对比；三个原生文件均独立核对，未删除原始输入或改变正式导出目录",
+      "h5Origin": "https://gx.yrydai.com/h5/",
+      "oldH5Absent": true,
+      "appId": "__UNI__277B108",
+      "versionCode": "254",
+      "spaceId": "tcb-6epskmrf8nntxiw-d5bz42bf1fd5",
+      "nativePackageVerified": false,
+      "feeCharged": false
+    },
+    "nativeScriptGatePassed": true,
+    "originalUnboundRejected": true,
+    "stalledLocalExport": {
+      "sessionId": 67601,
+      "cliPid": 33120,
+      "endedExitCode": 1,
+      "cancelledBeforeReimport": true,
+      "stdoutBytes": 0,
+      "resourceTimestampUnchanged": true
+    },
+    "cloudPackSubmitted": false,
+    "feeCharged": false,
+    "installed": false,
+    "nativePackageVerified": false,
+    "receiptSha256": "209a68a0e775b6dcefda9242c49f44ad49cdd78209ae11d9417c2c40ed5d166b",
+    "limits": [
+      "本地官方资源导出与原生编译输入，不是签名APK；未验证R8/UTS启动钩子、liberate恢复和手机真实旅程",
+      "手机号云函数和两节点共享签名仍未接通，取号入口保持关闭；已购资源包不是服务验证",
+      "原始完整www清单检查失败保留：官方原生分区与网页分区分别核对；未修改或放宽门禁源码",
+      "无云打包、安装、计费取号、云函数部署、生产迁移或发布"
+    ],
+    "nativeStaticInputChecks": {
+      "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+      "exportHead": "6eb824177322357737aa41599424433530e8ade4",
+      "checkedAt": "2026-10-01T05:22:56.095Z",
+      "checks": {
+        "sourceVersion254": true,
+        "sourceAppIdMatchesExport": true,
+        "runmodeLiberate": true,
+        "targetSdk35": true,
+        "noLivePusher": true,
+        "trtcRetained": true,
+        "oauthModule": true,
+        "paymentModule": true,
+        "univerifySdkInput": true,
+        "nativeAarMatches": true,
+        "hookClass": true,
+        "bootCallInGeneratedKotlin": true,
+        "allAndroidIconInputsPresent": true,
+        "logoOriginalMatches": true
+      },
+      "icons": [
+        {
+          "scale": "ldpi",
+          "path": "apps/mobile/unpackage/res/icons/48x48.png",
+          "bytes": 2252,
+          "width": 48,
+          "height": 48,
+          "sha256": "bec4a696e47b3d90dccbdb1f4bf9ccac2b798f2d945f85762896da7646d7f845"
+        },
+        {
+          "scale": "mdpi",
+          "path": "apps/mobile/unpackage/res/icons/48x48.png",
+          "bytes": 2252,
+          "width": 48,
+          "height": 48,
+          "sha256": "bec4a696e47b3d90dccbdb1f4bf9ccac2b798f2d945f85762896da7646d7f845"
+        },
+        {
+          "scale": "hdpi",
+          "path": "apps/mobile/unpackage/res/icons/72x72.png",
+          "bytes": 4089,
+          "width": 72,
+          "height": 72,
+          "sha256": "9d7c5e64573cd09c303eee4fbe399788db19d5f57352d542a501f76e96763467"
+        },
+        {
+          "scale": "xhdpi",
+          "path": "apps/mobile/unpackage/res/icons/96x96.png",
+          "bytes": 6515,
+          "width": 96,
+          "height": 96,
+          "sha256": "65a5c6bc8167292cad9eae6905e7305dea3a21f7e856ed0130ac77a8ef4b96fe"
+        },
+        {
+          "scale": "xxhdpi",
+          "path": "apps/mobile/unpackage/res/icons/144x144.png",
+          "bytes": 12867,
+          "width": 144,
+          "height": 144,
+          "sha256": "9b4e11a9449a5815729707770c04e00dc97d673b5ad12c430b3c1809ec03e303"
+        },
+        {
+          "scale": "xxxhdpi",
+          "path": "apps/mobile/unpackage/res/icons/192x192.png",
+          "bytes": 21358,
+          "width": 192,
+          "height": 192,
+          "sha256": "1d8fbe4aa819100ce2e371504147a03b46afc2b2a30b397793ff88874c4775c2"
+        }
+      ],
+      "nativeAarSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+      "scope": "静态构建输入，仅证明素材及配置存在；不是APK中实际打包、R8保留、UTS注册启动或运行时权限通过",
+      "nativePackageVerified": false
+    },
+    "nativeStaticInputReceiptSha256": "af2e67377cb1dc4a058c9f812114aafb955eb7b4b62c6b898cdb7115c2614dd1"
+  },
+  "previousCi": {
+    "runId": 36814615136,
+    "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "status": "success",
+    "jobsPassed": 8,
+    "testsPassed": 8899,
+    "testsSkipped": 133,
+    "suitesPassed": 662,
+    "suitesSkipped": 26,
+    "logs": [
+      {
+        "jobId": 110217352715,
+        "name": "单元测试 (1/3)",
+        "conclusion": "success",
+        "logSha256": "68cfdbba20023fb10fe05a8d28afed252d3bec04a0f76ec83d920eae47be7f6a",
+        "summaries": [
+          "2026-10-01T04:36:17.8054135Z Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+          "2026-10-01T04:36:17.8054972Z Tests:       44 skipped, 2839 passed, 2883 total",
+          "2026-10-01T04:36:17.8055972Z Time:        780.288 s"
+        ]
+      },
+      {
+        "jobId": 110217352730,
+        "name": "单元测试 (2/3)",
+        "conclusion": "success",
+        "logSha256": "68dc4dc8bea1c06823d1940072f425d80021b798116e230b98ff9f3de56d8149",
+        "summaries": [
+          "2026-10-01T04:25:08.2287852Z Test Suites: 8 skipped, 221 passed, 221 of 229 total",
+          "2026-10-01T04:25:08.2288648Z Tests:       50 skipped, 3022 passed, 3072 total",
+          "2026-10-01T04:25:08.2289477Z Time:        116.753 s"
+        ]
+      },
+      {
+        "jobId": 110217352745,
+        "name": "单元测试 (3/3)",
+        "conclusion": "success",
+        "logSha256": "1fd4054056d1d0eee4498c3127c3de5097515f308a5c92c8aa7130b4c16faad6",
+        "summaries": [
+          "2026-10-01T04:24:57.3414649Z Test Suites: 10 skipped, 219 passed, 219 of 229 total",
+          "2026-10-01T04:24:57.3415205Z Tests:       39 skipped, 3038 passed, 3077 total",
+          "2026-10-01T04:24:57.3415921Z Time:        105.768 s"
+        ]
+      }
+    ],
+    "buildArtifact": {
+      "id": 11141048431,
+      "bytes": 7458074,
+      "sha256": "64fafdf47b8e6694915e7584eb07c0a3399b6c677c63a764252bfc9b92da4ed6",
+      "localHashMatchesOfficial": true
+    }
+  },
+  "previousLinux": {
+    "priorRunId": 36814112488,
+    "priorStatus": "构建失败，HTTP未执行",
+    "priorArtifact": 11140667620,
+    "priorArtifactSha256": "33842c62c548fc5e518e3de67587168bf18b0215ee1de5121db7b485338e2f2d",
+    "currentStatus": "success",
+    "currentRunId": 36814832194,
+    "verificationCommit": "ccbb54b24b911ec76a2373de164be9189126b9fb",
+    "imageId": "sha256:9270dd8b83dd769f8dfb7e74878876cb84d7f56d13b544c7a5aabf4153026b38",
+    "groupsPassed": 23,
+    "cleanupConfirmed": true,
+    "artifactId": 11140992809,
+    "artifactBytes": 55567,
+    "artifactSha256": "b1d61432a71f66d6751b5f9d858d57487b31785f90443951c40b3504481b4a01",
+    "bootstrap": {
+      "passed": true,
+      "ledger": {
+        "total": 128,
+        "complete": 128,
+        "failed": 0
+      },
+      "checkConstraints": [
+        "AppVersion_rollout_check",
+        "FeatureFlag_operationState_check",
+        "ResourceRelease_rollout_check",
+        "ResourceRelease_version_check"
+      ],
+      "nullsNotDistinct": true,
+      "targetUserIdsNotNull": true,
+      "compatibilitySlots": [
+        {
+          "platform": "android",
+          "wgtPolicy": "DENIED"
+        },
+        {
+          "platform": "harmony",
+          "wgtPolicy": "DENIED"
+        },
+        {
+          "platform": "ios",
+          "wgtPolicy": "DENIED"
+        }
+      ],
+      "scope": "formal-empty-bootstrap-only-not-production-upgrade"
+    },
+    "channels": {
+      "passed": true,
+      "rows": [
+        {
+          "name": "anonymous-list-denied",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "name": "ordinary-list-denied",
+          "expected": 403,
+          "status": 403,
+          "passed": true
+        },
+        {
+          "name": "operation-list-allowed",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "name": "operation-register-denied",
+          "expected": 403,
+          "status": 403,
+          "passed": true
+        },
+        {
+          "name": "super-invalid-combination-denied",
+          "expected": 400,
+          "status": 400,
+          "passed": true
+        },
+        {
+          "name": "super-register-allowed",
+          "expected": 201,
+          "status": 201,
+          "passed": true
+        },
+        {
+          "name": "anonymous-public-registration",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "name": "ordinary-operation-management-denied",
+          "expected": 403,
+          "status": 403,
+          "passed": true
+        },
+        {
+          "name": "operation-management-read-allowed",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        }
+      ],
+      "defaultWgtDenied": true,
+      "rejectedWritesLeaveNoRecord": true,
+      "publicFieldsMinimized": true,
+      "realJwtAndGuards": true,
+      "noExternalPublish": true
+    },
+    "checkNames": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry"
+    ],
+    "limits": [
+      "临时PG18.6/Redis7合成业务，非目标PG18.4补丁",
+      "空库bootstrap，不替代25条真实副本升级或维护备份",
+      "未真实微信/短信/App推送或真实资金，非手机签名包验收"
+    ],
+    "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
+  },
+  "currentCandidate": {
+    "sourceCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
+    "records": [
+      "付费课程新开通事实与独立通知验收-20261002.json",
+      "课程到期提醒当天恢复与容器验证收口-20261002.json"
+    ],
+    "ci": {
+      "fullCIComplete": true,
+      "sourceCommit": "f77ba27303299a349aa6ba81850c61dcf0e506f1",
+      "runId": 37065459515,
+      "production": false,
+      "jobsPassed": 8,
+      "passed": 9102,
+      "checkedAt": "2026-10-02T21:33:29.1370908Z",
+      "skipped": 545,
+      "shards": [
+        {
+          "summary": "2026-10-02T21:18:02.7664565Z Tests:       156 skipped, 3097 passed, 3253 total",
+          "passed": 3097,
+          "id": 111032652304,
+          "name": "单元测试 (3/3)",
+          "skipped": 156
+        },
+        {
+          "summary": "2026-10-02T21:17:44.7000777Z Tests:       196 skipped, 3075 passed, 3271 total",
+          "passed": 3075,
+          "id": 111032652349,
+          "name": "单元测试 (2/3)",
+          "skipped": 196
+        },
+        {
+          "summary": "2026-10-02T21:24:44.1971323Z Tests:       193 skipped, 2930 passed, 3123 total",
+          "passed": 2930,
+          "id": 111032652367,
+          "name": "单元测试 (1/3)",
+          "skipped": 193
+        }
+      ],
+      "artifactId": 11252692894,
+      "artifactDigest": "sha256:c46b6b56b51b3b384951d6f148cb3b7fdd2bd4190d74d27485513754401925c3",
+      "artifactDigestVerified": true
+    },
+    "formalImageRecord": "最新固定源码包与正式镜像隔离验证-20261002.json",
+    "migrationCount": 134,
+    "releaseReady": false,
+    "states": [
+      "代码候选完成",
+      "隔离验证完成（限定范围）",
+      "线上状态未知",
+      "待发布决策"
+    ]
+  },
+  "previousCandidate": {
+    "sourceCommit": "80850d34ca3770cf39b57da891b96eee8b12af18",
+    "releaseId": "launch-20261001-80850d34c",
+    "receipt": "docs/operations/课程通知每日防重与目标跳转收口-20261001.json",
+    "ciRun": 36868656874,
+    "imageRun": 36869653860,
+    "releaseDecision": "NO-GO",
+    "note": "课程日防重与通知跳转分别回退；309客户端门禁与15项课程隔离通过；订单SDK超时不算完整点击验收，未部署",
+    "evidenceAssetId": 603379127,
+    "evidenceSha256": "9c49fa6b5191cb3ad74f8354afd6df4e92fbfa3c1c02c0088d8b40d26d03cc94"
+  },
+  "historicalCandidates": [
+    {
+      "sourceCommit": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
+      "releaseId": "launch-20261001-a1d6116ec",
+      "receipt": "docs/operations/小程序搜索安全区与交互实载接收-20261001.json",
+      "ciRun": 36827247805,
+      "imageRun": 36827962807,
+      "releaseDecision": "NO-GO",
+      "note": "本对象是最新候选入口；原sourceCommit及其各批记录保留877及历史实际身份，不改写为本版运行"
+    },
+    {
+      "sourceCommit": "7e0ccfe8f5c4857e74154514b25a1171f218368f",
+      "releaseId": "launch-20261001-7e0ccfe8f",
+      "receipt": "docs/operations/通用搜索完整交互收口-20261001.json",
+      "ciRun": 36832257435,
+      "imageRun": 36833498362,
+      "releaseDecision": "NO-GO",
+      "note": "本对象是最新候选入口；原批次、源码和证据保留实际历史身份。未接收master，未上线。"
+    },
+    {
+      "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+      "releaseId": "launch-20261001-a21dace32",
+      "receipt": "docs/operations/古籍导航安全区与阅读交互收口-20261001.json",
+      "ciRun": 36836955292,
+      "imageRun": 36837605774,
+      "releaseDecision": "NO-GO",
+      "note": "最新隔离候选入口，历史批次保留真实来源；尚未接收master或上线"
+    },
+    {
+      "sourceCommit": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+      "releaseId": "launch-20261001-2548d7d3c",
+      "receipt": "docs/operations/关键业务通知响应边界修复与隔离验收-20261001.json",
+      "ciRun": 36843270807,
+      "imageRun": 36843180571,
+      "releaseDecision": "NO-GO",
+      "note": "隔离接收候选；客户端输入等效复用a21；未接收master或上线"
+    },
+    {
+      "sourceCommit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+      "releaseId": "launch-20261001-6a927f3c4",
+      "receipt": "docs/operations/发现与视频赛事研究院驿站入口验收-20261001.json",
+      "ciRun": 36848231609,
+      "imageRun": 36849208055,
+      "releaseDecision": "NO-GO",
+      "note": "隔离接收候选；移动四目标新构建；未合入master或上线；移动全量ESLint6项既有错误保留"
+    },
+    {
+      "sourceCommit": "a5f3d5a6395dae86b6d368b1daf21dcae6502792",
+      "releaseId": "launch-20261001-a5f3d5a63",
+      "receipt": "docs/operations/课程通知每日防重与目标跳转收口-20261001.json",
+      "ciRun": 36866614464,
+      "imageRun": 36867167301,
+      "releaseDecision": "NO-GO",
+      "note": "独立课程提醒批，源码/包/运行与808最终候选分开保留"
+    },
+    {
+      "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+      "releaseId": "launch-20261001-e200e352e",
+      "receipt": "docs/operations/收货地区完整性与重复选择验收-20261001.json",
+      "ciRun": 36858105332,
+      "imageRun": 36859429297,
+      "releaseDecision": "NO-GO",
+      "note": "收货数据完整性候选；客户端304/304；本版四移动构建/preview及本地资源验真，不是真机或签名APK"
+    },
+    {
+      "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+      "releaseId": "launch-20261001-b2f5ece09",
+      "receipt": "docs/operations/消息中心刷新账号隔离与付款分类验收-20261001.json",
+      "ciRun": 36876135118,
+      "imageRun": 36878393374,
+      "releaseDecision": "NO-GO",
+      "note": "消息中心与实际付款分类独立回退；干净工程preview通过，旧路径超限仍保留，未部署",
+      "evidenceAssetId": 603502210,
+      "evidenceSha256": "7863491e34fc29054c83af954f20b08a355b21d8e2eef8086206f2de2fa854ea"
+    },
+    {
+      "sourceCommit": "5b61b4428635de3c01b9940d30424c072732e05a",
+      "releaseId": "launch-20261001-5b61b4428",
+      "receipt": "docs/operations/免费课程订阅通知与真实HTTP边界验收-20261001.json",
+      "ciRun": 36885519981,
+      "imageRun": 36886472569,
+      "releaseDecision": "NO-GO",
+      "note": "免费课程通知独立回退；客户端等效b2；未部署",
+      "evidenceAssetId": 603602802,
+      "evidenceSha256": "65d1b1bdb2643f187257d5e6fc269e965b749b50c9e6ac7675c0ce17710f8091"
+    },
+    {
+      "sourceCommit": "c4eb890b8f090271c560055cafa81ac54ffd826d",
+      "releaseId": "launch-20261001-c4eb890b8",
+      "receipt": "docs/operations/直播预约通知失败隔离与实际重试验收-20261001.json",
+      "ciRun": 36890104221,
+      "imageRun": 36890855896,
+      "releaseDecision": "NO-GO",
+      "note": "直播预约失败隔离独立回退；客户端等效b2；未部署",
+      "evidenceAsset": 603659517,
+      "evidenceSha256": "4cd7ccd03c1f82c63ab5a8d635f5d00402965f42352452fb9370387eef2e1ee0"
+    }
+  ],
+  "reportLockHistoricalParentCandidate": {
+    "sourceCommit": "9695462de758faff9a0d278d5197aeb118bf986b",
+    "releaseId": "launch-20261001-9695462de",
+    "receipt": "docs/operations/直播预约权限与实际HTTP验收-20261001.json",
+    "ciRun": 36893285327,
+    "imageRun": 36893618525,
+    "releaseDecision": "NO-GO",
+    "note": "直播预约权限独立回退，保留c4eb失败隔离；客户端等效b2；未部署",
+    "evidenceAsset": 603707900,
+    "evidenceSha256": "cbd50273d743028f929614382e793129c7029a7f14ed7d16218c5e3bf6d99850"
+  },
+  "entitlementNoticeHistoricalParentCandidate": {
+    "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "testFixtureCommit": "e5e379d91f154e84484bb612dcde386197623504",
+    "releaseId": "launch-20261001-9c8e5e1a2",
+    "receipt": "docs/operations/工作台报告锁与真实库补验-20261001.json",
+    "ciRun": 36900015643,
+    "handoffCiRun": 36903974810,
+    "imageRun": 36905399615,
+    "releaseDecision": "NO-GO",
+    "note": "报告保存事务锁修复与智能体真实库测试依赖分开；104项软件跳过补验，29项硬件明确暂缓；未部署",
+    "evidenceAsset": 603860871,
+    "evidenceSha256": "7f55f11b94369438647a61ef76d0ca040d8256b28f122e2369c93b31934895d8"
+  },
+  "memberGrantHistoricalParentCandidate": {
+    "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "releaseId": "launch-20261001-51b9883dd",
+    "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
+    "ciRun": 36951628317,
+    "imageRun": 36952768170,
+    "releaseDecision": "NO-GO",
+    "note": "非会员独立权益站内闭环与本人权益页；未部署"
+  },
+  "memberRenewHistoricalParentCandidate": {
+    "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "releaseId": "launch-20261002-a02449f7d",
+    "receipt": "docs/operations/真实会员授予通知与剩余入口审计-20261002.json",
+    "ciRun": 36955419264,
+    "imageRun": 36955729995,
+    "releaseDecision": "NO-GO",
+    "note": "真实管理员书院会员授予站内持久通知；五端等效51b，未部署"
+  },
+  "feedbackMonthlyPrivacyHistoricalParentCandidate": {
+    "sourceCommit": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+    "releaseId": "launch-20261002-b7c51f4c4",
+    "receivedCommits": [
+      "1c2d4158eb374d95d91e7de70dda6cb675c28452",
+      "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6"
+    ],
+    "receipt": "docs/operations/会员续费提醒持久补发与本人续费直达-20261002.json",
+    "ciRun": 36965417490,
+    "imageRun": 36966143664,
+    "releaseDecision": "NO-GO",
+    "note": "续费提醒持久防重/失败补发与本人续费直达；四目标重建，未部署"
+  },
+  "circleReminderHistoricalParentCandidate": {
+    "sourceCommit": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
+    "businessCommit": "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
+    "receivedCommits": [
+      "d6015091c726d2f0f30eec2c882eac7b456c0dea",
+      "9d0a15f241c469af09a44fd4bc0f6bd11b1e28f2",
+      "51077ffe38e84db4e5c9c75985880e4a7dd18c35",
+      "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
+      "3015217ef16c35ed986442e98c7ef29dd27c4ef1"
+    ],
+    "receipt": "docs/operations/工单补发与月度权益原子性及IM隐私收口-20261002.json",
+    "ciRun": 36972302443,
+    "linuxRun": 36972374324,
+    "releaseDecision": "NO-GO",
+    "fixedPackage": "本版待最终重建；不复用旧源码包身份",
+    "note": "工单/日志隔离收口，月度安全部分完成；未部署"
+  },
+  "circleRewardHistoricalParentCandidate": {
+    "sourceCommit": "e0e0590b347f054e689958ec2468582d2247654e",
+    "receivedCommits": [
+      "e0e0590b347f054e689958ec2468582d2247654e"
+    ],
+    "receipt": "docs/operations/圈子提前到期提醒持久补发与独立验收-20261002.json",
+    "ciRun": 36975867250,
+    "linuxRun": 36975879701,
+    "releaseDecision": "NO-GO",
+    "fixedPackage": "待业务收口后最终重建",
+    "note": "仅圈子提前提醒隔离收口，未部署"
+  },
+  "notificationClassificationHistoricalParentCandidate": {
+    "sourceCommit": "91d6d82e054d1cab76c78383a42dd9d66eeb5326",
+    "parent": "351ba6d0bc8d43f3c626ae2e7f950d65bd61f3b6",
+    "record": "圈帖打赏提交后通知恢复与升级验收-20261002.json",
+    "status": "代码候选完成、隔离验证完成（本批范围）、线上状态未知、待发布决策",
+    "ci": {
+      "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36982563138",
+      "conclusion": "success",
+      "status": "completed",
+      "runId": 36982563138,
+      "headSha": "91d6d82e054d1cab76c78383a42dd9d66eeb5326",
+      "checkedAt": "2026-10-02T08:30:14.3920442Z",
+      "artifacts": [
+        {
+          "digest": "sha256:27ae497309cc1483d132fbf5014675e635554820795cba1f4722af58c9a76a3b",
+          "id": 11216233689,
+          "expired": false,
+          "name": "server-build"
+        }
+      ],
+      "jobs": [
+        {
+          "id": 110760159653,
+          "conclusion": "success",
+          "status": "completed",
+          "name": "迁移与上线代码门禁"
+        },
+        {
+          "id": 110760159913,
+          "conclusion": "success",
+          "status": "completed",
+          "name": "ESLint + Prettier"
+        },
+        {
+          "id": 110760159989,
+          "conclusion": "success",
+          "status": "completed",
+          "name": "TypeScript 类型检查"
+        },
+        {
+          "id": 110760623789,
+          "conclusion": "success",
+          "status": "completed",
+          "name": "单元测试 (2/3)"
+        },
+        {
+          "id": 110760623915,
+          "conclusion": "success",
+          "status": "completed",
+          "name": "单元测试 (3/3)"
+        },
+        {
+          "id": 110760623957,
+          "conclusion": "success",
+          "status": "completed",
+          "name": "单元测试 (1/3)"
+        },
+        {
+          "id": 110764911952,
+          "conclusion": "success",
+          "status": "completed",
+          "name": "测试结果汇总"
+        },
+        {
+          "id": 110764912066,
+          "conclusion": "success",
+          "status": "completed",
+          "name": "构建产物"
+        }
+      ],
+      "source": "91d6d82e054d1cab76c78383a42dd9d66eeb5326",
+      "counts": {
+        "fullCIComplete": true,
+        "sourceCommit": "91d6d82e054d1cab76c78383a42dd9d66eeb5326",
+        "skipped": 234,
+        "jobsPassed": 8,
+        "runId": 36982563138,
+        "production": false,
+        "checkedAt": "2026-10-02T08:30:38.0363025Z",
+        "shards": [
+          {
+            "summary": "2026-10-02T08:15:26.5382741Z Tests:       50 skipped, 3083 passed, 3133 total",
+            "id": 110760623789,
+            "skipped": 50,
+            "passed": 3083,
+            "name": "单元测试 (2/3)"
+          },
+          {
+            "summary": "2026-10-02T08:15:23.5204786Z Tests:       72 skipped, 3057 passed, 3129 total",
+            "id": 110760623915,
+            "skipped": 72,
+            "passed": 3057,
+            "name": "单元测试 (3/3)"
+          },
+          {
+            "summary": "2026-10-02T08:26:35.1476406Z Tests:       112 skipped, 2822 passed, 2934 total",
+            "id": 110760623957,
+            "skipped": 112,
+            "passed": 2822,
+            "name": "单元测试 (1/3)"
+          }
+        ],
+        "passed": 8962
+      },
+      "buildStaticBinding": {
+        "sourceCommit": "91d6d82e054d1cab76c78383a42dd9d66eeb5326",
+        "runId": 36982563138,
+        "artifactId": 11216233689,
+        "artifactDigest": "sha256:27ae497309cc1483d132fbf5014675e635554820795cba1f4722af58c9a76a3b",
+        "officialDigestVerified": true,
+        "runtimeTests": false,
+        "formalDockerImage": false,
+        "compiledFiles": [
+          {
+            "path": "modules/circle/services/circle-post.service.js",
+            "sha256": "c8864654efcdd05bc24a9c1d255e5ccaa584f24f5a651b7c5776e8e1270d3c81"
+          },
+          {
+            "path": "modules/circle/services/circle-post-reward-notification.task.js",
+            "sha256": "c6b1af5972dafd47314cc521c1c27f4264ee8335f4204d2d85aa387f8aa5f3b4"
+          },
+          {
+            "path": "modules/circle/circle.module.js",
+            "sha256": "fc34d48eee334f0856bde17c1e2b8617d61e6f2e1eb1fc8bf9c1ee40196355ea"
+          }
+        ]
+      }
+    },
+    "linux": {
+      "sourceCommit": "91d6d82e054d1cab76c78383a42dd9d66eeb5326",
+      "verificationCommit": "20d6a0c4e174b8b3781800cc34326bba1dee6201",
+      "runId": 36982622074,
+      "artifactId": 11216131919,
+      "artifactDigest": "sha256:6801c69bcb42f89cbe3826bc1ac8ec41f2085cb4c0ff1ff9c705fcf59a196091",
+      "officialDigestVerified": true,
+      "sourceBindings": [
+        {
+          "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
+          "sha256": "e0e8933425f69dc71ead6eab089a5bdf62bc8919db1f8e6deb45e6a3716ae1b3"
+        },
+        {
+          "path": "apps/server/src/modules/entitlement/entitlement.controller.ts",
+          "sha256": "1008f232f1bd0592c57f7db1b1a1b55528f64a6ea84e4fd913ad5111ef10d54a"
+        },
+        {
+          "path": "apps/mobile/src/pkg-mine/memberships/index.vue",
+          "sha256": "4699b9b4587b28ba2b239498be304c214f46eb4ca7b9a89c9073f062611a2343"
+        },
+        {
+          "path": "apps/server/src/modules/member/member.service.ts",
+          "sha256": "b86371048153c7f6f6146e50b7ce3a23f4c8b3bc4b6f00206baf83801acd867b"
+        },
+        {
+          "path": "apps/server/src/modules/member/member.controller.ts",
+          "sha256": "b071e9b9b56f9c2119956815c8487ef0f411ad07d07d4a1f3ad7239295f8b2e8"
+        },
+        {
+          "path": "apps/server/src/modules/member/member.dto.ts",
+          "sha256": "832467dd50bf8f8b4e557aca088a9a754c57927205eda68237431b4ff869bc61"
+        },
+        {
+          "path": "apps/server/prisma/schema.prisma",
+          "sha256": "f342d7859e9ad04a1fa80a5ea9c44f3db4a942b969670404357d6e2884a68c6f"
+        },
+        {
+          "path": "apps/server/src/modules/member/member-grant.service.ts",
+          "sha256": "2048876e2551047b8281146b62f7809759d58a5a2f0ab1a92f4c348aab637c7f"
+        },
+        {
+          "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+          "sha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+        },
+        {
+          "path": "apps/mobile/src/lib/im-data.ts",
+          "sha256": "8af6322ddb816573a9735c7e0567e427b6f893e0d4056cdaff67c8a4537221e3"
+        },
+        {
+          "path": "apps/mobile/src/lib/mine-data.ts",
+          "sha256": "86b63067fe9eb2f59e668230fd84612798ad481af08e861b6004ed038df3bfba"
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback.service.ts",
+          "sha256": "e6cdae211eca1f515b53dbee281fd6c1dd11a054c00547b24b132fb0fb9ed7ac"
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback-reply.ts",
+          "sha256": "61597af6b20f93452ec7664e88e6d730d2ccd391c363a98cc09085fef64002b5"
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback-notification.task.ts",
+          "sha256": "a7213e5514ab0bb7708f6dcf1d073841ec0477ed2f390e4e15ded456937c7add"
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+          "sha256": "81dfadcfc6569ba836816ed2c46ada7aa1c78680bf3089ee887926db1ac85218"
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback-notification.task.spec.ts",
+          "sha256": "26035bf36ca8c1a2bb44fa423702350232584037c9a3a06bd6ca44f975d15208"
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback.service.spec.ts",
+          "sha256": "b09c8cd7f2b1b6339717c2e9cd7593330081ee8e5d3ed4be74e7b4119bba3431"
+        },
+        {
+          "path": "apps/server/src/modules/user/user.module.ts",
+          "sha256": "df286cabda81c758a3dcc9b3e8839336a31fadf426fc3a3550179b1c8809c258"
+        },
+        {
+          "path": "apps/server/src/modules/im/im-callback.controller.ts",
+          "sha256": "72d9413d0245b098cfbf58bb64173eadcb2be6c9cd13c13d677f56b68628c187"
+        },
+        {
+          "path": "apps/server/src/modules/im/im-callback.privacy.spec.ts",
+          "sha256": "c3f5041b28c6d9d055ae46f4b2aa683910cddfcb90ccad541ce793fa54b55cb7"
+        },
+        {
+          "path": "apps/server/src/modules/member/member-benefit.service.ts",
+          "sha256": "df8492d322ced1e97ebed34ca9b196454892cf951bd969871246e5844f24ca31"
+        },
+        {
+          "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "sha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+          "sha256": "d4e8d8faf9ad0eb5c55c79ffc6eecc412d31dd97645357d7c868d615944e4d1b"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+          "sha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.spec.ts",
+          "sha256": "a771684a1e797cd2542f4d36c862cecaf96ed0208d056a106b76239cd66e59bb"
+        },
+        {
+          "path": "apps/server/prisma/migrations-deploy/full-baseline.sql",
+          "sha256": "2c6c1c9c1911553205d30590f555cbd69dcb75cae9393078f6f4e64261cd5591"
+        },
+        {
+          "path": "apps/server/prisma/migrations/manual_z_20261002_01_circle_post_reward_notice/migration.sql",
+          "sha256": "fa9af2c9585696874fd31ac4c7fd45210cc45a809fa9393f17970716435ea5aa"
+        },
+        {
+          "path": "apps/server/src/modules/circle/circle.module.ts",
+          "sha256": "e098eb6a686c23c813bb7b0b73c9ed212245fec21c80aae7b6161d8ae13dd550"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
+          "sha256": "1a581cc4079ae3b3aa067a95ca2dec5485c272cf4300b66efefdf3839378b220"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+          "sha256": "4fa588a45e1913450be3434cc971ff6dc59c9fd3db15a66c8d11caa0ca0f7774"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts",
+          "sha256": "b4f663ece1ac9376e26625f1a2d262f7700d6cd572788bdd03ce758d4b9946c6"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.spec.ts",
+          "sha256": "563ea21be3190867969a457dc97b42e4ea8be62b51f81a98dab4851365c6b84e"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+          "sha256": "f6408ed1547ecd2a0067eb425aa56aa3e5b6b2ae112b9b076b14b27044ed164c"
+        }
+      ],
+      "passed": 384,
+      "failed": 0,
+      "skipped": 0,
+      "suites": 24,
+      "newRewardChecks": 25,
+      "postgres": "18.4",
+      "newRewardLintErrors": 0,
+      "newRewardLintWarnings": 0,
+      "baselineRewardWarnings": [
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+          "line": 16,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+          "line": 17,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+          "line": 18,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+          "line": 50,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+          "line": 83,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+          "line": 83,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+          "line": 83,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+          "line": 83,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+          "line": 83,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+          "line": 84,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
+          "line": 223,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
+          "line": 318,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
+          "line": 322,
+          "rule": "@typescript-eslint/no-explicit-any",
+          "unchanged": true
+        }
+      ],
+      "formalDockerImage": false,
+      "nonemptyUpgradeThisRun": false,
+      "production": false,
+      "realChannels": false
+    },
+    "rewardRecoveryCompletedInIsolation": true,
+    "formalImageCurrent": false,
+    "clientChanged": false,
+    "releaseReady": false,
+    "businessCommit": "0d9dc3262e6b6d731fe350a966ef7e053f66e25e",
+    "baselineFixCommit": "91d6d82e054d1cab76c78383a42dd9d66eeb5326"
+  },
+  "governanceCasHistoricalParentCandidate": {
+    "sourceCommit": "e1ce40bd049df57e664db8a92e2e15b178f9e8a6",
+    "record": "圈内通知分类原子落库与支付退款边界验收-20261002.json",
+    "localRegression": 220,
+    "newPostgres": 10,
+    "compiledPostgres": 10,
+    "ci": {
+      "status": "completed",
+      "runId": 36986818774,
+      "conclusion": "success",
+      "checkedAt": "2026-10-02T09:13:53.4651765Z",
+      "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36986818774",
+      "artifacts": [
+        {
+          "name": "server-build",
+          "digest": "sha256:26cd20ff3b6c1fec0ce189d759c6e504fcb1adbfecd921bd9971c193fef3282f",
+          "id": 11218536592,
+          "expired": false
+        }
+      ],
+      "jobs": [
+        {
+          "status": "completed",
+          "name": "ESLint + Prettier",
+          "conclusion": "success",
+          "id": 110773626596
+        },
+        {
+          "status": "completed",
+          "name": "迁移与上线代码门禁",
+          "conclusion": "success",
+          "id": 110773626808
+        },
+        {
+          "status": "completed",
+          "name": "TypeScript 类型检查",
+          "conclusion": "success",
+          "id": 110773626856
+        },
+        {
+          "status": "completed",
+          "name": "单元测试 (1/3)",
+          "conclusion": "success",
+          "id": 110774001526
+        },
+        {
+          "status": "completed",
+          "name": "单元测试 (2/3)",
+          "conclusion": "success",
+          "id": 110774001600
+        },
+        {
+          "status": "completed",
+          "name": "单元测试 (3/3)",
+          "conclusion": "success",
+          "id": 110774001624
+        },
+        {
+          "status": "completed",
+          "name": "构建产物",
+          "conclusion": "success",
+          "id": 110778121353
+        },
+        {
+          "status": "completed",
+          "name": "测试结果汇总",
+          "conclusion": "success",
+          "id": 110778121365
+        }
+      ],
+      "headSha": "e1ce40bd049df57e664db8a92e2e15b178f9e8a6",
+      "counts": {
+        "passed": 8962,
+        "runId": 36986818774,
+        "production": false,
+        "fullCIComplete": true,
+        "checkedAt": "2026-10-02T09:14:18.8113757Z",
+        "shards": [
+          {
+            "summary": "2026-10-02T09:10:19.0879808Z Tests:       122 skipped, 2822 passed, 2944 total",
+            "name": "单元测试 (1/3)",
+            "passed": 2822,
+            "id": 110774001526,
+            "skipped": 122
+          },
+          {
+            "summary": "2026-10-02T09:00:38.0450640Z Tests:       50 skipped, 3083 passed, 3133 total",
+            "name": "单元测试 (2/3)",
+            "passed": 3083,
+            "id": 110774001600,
+            "skipped": 50
+          },
+          {
+            "summary": "2026-10-02T08:59:52.0458588Z Tests:       72 skipped, 3057 passed, 3129 total",
+            "name": "单元测试 (3/3)",
+            "passed": 3057,
+            "id": 110774001624,
+            "skipped": 72
+          }
+        ],
+        "skipped": 244,
+        "sourceCommit": "e1ce40bd049df57e664db8a92e2e15b178f9e8a6",
+        "jobsPassed": 8
+      }
+    },
+    "linux": {
+      "sourceCommit": "e1ce40bd049df57e664db8a92e2e15b178f9e8a6",
+      "verificationCommit": "e80e338eb2d69e19abd0abc304f966d46836d44a",
+      "runId": 36986833395,
+      "artifactId": 11217898561,
+      "artifactDigest": "sha256:dcb50c3d0e04f54c30f9910e819134267871b1556e07b5e8e8fad834ab1aeb02",
+      "digestVerified": true,
+      "sourceBindings": [
+        {
+          "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
+          "sha256": "e0e8933425f69dc71ead6eab089a5bdf62bc8919db1f8e6deb45e6a3716ae1b3"
+        },
+        {
+          "path": "apps/server/src/modules/entitlement/entitlement.controller.ts",
+          "sha256": "1008f232f1bd0592c57f7db1b1a1b55528f64a6ea84e4fd913ad5111ef10d54a"
+        },
+        {
+          "path": "apps/mobile/src/pkg-mine/memberships/index.vue",
+          "sha256": "4699b9b4587b28ba2b239498be304c214f46eb4ca7b9a89c9073f062611a2343"
+        },
+        {
+          "path": "apps/server/src/modules/member/member.service.ts",
+          "sha256": "b86371048153c7f6f6146e50b7ce3a23f4c8b3bc4b6f00206baf83801acd867b"
+        },
+        {
+          "path": "apps/server/src/modules/member/member.controller.ts",
+          "sha256": "b071e9b9b56f9c2119956815c8487ef0f411ad07d07d4a1f3ad7239295f8b2e8"
+        },
+        {
+          "path": "apps/server/src/modules/member/member.dto.ts",
+          "sha256": "832467dd50bf8f8b4e557aca088a9a754c57927205eda68237431b4ff869bc61"
+        },
+        {
+          "path": "apps/server/prisma/schema.prisma",
+          "sha256": "f342d7859e9ad04a1fa80a5ea9c44f3db4a942b969670404357d6e2884a68c6f"
+        },
+        {
+          "path": "apps/server/src/modules/member/member-grant.service.ts",
+          "sha256": "2048876e2551047b8281146b62f7809759d58a5a2f0ab1a92f4c348aab637c7f"
+        },
+        {
+          "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+          "sha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+        },
+        {
+          "path": "apps/mobile/src/lib/im-data.ts",
+          "sha256": "8af6322ddb816573a9735c7e0567e427b6f893e0d4056cdaff67c8a4537221e3"
+        },
+        {
+          "path": "apps/mobile/src/lib/mine-data.ts",
+          "sha256": "86b63067fe9eb2f59e668230fd84612798ad481af08e861b6004ed038df3bfba"
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback.service.ts",
+          "sha256": "e6cdae211eca1f515b53dbee281fd6c1dd11a054c00547b24b132fb0fb9ed7ac"
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback-reply.ts",
+          "sha256": "61597af6b20f93452ec7664e88e6d730d2ccd391c363a98cc09085fef64002b5"
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback-notification.task.ts",
+          "sha256": "a7213e5514ab0bb7708f6dcf1d073841ec0477ed2f390e4e15ded456937c7add"
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+          "sha256": "81dfadcfc6569ba836816ed2c46ada7aa1c78680bf3089ee887926db1ac85218"
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback-notification.task.spec.ts",
+          "sha256": "26035bf36ca8c1a2bb44fa423702350232584037c9a3a06bd6ca44f975d15208"
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback.service.spec.ts",
+          "sha256": "b09c8cd7f2b1b6339717c2e9cd7593330081ee8e5d3ed4be74e7b4119bba3431"
+        },
+        {
+          "path": "apps/server/src/modules/user/user.module.ts",
+          "sha256": "df286cabda81c758a3dcc9b3e8839336a31fadf426fc3a3550179b1c8809c258"
+        },
+        {
+          "path": "apps/server/src/modules/im/im-callback.controller.ts",
+          "sha256": "72d9413d0245b098cfbf58bb64173eadcb2be6c9cd13c13d677f56b68628c187"
+        },
+        {
+          "path": "apps/server/src/modules/im/im-callback.privacy.spec.ts",
+          "sha256": "c3f5041b28c6d9d055ae46f4b2aa683910cddfcb90ccad541ce793fa54b55cb7"
+        },
+        {
+          "path": "apps/server/src/modules/member/member-benefit.service.ts",
+          "sha256": "df8492d322ced1e97ebed34ca9b196454892cf951bd969871246e5844f24ca31"
+        },
+        {
+          "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "sha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+          "sha256": "d4e8d8faf9ad0eb5c55c79ffc6eecc412d31dd97645357d7c868d615944e4d1b"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+          "sha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.spec.ts",
+          "sha256": "a771684a1e797cd2542f4d36c862cecaf96ed0208d056a106b76239cd66e59bb"
+        },
+        {
+          "path": "apps/server/prisma/migrations-deploy/full-baseline.sql",
+          "sha256": "2c6c1c9c1911553205d30590f555cbd69dcb75cae9393078f6f4e64261cd5591"
+        },
+        {
+          "path": "apps/server/prisma/migrations/manual_z_20261002_01_circle_post_reward_notice/migration.sql",
+          "sha256": "fa9af2c9585696874fd31ac4c7fd45210cc45a809fa9393f17970716435ea5aa"
+        },
+        {
+          "path": "apps/server/src/modules/circle/circle.module.ts",
+          "sha256": "e098eb6a686c23c813bb7b0b73c9ed212245fec21c80aae7b6161d8ae13dd550"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
+          "sha256": "1a581cc4079ae3b3aa067a95ca2dec5485c272cf4300b66efefdf3839378b220"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+          "sha256": "4fa588a45e1913450be3434cc971ff6dc59c9fd3db15a66c8d11caa0ca0f7774"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts",
+          "sha256": "b4f663ece1ac9376e26625f1a2d262f7700d6cd572788bdd03ce758d4b9946c6"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.spec.ts",
+          "sha256": "563ea21be3190867969a457dc97b42e4ea8be62b51f81a98dab4851365c6b84e"
+        },
+        {
+          "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+          "sha256": "f6408ed1547ecd2a0067eb425aa56aa3e5b6b2ae112b9b076b14b27044ed164c"
+        },
+        {
+          "path": "apps/server/src/modules/notification/notification.service.ts",
+          "sha256": "32aa26b7711c07de89d311d5fcb772307fa3812411aa7bfb3b3a6baea5987cb5"
+        },
+        {
+          "path": "apps/server/src/modules/notification/notification.service.spec.ts",
+          "sha256": "601a0ffad240ca8911bf3a7d0daaa3528f5cda146070724323e1112dbc55aa8b"
+        },
+        {
+          "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+          "sha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+        }
+      ],
+      "passed": 394,
+      "suites": 25,
+      "failed": 0,
+      "skipped": 0,
+      "newClassificationPostgresChecks": 10,
+      "baselineWarnings": [
+        {
+          "path": "apps/server/src/modules/notification/notification.service.ts",
+          "line": 141,
+          "parentEquivalent": true
+        },
+        {
+          "path": "apps/server/src/modules/notification/notification.service.ts",
+          "line": 469,
+          "parentEquivalent": true
+        }
+      ],
+      "postgres": "18.4",
+      "formalDockerfileImage": false,
+      "realChannels": false,
+      "production": false
+    },
+    "clientSourceEquivalent": true,
+    "newClientBuild": false,
+    "newPhoneTest": false,
+    "formalDockerfileImage": false,
+    "releaseReady": false
+  },
+  "memberRemovalHistoricalParentCandidate": {
+    "sourceCommit": "ed96b24f740995ffe86996d3e63279abbbec17ab",
+    "record": "圈子治理并发状态闸门与真实事务验收-20261002.json"
+  },
+  "privacyHistoricalParentCandidate": {
+    "sourceCommit": "ec0074a72875a407a9c5108221c859668b4e28fd",
+    "record": "圈子移出身份保护与删除计数事务验收-20261002.json"
+  },
+  "membershipCountHistoricalParentCandidate": {
+    "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
+    "record": "圈子详情缓存隔离与真实鉴权入口验收-20261002.json"
+  },
+  "expiryHistoricalParentCandidate": {
+    "sourceCommit": "6e2cc73106a9976c26ed8ec8cd0ab668d0e9112f",
+    "record": "圈子普通入退圈事务与人数保护验收-20261002.json",
+    "localRegressionIncludingNewCases": 117,
+    "newPostgres": 12,
+    "compiledPostgres": 12,
+    "ci": {
+      "runId": 36997770385,
+      "sourceCommit": "6e2cc73106a9976c26ed8ec8cd0ab668d0e9112f",
+      "conclusion": "success",
+      "counts": {
+        "passed": 8979,
+        "skipped": 277,
+        "jobsPassed": 8
+      }
+    },
+    "linux": {
+      "sourceCommit": "6e2cc73106a9976c26ed8ec8cd0ab668d0e9112f",
+      "verificationCommit": "e11acc267ea7ba6b4167116fbe64296240a3d89f",
+      "runId": 36997845278,
+      "passed": 525,
+      "suites": 31,
+      "skipped": 0,
+      "artifactId": 11221748539,
+      "artifactDigest": "sha256:e77f77361b4bc71282f4b5de2bc91993978857f7b1a42d6cd40a1fb262a6956a"
+    },
+    "clientSourceEquivalent": true,
+    "newClientBuild": false,
+    "newPhoneTest": false,
+    "formalDockerfileImage": false,
+    "releaseReady": false
+  },
+  "governanceHistoricalParentCandidate": {
+    "sourceCommit": "564b02656421c3e8f808125e0bf8269fedb7652b",
+    "record": "圈子到期删除事实与持久通知恢复验收-20261002.json",
+    "initialBusinessCommit": "86ae95f4eb16bc56833f225066b07ae728fea927",
+    "guardCommit": "564b02656421c3e8f808125e0bf8269fedb7652b",
+    "localFinalTargeted": 64,
+    "newPostgres": 17,
+    "compiledPostgres": 17,
+    "compiledScheduler": 2,
+    "ci": {
+      "runId": 37003069637,
+      "sourceCommit": "564b02656421c3e8f808125e0bf8269fedb7652b",
+      "conclusion": "success",
+      "counts": {
+        "passed": 8981,
+        "skipped": 291,
+        "jobsPassed": 8
+      }
+    },
+    "linux": {
+      "sourceCommit": "564b02656421c3e8f808125e0bf8269fedb7652b",
+      "verificationCommit": "1898f01a8a1d9392ddf415bec3007c408f996c13",
+      "runId": 37003121760,
+      "passed": 589,
+      "suites": 34,
+      "skipped": 0,
+      "artifactId": 11224900577,
+      "artifactDigest": "sha256:efa35848ab3eb14aeae37b288843bd81502d2c290834e4b184ef641c1ff7e0dc"
+    },
+    "migrationCount": 130,
+    "newClientBuild": false,
+    "newPhoneTest": false,
+    "formalDockerfileImage": false,
+    "releaseReady": false
+  },
+  "cacheHistoricalParentCandidate": {
+    "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+    "parent": "cfe765992a20fcf581331e4de79a9efab3126ead",
+    "record": "圈子治理九入口持久通知与真实鉴权验收-20261002.json",
+    "localPassed": 108,
+    "newPostgres": 30,
+    "compiledPostgres": 30,
+    "compiledScheduler": 4,
+    "compiledHttpChecks": 11,
+    "crossProcessOnlyOneNotice": true,
+    "governanceDurableEntrypoints": 9,
+    "governanceDurableLimitedScopeComplete": true,
+    "N4OverallComplete": false,
+    "migrationCount": 131,
+    "ci": {
+      "runId": 37007128841,
+      "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+      "conclusion": "success",
+      "counts": {
+        "passed": 8985,
+        "skipped": 321,
+        "jobsPassed": 8
+      }
+    },
+    "linux": {
+      "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+      "verificationCommit": "e84d7aa19288e677fd742099d02a1931690665b1",
+      "runId": 37007148546,
+      "passed": 623,
+      "suites": 36,
+      "skipped": 0,
+      "artifactId": 11226336299,
+      "artifactDigest": "sha256:f612f8f9de59c5967a32baaa5c0daf64cc67fc6d0ec9180fb1da7cffe65a0e9d"
+    },
+    "formalDockerfileImage": false,
+    "newClientBuild": false,
+    "newPhoneTest": false,
+    "realChannels": false,
+    "releaseReady": false
+  },
+  "paidCacheHistoricalParentCandidate": {
+    "sourceCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
+    "businessCommit": "5dc723c068ab94806f2406780334bdb622c04de3",
+    "testFixtureCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
+    "record": "圈子成员缓存持久恢复与真实Redis并发验收-20261002.json",
+    "localPassed": 165,
+    "compiledPostgres": 15,
+    "compiledScheduler": 7,
+    "httpContainerRegression": 24,
+    "limitedMembershipCacheComplete": true,
+    "paidAndRoleCacheRecoveryComplete": false,
+    "N4OverallComplete": false,
+    "realRedisLimitedCacheAndSendOnceConcurrency": true,
+    "realRedisVersion": "3.0.504",
+    "realProductionRedis": false,
+    "migrationCount": 132,
+    "ci": {
+      "runId": 37012406521,
+      "sourceCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
+      "conclusion": "success",
+      "counts": {
+        "passed": 8997,
+        "skipped": 336,
+        "jobsPassed": 8
+      }
+    },
+    "linux": {
+      "sourceCommit": "5dc723c068ab94806f2406780334bdb622c04de3",
+      "testFixtureCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
+      "runId": 37011510442,
+      "verificationCommit": "efb6e39f402dfa3fe4b95e22f09348b77a801d83",
+      "passed": 650,
+      "suites": 39,
+      "skipped": 0,
+      "artifactId": 11228670770,
+      "artifactDigest": "sha256:2e2539231dfe60ae1ad64f719e70a8946b1178a6ee947ad38d8b3a298662b4e1"
+    },
+    "formalDockerfileImage": false,
+    "newPhoneTest": false,
+    "realChannels": false,
+    "releaseReady": false
+  },
+  "roleCacheHistoricalParentCandidate": {
+    "sourceCommit": "ef6a0dc82226bcc1f7b7d60bb8ba6dfd4979e6ea",
+    "parent": "ec74e4239d3f009fbd187e82ce9075489dcdcea4",
+    "record": "付费入圈续费缓存持久恢复与实际事务验收-20261002.json",
+    "localPassed": 226,
+    "compiledPostgresPassed": 23,
+    "linux": {
+      "runId": 37017426563,
+      "passed": 673,
+      "suites": 40,
+      "skipped": 0,
+      "artifactId": 11230920943,
+      "artifactDigest": "sha256:842423f7e2b20e08435e5b0d5c898ca1e9afa2ba3df3ae640cdc1c5a41200151"
+    },
+    "ci": {
+      "runId": 37017296743,
+      "sourceCommit": "ef6a0dc82226bcc1f7b7d60bb8ba6dfd4979e6ea",
+      "passed": 8997,
+      "skipped": 359,
+      "jobsPassed": 8
+    },
+    "paidMembershipCacheCompleteInIsolation": true,
+    "roleCacheRecoveryComplete": false,
+    "N4OverallComplete": false,
+    "migrationCount": 132,
+    "newMigration": false,
+    "production": false,
+    "formalDockerfileImage": false,
+    "newPhoneTest": false,
+    "releaseReady": false
+  },
+  "monthlyRecoveryHistoricalParentCandidate": {
+    "sourceCommit": "b4b5031ff8fda84671c4f6a643d34a916bc138a6",
+    "parent": "a4a12e254523a1303842d137dd4a54ab8e2bc363",
+    "record": "圈子角色转让原子性与双方缓存恢复验收-20261002.json",
+    "localPassed": 302,
+    "localSuites": 13,
+    "compiledPostgresPassed": 24,
+    "linux": {
+      "runId": 37021250372,
+      "passed": 737,
+      "suites": 42,
+      "skipped": 0,
+      "artifactId": 11234035750,
+      "artifactDigest": "sha256:1ed1a2a00065612d496bd75cf96cd478b53023ec3ba32887d213281d16ae42a4"
+    },
+    "ci": {
+      "runId": 37021148926,
+      "sourceCommit": "b4b5031ff8fda84671c4f6a643d34a916bc138a6",
+      "passed": 8997,
+      "skipped": 383,
+      "jobsPassed": 8
+    },
+    "paidAndRoleMembershipCacheCompleteInIsolation": true,
+    "N4OverallComplete": false,
+    "migrationCount": 132,
+    "newMigration": false,
+    "production": false,
+    "formalDockerfileImage": false,
+    "newPhoneTest": false,
+    "releaseReady": false
+  },
+  "practitionerHistoricalParentCandidate": {
+    "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+    "parent": "13686abd92a027914b74ac0992d6dd861a7dc939",
+    "businessCommit": "dc46ce10403fb42fa910174442ea95f61f5c9512",
+    "testFixtureCommits": [
+      "eb882aeb9cf161124d3c396f833195d781b4c9f6",
+      "4d5dc15ef4d316101fe7dc6fc312729c20152dcd"
+    ],
+    "record": "会员当月恢复跨月保护与工单行锁验证-20261002.json",
+    "localPassed": 390,
+    "localSuites": 21,
+    "directionalFixturePassed": 41,
+    "compiledPassed": 20,
+    "compiledPostgresPassed": 8,
+    "linux": {
+      "runId": 37027014500,
+      "passed": 758,
+      "suites": 44,
+      "skipped": 0,
+      "artifactId": 11234979902,
+      "artifactDigest": "sha256:bf1af3e32965eafdc0efc6c6f63ec29d74ca3256a6b4341e94e9666eb6958ec3",
+      "sourceBindingEntryCount": 69,
+      "uniqueSourceFileCount": 68
+    },
+    "ci": {
+      "runId": 37026952796,
+      "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+      "passed": 9009,
+      "skipped": 392,
+      "jobsPassed": 8
+    },
+    "currentMonthRecoveryCompleteInIsolation": true,
+    "couponCollisionPolicyUnchanged": true,
+    "N5OverallComplete": false,
+    "N4OverallComplete": false,
+    "migrationCount": 132,
+    "newMigration": false,
+    "production": false,
+    "formalDockerfileImage": false,
+    "newPhoneTest": false,
+    "releaseReady": false
+  },
+  "voiceStartPreviousCandidate": {
+    "sourceCommit": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
+    "businessCommit": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
+    "compatibilityCommit": "acbc550b603508192c0498b2226b9c0bc7e02c65",
+    "parent": "1f00d9ace3456c717204f1f2bb2b9cf0a8f1ea3c",
+    "record": "从业会员并发付款退款与持久到账通知验收-20261002.json",
+    "localPassed": 393,
+    "localSuites": 19,
+    "compiledPassed": 19,
+    "newRealPgCases": 19,
+    "linux": {
+      "runId": 37031665703,
+      "passed": 777,
+      "suites": 45,
+      "skipped": 0,
+      "artifactId": 11236999611,
+      "artifactDigest": "sha256:845895361556a3953fb701f559987db59077745a1dd8ea083c252fe3044e2178",
+      "sourceBindingEntryCount": 74,
+      "uniqueSourceFileCount": 73
+    },
+    "ci": {
+      "runId": 37031486812,
+      "sourceCommit": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
+      "passed": 9009,
+      "skipped": 411,
+      "jobsPassed": 8
+    },
+    "practitionerCompleteInIsolation": true,
+    "N4OverallComplete": false,
+    "N5OverallComplete": false,
+    "newMigration": false,
+    "migrationCount": 132,
+    "production": false,
+    "historicalBackfill": false,
+    "realChannels": false,
+    "formalDockerfileImage": false,
+    "newPhoneTest": false,
+    "releaseReady": false
+  },
+  "schoolPreviousCandidate": {
+    "parent": "6545c2fed32c0bb8fc68c0165d5b8cecb5d57016",
+    "previousBusiness": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
+    "source": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+    "files": [
+      {
+        "path": "apps/server/src/modules/voice/voice-session.service.ts",
+        "sha256": "0d45f4dc9904b0d71a245dd1a36390d61c30bbc76c2bb9bc12f4e71059c7dbce"
+      },
+      {
+        "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+        "sha256": "e9ebd54fdc9e9b2f3e8a812633a99c033d051854871eb29a71bc1ee775110737"
+      },
+      {
+        "path": "apps/server/src/modules/voice/voice-session-idempotency.spec.ts",
+        "sha256": "07d33d8e890deb0bf3cd2effcfbee849b2b8cd564a6395be101aeb75f8ab053e"
+      }
+    ],
+    "localTests": 77,
+    "suites": 9,
+    "compiledTests": 17,
+    "typecheckExit": 0,
+    "buildExit": 0,
+    "lintErrors": 0,
+    "lintWarnings": [
+      {
+        "path": "voice-session-idempotency.spec.ts",
+        "warnings": 0
+      },
+      {
+        "path": "voice-session.integration.spec.ts",
+        "warnings": 26
+      },
+      {
+        "path": "voice-session.service.ts",
+        "warnings": 7
+      }
+    ],
+    "priorOfficialFailures": [
+      {
+        "runId": 37034239589,
+        "artifactId": 11238554432,
+        "zipSha256": "f7001c2bca20f5e77a884300c65650625410f2e991674c66fcf7de9e4eba64a7",
+        "head": "a7aaf125974ea8fc78372f7933038ddaa3a9488a",
+        "conclusion": "failure"
+      },
+      {
+        "runId": 37035652610,
+        "artifactId": 11239741040,
+        "zipSha256": "6f3fa2ca561176a749b501f5dd50490673425f16841a19f1cec117373bce3c6e",
+        "head": "f968049b9ee0393be5b485d954a7fbe2e95da7ae",
+        "conclusion": "failure"
+      }
+    ],
+    "oldCodeCounterexample": true,
+    "realPostgres": true,
+    "provider": "mock",
+    "realChannels": false,
+    "realPayment": false,
+    "production": false,
+    "newMigration": false,
+    "formalDockerRuntime": false,
+    "releaseReady": false,
+    "checkedAt": "2026-10-02T17:24:25.168Z",
+    "record": "语音重复启动修复与最终软件补验-20261002.json",
+    "ci": {
+      "jobsPassed": 8,
+      "runId": 37037741661,
+      "fullCIComplete": true,
+      "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+      "skipped": 411,
+      "production": false,
+      "checkedAt": "2026-10-02T17:21:10.3360843Z",
+      "shards": [
+        {
+          "summary": "2026-10-02T17:05:14.7812044Z Tests:       124 skipped, 3098 passed, 3222 total",
+          "skipped": 124,
+          "id": 110940636528,
+          "name": "单元测试 (2/3)",
+          "passed": 3098
+        },
+        {
+          "summary": "2026-10-02T17:15:28.3287854Z Tests:       157 skipped, 2852 passed, 3009 total",
+          "skipped": 157,
+          "id": 110940636646,
+          "name": "单元测试 (1/3)",
+          "passed": 2852
+        },
+        {
+          "summary": "2026-10-02T17:05:23.6644222Z Tests:       130 skipped, 3066 passed, 3196 total",
+          "skipped": 130,
+          "id": 110940636653,
+          "name": "单元测试 (3/3)",
+          "passed": 3066
+        }
+      ],
+      "passed": 9016
+    },
+    "image": {
+      "runId": 37038125608,
+      "artifactId": 11240918867,
+      "digest": "sha256:3c993975aac66ff057bd958365df012298946a60b96ca337a4ddcc4ee8b798e0",
+      "head": "eb4256548493d4094bdfaa68ec46190b0d043221",
+      "conclusion": "success",
+      "digestVerified": true,
+      "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+      "packageSha256": "cf10bae36c7e899453076f0b678b5fc063cd94cb888df7cc1064a9e9d5521fb7",
+      "passedChecks": 30,
+      "formalDockerfile": true,
+      "imageIdentity": {
+        "id": "sha256:9888e6cd289754ebc470ee61e701012c6f2d6c704a529cb10037544ef0d9d951",
+        "os": "linux",
+        "architecture": "amd64",
+        "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+        "sourceSha256": "cf10bae36c7e899453076f0b678b5fc063cd94cb888df7cc1064a9e9d5521fb7"
+      },
+      "migrationLedger": {
+        "total": 132,
+        "complete": 132,
+        "failed": 0
+      },
+      "cleanup": {
+        "rebu-app-second-b77d307ec5": true,
+        "rebu-app-b77d307ec5": true,
+        "rebu-db-b77d307ec5": true,
+        "rebu-redis-b77d307ec5": true,
+        "networkAbsent": true
+      },
+      "practitioner": {
+        "passed": true,
+        "compiledService": true,
+        "firstPurchaseConcurrentTwoMonths": true,
+        "renewalConcurrentTwoMonths": true,
+        "notificationFailureDoesNotUndoPaid": true,
+        "durableRetryOnce": true,
+        "concurrentRefundDoesNotRevive": true,
+        "refundReplayIdempotent": true,
+        "schoolMembershipUnchanged": true,
+        "noRealChannel": true,
+        "redisStub": true,
+        "realSignatureTransport": false
+      },
+      "twoNodeProduction": false,
+      "realChannels": false,
+      "phoneTest": false,
+      "production": false,
+      "checkedAt": "2026-10-02T17:19:23.748Z"
+    },
+    "skipCoverage": {
+      "defaultSkipped": 411,
+      "softwareCovered": 382,
+      "hardwareDeferred": 29,
+      "unclassified": 0,
+      "newSoftwarePassed": 109,
+      "oldSoftwareEvidenceCount": 280,
+      "newBoundaryCases": 7,
+      "verifiedSourceHashLines": 4674,
+      "historySource": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
+      "softwareRuns": [
+        {
+          "runId": 37038125412,
+          "artifactId": 11240598735,
+          "digest": "sha256:9ab6d1b3fe547faf0cfdcd53b00507855a824bda2e04ca5a03be5487e6f034db",
+          "head": "eb4256548493d4094bdfaa68ec46190b0d043221",
+          "conclusion": "failure",
+          "digestVerified": true
+        },
+        {
+          "runId": 37038707779,
+          "artifactId": 11240279585,
+          "digest": "sha256:a741796f5a512f700930a486eac37f7b943868554038377c976c0435aa1714e1",
+          "head": "263038873da735687efb42d77e346e3090e187be",
+          "conclusion": "success",
+          "digestVerified": true
+        },
+        {
+          "runId": 37038125608,
+          "artifactId": 11240918867,
+          "digest": "sha256:3c993975aac66ff057bd958365df012298946a60b96ca337a4ddcc4ee8b798e0",
+          "head": "eb4256548493d4094bdfaa68ec46190b0d043221",
+          "conclusion": "success",
+          "digestVerified": true
+        }
+      ]
+    },
+    "officialBuild": {
+      "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+      "runId": 37037741661,
+      "artifactId": 11242080442,
+      "officialDigest": "sha256:0f53270027cc76150e62bd8ebf3593d7873510adfb0200695110431eef0532b1",
+      "digestVerified": true,
+      "voicePath": "modules/voice/voice-session.service.js",
+      "compiledVoiceSha256": "50d828e89de0f204dd13ed79ec91d5bba2aab0d69170fab5b8d67aeaa98a1e7c",
+      "containsQuotaConflict": true,
+      "compiledArchiveNotRuntimeExecution": true,
+      "production": false
+    },
+    "client": {
+      "baseline": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+      "sameInput": true,
+      "files": 5427,
+      "bytes": 54196362,
+      "newBuild": false,
+      "newDeviceTest": false,
+      "publicConfigFingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b",
+      "defaultPhoneLoginOperational": false,
+      "appPhoneLoginSwitch": "未设置，源码默认为关闭"
+    },
+    "package": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-10-02T17:01:13.272Z",
+      "archive": "gx-deploy-91-launch-20261002-e556e7d66.tar.gz",
+      "sha256": "cf10bae36c7e899453076f0b678b5fc063cd94cb888df7cc1064a9e9d5521fb7",
+      "releaseId": "launch-20261002-e556e7d66",
+      "commit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+      "expectedCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+      "fileCount": 4481,
+      "allowDirty": false,
+      "success": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "errors": [],
+      "warnings": []
+    },
+    "draft": {
+      "tag": "launch-20261002-e556e7d66",
+      "published": false,
+      "checkedAt": "2026-10-02T17:02:19.2752219Z",
+      "assetId": 606072628,
+      "officialDigestMatches": true,
+      "bytes": 15836884,
+      "archiveSha256": "cf10bae36c7e899453076f0b678b5fc063cd94cb888df7cc1064a9e9d5521fb7",
+      "releaseId": 402002901,
+      "draft": true,
+      "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3"
+    },
+    "notificationMatrix": "本版通知入口与持久恢复矩阵-20261002.json",
+    "N4AllClosed": false,
+    "N5CouponPolicyDecided": false,
+    "states": [
+      "代码候选完成",
+      "隔离验证完成（限定范围）",
+      "线上状态未知",
+      "待发布决策"
+    ],
+    "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3"
+  },
+  "paymentPreviousCandidate": {
+    "parent": "4c923d2b441fa32068ed7924adff0add75babc45",
+    "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+    "previousBusiness": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+    "files": [
+      {
+        "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
+        "sha256": "c3b0e34d71219fd50291b5b83c74a20d50b166d7c37b8a71391dfd5cae152fe4"
+      },
+      {
+        "path": "apps/server/src/modules/shop/shop-payment.service.ts",
+        "sha256": "8c3e4f82ccacf209060e0f3dab6ec50e37feebfba2cd9e6c4cc0e6ca7e7cdd23"
+      },
+      {
+        "path": "apps/server/src/modules/shop/shop-refund.service.ts",
+        "sha256": "fb25d177caf9629b86957399de3adfb1e7657cf57f16fcd8815bae54d226d758"
+      },
+      {
+        "path": "apps/server/src/modules/shop/shop-payment.service.spec.ts",
+        "sha256": "69756d21dae6a3ef0cbc05799ecad8e616eec5e1835ae8c31f49b396cc338e78"
+      },
+      {
+        "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+        "sha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+      }
+    ],
+    "localPgPassed": 69,
+    "monthlyRegressionPassed": 22,
+    "unitRegressionPassed": 179,
+    "uniqueLocalPassed": 270,
+    "compiledPassed": 33,
+    "typecheckExit": 0,
+    "buildExit": 0,
+    "production": false,
+    "realChannels": false,
+    "realRedis": false,
+    "transportSignature": false,
+    "historyBackfill": false,
+    "newMigration": false,
+    "formalImagePending": true,
+    "checkedAt": "2026-10-02T18:17:47.221Z",
+    "record": "书院会员并发付款退款与持久到账验收-20261002.json",
+    "linux": {
+      "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+      "runId": 37044281705,
+      "verificationHead": "30c969e45d94a3e60a43e6fd1fcf38b2289f4f92",
+      "artifactId": 11243432473,
+      "artifactDigest": "sha256:75e06d2e43b2639a04c2f2798ee3f9a4303528c04c7f12520e2984061e730239",
+      "digestVerified": true,
+      "verifiedSourceHashLines": 1807,
+      "linux": "ubuntu-24.04",
+      "postgres": "18.4",
+      "passed": 270,
+      "suites": 13,
+      "compiledPassed": 33,
+      "compiledSourceBindings": 6,
+      "typecheck": true,
+      "build": true,
+      "lintErrors": 0,
+      "production": false,
+      "realRedis": false,
+      "realChannels": false,
+      "transportSignature": false,
+      "formalDockerfileImage": false,
+      "newDeviceTest": false,
+      "historicalBackfill": false,
+      "summaries": [
+        {
+          "file": "src/modules/shop/shop-payment.service.spec.ts",
+          "passed": 70
+        },
+        {
+          "file": "src/modules/shop/shop-refund.service.spec.ts",
+          "passed": 44
+        },
+        {
+          "file": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "passed": 33
+        },
+        {
+          "file": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "passed": 17
+        },
+        {
+          "file": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "passed": 19
+        },
+        {
+          "file": "src/modules/notification/notification.service.spec.ts",
+          "passed": 29
+        },
+        {
+          "file": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "passed": 14
+        },
+        {
+          "file": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+          "passed": 8
+        },
+        {
+          "file": "src/modules/entitlement/entitlement.service.spec.ts",
+          "passed": 6
+        },
+        {
+          "file": "src/modules/member/member.service.spec.ts",
+          "passed": 18
+        },
+        {
+          "file": "src/modules/member/member-grant.service.spec.ts",
+          "passed": 4
+        },
+        {
+          "file": "src/modules/notification/entitlement-notification.task.spec.ts",
+          "passed": 4
+        },
+        {
+          "file": "src/modules/shop/membership-period.spec.ts",
+          "passed": 4
+        }
+      ],
+      "passedTests": [
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 成功回调应翻转订单、清缓存、记佣金并保存渠道流水",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 金额不符时不得入账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 缺失金额时不得入账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 订单已按渠道流水落库后，重投回调仍可定位并幂等成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 已取消订单即使商户单号匹配也不得向支付宝确认入账成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 终态订单只接受同一支付渠道和同一渠道流水的幂等重投",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 支付宝 TRADE_FINISHED 终态同样必须完成本地入账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 支付宝成功回调缺失金额时返回未处理并拒绝入账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 汇付成功回调缺失渠道流水时不得入账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 微信成功回调缺失渠道流水或金额时均返回未处理",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 微信成功回调仅在商户单号和金额均匹配时完成统一入账（null）",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 微信成功回调仅在商户单号和金额均匹配时完成统一入账（WECHAT_INIT）",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 小程序虚拟订单支付成功后自动上报交付",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 带收货地址的实物订单不得自动上报交付",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 微信成功回调的商户单号不属于当前支付意图时拒绝入账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 终态订单只接受同一微信渠道流水的幂等重投，第二笔流水必须进入对账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 微信充值非成功态不得触发到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 汇付验签回调接入统一履约 国学币充值尚未完成本地入账时必须让微信重投",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createAppPayment 使用服务端订单金额和归属，返回 SDK 白名单参数",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createAppPayment 拒绝代付别人的订单",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createAppPayment 拒绝 PAID 订单",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createAppPayment 拒绝 CANCELLED 订单",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createAppPayment iOS 数字权益不通过新增微信 App 入口绕过应用内购买",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createAppPayment 短期重进复用当前渠道单，避免重复付款",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createAppPayment 缓存过期跨入口重建前先关闭旧支付意图",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createAppPayment 调用前CAS失败不创建渠道单",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createAppPayment 初始化互斥失败不得外发下单",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createJsapiPayment 首次小程序下单使用确定性商户号并以 CAS 保存支付意图",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createJsapiPayment 同入口重进复用当前支付参数，不重复向微信下单",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createJsapiPayment 切换或缓存失效时先关停旧微信单，再创建新单",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createJsapiPayment 跨入口初始化锁冲突时不得创建第二笔",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createJsapiPayment 本地CAS失败时不向微信创建新单",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createNativePayment 创建扫码支付成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createNativePayment 重复进入时复用已缓存付款码，不向微信再建一笔",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createNativePayment 付款码缓存失效时先关闭旧微信订单，再生成新码",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createNativePayment 付款码生成锁冲突时拒绝创建第二笔",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createNativePayment 旧微信订单无法安全关单时不创建第二笔",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createNativePayment 旧单关单失败但查单已支付时主动补入账并阻止再下单",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createNativePayment 已支付订单不可重复支付",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createNativePayment 订单不存在",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createNativePayment 无商户证书时返回结构化错误（优雅 400 非 500）",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createH5Payment 创建 H5 支付成功（返回 mwebUrl）",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createH5Payment 重复进入复用当前 H5 收银台地址，不生成第二笔",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createH5Payment 旧 H5 或其他微信入口支付单存在时必须先关单再创建",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createH5Payment 旧流水在当前商户关单和查单均不存在不证明旧商户关单成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createH5Payment 旧流水关单或查单结果不确定时继续禁止创建第二笔",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createH5Payment 归属校验：别人的订单 403",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createH5Payment 状态校验：已支付订单 400",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createH5Payment 订单不存在 404",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService createH5Payment 无商户证书时返回结构化 400（非 500 裸奔）",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 国学币充值支付 H5 下单按服务端动态汇率计价，并把应付分快照写入签名回调附加数据",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 国学币充值支付 精确充值档位以后台档位价格为收款真源，自定义币数才走汇率",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 国学币充值支付 公众号 JSAPI 使用公众号 appid 与显式授权 openid，不读取小程序 openid",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 国学币充值支付 小程序未显式传 openid 时只从本人微信授权记录读取",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 国学币充值支付 充值状态只允许本人查询",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 国学币充值支付 回调未到时由本人支付意图返回 PENDING，其他用户不可探测",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 国学币充值支付 Redis 暂时不可用时状态查询按 PENDING 降级，不把已调起支付误报失败",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 国学币充值支付 服务端强制单次上限且未配置支付时返回结构化错误",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 统一权益支付后处理 数字内容付款后在订单事务内幂等发放跨端访问权",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService 统一权益支付后处理 会员付款同时关联原订单并发放统一会员权益",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService processStationMasterPaid（分站年租） 首次缴费：PENDING → ACTIVE，到期日 = 当下 + 12 个月",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService processStationMasterPaid（分站年租） 续期不吞剩余天数：未到期时从原到期日起算叠加",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService processStationMasterPaid（分站年租） 支付回调遇到平台停用态只顺延有效期，不解除 DISABLED",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService processStationMasterPaid（分站年租） 分站不存在：记录错误但不抛（不阻断已成功的支付记账）",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService processOperatorPaid（运营商开通） 首次开通：按档位建号，名额取 rateB，mgmtRate 留空以走 channelType 默认",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService processOperatorPaid（运营商开通） 等级只升不降：已是 DIAMOND 再买 SILVER，仍保持 DIAMOND 且名额取大者",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService processOperatorPaid（运营商开通） 升档：已是 SILVER 再买 DIAMOND，升为 DIAMOND 并提升名额",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService processOperatorPaid（运营商开通） 支付回调遇到平台停用态只顺延有效期，不解除 DISABLED",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService processOperatorPaid（运营商开通） 正常到期态续费后恢复 ACTIVE",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-payment.service.spec.ts",
+          "name": "ShopPaymentService processOperatorPaid（运营商开通） 非法档位：不建号，记录错误后返回",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundExpiredGroupBuysCron (P1-3) 经 redis.runExclusive 互斥执行拼团超时退款扫描",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundExpiredGroupBuysCron (P1-3) 渠道仅 PROCESSING 时不提前把拼团参与者标成已退款",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundExpiredGroupBuysCron (P1-3) 订单已由异步回调收敛为 REFUNDED 时只补齐拼团参与者终态",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 权益事务失败时不发送退款完成通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 退款与权益已提交后通知失败不回滚资金结果",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 退款已收敛时通知失败不改变退款结果，重投仍使用同一幂等键",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 退款落库后同时清除详情与本人列表缓存，缓存失败不改写退款结果",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 重复退款确认仍尝试修复此前未清理的订单列表缓存",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 已支付订单按实付金额而非标价退款",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 订单缺失原支付渠道时失败关闭，绝不默认走微信",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 待付款订单不可退款",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 商家未发货订单退款：回补库存并写 REFUND_RETURN 流水",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 平台自营未发货订单退款：同样回补库存但不伪造商家流水",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 退款状态与该订单发放的跨端权益在同一事务内冲正",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 已发货订单退款：只退钱不自动回补库存",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 支付通道未配置时失败关闭，不伪造已退款",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 渠道返回 PROCESSING 时保持订单原状态，等待成功回调",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 渠道未受理时抛错并把预持久化售后退回可重试状态",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 网关超时结果不确定时保留 PROCESSING 锚点，绝不退回后换单重试",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 渠道同步成功但本地 CAS 未收敛时返回 PROCESSING，保留补偿锚点",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 成功回调按 RF{orderId} 定位订单、校验金额并仅同步退款类售后",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 成功回调缺失金额时拒绝本地退款记账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 微信退款回调渠道流水不符必须拒绝，订单未收敛不得完成售后",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 渠道已确认但本地订单不可退款时保留 PROCESSING，不伪造 COMPLETED",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 回调锁冲突时抛错让微信重试",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 失败回调不改订单资金状态并把售后退回 PENDING",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService refundOrder 退货退款失败回调保留验收入库结果并退回 APPROVED",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 多渠道异步退款收敛 汇付退款应按平台订单号路由，并持久化 PROCESSING 售后",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 多渠道异步退款收敛 微信退款回调丢失时，对账查询 SUCCESS 后完成退款",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 多渠道异步退款收敛 微信退款对账返回 CLOSED 时只退回退款类售后，不改订单资金状态",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 多渠道异步退款收敛 支付宝对账查询确认成功后才落 REFUNDED 并完成售后",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 多渠道异步退款收敛 银联回调丢失或请求超时时，按同一持久时间重放稳定退款键",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 多渠道异步退款收敛 本地订单已是 REFUNDED 时，对账任务补齐佣金与总账后再完成售后",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 多渠道异步退款收敛 退款已落订单但佣金冲正失败时保留 PROCESSING，等待下轮自动补偿",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 多渠道异步退款收敛 银联成功回调交易身份和金额一致才完成退款，失败回调退回可重试状态",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 多渠道异步退款收敛 银联回调交易标识不符或金额缺失必须拒绝本地记账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 多渠道异步退款收敛 汇付验签退款回调应按原支付记录定位订单并完成资金状态",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 多渠道异步退款收敛 汇付回调金额不符或缺失必须拒绝本地记账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 退款金额校验 (C7) 支付宝退款超过订单实付额时拒绝",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 退款金额校验 (C7) 支付宝整单全额退款时进入统一带锁补偿主链",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 退款金额校验 (C7) 支付宝部分退款被拒绝，避免整单记账和分佣冲正",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 退款金额校验 (C7) 订单不存在时拒绝退款",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 退款金额校验 (C7) 银联退款(分)超过实付额时拒绝",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/shop-refund.service.spec.ts",
+          "name": "ShopRefundService 退款金额校验 (C7) 银联整单全额退款(分)时进入统一带锁补偿主链",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 付款同事务到账，重投不续费或重复发积分，分钟任务只补一条通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 两笔不同订单并发first，两期不丢且积分本月仅一次",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 两笔不同订单并发renew，两期不丢且积分本月仅一次",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 同一订单并发成功回调，仅一个购买记录及一期",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 真实EntitlementLedger失败，付款和全部权益回滚，无成功通知，重投可恢复",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 真实PointsRecord失败，付款和全部权益回滚，无成功通知，重投可恢复",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 退款完成排除未投递到账，重复退款不重复冲正或通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 冲正事务失败不提交退款、购买退款标记或退款成功通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 退款与另一单续费并发，保留剩余一期且无死锁",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 两单并发退款不会互相复活会员",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 保留LIFETIME既有套餐语义，允许真实到账通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 保留YEARLY_AUTO既有套餐语义，允许真实到账通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 已有终身会员付款低档仍为终身，不丢新付款事实",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除legacy，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除wrong-user，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除wrong-type，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除not-paid，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除purchase-refunded，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除purchase-missing，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除purchase-wrong-user，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除purchase-amount，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除purchase-plan，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除purchase-expiry，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除inactive-user，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除expired-user，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除invalid-lifetime，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除expired-ledger，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 排除wrong-key，不凭人工流水报告到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 支付通知落库失败不阻断真实付款，权益通知独立恢复",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 权益通知故障保留持久待办，恢复后一次补发",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 退款通知故障不阻断已提交退款，重投恢复一条",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 本人可查看到账通知与权益，其他用户不能读详情或改变已读状态",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "name": "书院开通续费退款与持久到账真实PG 两个独立进程补同一到账事实，数据库唯一键只建一条",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 真实管理员入口提交后换一个任务实例补发；重试发放与双实例处理只生成一条",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 权益事务失败不会留下持久事件或成功通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 数据库会话时区 UTC 不改变生效判断或通知时间",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 数据库会话时区 Asia/Shanghai 不改变生效判断或通知时间",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 数据库会话时区 America/Los_Angeles 不改变生效判断或通知时间",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 两个独立 Node 进程同时重放同一个持久事件，最终仅创建一条通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 通知数据库写入失败不回滚已到账权益；下次任务能补发",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 不补历史、订单、迁移、调整、零数量、未生效、已过期或已冲正记录；无限权益正常通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 已完成记录超过一批后不饿死新待办：100 + 5，之后为零",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 真实 JWT 和角色守卫拒绝普通用户发放；通知与权益点击接口均只读取本人数据",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 真实会员授予 HTTP：状态、购买记录与标记同事务提交，重启和并发只通知一次",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 真实数据库拒绝会员流水时，购买记录和用户会员状态一起回滚，不发送成功通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 会员通知 INSERT 失败不影响会员已生效；故障释放后能恢复发送",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 只有流水或错误归属的购买记录，不能冒充已生效会员；从业会员继续排除",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 授予已被新等级覆盖、被撤销或已过期，不再发送陈旧成功通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 终身会员 NULL 到期和三种数据库时区均匹配，已有通知不重建",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 会员授予守卫及参数拒绝：普通用户、NONE、非正整数均不修改会员",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 成功回调同事务开通，重投不延长；新任务只补一条权益到账",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 不同订单并发first，两笔入账与两个月均不丢",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 不同订单并发renew，两笔入账与两个月均不丢",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 真实权益流水失败，订单、profile与到账通知均回滚，重试正常",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 退款成功前未投递的旧权益不报到账，重复退款只冲正一次",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 真实退款冲正失败不提交退款或成功通知，恢复后可重试",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 一单退款与另一单续费并发无死锁，按剩余订单重建",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 排除legacy来源，不因存在流水就报告成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 排除wrong-user来源，不因存在流水就报告成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 排除wrong-type来源，不因存在流水就报告成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 排除not-paid来源，不因存在流水就报告成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 排除inactive-profile来源，不因存在流水就报告成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 排除expired来源，不因存在流水就报告成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 权益通知数据库故障不阻断已入账的支付，新任务恢复不重复",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 同一订单并发回调，数据库CAS只开通一次并建立一条支付通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 过期续费从当下起算且保留首次开通日",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 两笔已支付订单并发退款，最终无从业权益，不互相复活",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 退款通知落库失败不阻断已提交退款，重投补一条",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "name": "从业开通续费退款与权益通知真实PG 两个独立进程争从业新到账事实，数据库唯一键只允许一条通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService send 发送单条通知成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService send 发送带 target 的通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService sendOnce 同一幂等键只认领一次",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService sendOnce 落库失败释放幂等锁，允许重试",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService sendOnce 落库后偏好查询失败仍保留幂等锁，避免重试生成第二条",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService sendOnce Redis 幂等标记丢失后由数据库唯一键拦住重复通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService batchSend 批量发送通知成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService batchSend 批量发送空数组返回 0",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService batchSend 直播补偿重试时只为本次新增的用户建站内通知和准备推送",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService batchSend 直播站内通知已落库后推送准备失败仍返回成功，补偿重试不再建第二条",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService getUserNotifications 获取用户通知列表",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService getUserNotifications 支持分页",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService getUserNotifications page 传 'abc' 时 findMany skip 不为 NaN",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService 通知详情按当前用户过滤，不能用其他用户通知 ID 读取",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService getUnreadCount 获取未读数成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService getUnreadCount 无未读通知返回 0",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService markRead 标记单条已读成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService 圈内通知：send 分类落库 send 带 category 时在首次创建中保存category+circleId",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService 圈内通知：send 分类落库 send 不带 category 不触发分类落库",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService 圈内通知：send 分类落库 分类创建失败不返回成功，也不进入推送准备",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService 圈内通知：send 分类落库 batchSend 带 category 只随本批创建数据写入，取消时间窗口补打标",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService 圈内通知：getCircleNotifications 全部分类：只取 category 非空并返回四类未读分组",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService 圈内通知：getCircleNotifications 按分类筛选：SQL 带 category 条件且传入分类参数",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService 圈内通知：getCircleNotifications 非法分类抛业务异常",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService 圈内通知：markCircleAllRead 全量已读：只更新 category 非空的未读",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService 圈内通知：markCircleAllRead 按分类已读：SQL 附加分类条件",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService 圈内通知：markCircleAllRead 非法分类抛业务异常",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService markAllRead 全部标记已读成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/notification.service.spec.ts",
+          "name": "NotificationService markAllRead 无未读通知时也成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 积分流水失败不能先增加余额，恢复后仅发一次",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 券记录失败时积分、积分流水和库存一起回滚，恢复后可重试",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 仅赠券的方案也保存零积分防重记录，重放不增库存",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 双实例发同一用户的当月权益仅一次",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 两个独立 Node 进程发同一用户仅一次",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 不同用户竞争最后一张券不会超发，积分仍按原缺券政策发放",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 购买场景传入事务不另行提交，父事务失败全部回滚",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 旧正积分流水仍防重复，不历史补发可能漏发的券",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 撤销、过期和不存在的用户不被旧 cron 快照继续发放",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 cron 旧等级快照使用锁内最新等级，购买事务保留明确方案参数",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 库存不足与模板不存在保留既有跳过赠券语义，不凭空增加库存",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 已有未用同模板券触发既有唯一约束时，积分和库存安全回滚",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 真实月度发放批次的单个失败不拖累其他用户，重跑只补失败者",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "name": "月度积分与券 PostgreSQL 原子性 不存在方案不发放，负积分配置不能悄悄发券或写完成记录",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+          "name": "当前月恢复真实PG事务 错过月初原调度，当月恢复自动发一次，重复调度不重复加余额",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+          "name": "当前月恢复真实PG事务 原cron与恢复并发，逐用户锁仍只发一次",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+          "name": "当前月恢复真实PG事务 真实流水写入故障，恢复前无部分到账，下一次调度恢复",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+          "name": "当前月恢复真实PG事务 仅当月标记；过去月份已有记录不被重发",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+          "name": "当前月恢复真实PG事务 预期月份已过去，不能借当前月调用补历史权益",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+          "name": "当前月恢复真实PG事务 等待用户锁跨月，旧批次不能在锁内继续写入",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+          "name": "当前月恢复真实PG事务 过期与已撤销会员不恢复，零积分方案只写防重标记",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+          "name": "当前月恢复真实PG事务 同模板已有未用券仍安全回滚，不擅自改为仅赠积分或多发券",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/entitlement/entitlement.service.spec.ts",
+          "name": "EntitlementService 幂等发放权益并创建当前投影",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/entitlement/entitlement.service.spec.ts",
+          "name": "EntitlementService 不同订单并发发放同一权益时使用数据库原子增量并按流水收敛",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/entitlement/entitlement.service.spec.ts",
+          "name": "EntitlementService 重复幂等键直接返回既有投影，不重复写流水",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/entitlement/entitlement.service.spec.ts",
+          "name": "EntitlementService 有限额度通过 version 和余额条件原子扣减",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/entitlement/entitlement.service.spec.ts",
+          "name": "EntitlementService 统一读模型兼容迁移前的会员和钱包数据",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/entitlement/entitlement.service.spec.ts",
+          "name": "EntitlementService 历史会员迁移快照不能覆盖已经失效的实时会员状态",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService getPlans 返回启用的会员套餐，按价格升序",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService getStatus 活跃会员返回 isActive=true",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService getStatus 过期会员返回 isActive=false, remainingDays=0",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService getStatus 终身会员返回 isActive=true, remainingDays=-1",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService getStatus 非会员返回 isActive=false",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService grantMember 拒绝无效等级或时长 NONE / 30，不写会员事务",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService grantMember 拒绝无效等级或时长 UNKNOWN / 30，不写会员事务",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService grantMember 拒绝无效等级或时长 MONTHLY / 0，不写会员事务",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService grantMember 拒绝无效等级或时长 MONTHLY / -1，不写会员事务",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService grantMember 拒绝无效等级或时长 MONTHLY / 1.5，不写会员事务",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService grantMember 拒绝无效等级或时长 MONTHLY / 9007199254740991，不写会员事务",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService grantMember 管理员授予指定天数会员",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService revokeMember 管理员撤销会员",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService getAdminPurchases 分页返回购买记录",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService getAdminPurchases page 传非数字串不产生 NaN skip（P2-4 分页加固）",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService getMemberStats 返回会员统计",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService getBenefits 返回会员权益",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member.service.spec.ts",
+          "name": "MemberService getBenefits 非会员查询权益抛出异常",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-grant.service.spec.ts",
+          "name": "会员续费提醒失败恢复 数据库失败不伪报发送成功，下一次可以补发且不留下 Redis 占位",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-grant.service.spec.ts",
+          "name": "会员续费提醒失败恢复 只按实际插入数量计数，已发送记录不再次计为成功",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-grant.service.spec.ts",
+          "name": "会员续费提醒失败恢复 调度失败释放执行标志，后续调度仍执行",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/member/member-grant.service.spec.ts",
+          "name": "会员续费提醒失败恢复 本进程调度不重叠，完成后恢复执行",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.task.spec.ts",
+          "name": "独立权益到账站内通知 管理员入口在同一份发放输入中记录操作者与持久事件标记",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.task.spec.ts",
+          "name": "独立权益到账站内通知 发放失败直接保持失败，不在控制器另发通知",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.task.spec.ts",
+          "name": "独立权益到账站内通知 写入失败释放进程内执行标志，下次调度继续尝试",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/notification/entitlement-notification.task.spec.ts",
+          "name": "独立权益到账站内通知 本进程调度不重叠，执行完毕后可以再次处理",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/membership-period.spec.ts",
+          "name": "从业者会员自然月顺延 2025-01-31T12:34:56.000Z 顺延一月至 2025-02-28T12:34:56.000Z",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/membership-period.spec.ts",
+          "name": "从业者会员自然月顺延 2024-01-31T12:34:56.000Z 顺延一月至 2024-02-29T12:34:56.000Z",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/membership-period.spec.ts",
+          "name": "从业者会员自然月顺延 2025-03-31T12:34:56.000Z 顺延一月至 2025-04-30T12:34:56.000Z",
+          "status": "passed"
+        },
+        {
+          "path": "src/modules/shop/membership-period.spec.ts",
+          "name": "从业者会员自然月顺延 2025-12-31T12:34:56.000Z 顺延一月至 2026-01-31T12:34:56.000Z",
+          "status": "passed"
+        }
+      ],
+      "checkedAt": "2026-10-02T18:02:59.964Z"
+    },
+    "ci": {
+      "runId": 37043777706,
+      "skipped": 444,
+      "checkedAt": "2026-10-02T18:17:17.3194153Z",
+      "production": false,
+      "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+      "passed": 9016,
+      "shards": [
+        {
+          "passed": 3079,
+          "name": "单元测试 (2/3)",
+          "id": 110960587925,
+          "summary": "2026-10-02T17:58:28.2644251Z Tests:       157 skipped, 3079 passed, 3236 total",
+          "skipped": 157
+        },
+        {
+          "passed": 2852,
+          "name": "单元测试 (1/3)",
+          "id": 110960587986,
+          "summary": "2026-10-02T18:06:22.5579038Z Tests:       157 skipped, 2852 passed, 3009 total",
+          "skipped": 157
+        },
+        {
+          "passed": 3085,
+          "name": "单元测试 (3/3)",
+          "id": 110960588036,
+          "summary": "2026-10-02T17:58:37.8355598Z Tests:       130 skipped, 3085 passed, 3215 total",
+          "skipped": 130
+        }
+      ],
+      "jobsPassed": 8,
+      "fullCIComplete": true
+    },
+    "unchangedScope": {
+      "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+      "baseline": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+      "noChangePaths": [
+        "apps/mobile",
+        "apps/admin",
+        "packages",
+        "scripts",
+        "pnpm-lock.yaml",
+        "apps/server/prisma"
+      ],
+      "clientBaseline": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+      "clientSourceUnchanged": true,
+      "clientHistoricalFiles": 5427,
+      "clientRebuilt": false,
+      "newDeviceTest": false,
+      "newArtifactReverification": false,
+      "newMigration": false,
+      "previousFormalImageStillHistorical": true,
+      "currentFormalImageValidated": false,
+      "defaultPhoneLoginOperational": false,
+      "publicConfig": {
+        "api": "https://api.rebugx.cn",
+        "h5": "https://gx.yrydai.com/h5/",
+        "asset": "https://static.rebugx.cn",
+        "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b",
+        "reuseFrom": "voice-start-idempotency-20261002/client-config-current.json",
+        "explicitlyRecorded": true
+      },
+      "checkedAt": "2026-10-02T18:00:57.752Z"
+    },
+    "formalImage": {
+      "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+      "validated": false,
+      "previousSource": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+      "previousPassed": 30,
+      "note": "前版正式镜像按历史保留，不冒充当前身份；本次Linux编译成品不是正式Dockerfile镜像"
+    },
+    "N4AllClosed": false,
+    "N5CouponPolicyDecided": false,
+    "releaseReady": false,
+    "additionalPaymentAckBlocker": {
+      "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+      "record": "artifacts/channel-intake-20260930/payment-ack-boundary-20261002/baseline-counterexample.json",
+      "confirmed": true,
+      "fixed": false,
+      "channels": [
+        "WECHAT",
+        "ALIPAY"
+      ],
+      "description": "旧未用券唯一键导致主事务回滚，回调却返回true；待独立修复"
+    },
+    "states": [
+      "代码候选完成",
+      "隔离验证完成（限定范围）",
+      "线上状态未知",
+      "待发布决策"
+    ]
+  },
+  "monthlyPreviousCandidate": {
+    "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+    "parent": "41b2760c383342325c9302f7164e26f4e5b430e4",
+    "files": [
+      {
+        "path": "apps/server/src/modules/shop/shop-payment.service.ts",
+        "sha256": "4063cc3fa1ebb9b922c9dca1f13a107ca4f04afd259e68e58196ead424715125"
+      },
+      {
+        "path": "apps/server/src/modules/shop/shop-payment.service.spec.ts",
+        "sha256": "1392039b5e82884d916c0b74d2a82723f9226fbd8e1bba8489f1acfce6a2fe13"
+      },
+      {
+        "path": "apps/server/src/modules/shop/payment-ack-boundary.spec.ts",
+        "sha256": "f7b95dce46fad0e6fedb1a5bbaf2b55920ba2f043f340b92f190bacdbe15b0c4"
+      },
+      {
+        "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+        "sha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+      }
+    ],
+    "localUniqueTests": 365,
+    "newTests": 95,
+    "compiledTests": 20,
+    "typecheckExit": 0,
+    "buildExit": 0,
+    "lintErrors": 0,
+    "priorAnyWarnings": 13,
+    "baselineSource": "72883b815eee332d9a383c61abf8c6be8020c920",
+    "realPostgres": true,
+    "redis": "stub",
+    "channels": "adapted synthetic callbacks only",
+    "realPayment": false,
+    "transportSignature": false,
+    "production": false,
+    "newMigration": false,
+    "couponPolicyChanged": false,
+    "releaseReady": false,
+    "checkedAt": "2026-10-02T18:35:34.851Z",
+    "record": "支付事务回滚误确认与退款重投通知验收-20261002.json",
+    "linux": {
+      "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+      "runId": 37048618735,
+      "verificationHead": "7c04535b53cb0615d72258b2c803cf1ed62b0c4d",
+      "artifactId": 11245308623,
+      "artifactDigest": "sha256:ddbd5de0a58e58dc3fb1df8935d8abc69e38356129fef53f6f2d0c3a3a16fc8c",
+      "digestVerified": true,
+      "verifiedSourceHashLines": 1809,
+      "linux": "ubuntu-24.04",
+      "postgres": "18.4",
+      "passed": 365,
+      "suites": 15,
+      "compiledPassed": 20,
+      "compiledSourceBindings": 6,
+      "typecheck": true,
+      "build": true,
+      "lintErrors": 0,
+      "production": false,
+      "realRedis": false,
+      "realChannels": false,
+      "transportSignature": false,
+      "formalDockerfileImage": false,
+      "newDeviceTest": false,
+      "historicalBackfill": false,
+      "summaries": [
+        {
+          "file": "src/modules/shop/shop-payment.service.spec.ts",
+          "passed": 70
+        },
+        {
+          "file": "src/modules/shop/shop-refund.service.spec.ts",
+          "passed": 44
+        },
+        {
+          "file": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "passed": 33
+        },
+        {
+          "file": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "passed": 17
+        },
+        {
+          "file": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "passed": 19
+        },
+        {
+          "file": "src/modules/notification/notification.service.spec.ts",
+          "passed": 29
+        },
+        {
+          "file": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "passed": 14
+        },
+        {
+          "file": "src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+          "passed": 20
+        },
+        {
+          "file": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+          "passed": 8
+        },
+        {
+          "file": "src/modules/entitlement/entitlement.service.spec.ts",
+          "passed": 6
+        },
+        {
+          "file": "src/modules/shop/payment-ack-boundary.spec.ts",
+          "passed": 75
+        },
+        {
+          "file": "src/modules/member/member.service.spec.ts",
+          "passed": 18
+        },
+        {
+          "file": "src/modules/member/member-grant.service.spec.ts",
+          "passed": 4
+        },
+        {
+          "file": "src/modules/notification/entitlement-notification.task.spec.ts",
+          "passed": 4
+        },
+        {
+          "file": "src/modules/shop/membership-period.spec.ts",
+          "passed": 4
+        }
+      ],
+      "checkedAt": "2026-10-02T18:41:15.448Z"
+    },
+    "ci": {
+      "fullCIComplete": true,
+      "passed": 9091,
+      "skipped": 464,
+      "jobsPassed": 8,
+      "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+      "runId": 37048561929,
+      "checkedAt": "2026-10-02T19:01:53.2974186Z",
+      "shards": [
+        {
+          "skipped": 177,
+          "summary": "2026-10-02T18:41:11.7677372Z Tests:       177 skipped, 3079 passed, 3256 total",
+          "id": 110976526047,
+          "name": "单元测试 (2/3)",
+          "passed": 3079
+        },
+        {
+          "skipped": 130,
+          "summary": "2026-10-02T18:40:24.1694115Z Tests:       130 skipped, 3085 passed, 3215 total",
+          "id": 110976526102,
+          "name": "单元测试 (3/3)",
+          "passed": 3085
+        },
+        {
+          "skipped": 157,
+          "summary": "2026-10-02T18:51:32.1002227Z Tests:       157 skipped, 2927 passed, 3084 total",
+          "id": 110976526155,
+          "name": "单元测试 (1/3)",
+          "passed": 2927
+        }
+      ],
+      "production": false
+    },
+    "formalImage": {
+      "validated": false,
+      "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+      "previousSource": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+      "previousPassed": 30,
+      "note": "历史正式镜像不冒充当前候选"
+    },
+    "paymentAckBlockerFixedInIsolation": true,
+    "N4AllClosed": false,
+    "N5CouponPolicyDecided": false,
+    "states": [
+      "代码候选完成",
+      "隔离验证完成（限定范围）",
+      "线上状态未知",
+      "待发布决策"
+    ]
+  }
+}

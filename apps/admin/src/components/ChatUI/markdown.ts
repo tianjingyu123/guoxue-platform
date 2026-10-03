@@ -73,6 +73,15 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+/** 只允许可导航的安全协议，拒绝 javascript:/data:/vbscript: 等主动内容。 */
+function safeHref(raw: string): string {
+  const value = raw.trim()
+  if (/^(https?:|mailto:)/i.test(value)) return value
+  if (value.startsWith('/') && !value.startsWith('//')) return value
+  if (value.startsWith('#')) return value
+  return '#'
+}
+
 /** 将 token 列表渲染为 HTML */
 function tokensToHtml(tokens: Token[]): string {
   return tokens.map(t => {
@@ -84,7 +93,7 @@ function tokensToHtml(tokens: Token[]): string {
       case 'cite': return `<sup style="color:#409eff;cursor:pointer;font-weight:600">[${escapeHtml(t.content)}]</sup>`
       case 'a': {
         const [text, url] = t.content.split('\x01')
-        return `<a href="${escapeHtml(url)}" target="_blank" style="color:#409eff">${escapeHtml(text || url)}</a>`
+        return `<a href="${escapeHtml(safeHref(url || ''))}" target="_blank" rel="noopener noreferrer" style="color:#409eff">${escapeHtml(text || url)}</a>`
       }
       default: return escapeHtml(t.content)
     }

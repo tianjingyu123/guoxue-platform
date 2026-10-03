@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { navigateTo } from '@/utils/router'
 import {
   mineApi, securityDeactivateLossList,
@@ -75,7 +76,7 @@ function confirmDeactivate() {
     <!-- 顶部导航 -->
     <app-nav-bar title="账号安全" />
 
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state">
       <text>{{ error }}</text>
       <view class="retry-btn" @tap="retry">重试</view>
@@ -112,7 +113,7 @@ function confirmDeactivate() {
       <view v-for="g in groups" :key="g.title" class="group">
         <text class="group-title">{{ g.title }}</text>
         <view class="card">
-          <view v-for="item in g.items" :key="item.id" class="row" @tap="navigateTo(item.href)">
+          <view v-for="item in g.items" :key="item.id" class="row" @tap="item.href && navigateTo(item.href)">
             <view class="row-icon" :style="{ background: item.iconBg }">
               <AppIcon :name="item.icon" :size="18" color="#fff" />
             </view>
@@ -123,7 +124,8 @@ function confirmDeactivate() {
                 <AppIcon :name="isPositive(item.status) ? 'check-circle' : 'x-circle'" :size="10" :color="isPositive(item.status) ? '#16a34a' : '#ea580c'" />
                 <text class="tag-text" :class="isPositive(item.status) ? 'tag-ok-text' : 'tag-warn-text'">{{ statusText(item.status) }}</text>
               </view>
-              <AppIcon name="chevron-right" :size="16" color="#cbb" />
+              <!-- href 为空 = 纯展示行，不给箭头（否则用户以为能点） -->
+              <AppIcon v-if="item.href" name="chevron-right" :size="16" color="#cbb" />
             </view>
           </view>
         </view>
@@ -186,7 +188,8 @@ function confirmDeactivate() {
 
 <style scoped>
 .page {
-  min-height: 100vh;
+  /* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+  height: 100vh;
   background: #faf8f5;
   display: flex;
   flex-direction: column;
@@ -194,6 +197,7 @@ function confirmDeactivate() {
 .scroll {
   flex: 1;
   height: 0;
+  min-height: 0;
 }
 /* 评分卡片 */
 .score-card {

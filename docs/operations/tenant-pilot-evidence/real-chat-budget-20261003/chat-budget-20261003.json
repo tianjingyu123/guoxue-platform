@@ -1,0 +1,50 @@
+{
+  "head": "a1d37c4a2cfd0167a4474798a47a4cb6706e6c69",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-lease-chat.ts": "775c9bbf34ef7758f96665b606022218e932c364192ca8bd9a6e1f56d1ff4484",
+    "apps/server/src/modules/managed-tenancy/managed-chat-provider.ts": "32f969b043ce0bf5c1a7b5ab87695869cbcc6b69e6a53011f4eb31e6d70894b6",
+    "apps/server/src/modules/managed-tenancy/managed-provider-probe.ts": "581171fc96e644d0668b467293f7addb7e01dcea714dc0cfc624e1b48e131e21",
+    "pilots/managed-tenancy/lease-process.mjs": "5fa9cbe2ce921f63f63fe049444ac42f0c29d9126fe02191d7ea5041581d84ac",
+    "pilots/managed-tenancy/verify-chat-budget-postgres.mjs": "f5d662da20fcbf70d2cbe56083c3d6066d063c2cb2b7de2742fb09d382f3cfc7"
+  },
+  "checks": [
+    {
+      "name": "两个Nest进程、不同账号与应用竞争客户最后未确认名额，仅一个预留并派发，另一个409且不落消息",
+      "status": "PASS"
+    },
+    {
+      "name": "完整响应释放未确认占位但不退累计次数，两个进程跨应用竞争最后累计次数只有一个成功，到达上限拒绝且无额外供应商调用",
+      "status": "PASS"
+    },
+    {
+      "name": "预算耗尽后同键仍读取已有完成记录，跨进程重放不耗额度；修改原内容继续409",
+      "status": "PASS"
+    },
+    {
+      "name": "A耗尽预算不阻断B的独立名额，A令牌进入B实例仍拒绝，不借用其他客户预算",
+      "status": "PASS"
+    },
+    {
+      "name": "仅显式提高合成累计上限后继续，重启不清空历史；未知结果占用全客户名额，换账号、应用或会话不能绕过",
+      "status": "PASS"
+    },
+    {
+      "name": "未知请求跨两天及进程重启仍占位，同键保持原未知结果，不自动补发或退额度",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 7,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本机合成HTTP、真实Nest和PostgreSQL，不调用真实模型、不代表真实余额、费用或供应商并发配额",
+    "累计预留次数含所有历史状态，ABORTED也不自动退款；没有每日重置或换签名清零",
+    "UNKNOWN持续占位，未实现供应商对账后的解占位；提高预算必须另有真实授权",
+    "仅验证候选入口，部署时须单写登记并协调所有客户进程使用同一授权配置；不证明Linux或生产资源隔离"
+  ]
+}

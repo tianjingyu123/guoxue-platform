@@ -101,8 +101,18 @@ export function calcTrueSolarTime(
   while (adjustedMinutes < 0) adjustedMinutes += 1440
   while (adjustedMinutes >= 1440) adjustedMinutes -= 1440
 
-  const adjustedHour = adjustedMinutes / 60
-  const adjustedMinute = Math.round(adjustedMinutes % 60)
+  /**
+   * 🔴 2026-09-19 修：原先是 `Math.round(adjustedMinutes % 60)`，
+   * 余数 59.5 以上会被舍成 **60**——这不是合法的分钟值。
+   * 实测 120°E：04-15 得「12时60分」、09-01 得「11时60分」，
+   * 前端直接 padStart 输出，页面上就显示成「11时60分」。
+   *
+   * 正确做法是**先把整体分钟数四舍五入，再拆时与分**，
+   * 这样进位会自然落到小时上，不会出现 60。
+   */
+  const roundedTotal = Math.round(adjustedMinutes) % 1440
+  const adjustedMinute = roundedTotal % 60
+  const adjustedHour = roundedTotal / 60
 
   const sign = totalOffset >= 0 ? '+' : ''
   const desc = `经度${longitude}°(${sign}${lonOffset.toFixed(1)}分) + 均时差(${sign}${eot.toFixed(1)}分) = 总偏移${sign}${totalOffset.toFixed(1)}分`

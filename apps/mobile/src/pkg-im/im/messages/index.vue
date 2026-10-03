@@ -1,13 +1,8 @@
 <template>
-  <view v-if="loading" class="load-state"><text class="load-state-text">加载中...</text></view>
-  <view v-else-if="error" class="load-state">
-    <text class="load-state-text">{{ error }}</text>
-    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
-  </view>
-  <view v-else class="msg-page">
+  <view class="msg-page">
     <!-- 顶部导航 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="navbar__inner">
+    <view class="navbar" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
+      <view class="navbar__inner" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
         <view class="navbar__left">
           <view class="navbar__back" @tap="goBack">
             <AppIcon name="arrow-left" :size="40" color="#2c2c2c" />
@@ -45,8 +40,14 @@
       </view>
     </view>
 
+    <!-- 加载或断网时也保留返回入口，避免用户被困在等待页。 -->
+    <view v-if="loading" class="load-state"><text class="load-state-text">加载中...</text></view>
+    <view v-else-if="error" class="load-state">
+      <text class="load-state-text">{{ error }}</text>
+      <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+    </view>
     <!-- 消息列表 -->
-    <view v-if="filteredMessages.length > 0" class="msg-list">
+    <view v-else-if="filteredMessages.length > 0" class="msg-list">
       <view
         v-for="msg in filteredMessages"
         :key="msg.id"
@@ -76,7 +77,8 @@
         </view>
       </view>
 
-      <view class="msg-list__end">— 已显示全部消息 —</view>
+      <!-- 接口单次最多取 50 条：满 50 条时如实提示截断，不谎称"已显示全部"（分页留后端项） -->
+      <view class="msg-list__end">{{ messages.length >= 50 ? '— 仅显示最近 50 条消息 —' : '— 已显示全部消息 —' }}</view>
     </view>
 
     <!-- 空态 -->
@@ -84,14 +86,21 @@
       <view class="msg-empty__icon">
         <AppIcon name="bell" :size="80" color="#d6cdbf" />
       </view>
-      <text class="msg-empty__title">暂无消息</text>
-      <text class="msg-empty__desc">当前分类下没有消息</text>
+      <text class="msg-empty__title">这里还静悄悄的</text>
+      <text class="msg-empty__desc">去圈子逛逛，互动和通知都会出现在这里</text>
+      <view class="msg-empty__btn" @tap="navigateTo('/pages/circles/index')">
+        <text class="msg-empty__btn-text">去圈子逛逛</text>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { onShow, onHide, onUnload } from '@dcloudio/uni-app'
+import { createVisiblePoller } from '@/utils/visible-poller'
+import { getAuthContextRevision, getToken, getUserInfo, subscribeAuthContext } from '@/utils/storage'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
@@ -102,6 +111,8 @@ import {
 } from '@/lib/im-data'
 
 const statusBarHeight = ref(0)
+const menuSafeRight = getMiniProgramMenuSafeRight()
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 
 // 列表数据
 const messages = ref<NotifyMessage[]>([])
@@ -112,23 +123,52 @@ const error = ref('')
 // UI 状态
 const activeTab = ref<NotifyType>('system')
 
-async function loadData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const res = await imApi.getMessages()
-    messages.value = res.list
-    counts.value = res.unreadCounts as unknown as Record<string, number>
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载消息列表失败，请重试'
-  } finally {
-    loading.value = false
-  }
+let loaded = false
+let readRevision = 0
+function captureContext() {
+  const visible = poller.capture()
+  const revision = getAuthContextRevision()
+  const account = getUserInfo<{ id?: string }>()?.id
+  return () => visible() && revision === getAuthContextRevision() && account === getUserInfo<{ id?: string }>()?.id
 }
 
-onMounted(() => {
-  loadData()
+const poller = createVisiblePoller(async (isVisible) => {
+  const isCurrent = captureContext()
+  const reads = readRevision
+  if (!loaded) { loading.value = true; error.value = '' }
+  try {
+    const res = await imApi.getMessages()
+    // 隐藏、切号或已读操作后的旧快照都不能覆盖当前消息和计数。
+    if (!isVisible() || !isCurrent() || reads !== readRevision) return
+    messages.value = res.list
+    counts.value = res.unreadCounts as unknown as Record<string, number>
+    loaded = true
+    error.value = ''
+  } catch (e) {
+    if (isCurrent() && !loaded) error.value = (e as Error)?.message || '加载消息列表失败，请重试'
+  } finally {
+    if (isCurrent()) loading.value = false
+  }
+}, () => 15_000)
+
+function loadData() { poller.refresh() }
+const unsubscribeAuth = subscribeAuthContext(() => {
+  const active = poller.isActive()
+  poller.stop()
+  readRevision++
+  loaded = false
+  messages.value = []
+  counts.value = {}
+  error.value = ''
+  loading.value = true
+  if (active && getToken()) poller.start()
 })
+function disposeRefresh() { poller.dispose(); unsubscribeAuth() }
+onMounted(() => poller.start())
+onShow(() => poller.start())
+onHide(() => poller.stop())
+onUnload(disposeRefresh)
+onUnmounted(disposeRefresh)
 
 const filteredMessages = computed(() =>
   messages.value.filter((m) => m.type === activeTab.value),
@@ -162,26 +202,40 @@ function iconBg(_msg: NotifyMessage): string {
 }
 
 function onMessageTap(msg: NotifyMessage) {
+  if (!loaded || !poller.isActive() || !messages.value.includes(msg)) return
+  const isCurrent = captureContext()
   if (!msg.isRead) {
-    // 乐观更新：先改 UI，再后台同步后端；同步失败不回滚（已读是幂等的低风险操作）
+    // 保留点击直达体验，失败后重新读取本人状态，不用旧计数覆盖新账号。
+    readRevision++
     msg.isRead = true
     counts.value[msg.type] = Math.max(0, (counts.value[msg.type] || 0) - 1)
     counts.value.total = Math.max(0, (counts.value.total || 0) - 1)
-    imApi.markNotifyRead(msg.id).catch(() => {})
+    imApi.markNotifyRead(msg.id).catch(() => {
+      if (isCurrent()) poller.refresh()
+    })
   }
   if (msg.link) navigateTo(msg.link)
 }
 
 const marking = ref(false)
 async function markAllRead() {
-  if (marking.value) return
+  if (marking.value || !loaded || !poller.isActive()) return
+  const isCurrent = captureContext()
+  readRevision++
   marking.value = true
   try {
     await imApi.markAllNotifyRead()
+    if (!isCurrent()) return
+    readRevision++
     messages.value.forEach((m) => (m.isRead = true))
     counts.value = { system: 0, interaction: 0, transaction: 0, service: 0, income: 0, total: 0 }
+    uni.showToast({ title: '已全部标为已读', icon: 'none' })
+  } catch (e) {
+    // 失败必须提示：此前静默失败让用户以为已读成功（照 circles/notifications.vue 范式）
+    if (isCurrent()) uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
   } finally {
     marking.value = false
+    if (isCurrent()) poller.refresh()
   }
 }
 </script>
@@ -409,9 +463,19 @@ async function markAllRead() {
   font-size: 26rpx;
   color: #9c9388;
 }
+.msg-empty__btn {
+  margin-top: 40rpx;
+  padding: 16rpx 48rpx;
+  background: var(--brand, #c41e3a);
+  border-radius: 999rpx;
+}
+.msg-empty__btn-text {
+  font-size: 28rpx;
+  color: #ffffff;
+}
 
 /* 加载/错误状态 */
-.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
+.load-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; gap: 24rpx; }
 .load-state-text { font-size: 28rpx; color: #8a8178; }
 .retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
 .retry-text { font-size: 28rpx; color: #fff; }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 优惠券领取卡 - 从原型 componentshttps://api.rebugx.cn/assets/marketing/marketing-slot.tsx CouponClaimCard 迁移 */
 import { ref } from 'vue'
+import { formatPrice } from '@/utils/format'
 
 const props = defineProps<{
   amount: number
@@ -27,8 +28,8 @@ function claim() {
     <view class="cc-left">
       <view class="cc-amount">
         <text class="cc-cny">¥</text>
-        <text class="cc-num">{{ amount }}</text>
-        <text class="cc-th">满{{ threshold }}可用</text>
+        <text class="cc-num">{{ formatPrice(amount) }}</text>
+        <text class="cc-th">满{{ formatPrice(threshold) }}可用</text>
       </view>
       <view class="cc-divider" />
       <view>

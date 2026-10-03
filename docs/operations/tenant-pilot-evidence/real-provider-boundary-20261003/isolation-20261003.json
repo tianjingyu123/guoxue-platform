@@ -1,0 +1,11 @@
+{
+  "head": "1abb07d75b4598d9f2b89270ff3a0a5a03f0a71a",
+  "node": "v24.17.0",
+  "passed": 11,
+  "failed": 0,
+  "production": false,
+  "outputSha256": "a92348fbb4533ad656f545c72c34d1c4cebae1f73fedc989c627dd3de4fe3f9c",
+  "limits": [
+    "客户端隔离断言，不连接生产"
+  ]
+}

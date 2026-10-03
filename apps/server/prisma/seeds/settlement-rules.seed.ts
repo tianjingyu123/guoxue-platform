@@ -16,11 +16,13 @@ const prisma = new PrismaClient();
 const APPROVAL_THRESHOLD = 2000;
 
 type Split = {
-  role: "PROVIDER" | "STATION" | "OPERATOR" | "CIRCLE_OWNER" | "PLATFORM";
+  // ASKER = 围观场景的提问者分成（其付费问题被第三方围观时按比例分账）
+  role: "PROVIDER" | "ASKER" | "STATION" | "OPERATOR" | "CIRCLE_OWNER" | "PLATFORM";
   rate: number;
   basis: "GROSS" | "PARENT_SPLIT";
   category: "COMMISSION" | "SERVICE" | "PLATFORM";
   parentRole?: string;
+  note?: string;
 };
 
 // 自购规则（2026-07-02 拍板）：站长自购在下单时直接立减、不产生佣金（退款退实付价）；引擎 L3 对佣金类目硬拦截自买自卖
@@ -50,21 +52,28 @@ const RULES: Array<{
   },
   {
     scene: "PEEK",
+    // 董事长拍板 2026-07-10：围观 平台40% / 提问者30% / 达人30%（原「达人70%」已废弃）。
+    // 生产 DB 已按此修正（20260714_settlement_rules_fix.sql）；种子必须同步，
+    // 否则谁重跑 seed 会把 upsert(enabled 默认 true) 覆盖回错值 → 达人被多发到 70%。
     splits: [
-      { role: "PROVIDER", rate: 0.7, basis: "GROSS", category: "SERVICE" },
-      { role: "PLATFORM", rate: 0.3, basis: "GROSS", category: "PLATFORM" },
+      { role: "PROVIDER", rate: 0.3, basis: "GROSS", category: "SERVICE", note: "达人 30%" },
+      { role: "ASKER", rate: 0.3, basis: "GROSS", category: "SERVICE", note: "提问者 30%" },
+      { role: "PLATFORM", rate: 0.4, basis: "GROSS", category: "PLATFORM", note: "平台 40%" },
     ],
     bufferDays: 7,
-    remark: "围观回答：回答者70%（原 revenue DEFAULT_RATES 收编）",
+    remark: "围观回答：平台40%/提问者30%/达人30%（2026-07-10 拍板）",
   },
   {
     scene: "AUDIO_CALL",
+    // 董事长拍板 2026-07-10：实时互动统一 平台50%/达人50%（与 DEFAULT_RATES.AUDIO_CALL、
+    // CONSULT_CALL、LIVE_GIFT 一致）。原「嘉宾70%」是旧值；生产 DB 已修正为 50/50，
+    // 种子必须同步 —— 否则重跑 seed(updatedBy=seed 会被覆盖) 把连麦打回 70% 多发。
     splits: [
-      { role: "PROVIDER", rate: 0.7, basis: "GROSS", category: "SERVICE" },
-      { role: "PLATFORM", rate: 0.3, basis: "GROSS", category: "PLATFORM" },
+      { role: "PROVIDER", rate: 0.5, basis: "GROSS", category: "SERVICE", note: "达人 50%" },
+      { role: "PLATFORM", rate: 0.5, basis: "GROSS", category: "PLATFORM", note: "平台 50%" },
     ],
     bufferDays: 7,
-    remark: "直播连麦嘉宾70%（原 revenue DEFAULT_RATES 收编）",
+    remark: "直播连麦/通话 达人50%（2026-07-10 拍板·与咨询/打赏同口径）",
   },
   {
     scene: "LIVE_GIFT",
@@ -92,7 +101,10 @@ const RULES: Array<{
     ],
     bufferDays: 7,
     enabled: false,
-    remark: "会员推广分佣（默认20%·2026-07-02 拍板·后台可改）；会员权益产品化待定，定稿后启用",
+    // 现状：会员已产品化上线，生产 DB 此规则 updatedBy=c1-member-productize-20260703、
+    // enabled=true、splits 已对齐订单类(STATION 20%+OPERATOR 管理奖)。因 updatedBy 非本种子，
+    // 重跑 seed 会「跳过」不覆盖 —— 故此处旧值不会打回生产，仅作全新 DB 初始化的保守兜底。
+    remark: "会员推广分佣（默认20%·2026-07-02 拍板·后台可改）；生产已启用见 c1-member-productize",
   },
   {
     scene: "COIN_RECHARGE",

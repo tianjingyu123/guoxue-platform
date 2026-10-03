@@ -2,6 +2,7 @@
  * 文章详情页数据（从原型 app/articles/[id]/page.tsx 1:1 迁移）
  * 内容块模型支持正文内联嵌入推荐卡（圈子/课程/商品/排盘/智能体）
  */
+import { normalizeArticleContent } from '@/utils/rich-content'
 
 export type EmbedType = 'circle' | 'course' | 'product' | 'paipan' | 'agent'
 
@@ -113,14 +114,17 @@ export const mockArticle: ArticleData = {
 }
 
 // ============ 真实 API 层（列表 / 发布 / 草稿 / 标签） ============
-import { apiGet, apiPost, apiGetPaged } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost, apiPut, apiDelete, apiGetPaged } from '@/utils/request'
 
 /** 文章列表项（对齐后端 article.service.listArticles 的 select 字段） */
 export interface ArticleListItem {
   id: string
   title: string
   cover?: string | null
+  /** 文章专区资讯流缩略图，按封面、正文图片顺序最多返回三张。 */
+  images?: string[]
   excerpt?: string | null
+  layout?: ArticleLayout
   tags: string[]
   viewCount: number
   likeCount: number
@@ -130,11 +134,23 @@ export interface ArticleListItem {
   circle?: { id: string; name: string } | null
 }
 
+export type ArticleLayout = 'AUTO' | 'FEATURE' | 'SINGLE' | 'GALLERY' | 'COLUMN'
+
 /** 热门标签（对齐后端 topicTag 表） */
 export interface HotTag {
   id: string
   name: string
   postCount?: number
+}
+
+/** 我的草稿列表项（对齐后端 getMyDrafts 的 select：id/title/cover/excerpt/updatedAt） */
+export interface DraftListItem {
+  id: string
+  title: string
+  cover?: string | null
+  excerpt?: string | null
+  layout?: ArticleLayout
+  updatedAt: string
 }
 
 /** 解析后端分页信封 paginated → {rows,total} / 兼容多种命名 */
@@ -156,6 +172,15 @@ export interface ArticleRecommendCard {
   cover?: string
 }
 
+/** 文章带货商品卡（源自 recommends 里 PRODUCT 类型·价格逐件拉 /shop/products/:id 充实·参照短视频带货抽屉） */
+export interface ArticleProductCard {
+  id: string        // = 商品 id（recommend.targetId）
+  name: string
+  cover: string
+  price: number
+  originalPrice: number
+}
+
 /** 相关文章卡（对齐后端 getRelated 的 select 字段） */
 export interface RelatedArticleCard {
   id: string
@@ -169,6 +194,9 @@ export interface ArticleDetail {
   id: string
   title: string
   cover?: string | null
+  excerpt?: string | null
+  layout: ArticleLayout
+  visibility?: 'CIRCLE_ONLY' | 'PLATFORM'
   tags: string[]
   author: { id: string; name: string; avatar: string }
   circleId: string
@@ -179,6 +207,7 @@ export interface ArticleDetail {
   comments: number
   content: string // 富文本 HTML
   recommends: ArticleRecommendCard[]
+  products: ArticleProductCard[]  // 带货商品（recommends 里 PRODUCT 类型抽出·抖音式抽屉展示）
   sourceCircle?: { id: string; name: string; cover?: string | null; members: number }
   related: RelatedArticleCard[]
 }
@@ -207,6 +236,9 @@ interface RawArticleDetail {
   id?: string | number
   title?: string
   cover?: string | null
+  excerpt?: string | null
+  layout?: string | null
+  visibility?: string | null
   tags?: string[]
   user?: RawUserLite | null
   userId?: string
@@ -236,6 +268,18 @@ interface RawReply {
 interface RawComment extends RawReply { replies?: RawReply[] }
 /** 我的收藏列表项（checkInteraction 比对用） */
 interface RawCollectItem { targetId?: string | number }
+/** GET /shop/products/:id 精简形状（文章带货商品充实用·仅声明访问到的字段·与短视频同款） */
+interface RawShopProductLite { id?: string; title?: string; price?: number | string; originalPrice?: number | string | null; effectivePrice?: number | string; images?: string[]; cover?: string | null; salesCount?: number }
+/** GET /videos/products 商品库原始项（作者端挂品选品用·与 video-data.RawVideoProduct 同源字段） */
+interface RawProductLibItem { id?: string | number; productId?: string; title?: string; name?: string; price?: number | string; images?: string[]; image?: string; cover?: string }
+
+/** 作者端选品项（挂品抽屉展示用：图+名+价） */
+export interface ProductLibraryItem {
+  id: string
+  name: string
+  cover: string
+  price: number
+}
 
 function adaptArticleDetail(a: RawArticleDetail): ArticleDetail {
   const recs: ArticleRecommendCard[] = (Array.isArray(a?.recommends) ? a.recommends : [])
@@ -254,11 +298,26 @@ function adaptArticleDetail(a: RawArticleDetail): ArticleDetail {
     cover: r.cover ?? null,
     likes: Number(r.likeCount ?? r.likes ?? 0),
   }))
+  // 带货商品：从 recommends 里抽出 PRODUCT 类型（ArticleRecommend 无价格 → 详情页加载后 enrichProducts 逐件充实）
+  const products: ArticleProductCard[] = (Array.isArray(a?.recommends) ? a.recommends : [])
+    .filter((r: RawRecommend) => r?.recommendType === 'PRODUCT' && r?.targetId != null && r?.targetId !== '')
+    .map((r: RawRecommend) => ({
+      id: String(r.targetId || ''),
+      name: r.title || '相关商品',
+      cover: r.cover || '',
+      price: 0,
+      originalPrice: 0,
+    }))
   const circle = a?.circle
   return {
     id: String(a?.id || ''),
     title: a?.title || '',
     cover: a?.cover ?? null,
+    excerpt: a?.excerpt ?? null,
+    layout: (['AUTO', 'FEATURE', 'SINGLE', 'GALLERY', 'COLUMN'].includes(a?.layout || '')
+      ? a?.layout
+      : 'AUTO') as ArticleLayout,
+    visibility: a?.visibility === 'PLATFORM' ? 'PLATFORM' : 'CIRCLE_ONLY',
     tags: Array.isArray(a?.tags) ? a.tags : [],
     author: {
       id: String(a?.user?.id || a?.userId || ''),
@@ -271,8 +330,10 @@ function adaptArticleDetail(a: RawArticleDetail): ArticleDetail {
     likes: Number(a?.likeCount ?? 0),
     collects: Number(a?.collectCount ?? 0),
     comments: Number(a?.commentCount ?? 0),
-    content: a?.content || '',
+    // 文章排版归一：纯文本切段防糊 + 反转义 + 图片无缝圆角 + 公众号级标签排版注入（见 normalizeArticleContent）
+    content: normalizeArticleContent(a?.content || ''),
     recommends: recs,
+    products,
     sourceCircle: circle ? {
       id: String(circle.id || ''),
       name: circle.name || '',
@@ -317,23 +378,90 @@ export const articleApi = {
     return parseList<ArticleListItem>(res)
   },
 
-  /** 创建文章（圈子内） POST /articles/circles/:circleId */
-  create: (circleId: string, body: { title: string; content: string; cover?: string; excerpt?: string; tags: string[]; isPushHome?: boolean }) =>
+  /** 创建文章（圈子内） POST /articles/circles/:circleId（visibility 开放范围：CIRCLE_ONLY 默认/PLATFORM 全平台需平台审核·文章是圈子对外窗口，全平台为推荐引导项） */
+  create: (circleId: string, body: { title: string; content: string; cover?: string; excerpt?: string; layout?: ArticleLayout; tags: string[]; isPushHome?: boolean; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }) =>
     apiPost<{ id: string }>(`/articles/circles/${circleId}`, body),
 
   /** 保存草稿 POST /articles/drafts */
-  saveDraft: (body: { title: string; content: string; cover?: string; excerpt?: string; tags: string[]; circleId?: string }) =>
+  saveDraft: (body: { title: string; content: string; cover?: string; excerpt?: string; layout?: ArticleLayout; tags: string[]; circleId?: string; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }) =>
     apiPost<{ id: string }>('/articles/drafts', body),
 
-  /** 发动态/帖子 POST /circles/:circleId/posts */
-  createPost: (circleId: string, body: { type: string; title?: string; content: string; images?: string[]; status?: string }) =>
+  /** 我的草稿列表 GET /articles/drafts?page=&pageSize=（后端 auditStatus=DRAFT 且归属当前用户） */
+  async getDrafts(page = 1, pageSize = 20): Promise<{ items: DraftListItem[]; total: number }> {
+    const res = await apiGet<unknown>(`/articles/drafts?page=${page}&pageSize=${pageSize}`)
+    return parseList<DraftListItem>(res)
+  },
+
+  /** 更新草稿 PUT /articles/drafts/:id（续编保存回写，避免每次续编生成新草稿） */
+  updateDraft: (id: string, body: { title?: string; content?: string; cover?: string; excerpt?: string; layout?: ArticleLayout; tags?: string[]; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }) =>
+    apiPut<{ id: string }>(`/articles/drafts/${id}`, body),
+
+  /** 删除草稿 DELETE /articles/drafts/:id */
+  deleteDraft: (id: string) =>
+    apiDelete<{ success: boolean }>(`/articles/drafts/${id}`),
+
+  /** 发布草稿（DRAFT→PENDING 进审核）POST /articles/drafts/:id/publish */
+  publishDraft: (id: string) =>
+    apiPost<{ id: string }>(`/articles/drafts/${id}/publish`, {}),
+
+  /** 发动态/帖子 POST /circles/:circleId/posts（attachments=文件卡附件·后端 Post.attachments JSONB） */
+  createPost: (circleId: string, body: { type: string; title?: string; content: string; images?: string[]; attachments?: { name: string; size: number; url: string }[]; status?: string }) =>
     apiPost<{ id: string }>(`/circles/${circleId}/posts`, body),
 
   // ───────── 详情 / 评论（读） ─────────
 
-  /** 文章详情 GET /articles/:id（含 recommends 内联卡 + related 相关文章） */
+  /** 文章详情 GET /articles/:id（含 recommends 内联卡 + related 相关文章 + products 带货商品） */
   async detail(id: string): Promise<ArticleDetail> {
     return adaptArticleDetail(await apiGet<RawArticleDetail>(`/articles/${id}`))
+  },
+
+  /**
+   * 带货商品充实 — ArticleRecommend(PRODUCT) 仅存 targetId+title+cover 无价格 →
+   * 逐件拉 /shop/products/:id 补 price/originalPrice/cover（与短视频带货抽屉同款·失败保留原卡不阻断）。
+   */
+  async enrichProducts(products: ArticleProductCard[]): Promise<ArticleProductCard[]> {
+    if (!products.length) return products
+    return Promise.all(products.map(async (p) => {
+      try {
+        const d = await apiGet<RawShopProductLite>(`/shop/products/${p.id}`)
+        return {
+          ...p,
+          name: d?.title || p.name,
+          cover: (Array.isArray(d?.images) && d.images[0]) || d?.cover || p.cover,
+          price: Number(d?.effectivePrice ?? d?.price) || 0,
+          originalPrice: Number(d?.originalPrice) || 0,
+        }
+      } catch { return p }
+    }))
+  },
+
+  // ───────── 文章带货 · 作者端挂品（消费端「文中好物」抽屉已闭环，此处补作者侧断链） ─────────
+
+  /**
+   * 挂载推荐商品 POST /articles/:id/recommends（后端 AddRecommendDto：recommendType/targetId 必填 + title/cover/sortOrder 可选）。
+   * 需文章作者本人（后端校验 article.userId===userId）；title/cover 一并落库供详情页商品卡直显。
+   */
+  addRecommend: (articleId: string, productId: string, extra?: { title?: string; cover?: string; sortOrder?: number }) =>
+    apiPost<{ id: string }>(`/articles/${articleId}/recommends`, {
+      recommendType: 'PRODUCT',
+      targetId: productId,
+      ...(extra?.title ? { title: extra.title } : {}),
+      ...(extra?.cover ? { cover: extra.cover } : {}),
+      ...(extra?.sortOrder != null ? { sortOrder: extra.sortOrder } : {}),
+    }),
+
+  /** 商品库列表 GET /videos/products（全平台 ON_SALE 商品·与短视频带货选品同源） */
+  async getProductLibrary(): Promise<ProductLibraryItem[]> {
+    const res = await apiGet<RawProductLibItem[] | { items?: RawProductLibItem[]; data?: RawProductLibItem[] }>('/videos/products')
+    const arr = Array.isArray(res) ? res : (res?.items ?? res?.data ?? [])
+    return arr
+      .map((p: RawProductLibItem) => ({
+        id: String(p.productId ?? p.id ?? ''),
+        name: p.title || p.name || '',
+        cover: (Array.isArray(p.images) && p.images[0]) || p.image || p.cover || '',
+        price: Number(p.price) || 0,
+      }))
+      .filter((p) => p.id)
   },
 
   /** 文章评论列表 GET /comment?targetType=ARTICLE&targetId=（无评论返回 []，走空态） */
@@ -363,8 +491,8 @@ export const articleApi = {
    */
   async checkInteraction(id: string): Promise<{ liked: boolean; collected: boolean }> {
     const [likedIds, collects] = await Promise.all([
-      apiGet<unknown>(`/interaction/like/check?targetType=ARTICLE&targetIds=${id}`).catch(() => null),
-      apiGet<unknown>(`/interaction/collect?page=1&pageSize=100`).catch(() => null),
+      apiGetOptionalAuth<unknown>(`/interaction/like/check?targetType=ARTICLE&targetIds=${id}`).catch(() => null),
+      apiGetOptionalAuth<unknown>(`/interaction/collect?page=1&pageSize=100`).catch(() => null),
     ])
     const likedObj = (likedIds ?? {}) as { data?: unknown[]; items?: unknown[] }
     const likedArr: unknown[] = Array.isArray(likedIds) ? likedIds : (likedObj.data ?? likedObj.items ?? [])
@@ -376,6 +504,9 @@ export const articleApi = {
     }
   },
 }
+
+/** 挂载文章推荐商品（具名导出·等价 articleApi.addRecommend，供编辑器发布后循环挂品） */
+export const addArticleRecommend = articleApi.addRecommend
 
 /** 标签下的内容聚合项（对齐后端 GET /tags/:name/posts 的 select 字段，Content 表） */
 export interface TagContentItem {

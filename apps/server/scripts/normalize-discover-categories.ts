@@ -90,7 +90,7 @@ async function main() {
       src === "content" ? { status: "PUBLISHED" as const }
       : src === "course" ? { auditStatus: "APPROVED" as const }
       : { status: "ON_SALE" as const };
-    // @ts-ignore 动态表名，运行期安全
+    // @ts-expect-error 动态表名，运行期安全
     const rows = await prisma[src].groupBy({ by: ["categoryLevel1"], where, _count: true });
     const offStd = rows.filter((x: any) => x.categoryLevel1 && !STD_KEYS.includes(x.categoryLevel1));
     console.log(

@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy, Logger } from "@nestjs/common";
 import Redis from "ioredis";
+import { buildRedisTlsOptions } from "./redis-tls";
 
 /** 脱敏 Redis URL，隐藏密码部分 */
 function maskRedisUrl(url: string): string {
@@ -23,9 +24,13 @@ function maskRedisUrl(url: string): string {
 export class RedisService implements OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private client: Redis | null = null;
+  private subscriber: Redis | null = null;
+  private subscribedChannels = new Set<string>();
+  private subscriptionHandlers = new Map<string, Set<(message: string) => void | Promise<void>>>();
   private memory = new Map<string, { value: string; expiry: number }>();
   private connected = false;
   private triedConnect = false;
+  private connecting: Promise<Redis | null> | null = null;
 
   constructor() {
     const sentinelHosts = process.env.REDIS_SENTINEL_HOSTS;
@@ -49,9 +54,11 @@ export class RedisService implements OnModuleDestroy {
         },
       });
     } else if (process.env.REDIS_URL) {
+      const tls = buildRedisTlsOptions(process.env.REDIS_URL);
       this.client = new Redis(process.env.REDIS_URL, {
         lazyConnect: true,
         maxRetriesPerRequest: 3,
+        ...(tls ? { tls } : {}),
         retryStrategy(times: number) {
           if (times > 5) return null;
           return Math.min(times * 200, 2000);
@@ -61,6 +68,9 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async onModuleDestroy() {
+    if (this.subscriber) {
+      await this.subscriber.quit().catch((err) => this.logger.warn("Redis 订阅连接关闭失败", err));
+    }
     if (this.client) {
       await this.client.quit().catch((err) => this.logger.warn("Redis 连接关闭失败", err));
     }
@@ -70,15 +80,52 @@ export class RedisService implements OnModuleDestroy {
   private async getConn(): Promise<Redis | null> {
     if (!this.client) return null;
     if (this.connected) return this.client;
+    // 首次连接进行中：并发调用共享同一连接结果，避免在连上之前被误判为不可用而降级到进程内内存（会让分布式锁失效）
+    if (this.connecting) return this.connecting;
     if (this.triedConnect) return null;
     this.triedConnect = true;
-    try {
-      await this.client.connect();
-      this.connected = true;
-      return this.client;
-    } catch (err) {
-      this.logger.warn(`Redis 不可用（${maskRedisUrl(process.env.REDIS_URL || "")}），降级为内存缓存`, err);
-      return null;
+    const client = this.client;
+    this.connecting = (async () => {
+      try {
+        await client.connect();
+        this.connected = true;
+        return client;
+      } catch (err) {
+        this.logger.warn(`Redis 不可用（${maskRedisUrl(process.env.REDIS_URL || "")}），降级为内存缓存`, err);
+        return null;
+      } finally {
+        this.connecting = null;
+      }
+    })();
+    return this.connecting;
+  }
+
+  /** 就绪检查必须探测真实共享 Redis，不接受进程内缓存降级。 */
+  async pingShared(): Promise<void> {
+    const conn = await this.getConn();
+    if (!conn) throw new Error("共享 Redis 不可用");
+    if ((await conn.ping()) !== "PONG") throw new Error("共享 Redis PING 未成功");
+  }
+
+  /** 成员缓存恢复只接受同一共享连接，失败不得用进程内缓存冒充完成。 */
+  async clearCircleMembershipShared(
+    targets: ReadonlyArray<{ circleId: string; userId: string }>,
+  ): Promise<void> {
+    if (!targets.length) return;
+    const conn = await this.getConn();
+    if (!conn || (await conn.ping()) !== "PONG") throw new Error("共享 Redis 不可用");
+    const keys = [
+      ...new Set(
+        targets.flatMap(({ circleId, userId }) => [
+          `circles:member:${circleId}:${userId}`,
+          `circles:detail:${circleId}`,
+        ]),
+      ),
+    ];
+    await conn.del(...keys);
+    // 每批只扫描一次列表缓存；删除过程中断则保留数据库待办，稍后重复清理。
+    for await (const page of conn.scanStream({ match: "circles:list:*", count: 100 })) {
+      if (page.length) await conn.del(...page);
     }
   }
 
@@ -91,6 +138,30 @@ export class RedisService implements OnModuleDestroy {
       this.memory.delete(key);
       return null;
     }
+    return entry.value;
+  }
+
+  /**
+   * 原子读取并删除。用于一次性票据、刷新令牌轮换等不可重放场景。
+   * Redis 连接使用 Lua 保证多实例原子性；内存降级在同一事件循环内同步完成读取与删除。
+   */
+  async getDel(key: string): Promise<string | null> {
+    const conn = await this.getConn();
+    if (conn) {
+      const lua = `
+        local value = redis.call('GET', KEYS[1])
+        if value then redis.call('DEL', KEYS[1]) end
+        return value
+      `;
+      return (await conn.eval(lua, 1, key)) as string | null;
+    }
+    const entry = this.memory.get(key);
+    if (!entry) return null;
+    if (entry.expiry > 0 && Date.now() > entry.expiry) {
+      this.memory.delete(key);
+      return null;
+    }
+    this.memory.delete(key);
     return entry.value;
   }
 
@@ -124,6 +195,28 @@ export class RedisService implements OnModuleDestroy {
     return true;
   }
 
+  /** 跨节点身份凭据防重放必须使用真实 Redis；不可降级为单进程内存。 */
+  async setNXShared(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const conn = await this.getConn();
+    if (!conn) throw new Error("共享 Redis 不可用，拒绝身份凭据交换");
+    return (await conn.set(key, value, "EX", ttlSeconds, "NX")) === "OK";
+  }
+
+  /** 仅当值等于 expected 时删除（锁持有者校验释放），返回是否删除 */
+  async compareAndDelete(key: string, expected: string): Promise<boolean> {
+    const conn = await this.getConn();
+    if (conn) {
+      const lua = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+      return Number(await conn.eval(lua, 1, key, expected)) === 1;
+    }
+    const entry = this.memory.get(key);
+    if (entry && entry.value === expected) {
+      this.memory.delete(key);
+      return true;
+    }
+    return false;
+  }
+
   async del(key: string): Promise<void> {
     const conn = await this.getConn();
     if (conn) {
@@ -131,7 +224,20 @@ export class RedisService implements OnModuleDestroy {
       return;
     }
     this.memory.delete(key);
+    this.setMemory.delete(key);
+    this.zsetMemory.delete(key);
   }
+
+  /** 仅扫描真实共享 Redis；中途故障抛出，调用者保留持久待办。 */
+  async delByPatternShared(pattern: string): Promise<void> {
+    const conn = await this.getConn();
+    if (!conn) throw new Error("共享 Redis 不可用");
+    const stream = conn.scanStream({ match: pattern, count: 100 });
+    for await (const keys of stream) {
+      if (keys.length > 0) await conn.del(...keys);
+    }
+  }
+
 
   /**
    * 分布式互斥执行（cron 多实例防重复）：抢到 `cron:lock:{name}` 锁才执行 fn，抢不到直接跳过。
@@ -165,11 +271,67 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
-  /** Redis Pub/Sub 发布（仅真实连接可用，内存模式静默忽略） */
+  /** Redis Pub/Sub 发布；无 Redis 时退化为当前进程内广播，便于本地与单测保持同一语义。 */
   async publish(channel: string, message: string): Promise<number> {
     const conn = await this.getConn();
     if (conn) return conn.publish(channel, message);
-    return 0; // 内存模式不支持 Pub/Sub
+    const handlers = [...(this.subscriptionHandlers.get(channel) ?? [])];
+    await Promise.all(handlers.map(async (handler) => {
+      try {
+        await handler(message);
+      } catch (err) {
+        this.logger.warn(`Redis 内存广播处理失败 channel=${channel}`, err);
+      }
+    }));
+    return handlers.length;
+  }
+
+  /**
+   * Redis Pub/Sub 订阅。真实 Redis 使用独立 duplicate 连接，避免普通命令连接进入 subscriber mode；
+   * 无 Redis 时保留进程内订阅，调用方无需写两套降级逻辑。
+   */
+  async subscribe(
+    channel: string,
+    handler: (message: string) => void | Promise<void>,
+  ): Promise<() => Promise<void>> {
+    let handlers = this.subscriptionHandlers.get(channel);
+    if (!handlers) {
+      handlers = new Set();
+      this.subscriptionHandlers.set(channel, handlers);
+    }
+    handlers.add(handler);
+
+    const conn = await this.getConn();
+    if (conn && !this.subscribedChannels.has(channel)) {
+      if (!this.subscriber) {
+        this.subscriber = conn.duplicate();
+        this.subscriber.on("message", (incomingChannel, message) => {
+          const callbacks = [...(this.subscriptionHandlers.get(incomingChannel) ?? [])];
+          for (const callback of callbacks) {
+            void Promise.resolve(callback(message)).catch((err) =>
+              this.logger.warn(`Redis 订阅处理失败 channel=${incomingChannel}`, err),
+            );
+          }
+        });
+        if (this.subscriber.status === "wait") await this.subscriber.connect();
+      }
+      await this.subscriber.subscribe(channel);
+      this.subscribedChannels.add(channel);
+    }
+
+    return async () => {
+      const current = this.subscriptionHandlers.get(channel);
+      current?.delete(handler);
+      if (current && current.size === 0) {
+        this.subscriptionHandlers.delete(channel);
+        if (this.subscriber && this.subscribedChannels.has(channel)) {
+          await this.subscriber.unsubscribe(channel).catch((err) =>
+            this.logger.warn(`Redis 取消订阅失败 channel=${channel}`, err),
+          );
+          this.subscribedChannels.delete(channel);
+        }
+      }
+    };
   }
 
   async ttl(key: string): Promise<number> {
@@ -362,6 +524,36 @@ export class RedisService implements OnModuleDestroy {
     return { count, ttl: remaining > 0 ? remaining : 0 };
   }
 
+  /** 撤回失败请求的计数，保留原 TTL，计数不低于零。 */
+  async refundCounter(key: string): Promise<void> {
+    const conn = await this.getConn();
+    if (conn) {
+      await conn.eval(`local n = tonumber(redis.call('GET', KEYS[1]) or '0')
+        if n > 0 then redis.call('DECR', KEYS[1]) end
+        return 1`, 1, key);
+      return;
+    }
+    const entry = this.memory.get(key);
+    if (entry && entry.expiry > Date.now()) entry.value = String(Math.max(0, Number(entry.value) - 1));
+  }
+
+  /** 释放一次预占的限流额度，保留原 TTL，计数不会小于 0。 */
+  async decrFloorZero(key: string): Promise<number> {
+    const conn = await this.getConn();
+    if (conn) {
+      return Number(await conn.eval(`
+        local count = tonumber(redis.call('GET', KEYS[1]) or '0')
+        if count <= 0 then return 0 end
+        return redis.call('DECR', KEYS[1])
+      `, 1, key));
+    }
+    const entry = this.memory.get(key);
+    if (!entry || Date.now() > entry.expiry) return 0;
+    const count = Math.max(0, (parseInt(entry.value, 10) || 0) - 1);
+    entry.value = String(count);
+    return count;
+  }
+
   // ───────── Sorted Set 操作 ─────────
 
   private zsetMemory = new Map<string, Array<{ member: string; score: number }>>();
@@ -401,6 +593,26 @@ export class RedisService implements OnModuleDestroy {
     if (conn) return conn.zcard(key);
     const arr = this.zsetMemory.get(key);
     return arr ? arr.length : 0;
+  }
+
+  async zrem(key: string, member: string): Promise<number> {
+    const conn = await this.getConn();
+    if (conn) return conn.zrem(key, member);
+    const arr = this.zsetMemory.get(key);
+    if (!arr) return 0;
+    const next = arr.filter((entry) => entry.member !== member);
+    this.zsetMemory.set(key, next);
+    return arr.length - next.length;
+  }
+
+  async zremrangebyscore(key: string, min: number, max: number): Promise<number> {
+    const conn = await this.getConn();
+    if (conn) return conn.zremrangebyscore(key, min, max);
+    const arr = this.zsetMemory.get(key);
+    if (!arr) return 0;
+    const next = arr.filter((entry) => entry.score < min || entry.score > max);
+    this.zsetMemory.set(key, next);
+    return arr.length - next.length;
   }
 
   async zremrangebyrank(key: string, start: number, stop: number): Promise<number> {

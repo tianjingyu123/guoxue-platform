@@ -1,0 +1,52 @@
+{
+  "head": "9e5e4ebb5f627be0f967205fce9d85e35d38b7bf",
+  "node": "v24.17.0",
+  "checks": [
+    {
+      "name": "源库与本任务新集群维护身份先只读核对",
+      "status": "PASS"
+    },
+    {
+      "name": "真实pg_dump一致性备份与本地文件SHA256，不含账号/密码授权",
+      "status": "PASS"
+    },
+    {
+      "name": "同版本新库恢复，恢复访问账号仅SELECT，原客户库继续保留",
+      "status": "PASS"
+    },
+    {
+      "name": "十五类真实客户、课程学习、独立认证与分页数据、订单、售后、导出和审计行数及内容摘要完全一致",
+      "status": "PASS"
+    },
+    {
+      "name": "恢复账户写入、结构修改与连接另一客户数据库均拒绝",
+      "status": "PASS"
+    }
+  ],
+  "passed": 5,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "仅本任务合成PostgreSQL库；恢复为只读访问，未切换业务写入者",
+    "未包含COS媒体、Redis/BullMQ、向量扩展、读副本或供应商会话",
+    "未承诺线上RPO/RTO，不删除源库、恢复库或备份"
+  ],
+  "backupSha256": "b0f846ece8787cc4201f6e0adeb9b0ddad005051a1333b64e7d278825342f2a3",
+  "comparison": {
+    "User": "5061:acb3ab1c59d443fa77a170161dc6290f",
+    "Product": "26:e464d9fc2c7549745f6b77c7ed638990",
+    "CourseChapter": "15:db5327dc61eb0bc12b7e3a429a258a68",
+    "CourseProgress": "3:164ee985dabed125a272c5ce405d6006",
+    "Course": "12:113f2a42403eb445773b44762b336e13",
+    "Circle": "37:e8804db670487f488f5f06a9eed7c67f",
+    "CircleKnowledge": "26:e6f6f85332582dfe3eede336310041aa",
+    "Order": "34:4b6c709e02078a7ec2726f783ba56b48",
+    "ManagedLeaseAftercare": "11:f99b46c5dbcf60dcc0839b4b4fa26314",
+    "ManagedLeaseExport": "16:3edf29225541ee115fbe059f79ccac9f",
+    "ManagedLeaseAudit": "169:c6dce23e1c1a50c2b6aa4cdff2ce0a0f",
+    "ManagedLeaseIdentity": "18:f37648aa9800dd776c56e4d46af55789",
+    "ManagedLeaseRefresh": "42:ff261cdf29875d9d078155422f647fa7",
+    "ManagedLeaseLoginThrottle": "45:55f73a41e62f86bf7e6ced395ee19891",
+    "ManagedLeaseExportPage": "162:2bd74e9a52e7113b49403fd53f73f4e9"
+  }
+}

@@ -1,6 +1,13 @@
 // 支付密码端到端验证：set/verify/update（验证前端真连的端点真实可用）
 const BASE = 'http://localhost:3000/api/v1'
-const PHONE = '13912340077', PASS = 'Test1234'
+const PHONE = '13912340077'
+const LOGIN_PASSWORD = process.env.TEST_ACCOUNT_PASSWORD
+const PAYMENT_PASSWORD = process.env.TEST_PAYMENT_PASSWORD
+
+if (!LOGIN_PASSWORD || !PAYMENT_PASSWORD) {
+  console.error('缺少 TEST_ACCOUNT_PASSWORD 或 TEST_PAYMENT_PASSWORD，拒绝使用仓库内固定口令执行验证')
+  process.exit(2)
+}
 
 async function call(method, p, token, body) {
   const res = await fetch(`${BASE}${p}`, {
@@ -15,7 +22,7 @@ let pass = 0, fail = 0
 const assert = (c, m) => { if (c) { pass++; console.log('  ✓', m) } else { fail++; console.log('  ✗ FAIL', m) } }
 
 const main = async () => {
-  const login = await call('POST', '/auth/login/phone', null, { phone: PHONE, password: PASS })
+  const login = await call('POST', '/auth/login/phone', null, { phone: PHONE, password: LOGIN_PASSWORD })
   const token = login.body?.data?.accessToken
   if (!token) { console.log('登录失败', JSON.stringify(login.body)); process.exit(1) }
   console.log('登录成功')
@@ -25,22 +32,27 @@ const main = async () => {
   console.log('paymentPasswordSet =', wasSet)
 
   if (!wasSet) {
-    const set = await call('POST', '/users/me/payment-password', token, { password: '123456', smsCode: '000000' })
+    const smsCode = process.env.TEST_SMS_CODE
+    if (!smsCode) {
+      console.error('账号尚未设置支付密码且缺少 TEST_SMS_CODE，停止验证')
+      process.exit(2)
+    }
+    const set = await call('POST', '/users/me/payment-password', token, { password: PAYMENT_PASSWORD, smsCode })
     assert(set.status === 201 || set.status === 200, `首次设置支付密码 (${set.status})`)
   } else {
     console.log('  (已设置，跳过 set，走 update 路径)')
   }
 
   // 验证正确密码
-  const v1 = await call('POST', '/users/me/payment-password/verify', token, { password: '123456' })
+  const v1 = await call('POST', '/users/me/payment-password/verify', token, { password: PAYMENT_PASSWORD })
   assert(v1.status === 201 || v1.status === 200, `验证正确密码通过 (${v1.status})`)
 
   // 验证错误密码（应失败，含剩余次数提示）
   const v2 = await call('POST', '/users/me/payment-password/verify', token, { password: '111111' })
   assert(v2.status >= 400, `验证错误密码被拒 (${v2.status}: ${v2.body?.message || ''})`)
 
-  // 修改密码（保持 123456 便于重跑）
-  const upd = await call('POST', '/users/me/payment-password/update', token, { oldPassword: '123456', newPassword: '123456' })
+  // 使用同一受控测试值覆盖更新路径，避免脚本保存支付口令
+  const upd = await call('POST', '/users/me/payment-password/update', token, { oldPassword: PAYMENT_PASSWORD, newPassword: PAYMENT_PASSWORD })
   assert(upd.status === 201 || upd.status === 200, `修改支付密码 (${upd.status})`)
 
   // me 再查应为已设置

@@ -8,7 +8,7 @@ const mockPrisma = {
   configSystem: { findFirst: jest.fn() },
   operator: { findFirst: jest.fn() },
   operatorEarning: { groupBy: jest.fn() },
-  station: { findMany: jest.fn() },
+  station: { findMany: jest.fn(), findUnique: jest.fn() },
 };
 
 describe("StationDashboardService", () => {
@@ -29,9 +29,38 @@ describe("StationDashboardService", () => {
       mockPrisma.stationEarning.aggregate.mockResolvedValue({
         _sum: { earned: 5000, amount: 10000 }, _count: 25,
       });
+      mockPrisma.station.findUnique.mockResolvedValue({ status: "ACTIVE", expireAt: null });
       const result = await svc.getOverview("s1");
       expect(result.monthEarned).toBe(5000);
       expect(result.monthOrders).toBe(25);
+      expect(result.qualification.expired).toBe(false);
+    });
+
+    /** 过期分站不再产生佣金 —— 站长必须能在后台看到「为什么我的佣金停了」 */
+    it("过期分站：qualification.expired=true（否则站长佣金归零却不知原因）", async () => {
+      mockPrisma.stationEarning.aggregate.mockResolvedValue({
+        _sum: { earned: 0, amount: 0 }, _count: 0,
+      });
+      mockPrisma.station.findUnique.mockResolvedValue({
+        status: "EXPIRED",
+        expireAt: new Date(Date.now() - 86400000),
+      });
+      const result = await svc.getOverview("s1");
+      expect(result.qualification.expired).toBe(true);
+      expect(result.qualification.daysLeft).toBeLessThanOrEqual(0);
+    });
+
+    it("7天内到期：expiringSoon=true（前端据此显著提示续费）", async () => {
+      mockPrisma.stationEarning.aggregate.mockResolvedValue({
+        _sum: { earned: 100, amount: 1000 }, _count: 2,
+      });
+      mockPrisma.station.findUnique.mockResolvedValue({
+        status: "ACTIVE",
+        expireAt: new Date(Date.now() + 3 * 86400000),
+      });
+      const result = await svc.getOverview("s1");
+      expect(result.qualification.expiringSoon).toBe(true);
+      expect(result.qualification.expired).toBe(false);
     });
   });
 

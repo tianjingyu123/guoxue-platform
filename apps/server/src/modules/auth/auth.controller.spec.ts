@@ -6,13 +6,16 @@ import { WechatService } from "./wechat.service";
 import { SystemService } from "../system/system.service";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { UniverifyBridgeService } from "./univerify-bridge.service";
 
 const mockAuthSvc = {
+  bindWechat: jest.fn().mockResolvedValue({ success: true }),
   phoneRegister: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1", nickname: "张三", phone: "138****1234" } }),
   phoneLogin: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1", nickname: "张三" } }),
   smsLogin: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1", nickname: "张三" } }),
   sendSmsCode: jest.fn().mockResolvedValue({ success: true, message: "验证码已发送" } as any),
   wechatLogin: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1" } }),
+  appleLogin: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1" } }),
   miniPhoneLogin: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1" } }),
   getProfile: jest.fn().mockResolvedValue({ id: "u1", nickname: "张三", phone: "138****1234" }),
   refreshToken: jest.fn().mockResolvedValue({ accessToken: "t2", refreshToken: "rt2" }),
@@ -38,6 +41,7 @@ describe("AuthController", () => {
         { provide: AuthService, useValue: mockAuthSvc },
         { provide: WechatService, useValue: mockWechatSvc },
         { provide: SystemService, useValue: mockSystemSvc },
+        { provide: UniverifyBridgeService, useValue: { exchange: jest.fn() } },
       ],
     })
       .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
@@ -51,9 +55,15 @@ describe("AuthController", () => {
   const mockReq = (overrides?: Record<string, unknown>) =>
     ({ ip: "127.0.0.1", user: { id: "u1" }, ...overrides } as any);
 
+  it("绑定接口始终使用 JWT 主体，发起主体只传给服务校验", async () => {
+    const expectedUserId = "123e4567-e89b-42d3-a456-426614174000";
+    await ctrl.bindWechat(mockReq(), { code: "synthetic-code", loginType: "miniprogram", clientKey: "wx-test", expectedUserId });
+    expect(mockAuthSvc.bindWechat).toHaveBeenCalledWith("u1", "synthetic-code", "miniprogram", "wx-test", expectedUserId);
+  });
+
   describe("注册", () => {
     it("POST /auth/register/phone — 手机号注册", async () => {
-      const dto: any = { phone: "13800000001", password: "Abc@1234", nickname: "张三" };
+      const dto: any = { phone: "13800000001", code: "123456", password: "Abc@1234", nickname: "张三" };
       const result = await ctrl.phoneRegister(dto, mockReq());
       expect(result.user.nickname).toBe("张三");
       expect(mockAuthSvc.phoneRegister).toHaveBeenCalledWith(dto);
@@ -97,8 +107,14 @@ describe("AuthController", () => {
 
   describe("微信", () => {
     it("GET /auth/wechat/oauth-url — 获取微信OAuth授权URL", async () => {
-      const result = await ctrl.getWechatOAuthUrl("https://example.com/callback", "snsapi_userinfo");
+      const result = await ctrl.getWechatOAuthUrl("https://example.com/callback", "snsapi_userinfo", undefined, "state-1234567890");
       expect(result.url).toContain("open.weixin.qq.com");
+      expect(mockWechatSvc.buildOAuthUrl).toHaveBeenCalledWith(
+        "https://example.com/callback",
+        "snsapi_userinfo",
+        undefined,
+        "state-1234567890",
+      );
     });
 
     it("GET /auth/wechat/oauth-url — 缺少 redirectUri 抛异常", () => {
@@ -109,6 +125,13 @@ describe("AuthController", () => {
       const dto: any = { code: "wx_code_123" };
       const result = await ctrl.wechatLogin(dto);
       expect(result.accessToken).toBe("t1");
+    });
+
+    it("POST /auth/login/apple — Apple 登录", async () => {
+      const dto: any = { identityToken: "token" };
+      const result = await ctrl.appleLogin(dto);
+      expect(result.accessToken).toBe("t1");
+      expect(mockAuthSvc.appleLogin).toHaveBeenCalledWith(dto);
     });
 
     it("POST /auth/login/mini-phone — 小程序手机号快速登录", async () => {

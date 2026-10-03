@@ -3,20 +3,36 @@
  * 日期选择弹窗——从原型 date-picker-modal.tsx 迁移。
  * 公历/农历：原型自定义滚轮 → uni 原生 picker-view（跨端最佳实践，手感更稳）。
  * 四柱：天干地支键盘，逐列(年/月/日/时)逐行(干/支)填写，保留五行配色。
- * 注：农历日数沿用原型简化口径(按公历当月天数截取)，非天文精确，与原型一致。
+ * 注：农历日数沿用原型简化口径(按公历当月天数截取)，非天文精确——因此可能选出
+ * 该农历月不存在的日子（如某月无三十）。这类非法日在 input-form 提交时经
+ * toSolarSafe 归一会转换失败并 toast 拦下重选，不会流入排盘链路。
+ * 夏令时开关在 input-form 的时间选项里（真实透传后端），本弹窗不再放第二个。
  */
 import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
+import { baziReverseApi, type BaziReverseCandidate, type BaziReversePillars } from '@/lib/bazi-reverse-data'
 
 type Mode = 'solar' | 'lunar' | 'sizhu'
 interface InitDate { year: number; month: number; day: number; hour: number; minute: number }
-const props = withDefaults(defineProps<{ open: boolean; initialDate?: InitDate; initialMode?: Mode }>(), {
+const props = withDefaults(defineProps<{ open: boolean; initialDate?: InitDate; initialMode?: Mode; enableSizhu?: boolean; ziShiMode?: 'traditional' | 'modern' }>(), {
   initialMode: 'solar',
+  enableSizhu: false,
+  ziShiMode: 'traditional',
 })
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'confirm', v: { year: number; month: number; day: number; hour: number | null; minute: number | null; isLunar: boolean }): void
+  (e: 'confirm', v: { year: number; month: number; day: number; hour: number | null; minute: number | null; isLunar: boolean; sourcePillars?: BaziReversePillars }): void
 }>()
+
+useOverlayScrollLock(
+  () => props.open,
+  {
+    onEscape: () => emit('close'),
+    focusContainerSelector: '.dp-panel',
+    initialFocusSelector: '.dp-confirm',
+  },
+)
 
 const years = Array.from({ length: 201 }, (_, i) => 1900 + i)
 const months = Array.from({ length: 12 }, (_, i) => i + 1)
@@ -33,18 +49,45 @@ const wxColor = (c: string) => (wx[c] ? `var(--wuxing-${wx[c]})` : '#d1d5db')
 function daysInMonth(y: number, m: number) { return new Date(y, m, 0).getDate() }
 
 const mode = ref<Mode>(props.initialMode)
+const modes = computed<Mode[]>(() => props.enableSizhu ? ['solar', 'lunar', 'sizhu'] : ['solar', 'lunar'])
 const year = ref(props.initialDate?.year || 1990)
 const month = ref(props.initialDate?.month || 1)
 const day = ref(props.initialDate?.day || 1)
 const hour = ref<number | null>(props.initialDate?.hour ?? null)
 const minute = ref<number | null>(props.initialDate?.minute ?? null)
-const useDST = ref(false)
 
 const sizhu = ref<Record<string,string>>({ yearGan:'',yearZhi:'',monthGan:'',monthZhi:'',dayGan:'',dayZhi:'',hourGan:'',hourZhi:'' })
 const activeCol = ref<'year'|'month'|'day'|'hour'>('year')
 const activeRow = ref<'gan'|'zhi'>('gan')
+const lookingUp = ref(false)
+const reverseError = ref('')
+const reverseRange = ref('')
+const candidates = ref<BaziReverseCandidate[]>([])
+const chosenIndex = ref<number | null>(null)
+const chosenHour = ref<number | null>(null)
+const chosenMinute = ref<number | null>(null)
+let lookupVersion = 0
+const chosenCandidate = computed(() => chosenIndex.value === null ? null : candidates.value[chosenIndex.value] || null)
+const availableHours = computed(() => chosenCandidate.value?.hours.map((item) => item.hour) || [])
+const availableMinutes = computed(() => chosenCandidate.value?.hours.find((item) => item.hour === chosenHour.value)?.minutes || [])
+// 0 是未选择占位；首个合法小时和 00 分都有独立选项，避免默认值冒充用户选择。
+const hourPickerItems = computed(() => ['请选择小时', ...availableHours.value.map((h) => `${String(h).padStart(2, '0')}时`)])
+const minutePickerItems = computed(() => ['请选择分钟', ...availableMinutes.value.map((m) => `${String(m).padStart(2, '0')}分`)])
+const hourPickerIndex = computed(() => chosenHour.value === null ? 0 : availableHours.value.indexOf(chosenHour.value) + 1)
+const minutePickerIndex = computed(() => chosenMinute.value === null ? 0 : availableMinutes.value.indexOf(chosenMinute.value) + 1)
+
+function clearReverseSelection() {
+  lookupVersion++
+  lookingUp.value = false
+  candidates.value = []
+  chosenIndex.value = null
+  chosenHour.value = null
+  chosenMinute.value = null
+  reverseError.value = ''
+}
 
 watch(() => props.open, (v) => {
+  if (!v) { clearReverseSelection(); return }
   if (v) {
     mode.value = props.initialMode
     year.value = props.initialDate?.year || 1990
@@ -52,8 +95,11 @@ watch(() => props.open, (v) => {
     day.value = props.initialDate?.day || 1
     hour.value = props.initialDate?.hour ?? null
     minute.value = props.initialDate?.minute ?? null
+    clearReverseSelection()
   }
 })
+watch(mode, () => clearReverseSelection())
+watch(() => props.ziShiMode, () => clearReverseSelection())
 
 const dayCount = computed(() => daysInMonth(year.value, month.value))
 const dayItems = computed(() => mode.value === 'lunar' ? lunarDays.slice(0, dayCount.value) : Array.from({ length: dayCount.value }, (_, i) => i + 1))
@@ -83,9 +129,13 @@ function setToday() {
   year.value = n.getFullYear(); month.value = n.getMonth() + 1; day.value = n.getDate()
   hour.value = n.getHours(); minute.value = n.getMinutes()
 }
-function clearSizhu() { sizhu.value = { yearGan:'',yearZhi:'',monthGan:'',monthZhi:'',dayGan:'',dayZhi:'',hourGan:'',hourZhi:'' } }
+function clearSizhu() {
+  sizhu.value = { yearGan:'',yearZhi:'',monthGan:'',monthZhi:'',dayGan:'',dayZhi:'',hourGan:'',hourZhi:'' }
+  clearReverseSelection()
+}
 function selectGanZhi(c: string, isGan: boolean) {
   sizhu.value[`${activeCol.value}${isGan ? 'Gan' : 'Zhi'}`] = c
+  clearReverseSelection()
   if (isGan) { activeRow.value = 'zhi' }
   else {
     if (activeCol.value === 'year') activeCol.value = 'month'
@@ -106,31 +156,121 @@ const displayDate = computed(() => {
 const cols = ['year','month','day','hour'] as const
 const colNames = ['年柱','月柱','日柱','时柱']
 
+function currentPillars(): BaziReversePillars {
+  return {
+    year: sizhu.value.yearGan + sizhu.value.yearZhi,
+    month: sizhu.value.monthGan + sizhu.value.monthZhi,
+    day: sizhu.value.dayGan + sizhu.value.dayZhi,
+    hour: sizhu.value.hourGan + sizhu.value.hourZhi,
+    ziShiMode: props.ziShiMode,
+  }
+}
+
+async function lookupSizhu() {
+  const pillars = currentPillars()
+  if ([pillars.year, pillars.month, pillars.day, pillars.hour].some((value) => value.length !== 2)) {
+    reverseError.value = '请先填满年、月、日、时四柱'
+    return
+  }
+  lookingUp.value = true
+  const version = ++lookupVersion
+  reverseError.value = ''
+  try {
+    const result = await baziReverseApi.lookup(pillars)
+    if (version !== lookupVersion || !props.open || mode.value !== 'sizhu' || JSON.stringify(currentPillars()) !== JSON.stringify(pillars)) return
+    reverseRange.value = `${result.fromYear}—${result.toYear}年`
+    candidates.value = result.candidates
+    if (!result.candidates.length) reverseError.value = '查无匹配日期，请核对四柱或改用公历录入'
+  } catch (cause) {
+    if (version === lookupVersion) reverseError.value = (cause as Error)?.message || '反查暂时失败，请重试'
+  } finally {
+    if (version === lookupVersion) lookingUp.value = false
+  }
+}
+
+function chooseCandidate(index: number) {
+  chosenIndex.value = index
+  chosenHour.value = null
+  chosenMinute.value = null
+  reverseError.value = ''
+}
+
+function chooseHour(event: { detail: { value: string } }) {
+  chosenHour.value = availableHours.value[Number(event.detail.value) - 1] ?? null
+  chosenMinute.value = null
+}
+
+function chooseMinute(event: { detail: { value: string } }) {
+  chosenMinute.value = availableMinutes.value[Number(event.detail.value) - 1] ?? null
+}
+
 function confirm() {
+  if (mode.value === 'sizhu') {
+    if (lookingUp.value) return
+    if (!candidates.value.length) { void lookupSizhu(); return }
+    const selected = chosenCandidate.value
+    if (!selected || chosenHour.value === null || chosenMinute.value === null) {
+      reverseError.value = '请明确选择出生日期、小时和分钟'
+      return
+    }
+    emit('confirm', {
+      year: selected.year, month: selected.month, day: selected.day,
+      hour: chosenHour.value, minute: chosenMinute.value, isLunar: false,
+      sourcePillars: currentPillars(),
+    })
+    emit('close')
+    return
+  }
   emit('confirm', {
     year: year.value, month: month.value, day: day.value,
     hour: hour.value, minute: minute.value, isLunar: mode.value === 'lunar',
   })
   emit('close')
 }
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
+}
 </script>
 
 <template>
   <view v-if="open" class="dp-root">
-    <view class="dp-mask" @tap="emit('close')" />
-    <view class="dp-panel">
+    <view class="dp-mask" @tap="emit('close')" @touchmove.self.prevent />
+    <view
+      class="dp-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-label="选择出生日期和时间"
+      tabindex="-1"
+      @touchmove.stop
+    >
       <!-- 顶部显示 + 模式切换 -->
       <view class="dp-top">
         <text class="dp-display">{{ displayDate }}</text>
         <view class="dp-ctrl">
           <view class="dp-modes">
-            <view v-for="m in (['solar','lunar','sizhu'] as Mode[])" :key="m"
-              class="dp-mode" :class="{ 'dp-mode-on': mode === m }" @tap="mode = m">
+            <view v-for="m in modes" :key="m"
+              class="dp-mode" :class="{ 'dp-mode-on': mode === m }"
+              role="radio" :aria-checked="mode === m" tabindex="0"
+              @tap="mode = m"
+              @keydown="activateOnKeyboard($event, () => mode = m)">
               <text class="dp-mode-text" :class="{ 'dp-mode-text-on': mode === m }">{{ m === 'solar' ? '公历' : m === 'lunar' ? '农历' : '四柱' }}</text>
             </view>
           </view>
-          <view v-if="mode !== 'sizhu'" class="dp-today" @tap="setToday"><text class="dp-today-text">今</text></view>
-          <view class="dp-confirm" @tap="confirm"><text class="dp-confirm-text">确定</text></view>
+          <view
+            v-if="mode !== 'sizhu'" class="dp-today"
+            role="button" aria-label="选择当前日期和时间" tabindex="0"
+            @tap="setToday"
+            @keydown="activateOnKeyboard($event, setToday)"
+          ><text class="dp-today-text">今</text></view>
+          <view
+            class="dp-confirm"
+            role="button" aria-label="确认日期和时间" tabindex="0"
+            @tap="confirm"
+            @keydown="activateOnKeyboard($event, confirm)"
+          ><text class="dp-confirm-text">{{ mode === 'sizhu' && !candidates.length ? '查找日期' : '确定' }}</text></view>
         </view>
       </view>
 
@@ -142,28 +282,56 @@ function confirm() {
         <view class="dp-sz-cells">
           <view v-for="col in cols" :key="col" class="dp-sz-col">
             <view class="dp-sz-cell" :class="{ 'dp-sz-cell-on': activeCol === col && activeRow === 'gan' }"
-              @tap="activeCol = col; activeRow = 'gan'">
+              role="radio" :aria-checked="activeCol === col && activeRow === 'gan'" tabindex="0"
+              @tap="activeCol = col; activeRow = 'gan'"
+              @keydown="activateOnKeyboard($event, () => { activeCol = col; activeRow = 'gan' })">
               <text class="dp-sz-char" :style="{ color: sizhu[col + 'Gan'] ? wxColor(sizhu[col + 'Gan']) : '#d1d5db' }">{{ sizhu[col + 'Gan'] }}</text>
             </view>
             <view class="dp-sz-cell" :class="{ 'dp-sz-cell-on': activeCol === col && activeRow === 'zhi' }"
-              @tap="activeCol = col; activeRow = 'zhi'">
+              role="radio" :aria-checked="activeCol === col && activeRow === 'zhi'" tabindex="0"
+              @tap="activeCol = col; activeRow = 'zhi'"
+              @keydown="activateOnKeyboard($event, () => { activeCol = col; activeRow = 'zhi' })">
               <text class="dp-sz-char" :style="{ color: sizhu[col + 'Zhi'] ? wxColor(sizhu[col + 'Zhi']) : '#d1d5db' }">{{ sizhu[col + 'Zhi'] }}</text>
             </view>
           </view>
         </view>
         <view class="dp-sz-range">
-          <text class="dp-sz-range-text">查找范围：1801~2099年</text>
-          <view class="dp-sz-clear" @tap="clearSizhu">
+          <text class="dp-sz-range-text">查找范围：1900年至今年；仅未校正北京时间</text>
+          <view class="dp-sz-clear" role="button" tabindex="0" @tap="clearSizhu" @keydown="activateOnKeyboard($event, clearSizhu)">
             <app-icon name="trash-2" :size="26" color="#9ca3af" /><text class="dp-sz-clear-text">清除</text>
           </view>
         </view>
+        <view class="dp-sz-notice">
+          <text class="dp-sz-notice-text">先查候选日期，再由你选择具体时分。反查暂不套用真太阳时或夏令时；选定后会关闭这两项，提交时再次核对四柱。</text>
+        </view>
+        <view v-if="candidates.length" class="dp-reverse" role="group" aria-label="匹配的公历日期">
+          <text class="dp-reverse-title">{{ reverseRange }}内找到 {{ candidates.length }} 个日期，请选择</text>
+          <view v-for="(candidate, index) in candidates" :key="`${candidate.year}-${candidate.month}-${candidate.day}`"
+            class="dp-reverse-date" :class="{ 'dp-reverse-date-on': chosenIndex === index }"
+            role="radio" :aria-checked="chosenIndex === index" tabindex="0"
+            @tap="chooseCandidate(index)" @keydown="activateOnKeyboard($event, () => chooseCandidate(index))">
+            {{ candidate.year }}年{{ candidate.month }}月{{ candidate.day }}日
+          </view>
+          <view v-if="chosenCandidate" class="dp-reverse-time">
+            <picker :range="hourPickerItems" :value="hourPickerIndex" @change="chooseHour">
+              <view class="dp-reverse-picker">{{ chosenHour === null ? '选择出生小时' : `${String(chosenHour).padStart(2, '0')}时` }}</view>
+            </picker>
+            <picker :range="minutePickerItems" :value="minutePickerIndex" :disabled="chosenHour === null" @change="chooseMinute">
+              <view class="dp-reverse-picker">{{ chosenMinute === null ? '选择出生分钟' : `${String(chosenMinute).padStart(2, '0')}分` }}</view>
+            </picker>
+          </view>
+        </view>
+        <text v-if="lookingUp" class="dp-reverse-title">正在核对候选时间…</text>
+        <text v-if="reverseError" class="dp-reverse-error" role="alert">{{ reverseError }}</text>
         <view v-if="activeRow === 'gan'" class="dp-kb dp-kb-5">
-          <view v-for="g in tianGan" :key="g" class="dp-key" @tap="selectGanZhi(g, true)">
+          <view v-for="g in tianGan" :key="g" class="dp-key" role="button" tabindex="0"
+            @tap="selectGanZhi(g, true)" @keydown="activateOnKeyboard($event, () => selectGanZhi(g, true))">
             <text class="dp-key-char" :style="{ color: wxColor(g) }">{{ g }}</text>
           </view>
         </view>
         <view v-else class="dp-kb dp-kb-6">
-          <view v-for="z in diZhi" :key="z" class="dp-key" @tap="selectGanZhi(z, false)">
+          <view v-for="z in diZhi" :key="z" class="dp-key" role="button" tabindex="0"
+            @tap="selectGanZhi(z, false)" @keydown="activateOnKeyboard($event, () => selectGanZhi(z, false))">
             <text class="dp-key-char" :style="{ color: wxColor(z) }">{{ z }}</text>
           </view>
         </view>
@@ -190,13 +358,8 @@ function confirm() {
         </picker-view>
       </view>
 
-      <!-- 底部夏令时 -->
-      <view class="dp-bottom">
-        <text class="dp-dst-label">夏令时</text>
-        <view class="dp-switch" :class="{ 'dp-switch-on': useDST }" @tap="useDST = !useDST">
-          <view class="dp-switch-dot" :class="{ 'dp-switch-dot-on': useDST }" />
-        </view>
-      </view>
+      <!-- 底部夏令时开关已移除：它此前不参与 confirm 载荷，是只能拨不生效的死开关；
+           真实的夏令时选项在 input-form「时间选项」处（已透传后端排盘引擎） -->
     </view>
   </view>
 </template>
@@ -204,8 +367,8 @@ function confirm() {
 <style scoped lang="scss">
 .dp-root { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
 .dp-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
-.dp-panel { position: relative; width: 100%; background: #fff; border-radius: 48rpx 48rpx 0 0; overflow: hidden; }
-.dp-top { padding: 40rpx 40rpx 24rpx; border-bottom: 2rpx solid #f3f4f6; }
+.dp-panel { position: relative; width: 100%; max-height: 92vh; overflow-y: auto; background: #fff; border-radius: 48rpx 48rpx 0 0; }
+.dp-top { position: sticky; top: 0; z-index: 1; padding: 40rpx 40rpx 24rpx; border-bottom: 2rpx solid #f3f4f6; background: #fff; }
 .dp-display { display: block; text-align: center; font-size: 32rpx; font-weight: 500; color: #1f2937; margin-bottom: 32rpx; }
 .dp-ctrl { display: flex; align-items: center; justify-content: space-between; }
 .dp-modes { display: flex; background: #f3f4f6; border-radius: 999rpx; padding: 4rpx; }
@@ -230,6 +393,16 @@ function confirm() {
 .dp-sz-range-text { font-size: 22rpx; color: #9ca3af; }
 .dp-sz-clear { display: flex; align-items: center; gap: 8rpx; }
 .dp-sz-clear-text { font-size: 22rpx; color: #9ca3af; }
+.dp-sz-notice { margin-bottom: 20rpx; padding: 16rpx 20rpx; background: rgba(196,30,58,0.06); border-radius: 12rpx; }
+.dp-sz-notice-text { font-size: 22rpx; color: var(--brand); line-height: 1.5; }
+.dp-reverse { display: flex; flex-direction: column; gap: 10rpx; margin-bottom: 20rpx; }
+.dp-reverse-title { font-size: 23rpx; color: #4b5563; }
+.dp-reverse-date { padding: 14rpx 20rpx; border: 2rpx solid #e5e7eb; border-radius: 12rpx; font-size: 25rpx; }
+.dp-reverse-date-on { border-color: var(--brand); background: rgba(196,30,58,0.05); }
+.dp-reverse-time { display: flex; gap: 12rpx; }
+.dp-reverse-time picker { flex: 1; }
+.dp-reverse-picker { padding: 16rpx; border: 2rpx solid #e5e7eb; border-radius: 12rpx; font-size: 24rpx; text-align: center; }
+.dp-reverse-error { display: block; margin-bottom: 12rpx; color: var(--brand); font-size: 23rpx; }
 .dp-kb { display: grid; gap: 16rpx; }
 .dp-kb-5 { grid-template-columns: repeat(5, 1fr); }
 .dp-kb-6 { grid-template-columns: repeat(6, 1fr); }
@@ -239,11 +412,4 @@ function confirm() {
 .dp-wheel { padding: 16rpx 24rpx; }
 .dp-pv { height: 440rpx; }
 .dp-pv-item { display: flex; align-items: center; justify-content: center; font-size: 30rpx; color: #1f2937; }
-/* 底部 */
-.dp-bottom { display: flex; align-items: center; justify-content: flex-end; gap: 16rpx; padding: 24rpx 40rpx; border-top: 2rpx solid #f3f4f6; }
-.dp-dst-label { font-size: 22rpx; color: #9ca3af; }
-.dp-switch { width: 72rpx; height: 36rpx; border-radius: 999rpx; background: #e5e7eb; position: relative; transition: background 0.2s; }
-.dp-switch-on { background: var(--brand); }
-.dp-switch-dot { position: absolute; top: 4rpx; left: 4rpx; width: 28rpx; height: 28rpx; background: #fff; border-radius: 999rpx; box-shadow: 0 2rpx 4rpx rgba(0,0,0,0.15); transition: transform 0.2s; }
-.dp-switch-dot-on { transform: translateX(36rpx); }
 </style>

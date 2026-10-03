@@ -56,7 +56,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
   }
 
   // 角色专属看板扩展方法
-  async function fetchAlerts(params?: any) {
+  async function fetchAlerts(params?: Record<string, string | number | boolean | undefined>) {
     try { const { data } = await api.get('/dashboard/alerts', { params }); return data } catch { return { alerts: [], total: 0 } }
   }
   async function fetchRevenueOverview() {

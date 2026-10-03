@@ -1,42 +1,52 @@
 <script setup lang="ts">
-/** 营销/活动入口大卡（原型 MarketingCard，5s 自动轮播渐变背景） */
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+/** 营销/活动入口大卡（原型 MarketingCard）。
+ *  改用 <swiper>：既保留 5s 自动轮播（autoplay+circular），又支持手动左右滑动
+ *  （原实现是单 view + setInterval，只能自动切换、无法手滑）。 */
+import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { marketingBanners } from '@/lib/home-data'
 
 const idx = ref(0)
-let timer: ReturnType<typeof setInterval> | null = null
-const banner = computed(() => marketingBanners[idx.value])
-
-onMounted(() => {
-  timer = setInterval(() => {
-    idx.value = (idx.value + 1) % marketingBanners.length
-  }, 5000)
-})
-onUnmounted(() => {
-  if (timer) clearInterval(timer)
-})
+function onChange(e: { detail: { current: number } }) {
+  idx.value = e.detail.current
+}
 </script>
 
 <template>
-  <view
-    class="mk-card card-press"
-    :style="{ background: `linear-gradient(135deg, ${banner.bgFrom} 0%, ${banner.bgTo} 100%)`, boxShadow: `0 8rpx 40rpx ${banner.bgFrom}40` }"
-    @tap="navigateTo(banner.href)"
-  >
-    <view class="deco deco-1" :style="{ background: banner.accent }" />
-    <view class="deco deco-2" :style="{ background: banner.accent }" />
+  <view class="mk-wrap">
+    <swiper
+      class="mk-swiper"
+      :autoplay="marketingBanners.length > 1"
+      :circular="true"
+      :interval="5000"
+      :duration="400"
+      @change="onChange"
+    >
+      <swiper-item
+        v-for="b in marketingBanners"
+        :key="b.href + b.title"
+      >
+        <view
+          class="mk-card card-press"
+          :style="{ background: `linear-gradient(135deg, ${b.bgFrom} 0%, ${b.bgTo} 100%)`, boxShadow: `0 8rpx 40rpx ${b.bgFrom}40` }"
+          @tap="navigateTo(b.href)"
+        >
+          <view class="deco deco-1" :style="{ background: b.accent }" />
+          <view class="deco deco-2" :style="{ background: b.accent }" />
 
-    <view class="left">
-      <text class="label" :style="{ background: banner.accent }">{{ banner.label }}</text>
-      <text class="title">{{ banner.title }}</text>
-      <text class="subtitle">{{ banner.subtitle }}</text>
-    </view>
-    <view class="cta" :style="{ background: banner.accent, color: banner.bgTo }">
-      <text class="cta-text" :style="{ color: banner.bgTo }">立即领取</text>
-      <app-icon name="chevron-right" :size="26" :color="banner.bgTo" />
-    </view>
+          <view class="left">
+            <text class="label" :style="{ background: b.accent }">{{ b.label }}</text>
+            <text class="title">{{ b.title }}</text>
+            <text class="subtitle">{{ b.subtitle }}</text>
+          </view>
+          <view class="cta" :style="{ background: b.accent, color: b.bgTo }">
+            <text class="cta-text" :style="{ color: b.bgTo }">立即领取</text>
+            <app-icon name="chevron-right" :size="26" :color="b.bgTo" />
+          </view>
+        </view>
+      </swiper-item>
+    </swiper>
 
     <view v-if="marketingBanners.length > 1" class="dots">
       <view v-for="(_, i) in marketingBanners" :key="i" class="dot" :class="{ active: i === idx }" />
@@ -45,12 +55,15 @@ onUnmounted(() => {
 </template>
 
 <style scoped lang="scss">
+.mk-wrap { position: relative; margin: 0 32rpx 12rpx; }
+.mk-swiper { height: 168rpx; border-radius: 24rpx; overflow: hidden; }
 .mk-card {
   position: relative;
-  margin: 0 32rpx 12rpx;
+  height: 168rpx;
   border-radius: 24rpx;
   overflow: hidden;
   padding: 24rpx 32rpx;
+  box-sizing: border-box;
   display: flex; align-items: center; justify-content: space-between;
 }
 .deco { position: absolute; border-radius: 999rpx; pointer-events: none; }
@@ -74,7 +87,7 @@ onUnmounted(() => {
 .cta-text { font-size: 26rpx; font-weight: 700; }
 .dots {
   position: absolute; bottom: 16rpx; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 8rpx;
+  display: flex; gap: 8rpx; z-index: 2;
 }
 .dot { width: 12rpx; height: 8rpx; border-radius: 999rpx; background: rgba(255, 255, 255, 0.4); transition: all 0.3s ease; }
 .dot.active { width: 32rpx; background: #fff; }

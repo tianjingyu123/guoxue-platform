@@ -101,7 +101,7 @@
       <el-form-item>
         <el-button
           type="primary"
-          @click="fetchList"
+          @click="page = 1; fetchList()"
         >
           搜索
         </el-button>
@@ -130,10 +130,39 @@
       stripe
     >
       <el-table-column
-        prop="userId"
         label="用户ID"
-        width="200"
-      />
+        width="220"
+      >
+        <template #default="{ row }">
+          <template v-if="row.userId">
+            <el-link
+              type="primary"
+              :title="`${row.userId}（点击查看用户详情）`"
+              @click="gotoUser(row.userId)"
+            >
+              {{ shortId(row.userId) }}
+            </el-link>
+            <el-button
+              link
+              size="small"
+              type="primary"
+              style="margin-left:4px"
+              @click.stop="copyText(row.userId)"
+            >
+              复制
+            </el-button>
+            <el-tag
+              v-if="isDemo(row.userId)"
+              size="small"
+              type="info"
+              style="margin-left:4px"
+            >
+              测试数据
+            </el-tag>
+          </template>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
       <el-table-column
         prop="activityScore"
         label="活跃度评分"
@@ -158,16 +187,50 @@
         sortable
       />
       <el-table-column
-        prop="churnFactors"
         label="流失因素"
-        min-width="200"
-        show-overflow-tooltip
-      />
+        min-width="220"
+      >
+        <template #default="{ row }">
+          <template v-if="factorList(row).length">
+            <el-tag
+              v-for="f in factorList(row)"
+              :key="f"
+              size="small"
+              type="warning"
+              style="margin:2px 4px 2px 0"
+            >
+              {{ f }}
+            </el-tag>
+          </template>
+          <span v-else>—</span>
+        </template>
+      </el-table-column>
       <el-table-column
-        prop="predictedAt"
         label="预测时间"
         width="170"
-      />
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.predictedAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="110"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            v-if="row.riskLevel === 'HIGH' || row.riskLevel === 'CRITICAL'"
+            size="small"
+            type="warning"
+            title="挽回动作由流失规则自动触发，点击去配置规则"
+            @click="goRetention"
+          >
+            发送挽回
+          </el-button>
+          <span v-else>—</span>
+        </template>
+      </el-table-column>
     </el-table>
 
     <el-pagination
@@ -183,16 +246,20 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { useRouter } from "vue-router";
 import { churnApi } from "@/api";
 
+const router = useRouter();
+
 // 流失预测行（按列配置与模板访问字段定义的宽松本地类型）
+// churnFactors 后端为字符串数组（churn.service.ts:67-77），兼容字符串兜底
 interface ChurnRow {
   userId?: string;
   activityScore?: number;
   riskLevel: string;
   daysSinceActive?: number;
-  churnFactors?: string;
+  churnFactors?: string[] | string;
   predictedAt?: string;
 }
 
@@ -214,6 +281,56 @@ function riskTag(level: string) {
 function riskLabel(level: string) {
   const map: Record<string, string> = { LOW: "低风险", MEDIUM: "中风险", HIGH: "高风险", CRITICAL: "严重风险" };
   return map[level] || level;
+}
+
+// 流失因素词表（与后端 churn.service.ts 评分逻辑产出的枚举对齐）
+const FACTOR_MAP: Record<string, string> = {
+  LONG_INACTIVE: "长期未活跃（>7天）",
+  VERY_LONG_INACTIVE: "超长未活跃（>14天）",
+  SILENT_USER: "沉默用户（>30天）",
+  LOW_ENGAGEMENT: "低参与度",
+  ALMOST_GONE: "濒临流失",
+};
+
+function factorList(row: ChurnRow): string[] {
+  const raw = row.churnFactors;
+  const arr = Array.isArray(raw) ? raw : typeof raw === "string" && raw ? raw.split(",") : [];
+  return arr.map((f) => FACTOR_MAP[f.trim()] || f.trim());
+}
+
+function formatDate(d?: string) {
+  return d ? new Date(d).toLocaleString() : "-";
+}
+
+// 长ID截断显示（悬浮看全文，点击可跳/复制）
+function shortId(id?: string): string {
+  if (!id) return "-";
+  return id.length > 10 ? id.slice(0, 8) + "…" : id;
+}
+
+// 演示种子账号标识（comp-demo-* 为赛事演示数据）
+function isDemo(id?: string): boolean {
+  return !!id && id.startsWith("comp-demo");
+}
+
+async function copyText(text?: string) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    ElMessage.success("已复制");
+  } catch {
+    ElMessage.error("复制失败");
+  }
+}
+
+function gotoUser(id?: string) {
+  if (id) router.push(`/users/${id}`);
+}
+
+// 挽回闭环的诚实引导：挽回动作由「流失规则」驱动，此处引导去配置规则
+function goRetention() {
+  ElMessage.info("挽回动作由流失规则自动触发：请配置对应风险等级的挽回规则（短信/优惠券），执行评分后系统自动下发");
+  router.push("/churn/rules");
 }
 
 async function fetchList() {
@@ -251,6 +368,17 @@ async function fetchStats() {
 }
 
 async function handleScore() {
+  if (scoring.value) return;
+  // L3：全量评分会重算所有用户风险并按启用规则自动触发挽回动作，确认框写明影响
+  try {
+    await ElMessageBox.confirm(
+      "将对全量用户重新计算流失评分，并按已启用的流失规则自动触发挽回动作（短信/优惠券）。确认执行？",
+      "执行评分确认",
+      { type: "warning", confirmButtonText: "确认执行", cancelButtonText: "取消" },
+    );
+  } catch {
+    return;
+  }
   scoring.value = true;
   try {
     await churnApi.calculate();

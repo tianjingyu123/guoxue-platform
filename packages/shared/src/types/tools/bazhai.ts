@@ -123,8 +123,20 @@ export interface BaZhaiResult {
   /** 宅命配合 */
   zhaiMingMatch: ZhaiMingMatch;
 
-  /** 八方吉凶 */
+  /** 八方吉凶（**宅盘**：以坐山起游星，管的是这处房子各方位的性质） */
   baFang: BaFangJiXiong[];
+
+  /**
+   * 八方吉凶（**命盘**：以命卦起游星，管的是「这个人」的吉凶方位）。
+   *
+   * 正规八宅宅盘、命盘两套并用：宅盘定房子的门主灶，命盘定个人的坐卧朝向。
+   * 前端 `pkg-paipan3/bazhai` 早就两套都排（可切换），后端原先只有宅盘，
+   * 2026-09-19 补齐——用户最用得上的其实是命盘（「我的生气方在哪」）。
+   */
+  mingBaFang: BaFangJiXiong[];
+
+  /** 命卦四吉方（生气/天医/延年/伏位），按星力排序 */
+  mingJiFang: { direction: BaGuaDirection; star: YouNianStar }[];
 
   /** 大门方位分析 */
   menWei: {

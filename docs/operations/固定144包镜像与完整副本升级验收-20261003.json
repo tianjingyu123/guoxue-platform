@@ -1,0 +1,147 @@
+{
+  "checkedAt": "2026-10-03T13:51:43.610Z",
+  "sourceCommit": "7c060d32ff72b6594a36f894a11cb7d54975d2dc",
+  "packageSha256": "5c4a487ea9d72d385c1135dda8699c64273934c45b6122ca1fe78e558476c46a",
+  "image": {
+    "runId": 37126636286,
+    "verificationCommit": "e2b102fe99153d7e8c886f10a339a022667ede98",
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "braces-actual-dcloud-runtime-hashes-and-depth-protection",
+      "admin-h5-base-and-public-config",
+      "postgres-runtime-version-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "postgres-vector-extension-runtime",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "new-order-station-notice-independent-compiled-processes",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry",
+      "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions",
+      "free-course-full-http-postcommit-notification-failure-and-permissions",
+      "live-booking-real-db-failures-retry-concurrency-and-http-target-permissions",
+      "compiled-entitlement-service-and-durable-notification-idempotency",
+      "compiled-member-grant-state-durable-notification-failure-retry-and-revoke",
+      "compiled-member-renew-durable-retry-date-boundary-rollback-and-renewal-lock",
+      "compiled-practitioner-concurrent-payment-refund-durable-notice"
+    ],
+    "checksPassed": 33,
+    "cleanupPassed": true,
+    "imageId": "sha256:6afc91479429458b14f4a488222cc704c82a5bdfee6005b55f6542e7bc0a573b",
+    "archive": "C:\\Users\\Administrator\\.codex\\worktrees\\tenant-intake-review-20261003\\gx-deploy-91\\pilots\\managed-tenancy\\.runtime\\provider-intake-20261003\\fixed-current\\official-37126636286-11275362154\\rebu-server-7c060d32f-image.tar.gz",
+    "bytes": 450296902,
+    "sha256": "58c431a98031fe05f344fc26ea5372cb098860ab6c3f66ee802fb38332a1cdd4",
+    "artifactId": 11275362154,
+    "artifactDigest": "sha256:f59ebdbd51066af34637c72a8a0b4c99ff3f5e6d51b9e6cae7ef48449820a7c5",
+    "scope": "isolated-empty-db-no-real-channels",
+    "productionDeployed": false,
+    "failedPreviousRun": {
+      "runId": 37125908232,
+      "cause": "隔离验收辅助文件缺失，正式镜像构建已通过；补齐验证输入后收口"
+    }
+  },
+  "database": {
+    "releaseId": "launch-20261003-7c060d32f",
+    "sourceCommit": "7c060d32ff72b6594a36f894a11cb7d54975d2dc",
+    "fixedPackage": {
+      "bytes": 16153024,
+      "sha256": "5c4a487ea9d72d385c1135dda8699c64273934c45b6122ca1fe78e558476c46a",
+      "manifestSha256": "4c492d4ec8fc86af8b35fab5894c438781f9cf28f93e327304bb847b39018533",
+      "schemaSha256": "48b69ca3e103c16a6813ef66480c4ac4fac1f006bcd24d1e3498a0408510e99e",
+      "migrationCount": 144
+    },
+    "baselineRestore": {
+      "status": "PASS",
+      "invocation": "inv-d9exxsgxe1",
+      "task": "invt-d9exxsgxe2",
+      "exitCode": 0,
+      "dropped": 0,
+      "completedMigrations": 103,
+      "publicTables": 353,
+      "resourceRelease": 0
+    },
+    "upgradeRehearsal": {
+      "status": "PASS",
+      "invocation": "inv-c9f09kgc4r",
+      "task": "invt-c9f09kgc4s",
+      "exitCode": 0,
+      "dropped": 0,
+      "completedBefore": 103,
+      "completedAfter": 144,
+      "pendingApplied": 41,
+      "unfinishedAfter": 0,
+      "publicTablesBefore": 353,
+      "publicTablesAfter": 415,
+      "baselineTablesCompared": 352,
+      "baselineRowCountMismatches": 0,
+      "invalidIndexes": 0,
+      "unvalidatedConstraints": 0,
+      "restoreSeconds": 107,
+      "migrateSeconds": 1,
+      "resourceRelease": 0,
+      "remoteResultSha256": "6502f5276a72343946536de04f40937b7fb597c628a0cfdf51f53f200cc3d401"
+    },
+    "evidenceCollection": {
+      "invocation": "inv-c9f0csg3e5",
+      "task": "invt-c9f0csg3e6",
+      "exitCode": 0,
+      "dropped": 0,
+      "remoteFiles": {
+        "result.txt": "6502f5276a72343946536de04f40937b7fb597c628a0cfdf51f53f200cc3d401",
+        "result-files.sha256": "cf198b5f61d0c5f3de59cb40b83f3366022c3b48f53ee302d93ba237ce567d46",
+        "candidate-migration-files.sha256": "b6ba335cbd73b7f531c8557404040924dea56ae14eef190baff2c5b89200abf5",
+        "candidate-migration-list.sha256": "5c0a6c8450f15f8a38bafa384eb3d458e8c1b5e04772f8c47b6a1fff58dd231e",
+        "cleanup-result.txt": "349f368a2ec258615b696cb936159b48540317475832fa0873c68b54ff84fa7e"
+      }
+    },
+    "failedAttempts": [
+      {
+        "invocation": "inv-c9ext0012q",
+        "task": "invt-c9ext0012r",
+        "stage": "postgres18_old_volume_mount",
+        "migrationsExecuted": false,
+        "cleaned": true
+      },
+      {
+        "invocation": "inv-c9f06i022u",
+        "task": "invt-c9f06i022v",
+        "stage": "pre_migration_comm_sort",
+        "migrationsExecuted": false,
+        "cleaned": true
+      }
+    ],
+    "productionChanged": false,
+    "productionContainerAfter": "running/healthy",
+    "formalImageDigest": null,
+    "formalDeploymentPerformed": false,
+    "schemaByteIdentity": {
+      "packageLineEnding": "CRLF",
+      "packageSha256": "48b69ca3e103c16a6813ef66480c4ac4fac1f006bcd24d1e3498a0408510e99e",
+      "gitBlobLineEnding": "LF",
+      "gitBlobSha256": "db37c68d65937d56705e3b9eb3d3d18f8d86466de5d6ce17ccdc0ca9a81b8789",
+      "equalAfterLfNormalization": true,
+      "migrationSqlGitBlobByteIdentity": true,
+      "requiresPackageRebuildOrRehearsalRerun": false
+    },
+    "independentlyReadOfficialTask": true,
+    "productionUpgradePerformed": false
+  },
+  "productionGo": false,
+  "remainingPlatformFeatureGapsNotDeferred": true,
+  "candidate145NotIncluded": true
+}

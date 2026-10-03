@@ -21,6 +21,14 @@ export class PublishAssistController {
     return this.svc.polishText(dto.text, req.user.id);
   }
 
+  @Post("typeset")
+  @ApiOperation({ summary: "AI一键排版（只加Markdown格式·不改文字·内容一致性校验兜底）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  typeset(@Req() req: Request, @Body() dto: PolishTextDto) {
+    return this.svc.typesetText(dto.text, req.user.id);
+  }
+
   @Post("optimize-title")
   @ApiOperation({ summary: "AI标题优化" })
   @ApiResponse({ status: 201, description: "创建成功" })

@@ -1,0 +1,679 @@
+{
+  "sourceCommit": "624929155d054de9f58502107e6500311b8d5e0d",
+  "checkedAt": "2026-10-03T01:33:41.756Z",
+  "rows": [
+    {
+      "id": "order-paid",
+      "event": "订单最终付款成功",
+      "paths": [
+        "apps/server/src/modules/shop/shop-payment.service.ts",
+        "apps/server/src/modules/notification/order-business-notification.task.ts",
+        "apps/server/src/modules/notification/notification.module.ts"
+      ],
+      "key": "ORDER_PAID:<orderId>",
+      "state": "真实支付CAS/权益事务内新事实；提交后即时尝试",
+      "recovery": "已注册独立分钟站内恢复；复核订单/收件人、数据库唯一和行锁；不依赖渠道重投、不补旧订单",
+      "gap": "限定真实PG/编译/签名HTTP及两个独立进程已验；真实供应商/正式Cron/最终同版手机/北京两节点未知；微信短信App未真实发送",
+      "online": "未知",
+      "evidence": "全订单新事实与独立站内恢复验收-20261002.json"
+    },
+    {
+      "id": "order-refunded",
+      "event": "订单最终退款完成",
+      "paths": [
+        "apps/server/src/modules/shop/shop-refund.service.ts",
+        "apps/server/src/modules/notification/order-business-notification.task.ts",
+        "apps/server/src/modules/notification/notification.module.ts"
+      ],
+      "key": "ORDER_REFUNDED:<orderId>",
+      "state": "退款CAS/权益新待就绪事实；分佣完成后售后终态与readyAt同事务",
+      "recovery": "已注册独立分钟站内恢复；复核订单/收件人、数据库唯一和行锁；不依赖渠道重投、不补旧订单",
+      "gap": "限定真实PG/编译/签名HTTP及两个独立进程已验；真实供应商/正式Cron/最终同版手机/北京两节点未知；微信短信App未真实发送",
+      "online": "未知",
+      "evidence": "全订单新事实与独立站内恢复验收-20261002.json"
+    },
+    {
+      "id": "admin-entitlement",
+      "event": "管理员新发独立权益",
+      "paths": [
+        "apps/server/src/modules/entitlement/entitlement.service.ts",
+        "apps/server/src/modules/notification/entitlement-notification.task.ts"
+      ],
+      "key": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
+      "state": "真实代码入口+新事实+实际模块注册",
+      "recovery": "分钟持久补发；事务失败无事实，不历史补发",
+      "gap": "限现有管理员白名单；不能推为所有支付履约",
+      "online": "未知"
+    },
+    {
+      "id": "school-admin",
+      "event": "管理员书院会员新授予",
+      "paths": [
+        "apps/server/src/modules/member/member.service.ts",
+        "apps/server/src/modules/notification/entitlement-notification.task.ts"
+      ],
+      "key": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
+      "state": "真实代码入口+MEMBER_GRANTED_V1",
+      "recovery": "分钟恢复并核对当前生效会员状态",
+      "gap": "历史授权、真实Cron和手机未覆盖",
+      "online": "未知"
+    },
+    {
+      "id": "school-paid",
+      "event": "付款开通书院会员",
+      "paths": [
+        "apps/server/src/modules/shop/shop-payment.service.ts",
+        "apps/server/src/modules/notification/entitlement-notification.task.ts"
+      ],
+      "key": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
+      "state": "MEMBER_PAID_GRANTED_V1新付款事实、同用户付款退款行锁及购买/订单/当前会员核验已接入",
+      "recovery": "已注册分钟任务持久补发；事务失败无事实；退款/失效/旧流水不报告成功",
+      "gap": "书院33项真实PG在本版回归通过；旧券政策、正式Cron/供应商/手机未覆盖；回滚误确认已独立修复",
+      "online": "未知"
+    },
+    {
+      "id": "pro-paid",
+      "event": "付款开通/续费从业会员",
+      "paths": [
+        "apps/server/src/modules/shop/shop-payment.service.ts",
+        "apps/server/src/modules/shop/shop-refund.service.ts",
+        "apps/server/src/modules/notification/entitlement-notification.task.ts"
+      ],
+      "key": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
+      "state": "PRACTITIONER_GRANTED_V1新事实、付款退款User行锁及ORDER权威复核已接入",
+      "recovery": "分钟恢复；仅本人有效已付/完成订单、未冲正的当前有效权益",
+      "gap": "19项从业真实PG在本版重跑；真实Cron、供应商和手机未覆盖",
+      "online": "未知"
+    },
+    {
+      "id": "member-renew",
+      "event": "会员续费提醒",
+      "paths": [
+        "apps/server/src/modules/member/member-grant.service.ts"
+      ],
+      "key": "<userId>:MEMBER_RENEW_REMIND:<expire>:<window>",
+      "state": "真实分钟入口、北京自然日7天/当天窗口",
+      "recovery": "数据库唯一、失败不留提前占位；仅提醒不扣费",
+      "gap": "正式时钟/Cron与手机未覆盖",
+      "online": "未知"
+    },
+    {
+      "id": "member-monthly",
+      "event": "会员当月积分/券",
+      "paths": [
+        "apps/server/src/modules/member/member-grant.service.ts",
+        "apps/server/src/modules/member/member-benefit.service.ts",
+        "apps/server/src/modules/notification/member-monthly-notification.task.ts",
+        "apps/server/src/modules/notification/notification.module.ts",
+        "apps/mobile/src/lib/mine-data.ts",
+        "apps/mobile/src/lib/im-data.ts"
+      ],
+      "key": "<userId>:MEMBER_MONTHLY_POINTS|MEMBER_MONTHLY_COUPON:member_monthly_YYYYMM",
+      "state": "新发放实际积分/券和通知事实同事务；两处本人跳转接入",
+      "recovery": "已注册分钟持久SQL补发；数据库唯一键防重，双进程实测；不历史补发",
+      "gap": "旧UNUSED同模板券政策待决策；最终镜像、真实Cron/共享Redis发放锁、手机/HTTP端到端未覆盖",
+      "online": "未知"
+    },
+    {
+      "id": "feedback-resolved",
+      "event": "工单结案公开回复",
+      "paths": [
+        "apps/server/src/modules/user/feedback.service.ts",
+        "apps/server/src/modules/user/feedback-notification.task.ts",
+        "apps/server/src/modules/user/user.module.ts"
+      ],
+      "key": "<userId>:FEEDBACK_RESOLVED:<feedbackId>:<UUID>",
+      "state": "真实CAS结案、公开回复事实及模块注册",
+      "recovery": "即时尝试+分钟补发；内部备注不对用户公开",
+      "gap": "不等于全部人工聊天；企业微信回流未接通",
+      "online": "未知"
+    },
+    {
+      "id": "human-service",
+      "event": "人工客服会话",
+      "paths": [
+        "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+        "apps/server/src/modules/im/im-callback.controller.ts"
+      ],
+      "key": "无统一人工回复事实键",
+      "state": "工单/二维码/电话导引和AI即时答复存在",
+      "recovery": "普通IM Socket不是人工客服统一站内通知",
+      "gap": "企业微信会话回流/归属仍缺入口或外部接通；线上未知",
+      "online": "未知"
+    },
+    {
+      "id": "course-free",
+      "event": "免费及零元促销课程订阅",
+      "paths": [
+        "apps/server/src/modules/course/course-purchase.service.ts",
+        "apps/server/src/modules/course/course.module.ts",
+        "apps/server/src/modules/notification/free-course-notification.task.ts",
+        "apps/server/src/modules/notification/notification.module.ts"
+      ],
+      "key": "<userId>:COURSE_ENROLLED:<orderId>",
+      "state": "真实FREE订阅订单与新事实同事务，提交后即时站内通知",
+      "recovery": "实际分钟持久SQL补发；即时/调度共用数据库唯一键，双进程实测；不补历史",
+      "gap": "新事实/失败释放/并发/跨用户服务访问已真实PG验证；最终镜像、HTTP/JWT、真实Redis/供应商、手机和线上Cron未全覆盖",
+      "online": "未知"
+    },
+    {
+      "id": "course-paid",
+      "event": "付费课程开通",
+      "paths": [
+        "apps/server/src/modules/shop/shop-payment.service.ts",
+        "apps/server/src/modules/notification/paid-course-notification.task.ts",
+        "apps/server/src/modules/notification/notification.module.ts"
+      ],
+      "key": "<userId>:COURSE_ENROLLED:<orderId>",
+      "state": "实际课程付款GRANT新标记COURSE_PAID_GRANTED_V1；任务注册并独立站内开通通知",
+      "recovery": "分钟SQL恢复并核本人/订单/课程/有效未冲正权益；DB唯一键防重，通知失败不影响已付主事务，不补旧流水",
+      "gap": "451项及编译26、最新485专项范围内通过；真实渠道、全部付款运输和同版手机未验",
+      "online": "未知"
+    },
+    {
+      "id": "course-expiry",
+      "event": "课程即将到期",
+      "paths": [
+        "apps/server/src/modules/course/course-scheduler.service.ts",
+        "apps/server/src/modules/course/course.module.ts"
+      ],
+      "key": "<userId>:COURSE_EXPIRING:<courseId>:<UTC date>",
+      "state": "原9点Cron保持；新增当天10/12/15/18/21点有限重试，过滤deletedAt",
+      "recovery": "复用原锁与UTC日期键，当天遗漏补回；不补历史、不新增分钟outbox",
+      "gap": "485项/编译16及镜像Redis两进程/HTTP目标权限列明范围通过；正式时区调度、外发渠道和同版手机未验",
+      "online": "未知"
+    },
+    {
+      "id": "live-booking",
+      "event": "直播预约提醒/开播",
+      "paths": [
+        "apps/server/src/modules/live/live.service.ts",
+        "apps/server/src/modules/live/live.module.ts"
+      ],
+      "key": "LIVE_REMINDER:<roomId> / LIVE_STARTED:<roomId>",
+      "state": "真实预约/开播及分钟恢复入口；名单选取后取消/结束/拒审/改期与收件人变化已真实PG验证",
+      "recovery": "房间→预约锁定、当前BOOKED重核，站内通知+标记同事务；失败回滚重试、500分批、DB唯一键",
+      "gap": "624及编译22限定隔离通过；真实Redis、媒体/真IM/匹配基座/同版真机、其它可见性及圈成员撤销竞态、正式Cron和两节点未覆盖",
+      "online": "未知"
+    },
+    {
+      "id": "circle-governance",
+      "event": "圈子9处治理与到期删除",
+      "paths": [
+        "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+        "apps/server/src/modules/circle/governance/circle-governance-notification.task.ts",
+        "apps/server/src/modules/circle/services/circle-membership-expiry-notification.task.ts",
+        "apps/server/src/modules/circle/circle.module.ts"
+      ],
+      "key": "治理事实/删除事实的收件人唯一事件键",
+      "state": "状态变化、删除和新事实同事务；实际任务注册",
+      "recovery": "分钟补发+数据库唯一；删除/缓存与各批已分别核验",
+      "gap": "不代表全部圈务或线上Cron已验收",
+      "online": "未知"
+    },
+    {
+      "id": "circle-reward",
+      "event": "圈帖打赏",
+      "paths": [
+        "apps/server/src/modules/circle/services/circle-post.service.ts",
+        "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts"
+      ],
+      "key": "<recipientId>:POST_REWARD:<debitId>",
+      "state": "真实资金事务内准入、锁定及新成交快照，完整扣款/原作者收入核验保留",
+      "recovery": "新快照分钟恢复不依赖帖子存续；旧全空事实仍核当前归属；失效正文只通知收入、不生成帖子跳转",
+      "gap": "同源本机/Linux194、实际编译46；新快照不得代替完整账本核验，旧事实不回填；真实渠道、最终镜像/手机/生产升级未覆盖",
+      "online": "未知"
+    },
+    {
+      "id": "channels",
+      "event": "微信/短信/App推送",
+      "paths": [
+        "apps/server/src/modules/notification/notification.service.ts"
+      ],
+      "key": "不能用站内唯一键推断真实送达",
+      "state": "存在通知服务与可选适配结构",
+      "recovery": "本轮未发送真实通知",
+      "gap": "配置/真实渠道送达及线上两节点未知；Novu不引入",
+      "online": "未知"
+    }
+  ],
+  "bindings": [
+    {
+      "path": "apps/server/src/modules/shop/shop-payment.service.ts",
+      "sha256": "ffa3f4253a4dae84c487e12ecf196f63ea5eb68cf46e36cde7fe536863a5911b"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-refund.service.ts",
+      "sha256": "fb25d177caf9629b86957399de3adfb1e7657cf57f16fcd8815bae54d226d758"
+    },
+    {
+      "path": "apps/server/src/modules/entitlement/entitlement.service.ts",
+      "sha256": "ed9f1df2340940b4e800d7119549efc29d80576a51a1e9167ada264d193bbb7e"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
+      "sha256": "c3b0e34d71219fd50291b5b83c74a20d50b166d7c37b8a71391dfd5cae152fe4"
+    },
+    {
+      "path": "apps/server/src/modules/member/member.service.ts",
+      "sha256": "b86371048153c7f6f6146e50b7ce3a23f4c8b3bc4b6f00206baf83801acd867b"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-grant.service.ts",
+      "sha256": "e205b81713531f5a6b307dc1d4ec111c7148a0ab9a02bcbb51d2c215ccae7df6"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.service.ts",
+      "sha256": "a6000032c3acf012c325e6e7700d8938b872c6de1166eec478b6ad7e23f0d91d"
+    },
+    {
+      "path": "apps/server/src/modules/notification/member-monthly-notification.task.ts",
+      "sha256": "08d989b7b20b043b8bd6b875398054d64c12dbd3a2d881569d362bb89e40e487"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification.module.ts",
+      "sha256": "aa0606fcd25c6cd23e98acfa1c4af06ad126b185ca6d94484d779f25d2f8cfc9"
+    },
+    {
+      "path": "apps/mobile/src/lib/mine-data.ts",
+      "sha256": "4aefb144e0a56344523292ae8263fc5584dca42618ad8c8865f8d14a45981ba4"
+    },
+    {
+      "path": "apps/mobile/src/lib/im-data.ts",
+      "sha256": "c6b5dd06ba4a77831ea4bac5c01ce9f1780c1e9cffb939dc3ad6b0cd7d677c8a"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback.service.ts",
+      "sha256": "e6cdae211eca1f515b53dbee281fd6c1dd11a054c00547b24b132fb0fb9ed7ac"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.task.ts",
+      "sha256": "a7213e5514ab0bb7708f6dcf1d073841ec0477ed2f390e4e15ded456937c7add"
+    },
+    {
+      "path": "apps/server/src/modules/user/user.module.ts",
+      "sha256": "df286cabda81c758a3dcc9b3e8839336a31fadf426fc3a3550179b1c8809c258"
+    },
+    {
+      "path": "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+      "sha256": "e38334b2c80ae8df64bc8c448b692fcc54832ddd0213ea1675efdf2cab0ce1ad"
+    },
+    {
+      "path": "apps/server/src/modules/im/im-callback.controller.ts",
+      "sha256": "72d9413d0245b098cfbf58bb64173eadcb2be6c9cd13c13d677f56b68628c187"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-purchase.service.ts",
+      "sha256": "d3c580fa4ebb666e7974f95a1541a587c514b51ed88dc9b6352ff6f4b7d0d9a8"
+    },
+    {
+      "path": "apps/server/src/modules/course/course.module.ts",
+      "sha256": "1c831aaf004166214af2c97aeb00fe73911c39bdce980044cb1d3beb66687ba4"
+    },
+    {
+      "path": "apps/server/src/modules/notification/free-course-notification.task.ts",
+      "sha256": "776a844e49e2190c6ebdda243bd954c3a0d58301cc86c492bfcecde3173af368"
+    },
+    {
+      "path": "apps/server/src/modules/notification/paid-course-notification.task.ts",
+      "sha256": "3433817aff8bf0a8ac41b28d7db8299fb7dda9188acfb41d8da807661e2c1400"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-scheduler.service.ts",
+      "sha256": "f5ed0041907d48b3bc3a9b826d88b36c71cd11842e703df1478ff6c392936f41"
+    },
+    {
+      "path": "apps/server/src/modules/live/live.service.ts",
+      "sha256": "87fcc339b4db24e1f86f8524d4beab5dae3e82bc23507712dff9a6f0a268fbe3"
+    },
+    {
+      "path": "apps/server/src/modules/live/live.module.ts",
+      "sha256": "8d060580034ef5b80bdabac28e2e0e9cfaa5007778b1241297f75ea270dc29c6"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+      "sha256": "9ab89ae6c20bdd89bf85ffe486a91a33c56647b149b6ba58ba56210e6f2a9f86"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notification.task.ts",
+      "sha256": "1acf38e7a8de1095c80b4306455a0eda6b15bc45d38e1c2e76be6a57dccbb0ee"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry-notification.task.ts",
+      "sha256": "2c8423d1d52e6490a1db4a7c23d4ea835112a6b5456ffc82bf7c7be19874ad77"
+    },
+    {
+      "path": "apps/server/src/modules/circle/circle.module.ts",
+      "sha256": "9b91f4dbcef271deaf6e4fec942cace5ce51e30ac90cdd414005af9801e24fb9"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
+      "sha256": "aae5297444b5396ba9d3de1f81e5ec822654aeacb2e4595fbb28ff23dc4f89bb"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts",
+      "sha256": "f63a0164bfe69ad700bd2520654d08ff704467e375a9e663f248355cf2b8b099"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification.service.ts",
+      "sha256": "effa5e18a38ccdfcf0aab3e9f61d1ea9ef266a8d11d7839726bff6229a38187f"
+    }
+  ],
+  "scope": "本次源码入口和已存在验收记录核对，不新增真实通知或声称全链路运行",
+  "N4AllClosed": false,
+  "allNotificationsLive": false,
+  "realChannels": false,
+  "production": false,
+  "previousBinding": {
+    "sourceCommit": "8c8a9574074013730e4f1d400bc0738eca002e45",
+    "record": "免费课程订阅持久通知与增量升级验收-20261002.json"
+  },
+  "previousPaymentBinding": {
+    "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+    "record": "书院会员并发付款退款与持久到账验收-20261002.json"
+  },
+  "previousMonthlyBinding": {
+    "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+    "record": "支付事务回滚误确认与退款重投通知验收-20261002.json"
+  },
+  "previousSourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
+  "migrationCount": 135,
+  "previousEvidenceSource": "4c546b89bf81121a051e785d3a399f3690205671",
+  "currentFormalImage": {
+    "checkedAt": "2026-10-03T01:10:54.081Z",
+    "sourceCommit": "feb4aeb5c3d9b60c790b73fe38d0e901984941f5",
+    "runId": 37084380867,
+    "verificationHead": "6e1b84b7b3292dcb91b163a708ac0f82602f6f0d",
+    "artifactId": 11260547167,
+    "artifactDigest": "sha256:f91c899e0a59d9af572e24d9a27edac28b0eb3a04d7dda04361bb66e67996446",
+    "digestVerified": true,
+    "sourcePackageDigest": "bab859754f1a2f0c22ebfd28442e74778ee0c1532e27023794e2e6e0cb9b52b1",
+    "sourcePackageFiles": 4505,
+    "formalDockerfile": true,
+    "passedChecks": 32,
+    "checks": [
+      {
+        "name": "image-identity",
+        "passed": true
+      },
+      {
+        "name": "prisma-source-compile-runtime-binding",
+        "passed": true
+      },
+      {
+        "name": "grpc-security-version-in-runtime-image",
+        "passed": true
+      },
+      {
+        "name": "admin-h5-base-and-public-config",
+        "passed": true
+      },
+      {
+        "name": "postgres-runtime-version-match",
+        "passed": true
+      },
+      {
+        "name": "formal-empty-bootstrap-ledger-and-channel-constraints",
+        "passed": true
+      },
+      {
+        "name": "postgres-vector-extension-runtime",
+        "passed": true
+      },
+      {
+        "name": "production-entrypoint-health-public-http",
+        "passed": true
+      },
+      {
+        "name": "real-jwt-global-guards-cross-user-and-admin-roles",
+        "passed": true
+      },
+      {
+        "name": "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+        "passed": true
+      },
+      {
+        "name": "sensitive-feedback-roles-mask-audit-limit-and-validation",
+        "passed": true
+      },
+      {
+        "name": "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+        "passed": true
+      },
+      {
+        "name": "signed-encrypted-http-payment-refund-rollback-notification-retry",
+        "passed": true
+      },
+      {
+        "name": "new-order-station-notice-independent-compiled-processes",
+        "passed": true
+      },
+      {
+        "name": "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+        "passed": true
+      },
+      {
+        "name": "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+        "passed": true
+      },
+      {
+        "name": "merchant-shipping-ownership-replay-rollback-and-concurrency",
+        "passed": true
+      },
+      {
+        "name": "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+        "passed": true
+      },
+      {
+        "name": "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+        "passed": true
+      },
+      {
+        "name": "circle-post-published-state-context-preview-and-notification-target-permissions",
+        "passed": true
+      },
+      {
+        "name": "competition-disclosure-finished-only-and-public-state-boundary",
+        "passed": true
+      },
+      {
+        "name": "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+        "passed": true
+      },
+      {
+        "name": "redis7-two-process-notification-idempotency",
+        "passed": true
+      },
+      {
+        "name": "database-unique-after-redis-key-loss",
+        "passed": true
+      },
+      {
+        "name": "notification-failure-release-and-two-process-retry",
+        "passed": true
+      },
+      {
+        "name": "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions",
+        "passed": true
+      },
+      {
+        "name": "free-course-full-http-postcommit-notification-failure-and-permissions",
+        "passed": true
+      },
+      {
+        "name": "live-booking-real-db-failures-retry-concurrency-and-http-target-permissions",
+        "passed": true
+      },
+      {
+        "name": "compiled-entitlement-service-and-durable-notification-idempotency",
+        "passed": true
+      },
+      {
+        "name": "compiled-member-grant-state-durable-notification-failure-retry-and-revoke",
+        "passed": true
+      },
+      {
+        "name": "compiled-member-renew-durable-retry-date-boundary-rollback-and-renewal-lock",
+        "passed": true
+      },
+      {
+        "name": "compiled-practitioner-concurrent-payment-refund-durable-notice",
+        "passed": true
+      }
+    ],
+    "imageIdentity": {
+      "id": "sha256:47cc5cf0580efc297bc8919dccfe6cd9b56def83a9c99f1570e6b4af4607bd6d",
+      "os": "linux",
+      "architecture": "amd64",
+      "sourceCommit": "feb4aeb5c3d9b60c790b73fe38d0e901984941f5",
+      "sourceSha256": "bab859754f1a2f0c22ebfd28442e74778ee0c1532e27023794e2e6e0cb9b52b1"
+    },
+    "prisma": {
+      "schemaVersion": 1,
+      "kind": "prisma-build-binding",
+      "schemaHash": "ad40b9587d9c42393668f3d5a2432ec0b73855504f83f0d74ee19f7f9f74965c",
+      "clientVersion": "6.19.3"
+    },
+    "migrationLedger": {
+      "total": 136,
+      "complete": 136,
+      "failed": 0
+    },
+    "migrationScope": "formal-empty-bootstrap-only-not-production-upgrade",
+    "postgresRuntime": {
+      "actual": "18.4 (Debian 18.4-1.pgdg13+1)",
+      "targetObserved": "18.4",
+      "patchMatched": true,
+      "productionVersionRecheckStillRequired": true
+    },
+    "snapshotColumns": [
+      "sourceCircleId",
+      "sourcePostId",
+      "sourceRecipientId",
+      "sourceVersion"
+    ],
+    "snapshotShapeCheck": true,
+    "details": {
+      "circle-auto-refund-http.json": {
+        "cases": 12,
+        "passed": true,
+        "scope": "synthetic-http-not-real-provider-or-settlement"
+      },
+      "circle-post-detail-http-permissions.json": {
+        "cases": 89,
+        "passed": true,
+        "scope": "full-app-real-http-jwt-postgres-synthetic-only"
+      },
+      "circle-recall-http-transactions.json": {
+        "cases": 22,
+        "passed": true,
+        "scope": "synthetic-ledger-http-not-production-funds-or-settlement"
+      },
+      "circle-reward-http-transactions.json": {
+        "cases": 25,
+        "passed": true,
+        "scope": "two-full-apps-real-http-jwt-postgres-redis-synthetic-only"
+      },
+      "competition-disclosure-http-boundary.json": {
+        "cases": 8,
+        "passed": true,
+        "scope": "full-app-real-public-http-postgres-synthetic-only"
+      },
+      "course-expiry-reminder-runtime.json": {
+        "cases": 15,
+        "passed": true,
+        "scope": "compiled-scheduler-real-pg-redis-independent-processes-and-full-http-target-permissions"
+      },
+      "course-free-enrollment-runtime.json": {
+        "cases": 19,
+        "passed": true,
+        "scope": "full-http-real-di-postcommit-pg-failure-and-lock-redis-permissions"
+      },
+      "finance-http-boundaries.json": {
+        "cases": 22,
+        "passed": true
+      },
+      "im-fallback-http-transactions.json": {
+        "cases": 26,
+        "passed": true,
+        "scope": "synthetic-http-real-jwt-postgresql-transactions-no-external-im"
+      },
+      "im-two-process-socket-transactions.json": {
+        "cases": 12,
+        "passed": true,
+        "scope": "isolated-two-app-processes-synthetic-socket-http-no-tencent-no-production"
+      },
+      "live-booking-notification-runtime.json": {
+        "cases": 31,
+        "passed": true,
+        "scope": "compiled-live-schedulers-real-pg-redis-two-processes-booking-http-and-target-permissions"
+      },
+      "merchant-shipping-http-transactions.json": {
+        "cases": 14,
+        "passed": true,
+        "scope": "synthetic-http-no-carrier-or-wechat-delivery"
+      },
+      "payment-refund-http-transactions.json": {
+        "cases": 30,
+        "passed": true,
+        "scope": "synthetic-course-orders-not-real-provider-or-target-database"
+      },
+      "sensitive-http-audit.json": {
+        "cases": 36,
+        "passed": true
+      }
+    },
+    "cleanup": {
+      "rebu-app-second-ad4dab3fe9": true,
+      "rebu-app-ad4dab3fe9": true,
+      "rebu-db-ad4dab3fe9": true,
+      "rebu-redis-ad4dab3fe9": true,
+      "networkAbsent": true
+    },
+    "realRedisInIsolatedImage": true,
+    "twoIndependentAppProcesses": true,
+    "production": false,
+    "productionUpgrade": false,
+    "realPaymentProvider": false,
+    "externalDelivery": false,
+    "newDeviceTest": false,
+    "refundFinalCompletionWaitsForAfterSale": true,
+    "refundFinalWriteFailureRetryRestoresOneNotification": true,
+    "orderNoticeShapeCheck": true,
+    "orderNoticeInitiallyEmpty": true,
+    "independentStationRecoveryWithoutProviderRetry": true,
+    "orderNoticeIndependentProcesses": {
+      "passed": true,
+      "notifications": 1,
+      "orderAndAmountUnchanged": true,
+      "twoIndependentProcesses": true,
+      "redisBarrierOnly": true,
+      "realChannels": false,
+      "production": false,
+      "workers": [
+        {
+          "pid": 249,
+          "inserted": 1,
+          "passed": true
+        },
+        {
+          "pid": 253,
+          "inserted": 0,
+          "passed": true
+        }
+      ]
+    },
+    "historicalBackfill": false,
+    "scope": "正式Dockerfile、真实隔离PG18.4与Redis、两个完整应用进程；不代表生产升级、真实供应商、手机或线上版本"
+  },
+  "runtimeEquivalence": {
+    "from": "feb4aeb5c3d9b60c790b73fe38d0e901984941f5",
+    "to": "624929155d054de9f58502107e6500311b8d5e0d",
+    "changedFiles": [
+      "apps/server/src/modules/notification/notification-response-boundary.spec.ts"
+    ],
+    "excludedByServerBuild": "**/*.spec.ts",
+    "runtimeSourceAndSchemaAndDependenciesUnchanged": true,
+    "scope": "Linux及固定包镜像严格绑定feb；624仅测试夹具变化，编译输入等价。不能把feb附件改写为624同源固定包"
+  }
+}

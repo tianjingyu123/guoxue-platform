@@ -93,7 +93,20 @@ export interface ShenShaItem {
   name: string
   type: 'ji' | 'xiong'
   desc: string
+  /** 所在柱：nian / yue / ri / shi（内部编码，出文一律经 PILLAR_LABEL 转中文） */
   pillar: string
+}
+
+/**
+ * 柱位编码 → 中文柱名。
+ * 引擎内部用 nian/yue/ri/shi，凡是会被人读到的地方（报告正文、提示词、交付稿）都要转，
+ * 否则「天乙贵人(yue)」这种半成品会直接摆到用户面前。
+ */
+export const PILLAR_LABEL: Record<string, string> = {
+  nian: '年柱',
+  yue: '月柱',
+  ri: '日柱',
+  shi: '时柱',
 }
 
 /** 分析提示 */
@@ -183,7 +196,16 @@ export interface BaziResult {
   input: BaziInput
   siZhu: SiZhu
   qiYun: QiYun
+  /** 日柱旬空（沿用字段，保持向后兼容） */
   kongWang: string
+  /**
+   * 四柱各自的旬空（2026-09-19 新增）。
+   *
+   * 原先只按日柱算一个值，前端四柱位置却都填这同一个——旧版 App 是各柱各算的
+   * （实测 2000-02-04 19:30：年申酉／月申酉／日午未／时寅卯），
+   * 新版四柱全显示「午未」，年月时三柱都是错的。
+   */
+  kongWangByPillar: { nian: string; yue: string; ri: string; shi: string }
   shengXiao: string
   lunarDate: string
   taiYuan: Pillar

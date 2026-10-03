@@ -1,0 +1,21 @@
+{
+  "head": "982e90e41408296f6b74b007bb78a645652ad80a",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/shop/shop-order.service.ts": "2130f75974009458838322c0363770d451f3394cbbdf2187159d457e75a98930",
+    "apps/server/src/modules/shop/shop-order-lifecycle.service.ts": "2a766333b005e7ad62e615191aa13d11f214833756bb97acd798393b2ab34a75",
+    "apps/server/src/modules/course/course-purchase.service.ts": "ba6d2b2eced6ea9487f76f0ddcc7deac2ab10f3f6bde214e08eb2a37a7c4102e",
+    "apps/server/src/modules/shop/shop-order-types.constants.ts": "392a1db2e519d3a66dca2a304a735e1e64fd0bf21a20f665309b08439f819fbc",
+    "apps/server/src/modules/shop/shop-order.service.spec.ts": "fe4aac9d92daaa4863a29f400bd89647dd91c178d805a25e7de990800601cedf",
+    "apps/server/src/modules/shop/shop-order-lifecycle.service.spec.ts": "99aacc059ff94dc5f1f143215c35c50fe12528d4019d6243ce96c53788e3cc74",
+    "apps/server/src/modules/course/course-purchase.service.spec.ts": "62cb8beb330f1f7482b5dc31d5248258e8853b4ae64771cf5174f39577783696",
+    "apps/server/src/modules/shop/shop-order-types.constants.spec.ts": "8fd67963b42eb6ffb8c3c7eedc054012fec56ae9e2c24f67b40b060bd839881c"
+  },
+  "passed": 100,
+  "failed": 0,
+  "success": true,
+  "production": false,
+  "limits": [
+    "四套原平台定价、归因、下单和生命周期单元回归；不代表真实商户或真实付款、退款和分佣验收"
+  ]
+}

@@ -51,7 +51,7 @@ describe("CommentService", () => {
       await expect(svc.create("u1", { targetType: "ARTICLE", targetId: "a1", content: "回复", parentId: "invalid" })).rejects.toThrow(BusinessException);
     });
     it("回复时目标不匹配抛出 ForbiddenException", async () => {
-      mockPrisma.comment.findUnique.mockResolvedValue({ id: "p1", targetType: "VIDEO", targetId: "v1" });
+      mockPrisma.comment.findUnique.mockResolvedValue({ id: "p1", targetType: "VIDEO", targetId: "v1", status: "PUBLISHED", deletedAt: null });
       await expect(svc.create("u1", { targetType: "ARTICLE", targetId: "a1", content: "回复", parentId: "p1" })).rejects.toThrow(BusinessException);
     });
   });
@@ -64,12 +64,19 @@ describe("CommentService", () => {
       expect(result).toHaveProperty("data");
       expect(result).toHaveProperty("total");
       expect(result.total).toBe(0);
+      expect(mockPrisma.comment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ status: "PUBLISHED", deletedAt: null }),
+      }));
+    });
+    it("拒绝通过通用接口读取直播评论", async () => {
+      await expect(svc.findByTarget({ targetType: "LIVESTREAM", targetId: "room1" })).rejects.toThrow(BusinessException);
+      expect(mockPrisma.comment.findMany).not.toHaveBeenCalled();
     });
   });
 
   describe("findReplies", () => {
     it("父评论存在时返回回复列表", async () => {
-      mockPrisma.comment.findUnique.mockResolvedValue({ id: "p1" });
+      mockPrisma.comment.findUnique.mockResolvedValue({ id: "p1", targetType: "ARTICLE", targetId: "a1", status: "PUBLISHED", deletedAt: null });
       mockPrisma.comment.findMany.mockResolvedValue([{ id: "r1", content: "回复内容" }]);
       const result = await svc.findReplies("p1");
       expect(result).toHaveLength(1);
@@ -82,7 +89,7 @@ describe("CommentService", () => {
 
   describe("like", () => {
     it("点赞评论成功", async () => {
-      mockPrisma.comment.findUnique.mockResolvedValue({ id: "c1", likeCount: 0 });
+      mockPrisma.comment.findUnique.mockResolvedValue({ id: "c1", targetType: "ARTICLE", targetId: "a1", status: "PUBLISHED", deletedAt: null, likeCount: 0 });
       mockPrisma.comment.update.mockResolvedValue({ id: "c1", likeCount: 1 });
       const result = await svc.like("c1");
       expect(result.likeCount).toBe(1);
@@ -95,13 +102,13 @@ describe("CommentService", () => {
 
   describe("delete", () => {
     it("删除自己的评论成功", async () => {
-      mockPrisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1" });
+      mockPrisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1", targetType: "ARTICLE", targetId: "a1" });
       mockPrisma.comment.delete.mockResolvedValue({});
       const result = await svc.delete("u1", "c1");
       expect(result.success).toBe(true);
     });
     it("删除他人评论抛出 ForbiddenException", async () => {
-      mockPrisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u2" });
+      mockPrisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u2", targetType: "ARTICLE", targetId: "a1" });
       await expect(svc.delete("u1", "c1")).rejects.toThrow(BusinessException);
     });
   });
@@ -124,6 +131,12 @@ describe("CommentService", () => {
       mockPrisma.comment.count.mockResolvedValue(5);
       const result = await svc.getCommentCount("ARTICLE", "a1");
       expect(result).toBe(5);
+      expect(mockPrisma.comment.count).toHaveBeenCalledWith({
+        where: { targetType: "ARTICLE", targetId: "a1", status: "PUBLISHED", deletedAt: null },
+      });
+    });
+    it("拒绝通过通用接口统计直播评论", async () => {
+      await expect(svc.getCommentCount("LIVESTREAM", "room1")).rejects.toThrow(BusinessException);
     });
   });
 

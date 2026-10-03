@@ -38,10 +38,11 @@ export class ClassicLibrarySeeder implements OnModuleInit {
   async onModuleInit() {
     this.logger.log("开始自动初始化经典文库...");
     try {
+      const namespaceCreated = await this.ensureKnowledgeCircle();
       const result = await this.seed();
       this.logger.log(`经典文库初始化完成: 新建${result.created}, 跳过${result.skipped}`);
-      // 异步同步到知识库并向量化
-      if (result.created > 0) {
+      // 首次同步曾因缺少系统圈子失败时，重启后也要补齐已播种的书。
+      if (result.created > 0 || namespaceCreated) {
         const synced = await this.syncToKnowledge();
         this.logger.log(`自动同步知识库: ${synced} 条`);
         const vectorized = await this.vectorizeUnindexed(100);
@@ -50,6 +51,35 @@ export class ClassicLibrarySeeder implements OnModuleInit {
     } catch (err: any) {
       this.logger.warn(`自动初始化经典文库失败（将在定时任务中重试）: ${err.message}`);
     }
+  }
+
+  /** circle_knowledge.circleId 有外键，古籍命名空间需要一个不公开展示的系统圈子。 */
+  private async ensureKnowledgeCircle(): Promise<boolean> {
+    const existing = await this.prisma.circle.findUnique({ where: { id: "classic" }, select: { id: true } });
+    if (existing) return false;
+    const ownerId = "classic-knowledge-system";
+    await this.prisma.user.upsert({
+      where: { id: ownerId },
+      update: {},
+      create: { id: ownerId, nickname: "古籍知识索引", status: "DISABLED" },
+    });
+    try {
+      await this.prisma.circle.create({
+        data: {
+          id: "classic",
+          name: "古籍知识索引",
+          intro: "平台内部古籍检索命名空间",
+          tags: [],
+          ownerId,
+          status: "DISABLED",
+        },
+      });
+    } catch (e: any) {
+      // 多实例同时启动时，另一实例已创建命名空间；由创建成功的一侧负责首次补同步。
+      if (e?.code === "P2002") return false;
+      throw e;
+    }
+    return true;
   }
 
   /** 执行种子数据初始化（幂等） */

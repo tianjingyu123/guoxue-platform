@@ -151,7 +151,12 @@ export const ALL_TOOLS: ToolEntry[] = [
     inputSchema: {
       type: "object",
       properties: {
-        type:     { type: "enum", label: "签种", values: ["guanyin", "guandi", "lvzu", "mazu", "huangdaxian", "yuelao"], default: "guanyin" },
+        // 🔴 2026-09-20：原先列了六个签种，但实现里只有观音一副签谱
+        // （`lingqian.calculator.ts` 写死 `const signs = GUANYIN_100`），
+        // 选关帝/吕祖/妈祖/黄大仙/月老都会拿到观音签的签诗、标题却打着别家的名号。
+        // 关帝一百签、吕祖一百签、妈祖六十签各是独立签谱，签诗不可再生也不能顶替，
+        // 故收窄为只剩观音；计算器侧同时改为遇到其余签种明确报错。收齐签谱后再放开。
+        type:     { type: "enum", label: "签种", values: ["guanyin"], default: "guanyin" },
         question: { type: "string", label: "所问事项", required: false },
         seed:     { type: "number", label: "报数", required: false },
       },
@@ -808,6 +813,11 @@ export const ALL_TOOLS: ToolEntry[] = [
       type: "object",
       properties: {
         birthYear:    { type: "number", label: "户主出生年", min: 1900, max: 2100 },
+        // 2026-09-19 新增：命卦按命理年取，而命理年以立春分界。
+        // 只收年份的话，生于立春前者会被算成下一年——东四/西四判反，整份宅书吉凶颠倒。
+        // 设为可选以兼容既有调用方；不传时后端按公历年计并在计算过程里注明。
+        birthMonth:   { type: "number", label: "出生月", min: 1, max: 12, required: false },
+        birthDay:     { type: "number", label: "出生日", min: 1, max: 31, required: false },
         gender:       { type: "enum", label: "性别", values: ["男", "女"] },
         zuoShan:      { type: "enum", label: "宅门坐向", values: ["坎","坤","震","巽","乾","兑","艮","离"] },
         liuNian:      { type: "boolean", label: "流年分析", default: false },
@@ -2253,7 +2263,7 @@ export const ALL_TOOLS: ToolEntry[] = [
     },
     requireAuth: false,
     status: "active",
-    description: "六十甲子纳音详解：30种纳音(海中金/炉中火/大林木/路旁土/剑锋金/山头火/涧下水/城头土/白蜡金/杨柳木/泉中水/屋上土/霹雳火/松柏木/流年水/砂中金/山下火/平地木/壁上土/金箔金/覆灯火/天河水/大驿土/钗钏金/桑柘木/大溪水/沙中土/天上火/石榴木/大海水)，含意象/生克/应用",
+    description: "六十甲子纳音详解：30种纳音(海中金/炉中火/大林木/路旁土/剑锋金/山头火/涧下水/城头土/白蜡金/杨柳木/井泉水/屋上土/霹雳火/松柏木/流年水/砂中金/山下火/平地木/壁上土/金箔金/覆灯火/天河水/大驿土/钗钏金/桑柘木/大溪水/沙中土/天上火/石榴木/大海水)，含意象/生克/应用",
   },
 
 {

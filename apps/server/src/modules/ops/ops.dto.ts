@@ -58,3 +58,11 @@ export class ReviewOpsTaskDto {
   @IsString() @MinLength(1) @MaxLength(500)
   reason: string;
 }
+
+export class ApproveOpsTaskDto {
+  @IsBoolean()
+  approved: boolean;
+
+  @IsString() @MinLength(2) @MaxLength(500)
+  note: string;
+}

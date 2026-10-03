@@ -23,24 +23,36 @@
           value="ANSWERED"
         />
         <el-option
-          label="已过期"
-          value="EXPIRED"
+          label="已拒答"
+          value="REJECTED"
         />
         <el-option
           label="已退款"
           value="REFUNDED"
         />
+        <el-option
+          label="已关闭"
+          value="CLOSED"
+        />
       </el-select>
-      <el-button
-        type="warning"
-        :loading="refunding"
-        @click="refundExpired"
-      >
-        超时退款（7天）
+      <el-button @click="resetFilter">
+        重置
       </el-button>
       <el-button @click="fetchList">
-        查询
+        刷新
       </el-button>
+      <el-tooltip
+        content="对所有超过 48 小时仍未回答的提问批量退款并关闭"
+        placement="top"
+      >
+        <el-button
+          type="warning"
+          :loading="refunding"
+          @click="refundExpired"
+        >
+          超时退款（48小时）
+        </el-button>
+      </el-tooltip>
     </div>
 
     <!-- 错误态 -->
@@ -165,7 +177,7 @@
             详情
           </el-button>
           <el-button
-            v-if="row.status === 'EXPIRED'"
+            v-if="row.status === 'PENDING'"
             type="danger"
             link
             size="small"
@@ -312,6 +324,12 @@ function onFilterChange() {
   fetchList();
 }
 
+function resetFilter() {
+  filterStatus.value = "";
+  page.value = 1;
+  fetchList();
+}
+
 async function fetchList() {
   loading.value = true;
   loadError.value = false;
@@ -340,37 +358,52 @@ async function showDetail(row: QaQuestionRow) {
 }
 
 async function refundExpired() {
+  // L3 影响预告：后端无预探接口（POST /question/admin/refund-expired 直接执行），先说明影响范围再执行
+  try {
+    await ElMessageBox.confirm(
+      "将对所有超过 48 小时仍未回答的「待回答」提问批量执行退款：提问费原路退回提问者钱包，提问状态置为已关闭。该操作立即生效、不可撤销，确定执行？",
+      "批量超时退款确认",
+      { type: "warning", confirmButtonText: "确认批量退款", confirmButtonClass: "el-button--danger" },
+    );
+  } catch { return; /* 用户取消 */ }
   refunding.value = true;
   try {
     const { data } = await questionApi.refundExpired();
     ElMessage.success(`已退款 ${data?.refunded || 0} 条超时问题`);
     fetchList();
   } catch {
+    ElMessage.error("批量退款执行失败，请重试");
   } finally {
     refunding.value = false;
   }
 }
 
 async function handleRefundItem(row: QaQuestionRow) {
+  // 用户取消与接口失败分离处理：确认框单独 try，API 失败给明确反馈
   try {
     await ElMessageBox.confirm(
-      `确认要退还该问题的提问费用（${row.priceCoin}币）给用户吗？此操作不可撤销。`,
+      `确认要退还该问题的提问费用（${row.priceCoin}币）给用户吗？退款后提问状态将变为「已退款」，此操作不可撤销。`,
       "退款确认",
       { type: "warning", confirmButtonText: "确认退款", confirmButtonClass: "el-button--danger" },
     );
+  } catch { return; /* 用户取消 */ }
+  try {
     const { data } = await api.post(`/question/${row.id}/refund`);
     ElMessage.success(data?.message || "退款成功");
     fetchList();
-  } catch { /* 用户取消 */ }
+  } catch {
+    ElMessage.error("退款失败，请重试");
+  }
 }
 
 function statusLabel(s: string): string {
-  const map: Record<string, string> = { PENDING: "待回答", ANSWERED: "已回答", EXPIRED: "已过期", REFUNDED: "已退款" };
+  // 后端真实状态机（question.service）：PENDING/ANSWERED/REJECTED/REFUNDED/CLOSED（超时退款落 CLOSED，从不落 EXPIRED；EXPIRED 仅为历史枚举兜底）
+  const map: Record<string, string> = { PENDING: "待回答", ANSWERED: "已回答", REJECTED: "已拒答", EXPIRED: "已过期", REFUNDED: "已退款", CLOSED: "已关闭" };
   return map[s] || s;
 }
 
 function statusColor(s: string): string {
-  const map: Record<string, string> = { PENDING: "warning", ANSWERED: "success", EXPIRED: "danger", REFUNDED: "info" };
+  const map: Record<string, string> = { PENDING: "warning", ANSWERED: "success", REJECTED: "danger", EXPIRED: "danger", REFUNDED: "info", CLOSED: "info" };
   return map[s] || "";
 }
 </script>

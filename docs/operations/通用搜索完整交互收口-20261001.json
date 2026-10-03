@@ -1,0 +1,426 @@
+{
+  "sourceCommit": "7e0ccfe8f5c4857e74154514b25a1171f218368f",
+  "generatedAt": "2026-10-01T08:01:04.420Z",
+  "previousIntegrationHead": "c8720fabb8c784648b12706a34aab591777bbb01",
+  "receivedCommits": [
+    "cc9d67ffc8085f171a2b5c4b42db685dadceae6e",
+    "a84253aae54289ad08564bb35603507713554b12",
+    "a6ab03edb20a9872c36a0d64f5e6a4e82f42ad2c",
+    "aa6ab9c9fa0eb2bebe61cd2eb5852f5f8b3a4bbf",
+    "732dfe11705f7e15d88c2af858012d20536b612d",
+    "7e0ccfe8f5c4857e74154514b25a1171f218368f"
+  ],
+  "releaseId": "launch-20261001-7e0ccfe8f",
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（完整CI、23组镜像、模拟器及合成H5；真实渠道与真机未覆盖）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "scope": [
+    "通用搜索输入与服务入口层级",
+    "结果页微信胶囊避让",
+    "44px主要触达区和键盘读屏标签",
+    "游客历史保存及清空隔离",
+    "搜索路由及来源分类保留"
+  ],
+  "miniRuntime": {
+    "groups": 6,
+    "passed": 6,
+    "sourceCommit": "7e0ccfe8f5c4857e74154514b25a1171f218368f",
+    "simulation": true,
+    "realDevice": false,
+    "inputWidthEmpty": 278,
+    "inputWidthWithClear": 228,
+    "resultScope": "真实接口空态",
+    "inputsUnchanged": true
+  },
+  "h5": {
+    "viewports": [
+      {
+        "width": 320,
+        "passed": true,
+        "inputWidth": 218.046875,
+        "guestPrivateHistoryRequests": 0,
+        "uncaughtErrors": 0
+      },
+      {
+        "width": 390,
+        "passed": true,
+        "inputWidth": 275.34375,
+        "guestPrivateHistoryRequests": 0,
+        "uncaughtErrors": 0
+      },
+      {
+        "width": 768,
+        "passed": true,
+        "inputWidth": 656,
+        "guestPrivateHistoryRequests": 0,
+        "uncaughtErrors": 0
+      }
+    ],
+    "syntheticApi": true,
+    "outboundAllowed": 0,
+    "historyCancelAndConfirmVerified": true,
+    "realDevice": false
+  },
+  "clientArtifacts": {
+    "targets": [
+      {
+        "name": "管理后台",
+        "directory": "apps/admin/dist",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_H5_URL"
+        ],
+        "files": 505,
+        "textFiles": 505,
+        "sourceMaps": 0,
+        "bytes": 6487585,
+        "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+        "success": true
+      },
+      {
+        "name": "H5",
+        "directory": "apps/mobile/dist/build/h5",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 1180,
+        "textFiles": 1163,
+        "sourceMaps": 0,
+        "bytes": 11084711,
+        "contentSha256": "db2f875249dc6272c3d5379c5c12abe8faad211bbda2baeba3915d21d44b9f32",
+        "success": true
+      },
+      {
+        "name": "微信小程序",
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 2756,
+        "textFiles": 2750,
+        "sourceMaps": 0,
+        "bytes": 11065993,
+        "contentSha256": "acb482778a4bc1574f0d50a00dc70a8cc0d26c4378b04c9c4a7688c3b123dfcc",
+        "success": true
+      },
+      {
+        "name": "App",
+        "directory": "apps/mobile/dist/build/app",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 492,
+        "textFiles": 471,
+        "sourceMaps": 0,
+        "bytes": 12836541,
+        "contentSha256": "1093894a118b8ded06c5eb74a3315bc6eaffc37033a0f2418cbbb2433e43c558",
+        "success": true
+      },
+      {
+        "name": "鸿蒙 App",
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 490,
+        "textFiles": 468,
+        "sourceMaps": 0,
+        "bytes": 12476011,
+        "contentSha256": "f087ebe2596996636fe4e2e6fbeadecb0464ae068d15e56a1f697bb47705a4ae",
+        "success": true
+      }
+    ],
+    "files": 5423,
+    "bytes": 53950841,
+    "errors": 0,
+    "success": true
+  },
+  "publicConfiguration": {
+    "api": "https://api.rebugx.cn",
+    "h5": "https://gx.yrydai.com/h5/",
+    "assets": "https://static.rebugx.cn",
+    "file": "apps/mobile/.env.production",
+    "keys": [
+      "VITE_API_URL",
+      "VITE_PUBLIC_H5_URL",
+      "VITE_PUBLIC_ASSET_ORIGIN"
+    ],
+    "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b",
+    "target": "腾讯云北京两节点；公开构建配置已显式核对，非因文件来自根工作区而默认正确"
+  },
+  "miniPreview": {
+    "mainBytes": 1964904,
+    "mainRemainingBytes": 132248,
+    "maxSubpackage": "/pkg-paipan/",
+    "maxSubpackageBytes": 1959687,
+    "maxSubpackageRemainingBytes": 137465,
+    "totalBytes": 12741340,
+    "subpackageCount": 33,
+    "previewOnly": true
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T07:56:45.805Z",
+    "archive": "gx-deploy-91-launch-20261001-7e0ccfe8f.tar.gz",
+    "sha256": "265f71684d971bfbe31ccb19fa2dbcd4bfb49297021b319df1ad81bcaff6870a",
+    "releaseId": "launch-20261001-7e0ccfe8f",
+    "commit": "7e0ccfe8f5c4857e74154514b25a1171f218368f",
+    "expectedCommit": "7e0ccfe8f5c4857e74154514b25a1171f218368f",
+    "fileCount": 4433,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "androidResource": {
+    "files": 492,
+    "bytes": 12830011,
+    "archive": "artifacts/releases/android254-hbuilder-7e0ccfe8f-resources.tar.gz",
+    "archiveBytes": 2853341,
+    "archiveSha256": "6f8a53a27e799e2706dcdf14108b31c608dbd6682395430192d20cb82e0e131e",
+    "allFileHashesExact": true,
+    "nativeChanges": [
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/config.json",
+        "exact": true,
+        "allowedDifference": null
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/libs/rebu-resource-updater.aar",
+        "exact": true,
+        "allowedDifference": null
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/src/index.kt",
+        "exact": false,
+        "allowedDifference": "仅空间绑定新增 import io.dcloud.unicloud.*"
+      }
+    ],
+    "signedApk": false,
+    "paidPackaging": false,
+    "oneClickEnabled": false
+  },
+  "draftArchive": {
+    "assets": [
+      {
+        "sha256": "265f71684d971bfbe31ccb19fa2dbcd4bfb49297021b319df1ad81bcaff6870a",
+        "officialDigestMatches": true,
+        "name": "gx-deploy-91-launch-20261001-7e0ccfe8f.tar.gz",
+        "bytes": 15709851,
+        "assetId": 602742191
+      },
+      {
+        "sha256": "6f8a53a27e799e2706dcdf14108b31c608dbd6682395430192d20cb82e0e131e",
+        "officialDigestMatches": true,
+        "name": "android254-hbuilder-7e0ccfe8f-resources.tar.gz",
+        "bytes": 2853341,
+        "assetId": 602742471
+      }
+    ],
+    "sourceCommit": "7e0ccfe8f5c4857e74154514b25a1171f218368f",
+    "releaseId": 400752944,
+    "draft": true,
+    "tag": "launch-20261001-7e0ccfe8f",
+    "published": false,
+    "checkedAt": "2026-10-01T07:57:41.7973654Z"
+  },
+  "ci": {
+    "suitesPassed": 662,
+    "testsSkipped": 133,
+    "jobsPassed": 8,
+    "logs": [
+      {
+        "sha256": "0a69799cf421afacf4e74a06458f32b3f29eefc86e606bba314497127b87e1ce",
+        "jobId": 110272120404,
+        "tests": "Tests:       44 skipped, 2839 passed, 2883 total",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "name": "单元测试 (1/3)"
+      },
+      {
+        "sha256": "7b8a38799cb242cf17426e532a80b2bb78243c5b29b10e2cfce5a1b9d4e81447",
+        "jobId": 110272120416,
+        "tests": "Tests:       50 skipped, 3022 passed, 3072 total",
+        "suites": "Test Suites: 8 skipped, 221 passed, 221 of 229 total",
+        "name": "单元测试 (2/3)"
+      },
+      {
+        "sha256": "82a239ec48fe743abb2f1fa197c8e9f11e1bf1fb52be35efe88c83c18b1f26b0",
+        "jobId": 110272120461,
+        "tests": "Tests:       39 skipped, 3038 passed, 3077 total",
+        "suites": "Test Suites: 10 skipped, 219 passed, 219 of 229 total",
+        "name": "单元测试 (3/3)"
+      }
+    ],
+    "suitesSkipped": 26,
+    "testsPassed": 8899,
+    "sourceCommit": "7e0ccfe8f5c4857e74154514b25a1171f218368f",
+    "status": "success",
+    "checkedAt": "2026-10-01T08:05:52.0281911Z",
+    "runId": 36832257435
+  },
+  "image": {
+    "realChannels": false,
+    "passed": true,
+    "checksPassed": 23,
+    "verificationSource": "d497c326289f4565dfa70e2d43cab4a4488d6b52",
+    "artifact": {
+      "officialDigestMatches": true,
+      "id": 11148413654,
+      "sha256": "07fc86b940f40b1b8f904e59bce35d97922d1a30fc239c7022b68bf485b366b5",
+      "bytes": 55433
+    },
+    "cleanupAllConfirmed": true,
+    "runtimeReportSha256": "2cafc83ca76cbb29a1fb8b0f2435bc77f728a95ad32d0ea620cff3d8fd411a5f",
+    "runId": 36833498362,
+    "sourceArchiveSha256": "265f71684d971bfbe31ccb19fa2dbcd4bfb49297021b319df1ad81bcaff6870a",
+    "businessSource": "7e0ccfe8f5c4857e74154514b25a1171f218368f",
+    "checkedAt": "2026-10-01T08:09:01.2895191Z",
+    "image": "sha256:eba6fc237e26d4df360ff6331278d3ef7c8ed8c57c1ad6ff1b6b64feeef3b1ab",
+    "production": false,
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry"
+    ]
+  },
+  "historicalLimits": [
+    "a1d6116ec的8899/133及23组镜像属于旧源码，不标为本版新运行",
+    "本轮初始cc9阶段5/6，客服消息热区33px已修复；该失败报告保留",
+    "初始H5清空立即断言产生时序误判，已等DOM更新；游客私有历史请求为实质缺陷并已修复",
+    "SDK未就绪超时/空页工具失败不计为功能通过，已只读确认当前页面和AppID后复测"
+  ],
+  "uncovered": [
+    "登录态消息搜索",
+    "古籍原图与完整成功内容链路",
+    "最终Android254/iOS/Harmony签名包与匹配设备",
+    "手机号一键登录云函数及两节点接线",
+    "真实支付退款权益返回",
+    "旧排盘分享接收完整真机旅程",
+    "语音额度、真IM和受控直播",
+    "通知尚缺触发入口及真实渠道",
+    "25条生产迁移、最终停写备份、两节点同包部署",
+    "最终运营清理、容量告警和维护窗口验收"
+  ],
+  "notPerformed": [
+    "部署",
+    "生产迁移",
+    "真实通知或资金操作",
+    "云函数上传",
+    "计费取号",
+    "付费打包",
+    "小程序上传审核或发布"
+  ],
+  "evidenceFiles": [
+    {
+      "path": "artifacts/channel-intake-20260930/general-search-runtime-final2/runtime-report.json",
+      "sha256": "cb18af087711324eaf9d34477b692ef613ccb71aa46dbad48f902ac58c9440d5"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/general-search-h5-complete/runtime-report.json",
+      "sha256": "3343fb4b8a3016e6512603a857e34711c7c3947f31756e0c3173e6613129171b"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-7e0ccfe8f/client-artifacts.json",
+      "sha256": "6098c0b5fd3fd2646c1328c4fd2a997d77410c310d9b9565d172c635650ca535"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-7e0ccfe8f/client-artifacts-verified.json",
+      "sha256": "6e19290b5f687f2dd3c522c812b53d5c4de40d6ba2078c23a485a245414b65d0"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-7e0ccfe8f/client-config.json",
+      "sha256": "18976bdf4caa493a6b6a6279b62b981658964714101ac803bd9a1e74337427e9"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-7e0ccfe8f/source-freeze.json",
+      "sha256": "8ce3dae49ec3193244abc542263f1eb7e513c1e272c2b60848988959bffe9577"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-7e0ccfe8f/fixed-package-verified.json",
+      "sha256": "1259aa317f361423613a3d1ebae66cb45223230ab0142d426b35cc1d37470a8e"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/hbuilder-7e0ccfe8f-verified.json",
+      "sha256": "f6697d663637e65c0f31a29c168168c6c574e9a220a47934d97a5bd76f075f43"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mini-preview-7e0ccfe8f.json",
+      "sha256": "57708a014f90242e070d61edd80c91c5ebb6d29f407f645ab59b0aeb3bd8a45d"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/general-search-draft-archive.json",
+      "sha256": "9e8526de173280cd7dec2e68557c4d53c326dd9e8edfec7089c3ad843021d4fe"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/general-search-ci-verified.json",
+      "sha256": "ca63385f5fb1087d6e370087aa0713206c5122f95d121d8e2cf692d96695d117"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/general-search-image-verified.json",
+      "sha256": "fb88c1199e7c094dedd3d509ffd06b03366266e960e56cb71d0b7ed030519635"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-7e0ccfe8f/client-artifacts-post-tools-verified.json",
+      "sha256": "7b5c96de5a404daa081ad997e1d157508f3431dfad704a952a00e3264e48c4b5"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/release-pr-readback.json",
+      "sha256": "dc8a330ac976e9da260c48624500202c7eaad0d1e543da8ad9eba2b7940b1f40"
+    }
+  ],
+  "rollbackOrder": [
+    "7e0ccfe8f5c4857e74154514b25a1171f218368f",
+    "732dfe11705f7e15d88c2af858012d20536b612d",
+    "aa6ab9c9fa0eb2bebe61cd2eb5852f5f8b3a4bbf",
+    "a6ab03edb20a9872c36a0d64f5e6a4e82f42ad2c",
+    "a84253aae54289ad08564bb35603507713554b12",
+    "cc9d67ffc8085f171a2b5c4b42db685dadceae6e"
+  ],
+  "rollbackScope": "只针对本批新增提交；生产无变更，无生产回滚操作",
+  "mainlineReadback": {
+    "actualMainHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "baseRef": "master",
+    "checkedAt": "2026-10-01T08:09:49.2869114Z",
+    "headSha": "7e0ccfe8f5c4857e74154514b25a1171f218368f",
+    "prNumber": 1,
+    "state": "open",
+    "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+    "defaultBranch": "master",
+    "baseSha": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "mergeableState": "clean",
+    "draft": true,
+    "mergeable": true,
+    "headRef": "codex/launch-review-20260930"
+  },
+  "finalizedAt": "2026-10-01T08:10:30.784Z"
+}

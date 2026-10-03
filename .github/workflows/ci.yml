@@ -2,40 +2,43 @@ name: CI — 国学平台
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, main, develop, "codex/launch-review-*"]
     paths-ignore:
       - "**.md"
       - "docs/**"
       - ".claude/**"
   pull_request:
-    branches: [main]
+    branches: [master, main]
     paths-ignore:
       - "**.md"
       - "docs/**"
       - ".claude/**"
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  PNPM_VERSION: "10"
-  NODE_VERSION: "20"
+  PNPM_VERSION: "10.33.3"
+  NODE_VERSION: "24.18.0"
 
 jobs:
   # ─── 类型检查 ───
   typecheck:
     name: TypeScript 类型检查
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
@@ -46,6 +49,12 @@ jobs:
         working-directory: apps/server
         run: npx prisma generate
 
+      - name: 构建 Server 工作区前置包
+        run: |
+          pnpm --filter @guoxue/shared build
+          pnpm --filter @guoxue/bazi-engine build
+          pnpm --filter @guoxue/ziwei-engine build
+
       - name: tsc --noEmit
         working-directory: apps/server
         run: npx tsc --noEmit
@@ -53,16 +62,16 @@ jobs:
   # ─── 代码风格 ───
   lint:
     name: ESLint + Prettier
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
@@ -74,13 +83,42 @@ jobs:
 
       - name: ESLint
         working-directory: apps/server
-        run: npx eslint src --ext .ts --max-warnings 20
+        run: npx eslint src --ext .ts --quiet
+
+  # ─── 迁移与上线安全门禁 ───
+  release-safety:
+    name: 迁移与上线代码门禁
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 执行迁移、切流、回滚与运行门禁
+        run: |
+          set -o pipefail
+          pnpm release:gate:code 2>&1 | tee release-gate.log || {
+            detail="$(tail -n 45 release-gate.log | tr '\n' ' ' | cut -c 1-3000)"
+            echo "::error title=上线代码门禁失败::${detail:-请检查门禁日志}"
+            exit 1
+          }
 
   # ─── 单元测试 ───
   test:
     name: 单元测试 (${{ matrix.shard }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
+    runs-on: ubuntu-24.04
+    # 分片任务并行；每个任务只保留一个可按内存阈值回收的 Jest worker。
+    timeout-minutes: 60
     needs: [typecheck]
     strategy:
       fail-fast: false
@@ -89,7 +127,7 @@ jobs:
 
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:pg16@sha256:a36250871de0833b8757561c72f2477ef1ddd1101afa4e617fb552e0de514c6b
         env:
           POSTGRES_USER: guoxue_test
           POSTGRES_PASSWORD: test123
@@ -103,7 +141,7 @@ jobs:
           --health-retries 5
 
       redis:
-        image: redis:7-alpine
+        image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
         ports:
           - 6379:6379
         options: >-
@@ -113,13 +151,13 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
@@ -129,6 +167,12 @@ jobs:
       - name: 生成 Prisma Client
         working-directory: apps/server
         run: npx prisma generate
+
+      - name: 构建测试依赖工作区包
+        run: |
+          pnpm --filter @guoxue/shared build
+          pnpm --filter @guoxue/bazi-engine build
+          pnpm --filter @guoxue/ziwei-engine build
 
       - name: 运行 Prisma 迁移
         working-directory: apps/server
@@ -138,45 +182,60 @@ jobs:
 
       - name: 运行测试 — shard ${{ matrix.shard }}
         working-directory: apps/server
-        run: npx jest --config jest.config.ts --shard=${{ matrix.shard }} --no-coverage --maxWorkers=2
+        run: |
+          set -o pipefail
+          npx jest --config jest.config.ts --shard=${{ matrix.shard }} --no-coverage --maxWorkers=1 2>&1 | tee jest-shard.log || {
+            detail="$(awk '/^FAIL / { print; for (i=0; i<18; i++) { if (getline <= 0) break; print }; exit }' jest-shard.log | tr '\n' ' ' | cut -c 1-3000)"
+            if [[ -z "$detail" ]]; then
+              detail="$(grep -E 'FATAL ERROR:|JavaScript heap out of memory|Allocation failed|Killed|SIGTERM|SIGKILL' jest-shard.log | tail -n 3 | tr '\n' ' ' | cut -c 1-500 || true)"
+            fi
+            echo "::error title=单元测试 ${{ matrix.shard }} 失败::${detail:-请检查测试日志}"
+            exit 1
+          }
         env:
           DATABASE_URL: postgresql://guoxue_test:test123@localhost:5432/guoxue_test
           REDIS_URL: redis://localhost:6379/0
           JWT_SECRET: "test-jwt-secret-32-bytes-key-!"
           ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef"
           NODE_ENV: test
+          NODE_OPTIONS: --max-old-space-size=3072
 
   # ─── 测试报告 ───
   test-report:
     name: 测试结果汇总
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
-    needs: [test]
+    needs: [typecheck, lint, test, release-safety]
     if: always()
     steps:
       - name: 汇总
         run: |
-          echo "✅ 全部测试完成"
           echo "  - typecheck: ${{ needs.typecheck.result }}"
           echo "  - lint: ${{ needs.lint.result }}"
           echo "  - test: ${{ needs.test.result }}"
+          echo "  - release-safety: ${{ needs['release-safety'].result }}"
+          if [[ "${{ needs.typecheck.result }}" != "success" || "${{ needs.lint.result }}" != "success" || "${{ needs.test.result }}" != "success" || "${{ needs['release-safety'].result }}" != "success" ]]; then
+            echo "前置检查未全部通过"
+            exit 1
+          fi
+          echo "全部检查通过"
 
   # ─── 构建 ───
   build:
     name: 构建产物
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
-    needs: [test, lint]
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    needs: [test, lint, release-safety]
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/codex/launch-review-') || github.event_name == 'pull_request'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
@@ -187,12 +246,18 @@ jobs:
         working-directory: apps/server
         run: npx prisma generate
 
+      - name: 构建 Server 工作区前置包
+        run: |
+          pnpm --filter @guoxue/shared build
+          pnpm --filter @guoxue/bazi-engine build
+          pnpm --filter @guoxue/ziwei-engine build
+
       - name: 构建后端
         working-directory: apps/server
         run: pnpm run build
 
       - name: 上传构建产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: server-build
           path: apps/server/dist/

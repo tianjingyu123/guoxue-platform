@@ -1,0 +1,232 @@
+{
+  "checkedAt": "2026-10-03T15:17:33.277581+00:00",
+  "fixedWorkPackage": "MT-06",
+  "acceptedSourceCommit": "0865fba351410b09365234b7d17c2a3690dd60db",
+  "final145InputsFrozen": false,
+  "scope": "ACCEPTED_SOURCE_ONLY_NOT_RUNNING_PRODUCTION_PROOF",
+  "productionReadOrWriteExecutedByThisReview": false,
+  "inputs": [
+    {
+      "file": "apps/server/src/app.module.ts",
+      "gitObjectBytes": 8798,
+      "gitObjectSha256": "6398d2481b0e1f4379ac9d7a79752d4fb15cf3210918017eef1d04272d941216",
+      "workingCopyLfNormalizedMatches": true
+    },
+    {
+      "file": "apps/server/src/main.ts",
+      "gitObjectBytes": 9532,
+      "gitObjectSha256": "fd4febdfc09076c3a307b4b32c543a21a28269eb8d188bbb4512aa44955fff4f",
+      "workingCopyLfNormalizedMatches": true
+    },
+    {
+      "file": "apps/server/src/common/feature-flag.guard.ts",
+      "gitObjectBytes": 2883,
+      "gitObjectSha256": "6b1852c1fee8e9224d9c9326f638e3d4cb6d478ee5cab63360cc4e9d5f23bff1",
+      "workingCopyLfNormalizedMatches": true
+    },
+    {
+      "file": "apps/server/src/common/red-lines.ts",
+      "gitObjectBytes": 5330,
+      "gitObjectSha256": "bef38c4f3460c81e637e071d62e9f916daa9ca2dcd4e7faeb599deed8fce4ae6",
+      "workingCopyLfNormalizedMatches": true
+    },
+    {
+      "file": "apps/server/src/common/automation.guard.ts",
+      "gitObjectBytes": 1349,
+      "gitObjectSha256": "3a1cade663fc09547da5e03ee391cdae5ace981898a6be4032acb2bb2f5c107d",
+      "workingCopyLfNormalizedMatches": true
+    },
+    {
+      "file": "apps/server/src/common/require-automation.guard.ts",
+      "gitObjectBytes": 1749,
+      "gitObjectSha256": "1257fb53d50bbf942477073a02c4649c58c22c7cbd2a5067f1ffc20c5870ac67",
+      "workingCopyLfNormalizedMatches": true
+    },
+    {
+      "file": "apps/server/src/modules/fund-approval/fund-approval.controller.ts",
+      "gitObjectBytes": 2645,
+      "gitObjectSha256": "538bafafdeb2e7f1d61d83e7eb758dfaa5555ed77c2c8f9a7f98e8c06511e1a8",
+      "workingCopyLfNormalizedMatches": true
+    },
+    {
+      "file": "apps/server/src/modules/fund-approval/fund-approval.executor.ts",
+      "gitObjectBytes": 8356,
+      "gitObjectSha256": "1f644b44a77c22f99297316764b7142a17c19e72b5c7afe1528e7cdd4ab19c77",
+      "workingCopyLfNormalizedMatches": true
+    },
+    {
+      "file": "apps/server/src/modules/shop/shop-refund.service.ts",
+      "gitObjectBytes": 34718,
+      "gitObjectSha256": "b144d28a0f5b5231c3e87cc9befa2f380812af640b406fcd289151a4ac692ffe",
+      "workingCopyLfNormalizedMatches": true
+    },
+    {
+      "file": "apps/server/src/modules/huifu/huifu.service.ts",
+      "gitObjectBytes": 47361,
+      "gitObjectSha256": "192590c1f64b1c5f8172fb64c3221a3574bfd40eec4b71d34a432384da7c2df4",
+      "workingCopyLfNormalizedMatches": true
+    },
+    {
+      "file": "apps/server/src/modules/system/system.service.ts",
+      "gitObjectBytes": 48235,
+      "gitObjectSha256": "bc6ddc08d2a705e726c7d4b7bc9263dba4634dc945aefd779b2902bffd637535",
+      "workingCopyLfNormalizedMatches": true
+    }
+  ],
+  "findings": [
+    {
+      "fact": "资金审批人工入口及执行器未读取维护/自动化/FeatureFlag暂停门禁",
+      "anchors": [
+        {
+          "file": "apps/server/src/modules/fund-approval/fund-approval.controller.ts",
+          "lines": [
+            42
+          ],
+          "anchor": "@Post(\"admin/:id/review\")"
+        },
+        {
+          "file": "apps/server/src/modules/fund-approval/fund-approval.executor.ts",
+          "lines": [
+            140
+          ],
+          "anchor": "case \"REFUND\""
+        },
+        {
+          "file": "apps/server/src/modules/fund-approval/fund-approval.executor.ts",
+          "lines": [
+            142
+          ],
+          "anchor": "case \"HUIFU_SPLIT\""
+        }
+      ]
+    },
+    {
+      "fact": "退款恢复Cron直接调用汇付createRefund，runExclusive只互斥，不暂停任务",
+      "anchors": [
+        {
+          "file": "apps/server/src/modules/shop/shop-refund.service.ts",
+          "lines": [
+            476
+          ],
+          "anchor": "reconcileProcessingRefundsCron"
+        },
+        {
+          "file": "apps/server/src/modules/shop/shop-refund.service.ts",
+          "lines": [
+            477
+          ],
+          "anchor": "shop_reconcile_processing_refunds"
+        },
+        {
+          "file": "apps/server/src/modules/shop/shop-refund.service.ts",
+          "lines": [
+            529
+          ],
+          "anchor": "this.huifu.createRefund"
+        }
+      ]
+    },
+    {
+      "fact": "ScheduleModule无条件注册；现有Cron总览枚举不提供全局停止保证",
+      "anchors": [
+        {
+          "file": "apps/server/src/app.module.ts",
+          "lines": [
+            111
+          ],
+          "anchor": "ScheduleModule.forRoot()"
+        },
+        {
+          "file": "apps/server/src/modules/system/system.service.ts",
+          "lines": [
+            945
+          ],
+          "anchor": "const jobs = this.scheduler.getCronJobs()"
+        }
+      ]
+    },
+    {
+      "fact": "维护及自动化配置存在，但不能证明上述审批和内部Cron停止；读取经最长1小时系统配置缓存",
+      "anchors": [
+        {
+          "file": "apps/server/src/modules/system/system.service.ts",
+          "lines": [
+            445
+          ],
+          "anchor": "async isMaintenanceMode"
+        },
+        {
+          "file": "apps/server/src/modules/system/system.service.ts",
+          "lines": [
+            457
+          ],
+          "anchor": "async isAutomationEnabled"
+        },
+        {
+          "file": "apps/server/src/modules/system/system.service.ts",
+          "lines": [
+            15
+          ],
+          "anchor": "CONFIG_CACHE_TTL = 3600"
+        }
+      ]
+    },
+    {
+      "fact": "FeatureFlag需显式标注，红线只拒绝自动化，不能代替暂停人工资金入口",
+      "anchors": [
+        {
+          "file": "apps/server/src/common/feature-flag.guard.ts",
+          "lines": [
+            24
+          ],
+          "anchor": "if (!key) return true"
+        },
+        {
+          "file": "apps/server/src/common/red-lines.ts",
+          "lines": [
+            96,
+            129
+          ],
+          "anchor": "executor === \"AUTOMATION\""
+        }
+      ]
+    },
+    {
+      "fact": "汇付isEnabled由有效配置判定；getConfig优先env，并经内存/Redis/旧表回退，不是可靠的运行时总暂停开关",
+      "anchors": [
+        {
+          "file": "apps/server/src/modules/huifu/huifu.service.ts",
+          "lines": [
+            226
+          ],
+          "anchor": "async isEnabled()"
+        },
+        {
+          "file": "apps/server/src/modules/huifu/huifu.service.ts",
+          "lines": [
+            171
+          ],
+          "anchor": "if (envMap[key]) return"
+        },
+        {
+          "file": "apps/server/src/modules/huifu/huifu.service.ts",
+          "lines": [
+            173
+          ],
+          "anchor": "300_000"
+        },
+        {
+          "file": "apps/server/src/modules/huifu/huifu.service.ts",
+          "lines": [
+            187
+          ],
+          "anchor": "record.value, 600"
+        }
+      ]
+    }
+  ],
+  "conclusion": "不能以当前维护或自动化开关证明混合旧新期间退款/分账审批及汇付恢复已暂停。仅Nginx阻HTTP不能停止进程内Cron；需要主窗口收口经实测的旧任务停写或替代切换方案。",
+  "nextOwnerEvidence": "云端唯一写入者只读核两旧镜像实际编译路径/控制能力与官方回执；不打印完整配置、密钥或资金记录，不实例化新的Nest应用，不写生产开关。",
+  "newFinancialPolicyIntroduced": false,
+  "newWorkPackageAdded": false
+}

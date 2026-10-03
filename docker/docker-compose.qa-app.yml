@@ -1,0 +1,51 @@
+# 仅供手动创建的隔离验收项目；不得用于生产部署。
+services:
+  app:
+    image: ${COMPOSE_PROJECT_NAME:?必须指定独立 QA 项目名}-test:latest
+    working_dir: /app
+    init: true
+    mem_limit: 4g
+    cpus: "2.0"
+    pids_limit: 512
+    environment:
+      NODE_ENV: test
+      NODE_OPTIONS: --max-old-space-size=3072
+      DATABASE_URL: postgresql://guoxue:guoxue123@postgres:5432/guoxue_test
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: e2e-test-only-jwt-secret-never-production
+      ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef"
+      BIGSCREEN_SECRET: e2e-test-only-bigscreen-never-production
+      PUBLIC_DOMAIN: 127.0.0.1
+      PUBLIC_API_URL: http://127.0.0.1:54173
+      PUBLIC_H5_URL: http://127.0.0.1:54173/h5
+      PUBLIC_ASSET_ORIGIN: http://127.0.0.1:54173
+      CORS_ORIGIN: http://127.0.0.1:54173
+      WS_CORS_ORIGIN: http://127.0.0.1:54173
+      EMAIL_MODE: disabled
+      STORAGE_PROVIDER: local
+      PORT: "3000"
+      HOST: 0.0.0.0
+      QA_ISOLATED_CONFIRM: guoxue-admin-qa-20260902
+    volumes:
+      - ./qa:/qa-tools:ro
+      - ../apps/server/scripts/qa-isolated-roles.cjs:/app/apps/server/scripts/qa-isolated-roles.cjs:ro
+      - ../artifacts/qa-runtime:/qa-artifacts
+    # 不发布公网端口；通过 SSH 转发到 internal 网络中的容器 IP。
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["/bin/sh", "/qa-tools/start-app.sh"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4173/admin/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10m

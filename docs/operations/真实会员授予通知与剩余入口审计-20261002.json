@@ -1,0 +1,310 @@
+{
+  "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+  "parentBusinessSource": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+  "receivedCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+  "conflicts": [],
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（注明范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "scope": "新管理员书院会员授予，不扩展为所有会员事件",
+  "databaseKey": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
+  "marker": "MEMBER_GRANTED_V1",
+  "sameTransactionFact": true,
+  "currentMemberAndPurchaseJoinRequired": true,
+  "oldGrantBackfill": false,
+  "realChannels": false,
+  "production": false,
+  "local": {
+    "sourceParent": "cf7ef433698a11bfff25d622ce0721aff552f7d1",
+    "passed": 86,
+    "failed": 0,
+    "skipped": 0,
+    "suites": 6,
+    "historicalTaskFailedAsExpected": true,
+    "lintNewWarnings": 0,
+    "realChannelsCalled": false
+  },
+  "linux": {
+    "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "verificationCommit": "83592d422f4a5302c937ae4516ee18db60e5ed0b",
+    "runId": 36955730125,
+    "passed": 86,
+    "skipped": 0,
+    "suites": 6,
+    "artifactId": 11205627723,
+    "artifactDigestVerified": true,
+    "sourceFilesVerified": [
+      {
+        "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
+        "gitBlobSha256": "e0e8933425f69dc71ead6eab089a5bdf62bc8919db1f8e6deb45e6a3716ae1b3"
+      },
+      {
+        "path": "apps/server/src/modules/entitlement/entitlement.controller.ts",
+        "gitBlobSha256": "1008f232f1bd0592c57f7db1b1a1b55528f64a6ea84e4fd913ad5111ef10d54a"
+      },
+      {
+        "path": "apps/mobile/src/pkg-mine/memberships/index.vue",
+        "gitBlobSha256": "4699b9b4587b28ba2b239498be304c214f46eb4ca7b9a89c9073f062611a2343"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.service.ts",
+        "gitBlobSha256": "b86371048153c7f6f6146e50b7ce3a23f4c8b3bc4b6f00206baf83801acd867b"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.controller.ts",
+        "gitBlobSha256": "b071e9b9b56f9c2119956815c8487ef0f411ad07d07d4a1f3ad7239295f8b2e8"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.dto.ts",
+        "gitBlobSha256": "832467dd50bf8f8b4e557aca088a9a754c57927205eda68237431b4ff869bc61"
+      },
+      {
+        "path": "apps/server/prisma/schema.prisma",
+        "gitBlobSha256": "c4d0ccc52e68c234e3e61e6e82369bbdc8e9fbb8bc54eb9d24e66ca69ba4c040"
+      }
+    ],
+    "typecheckPassed": true,
+    "memberLintErrors": 0,
+    "postgresServiceImage": "postgres:18.4",
+    "minimalJwtRolesHttp": true,
+    "fullProductionAppHttp": false,
+    "realChannels": false,
+    "production": false
+  },
+  "image": {
+    "checkedAt": "2026-10-02T02:36:44.782Z",
+    "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "runId": 36955729995,
+    "verificationCommit": "83592d422f4a5302c937ae4516ee18db60e5ed0b",
+    "sourceArchiveSha256": "c3d19d008949d40f0ce6bea96d9dcd2580912337f92851ba729562ddac7d327d",
+    "image": "sha256:2ccebb0ebbec28592c7811bfb5dd431adebba1a3950e80b82e3bd435667b6435",
+    "checksPassed": 28,
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry",
+      "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions",
+      "free-course-full-http-postcommit-notification-failure-and-permissions",
+      "live-booking-real-db-failures-retry-concurrency-and-http-target-permissions",
+      "compiled-entitlement-service-and-durable-notification-idempotency",
+      "compiled-member-grant-state-durable-notification-failure-retry-and-revoke"
+    ],
+    "compiledMemberCheck": {
+      "notificationInsertFailed": true,
+      "memberStillActive": true,
+      "lifetimeNullExpire": true,
+      "purchaseBelongsToOwner": true,
+      "markerMatches": true,
+      "inserted": 1,
+      "count": 1,
+      "keyMatches": true,
+      "targetIsOwner": true,
+      "revokedNotices": 0,
+      "replayInserted": 0
+    },
+    "compiledEntitlementCheck": {
+      "count": 1,
+      "keyMatches": true,
+      "targetIsOwner": true,
+      "type": "ENTITLEMENT",
+      "quantity": 2,
+      "grants": 1
+    },
+    "cleanupAllConfirmed": true,
+    "postgresImage": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff",
+    "redisImage": "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2",
+    "artifactId": 11206380730,
+    "artifactDigestVerified": true,
+    "runtimeReportSha256": "8584a804e0ed6551c1e6a08e051c0ce1b6708dd9d3370f51165a70e767548658",
+    "production": false,
+    "realChannels": false
+  },
+  "ci": {
+    "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "jobsPassed": 8,
+    "skipped": 151,
+    "runId": 36955419264,
+    "production": false,
+    "passed": 8941,
+    "shards": [
+      {
+        "id": 110677556556,
+        "name": "单元测试 (3/3)",
+        "summary": "2026-10-02T02:28:31.4382783Z Tests:       40 skipped, 3050 passed, 3090 total",
+        "passed": 3050,
+        "skipped": 40
+      },
+      {
+        "id": 110677556582,
+        "name": "单元测试 (1/3)",
+        "summary": "2026-10-02T02:38:36.4592529Z Tests:       61 skipped, 2855 passed, 2916 total",
+        "passed": 2855,
+        "skipped": 61
+      },
+      {
+        "id": 110677556623,
+        "name": "单元测试 (2/3)",
+        "summary": "2026-10-02T02:28:16.6118892Z Tests:       50 skipped, 3036 passed, 3086 total",
+        "passed": 3036,
+        "skipped": 50
+      }
+    ],
+    "checkedAt": "2026-10-02T02:43:02.0418929Z"
+  },
+  "fixed": {
+    "published": false,
+    "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "checkedAt": "2026-10-02T02:26:22.8638938Z",
+    "bytes": 15758944,
+    "assetId": 604625170,
+    "tag": "launch-20261002-a02449f7d",
+    "releaseId": 401496563,
+    "officialDigestMatches": true,
+    "archiveSha256": "c3d19d008949d40f0ce6bea96d9dcd2580912337f92851ba729562ddac7d327d",
+    "draft": true
+  },
+  "client": {
+    "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "inputEquivalentTo": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "artifacts": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 505,
+        "bytes": 6487585,
+        "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1181,
+        "bytes": 11147342,
+        "contentSha256": "7bfa26f8fc7fd23d0e030373c68aeb7ec88b3bd5a3767be3babd7a04579b2933",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2759,
+        "bytes": 11126976,
+        "contentSha256": "36dd25cc55d453219e09112e5682cce424b995dcaf3e4af554c722c0bdd1a8ab",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 492,
+        "bytes": 12897393,
+        "contentSha256": "61ce7485c6b86783a52274ca39f5204adb2243e5214bc86a69e7727026cdcd07",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12536906,
+        "contentSha256": "2171ef1661b4cd1b356f918c73e388d4760e394b09ea9f9e265e99f621621506",
+        "matches": true
+      }
+    ],
+    "allFiveTargetsEquivalent": true,
+    "newBuild": false,
+    "schemaAndMigrationsUnchanged": true
+  },
+  "inputSchemaAndMigrationsUnchanged": true,
+  "internalGapAudit": {
+    "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "scope": "源码调用点核对，不是线上故障确认或真实渠道验收",
+    "findings": [
+      {
+        "id": "N1",
+        "priority": "先处理通知丢失",
+        "path": "apps/server/src/modules/member/member-grant.service.ts",
+        "method": "runAutoRenewRemind",
+        "fact": "setNX先保留8天占位，notification.create失败被catch吞掉，仍增加sent；没有失败释放或数据库通知幂等键",
+        "next": "定向故障反证后修复失败释放、数据库防重和真实成功统计；到期日与提醒窗口一起验证",
+        "runtimeFailureInjectionThisBatch": false
+      },
+      {
+        "id": "N2",
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "method": "adminUpdateStatus",
+        "fact": "工单resolved CAS之后sendOnce并捕获失败；有真实结案入口，未注册已提交结案的持久通知补偿任务",
+        "next": "保留旧内部备注隔离与CAS，给新版结案写入可靠事件标记，补提交后崩溃和通知故障的恢复验证",
+        "runtimeFailureInjectionThisBatch": false
+      },
+      {
+        "id": "N3",
+        "paths": [
+          "apps/mobile/src/pkg-agent/agent/customer-service.vue",
+          "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+          "apps/server/src/modules/im/im-callback.controller.ts"
+        ],
+        "fact": "转人工实际提供工单、企业微信二维码和电话；AI服务是即时回答。一般IM回调仅推Socket消息，不能据此宣称人工客服会话统一通知已接入",
+        "next": "先补工单可靠闭环；企业微信会话回流作为独立接通项目，不把AI回复或普通私信自动改成客服通知",
+        "externalEnterpriseWechatStatus": "未知"
+      },
+      {
+        "id": "N4",
+        "paths": [
+          "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+          "apps/server/src/modules/circle/services/circle-membership.service.ts",
+          "apps/server/src/modules/circle/services/circle-post.service.ts"
+        ],
+        "fact": "治理有notify->send真实调用，圈子到期删除后send且到期提醒无数据库事件幂等；圈帖sendOnce防重但提交后崩溃尚无持久事件恢复",
+        "next": "按治理、到期和打赏三个独立单元补事实源与持久恢复，保留资金主事务和各自撤回点",
+        "runtimeFailureInjectionThisBatch": false
+      },
+      {
+        "id": "N5",
+        "priority": "权益原子性单独核验",
+        "paths": [
+          "apps/server/src/modules/member/member-benefit.service.ts",
+          "apps/server/src/modules/member/member-grant.service.ts"
+        ],
+        "fact": "定时发放调用grantMonthlyBenefits时未传tx；服务内先更新积分后创建积分流水，并依次发券，没有自建事务",
+        "next": "专门合成库注入积分流水和券写入失败，验证是否有部分发放或重试重复，再决定最小修复；不得只凭静态审查标为真实库缺陷已验证",
+        "runtimeFailureInjectionThisBatch": false
+      },
+      {
+        "id": "N6",
+        "path": "apps/server/src/modules/im/im-callback.controller.ts",
+        "fact": "回调日志保留消息正文前50字；普通IM与人工客服归属不能混淆",
+        "next": "与最终敏感日志门槛一并做定向清理及日志反证，不影响消息正文正常传递",
+        "runtimeFailureInjectionThisBatch": false
+      }
+    ],
+    "productionMutated": false,
+    "realNotificationsSent": false
+  },
+  "rollbackOrder": [
+    "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "ad85d913ecdf2facf92bd8c33357a04afefbe814",
+    "9b8370734f71ec2b8a388fbab7732998ee2ec327"
+  ],
+  "notes": [
+    "正式镜像附件名仍有旧51b前缀；真实身份按附件ID、摘要、sourceCommit及sourceSha256验证，不能按文件名推断版本",
+    "正式运行环境补丁匹配、真机、真实Cron和真实渠道尚未覆盖"
+  ]
+}

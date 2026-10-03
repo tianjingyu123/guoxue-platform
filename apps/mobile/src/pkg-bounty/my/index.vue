@@ -148,7 +148,7 @@ import {
   BOUNTY_CATEGORY_LABEL,
   type BountyQuestion,
   type BountyStatus,
-} from '@/lib/bounty-data'
+} from '@/pkg-bounty/lib/bounty-data'
 
 const tabs = [
   { key: 'posted' as const, label: '我发布的' },

@@ -25,18 +25,18 @@
     </view>
 
     <!-- 顶部信息栏 -->
-    <view class="top-bar">
+    <view class="top-bar" :style="topBarSafeStyle">
       <view class="top-row">
         <!-- 主播信息 -->
         <view class="host-pill">
           <view class="host-avatar-wrap">
-            <image lazy-load class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+            <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="host-avatar" />
             <view class="live-tag">LIVE</view>
           </view>
           <view class="host-text">
             <view class="host-name-row">
               <text class="host-name">{{ room.hostName }}</text>
-              <view class="host-level">
+              <view v-if="room.hostLevel > 0" class="host-level">
                 <AppIcon name="crown" :size="20" color="#fff" />
                 <text class="host-level-txt">Lv.{{ room.hostLevel }}</text>
               </view>
@@ -63,7 +63,7 @@
       <!-- 在线观众头像 -->
       <view class="online-row">
         <view v-for="(avatar, i) in room.onlineAvatars" :key="i" class="online-avatar" :class="{ 'online-avatar-first': i === 0 }">
-          <image lazy-load class="online-img" :src="avatar" mode="aspectFill" />
+          <smart-avatar :src="avatar" :name="''" class="online-img" />
         </view>
         <text class="online-more">+{{ formatCount(viewerCount - 3) }}</text>
       </view>
@@ -83,7 +83,7 @@
     </view>
 
     <!-- 飘心动画区域（右侧底部上方） -->
-    <view class="hearts-layer">
+    <view class="hearts-layer" :style="floatingLayerSafeStyle">
       <view
         v-for="heart in floatingHearts"
         :key="heart.id"
@@ -95,7 +95,7 @@
     </view>
 
     <!-- 弹幕区域 -->
-    <view class="danmaku">
+    <view class="danmaku" :style="floatingLayerSafeStyle">
       <view v-for="c in comments" :key="c.id" class="dm-item">
         <!-- 系统 -->
         <view v-if="c.type === 'system'" class="dm-system">
@@ -120,7 +120,7 @@
     </view>
 
     <!-- 商品浮窗 -->
-    <view v-if="currentProduct" class="product-float" @tap="onOpenProductDetail(currentProduct)">
+    <view v-if="currentProduct" class="product-float" :style="productFloatSafeStyle" @tap="onOpenProductDetail(currentProduct)">
       <view class="pf-card">
         <view class="pf-img-wrap">
           <image lazy-load class="pf-img" :src="currentProduct.cover" mode="aspectFill" />
@@ -129,8 +129,8 @@
         <view class="pf-info">
           <text class="pf-name">{{ currentProduct.name }}</text>
           <view class="pf-price-row">
-            <text class="pf-price">¥{{ currentProduct.price }}</text>
-            <text class="pf-origin">¥{{ currentProduct.originalPrice }}</text>
+            <text class="pf-price">¥{{ formatPrice(currentProduct.price) }}</text>
+            <text class="pf-origin">¥{{ formatPrice(currentProduct.originalPrice) }}</text>
           </view>
         </view>
         <view class="pf-buy">立即购买</view>
@@ -138,7 +138,7 @@
     </view>
 
     <!-- 底部操作栏 -->
-    <view class="bottom-bar">
+    <view class="bottom-bar" :style="bottomBarSafeStyle">
       <view class="bottom-inner">
         <view class="dm-input" @tap="onOpenCommentInput">说点什么...</view>
         <view class="action-btn action-cart" @tap="onOpenProductList">
@@ -159,7 +159,7 @@
 
     <!-- ========== 弹幕输入框弹窗 ========== -->
     <view v-if="showCommentInput" class="ci-mask" @tap="onCloseCommentInput">
-      <view class="ci-bar" @tap.stop>
+      <view class="ci-bar" :style="panelSafeStyle" @tap.stop>
         <input
           v-model="commentInput"
           class="ci-field"
@@ -177,7 +177,7 @@
 
     <!-- ========== 礼物面板 ========== -->
     <view v-if="showGiftPanel" class="gp-mask" @tap="onCloseGiftPanel">
-      <view class="gp-sheet" @tap.stop>
+      <view class="gp-sheet" :style="panelSafeStyle" @tap.stop>
         <view class="gp-head">
           <text class="gp-title">送礼物</text>
           <view @tap="onCloseGiftPanel">
@@ -200,7 +200,7 @@
 
     <!-- ========== 商品列表弹窗 ========== -->
     <view v-if="showProductList" class="pl-mask" @tap="onCloseProductList">
-      <view class="pl-sheet" @tap.stop>
+      <view class="pl-sheet" :style="{ paddingBottom: safeBottom + 'px' }" @tap.stop>
         <view class="pl-head">
           <text class="pl-title">直播间好物</text>
           <view @tap="onCloseProductList">
@@ -217,8 +217,8 @@
             <view class="pl-info">
               <text class="pl-name">{{ product.name }}</text>
               <view class="pl-price-row">
-                <text class="pl-price">¥{{ product.price }}</text>
-                <text class="pl-origin">¥{{ product.originalPrice }}</text>
+                <text class="pl-price">¥{{ formatPrice(product.price) }}</text>
+                <text class="pl-origin">¥{{ formatPrice(product.originalPrice) }}</text>
               </view>
               <text class="pl-sold">已售 {{ product.sold }}</text>
             </view>
@@ -235,18 +235,47 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { withRef } from '@/utils/referral'
+import { buildH5Url, shareLink } from '@/utils/share'
 import { useTim, type TimMessage } from '@/composables/useTim'
+import { formatPrice } from '@/utils/format'
 import {
   liveApi,
   type VerticalLiveProduct,
   type LiveGift,
 } from '@/lib/live-data'
+import { likeLiveRoom, sendLiveGift } from '@/pkg-live/live-interaction-api'
+import { subscribeLiveRealtime, type LiveRealtimeSubscription } from '@/pkg-live/live-realtime'
 
 const loading = ref(true)
 const error = ref('')
+const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
+const topBarSafeStyle = computed(() => ({
+  paddingTop: `${safeTop.value + uni.upx2px(32)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(32)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(32)}px`,
+}))
+const bottomBarSafeStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value}px`,
+  paddingLeft: `${safeLeft.value}px`,
+  paddingRight: `${safeRight.value}px`,
+}))
+const panelSafeStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value + uni.upx2px(64)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(32)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(32)}px`,
+}))
+const floatingLayerSafeStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(352)}px`,
+}))
+const productFloatSafeStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(240)}px`,
+}))
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({})
 // 评论列表，元素结构由后端/TIM 返回，保留 any[]
@@ -260,10 +289,19 @@ const coinBalance = ref(0)
 const tim = useTim()
 let danmakuGroupId = ''
 let offTimMessage: (() => void) | null = null
+let realtimeSubscription: LiveRealtimeSubscription | null = null
+
+async function leaveDanmaku() {
+  if (offTimMessage) { offTimMessage(); offTimMessage = null }
+  const groupId = danmakuGroupId
+  danmakuGroupId = ''
+  if (groupId) await tim.quitGroup(groupId).catch(() => undefined)
+}
 
 /** 加入弹幕群 + 订阅群消息上屏（仅直播中且有 imGroupId 时） */
 async function joinDanmaku(groupId: string) {
-  if (!groupId) return
+  if (!groupId || groupId === danmakuGroupId) return
+  await leaveDanmaku()
   danmakuGroupId = groupId
   try {
     await tim.joinGroup(groupId)
@@ -276,6 +314,41 @@ async function joinDanmaku(groupId: string) {
       if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
     })
   } catch { /* TIM 未就绪 → 弹幕降级留空，不阻断观看 */ }
+}
+
+function startRealtime(roomId: string) {
+  realtimeSubscription?.stop()
+  realtimeSubscription = subscribeLiveRealtime(roomId, {
+    onAvailability: (available) => {
+      if (available) void leaveDanmaku()
+      else if (room.value.imGroupId) void joinDanmaku(room.value.imGroupId)
+    },
+    onComment: (event) => {
+      if (comments.value.some((item) => String(item.id) === String(event.id))) return
+      const optimisticIndex = comments.value.findIndex((item) => String(item.id).startsWith('local-') && item.content === event.content)
+      if (optimisticIndex >= 0) comments.value.splice(optimisticIndex, 1)
+      comments.value.push({ id: event.id, userName: event.userName || '观众', content: event.content, type: 'text' })
+      if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
+    },
+    onGift: (event) => {
+      if (comments.value.some((item) => String(item.id) === `gift-${event.recordId}`)) return
+      const gift = gifts.value.find((item) => item.id === event.giftId)
+      if (gift) {
+        const id = Date.now() + Math.random()
+        giftAnimations.value.push({ id, gift, user: event.userName || '观众' })
+        setTimeout(() => { giftAnimations.value = giftAnimations.value.filter((item) => item.id !== id) }, 3000)
+      }
+      comments.value.push({
+        id: `gift-${event.recordId}`,
+        userName: event.userName || '观众',
+        content: `送出 ${event.giftName} x${event.quantity}`,
+        type: 'gift',
+        giftInfo: { name: event.giftName, icon: event.giftIcon || gift?.icon || '', count: event.quantity },
+      })
+      if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
+    },
+    onLike: (event) => { if (Number.isFinite(event.likeCount)) likeCount.value = Math.max(0, event.likeCount) },
+  })
 }
 
 // 低延时播放地址（C1）；仅直播中后端返回，未开播抛错→保持头像背景
@@ -299,8 +372,11 @@ async function fetchData(roomId: string) {
     coinBalance.value = giftsData.balance
     viewerCount.value = roomData.room.viewerCount || 0
     likeCount.value = roomData.room.likeCount || 0
-    // 直播中且有弹幕群 → 加入 TIM 群实时弹幕
-    if (room.value.imGroupId) joinDanmaku(room.value.imGroupId)
+    startRealtime(roomId)
+    // 关注态初始化（未登录/失败降级为未关注，不阻断）
+    if (room.value.hostId) {
+      liveApi.isFollowingHost(room.value.hostId).then((v) => { isFollowing.value = v }).catch(() => {})
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -313,9 +389,14 @@ const isFollowing = ref(false)
 const viewerCount = ref(0)
 const likeCount = ref(0)
 
-const currentRoomId = ref('1')
+const currentRoomId = ref('')
 onLoad((opts) => {
-  currentRoomId.value = opts?.id || '1'
+  currentRoomId.value = String(opts?.id || '')
+  if (!currentRoomId.value) {
+    loading.value = false
+    error.value = '缺少直播间信息，请返回后重新进入'
+    return
+  }
   fetchData(currentRoomId.value)
   fetchPlayUrl(currentRoomId.value)
 })
@@ -327,8 +408,8 @@ function retry() {
 
 onUnmounted(() => {
   // 退订 TIM 群消息 + 退出弹幕群
-  if (offTimMessage) offTimMessage()
-  if (danmakuGroupId) tim.quitGroup(danmakuGroupId)
+  realtimeSubscription?.stop()
+  void leaveDanmaku()
 })
 
 const floatingHearts = ref<{ id: number; x: number; scale: number }[]>([])
@@ -346,36 +427,78 @@ function formatCount(count: number) {
 }
 
 // ===== 交互 =====
-// @data-needs: 关注/取关主播接口（后端未提供，UI 本地态占位）
-function onToggleFollow() { isFollowing.value = !isFollowing.value }
-// @data-needs: 分享直播间（uni.share 待接入）
-function onShare() {}
-// 双击点赞 + 飘心动画（点赞计数 fire-and-forget 上报，失败不影响动画）
-function onDoubleTap() {
+// 关注/取关主播 — 复用平台用户关注端点 POST/DELETE /users/:id/follow（与短视频批同一套）
+const followSubmitting = ref(false)
+async function onToggleFollow() {
+  const hostId = room.value.hostId
+  if (!hostId) {
+    uni.showToast({ title: '暂无法关注该主播', icon: 'none' })
+    return
+  }
+  if (followSubmitting.value) return
+  followSubmitting.value = true
+  const prev = isFollowing.value
+  isFollowing.value = !prev // 乐观切换，失败回滚
+  try {
+    if (prev) await liveApi.unfollowHost(hostId)
+    else await liveApi.followHost(hostId)
+  } catch (e) {
+    isFollowing.value = prev
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    followSubmitting.value = false
+  }
+}
+function buildShareUrl(): string {
+  return withRef(buildH5Url('pkg-live/vertical/index', { id: currentRoomId.value }))
+}
+async function onShare() {
+  await shareLink({
+    title: room.value?.title || '国学直播',
+    text: room.value?.hostName ? `来自主播 ${room.value.hostName}` : '进入直播间一起交流学习',
+    url: buildShareUrl(),
+    imageUrl: room.value?.hostAvatar,
+  })
+}
+// 双击点赞保留即时动画；服务端失败时回滚计数并明确提示。
+async function onDoubleTap() {
   likeCount.value++
   const id = Date.now() + Math.random()
   floatingHearts.value.push({ id, x: Math.random() * 60 - 30, scale: 0.8 + Math.random() * 0.4 })
   setTimeout(() => {
     floatingHearts.value = floatingHearts.value.filter((h) => h.id !== id)
   }, 1500)
-  if (room.value.id) liveApi.likeRoom(room.value.id).catch(() => {})
+  if (!room.value.id) return
+  try {
+    await likeLiveRoom(room.value.id)
+  } catch (e) {
+    likeCount.value = Math.max(0, likeCount.value - 1)
+    uni.showToast({ title: (e as Error)?.message || '点赞失败，请重试', icon: 'none' })
+  }
 }
 function onOpenCommentInput() { showCommentInput.value = true }
 function onCloseCommentInput() { showCommentInput.value = false }
-// 发弹幕：走 TIM 群实时下发 + 后端持久化（并行），乐观上屏，防重
+// 发弹幕：服务端审核与持久化成功后统一中继到 TIM，客户端只做乐观上屏。
 let sendingComment = false
 async function onSendComment() {
   const text = commentInput.value.trim()
-  if (!text || sendingComment) { showCommentInput.value = false; return }
+  if (!text || sendingComment) return
   sendingComment = true
-  comments.value.push({ id: 'local-' + Date.now(), userName: '我', content: text, type: 'text' })
+  const localId = 'local-' + Date.now()
+  comments.value.push({ id: localId, userName: '我', content: text, type: 'text' })
   commentInput.value = ''
   showCommentInput.value = false
   try {
-    if (danmakuGroupId) await tim.sendGroupText(danmakuGroupId, text)
-    liveApi.sendComment(room.value.id, text).catch(() => {})
-  } catch { /* TIM 发送失败 → 已本地上屏，静默降级 */ }
-  finally { sendingComment = false }
+    await liveApi.sendComment(room.value.id, text)
+  } catch (e) {
+    const index = comments.value.findIndex((item) => item.id === localId)
+    if (index >= 0) comments.value.splice(index, 1)
+    commentInput.value = text
+    showCommentInput.value = true
+    uni.showToast({ title: (e as Error)?.message || '消息发送失败，请重试', icon: 'none' })
+  } finally {
+    sendingComment = false
+  }
 }
 function onOpenGiftPanel() { showGiftPanel.value = true }
 function onCloseGiftPanel() { showGiftPanel.value = false }
@@ -397,31 +520,33 @@ async function onSendGift(gift: LiveGift) {
   sendingGift = true
   showGiftPanel.value = false
   try {
-    await liveApi.sendGift(room.value.id, gift.id, count)
+    const sent = await sendLiveGift(room.value.id, gift.id, count)
     // 成功后飘屏 + 弹幕 + 扣余额
     const id = Date.now() + Math.random()
     giftAnimations.value.push({ id, gift, user: '我' })
     setTimeout(() => {
       giftAnimations.value = giftAnimations.value.filter((g) => g.id !== id)
     }, 3000)
-    comments.value.push({
-      id: Date.now().toString(),
-      userName: '我',
-      content: '',
-      type: 'gift',
-      giftInfo: { name: gift.name, icon: gift.icon, count },
-    })
+    const committedId = `gift-${sent.recordId}`
+    if (!comments.value.some((item) => String(item.id) === committedId)) {
+      comments.value.push({
+        id: committedId,
+        userName: '我',
+        content: `送出 ${gift.name} x${count}`,
+        type: 'gift',
+        giftInfo: { name: gift.name, icon: gift.icon, count },
+      })
+    }
     coinBalance.value = Math.max(0, coinBalance.value - gift.price * count)
-    // 通过 TIM 群广播，让其他观众看到
-    if (danmakuGroupId) tim.sendGroupText(danmakuGroupId, `送出 ${gift.name} x${count}`).catch(() => {})
+    // 礼物广播由服务端在真实扣款成功后统一中继，客户端不能伪造礼物事件。
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '送礼失败', icon: 'none' })
   } finally {
     sendingGift = false
   }
 }
-// @data-needs: 跳转充值页/充值弹窗
-function onRecharge() {}
+// @data-needs: 统一钱包真实充值入口
+function onRecharge() { navigateTo('/wallet/recharge') }
 function onOpenProductList() { showProductList.value = true }
 function onCloseProductList() { showProductList.value = false }
 /**
@@ -477,7 +602,7 @@ function onOpenProductDetail(product: VerticalLiveProduct) {
   left: 0;
   right: 0;
   z-index: 20;
-  padding: 96rpx 32rpx 0;
+  padding-bottom: 0;
 }
 .top-row {
   display: flex;
@@ -828,7 +953,7 @@ function onOpenProductDetail(product: VerticalLiveProduct) {
   left: 0;
   right: 0;
   z-index: 20;
-  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: content-box;
 }
 .bottom-inner {
   padding: 16rpx 32rpx 32rpx;
@@ -891,7 +1016,7 @@ function onOpenProductDetail(product: VerticalLiveProduct) {
   left: 0;
   right: 0;
   background: #1a1a1a;
-  padding: 32rpx 32rpx 64rpx;
+  padding-top: 32rpx;
   display: flex;
   align-items: center;
   gap: 24rpx;
@@ -933,7 +1058,7 @@ function onOpenProductDetail(product: VerticalLiveProduct) {
 .gp-sheet {
   background: #1a1a1a;
   border-radius: 48rpx 48rpx 0 0;
-  padding: 32rpx 32rpx 64rpx;
+  padding-top: 32rpx;
 }
 .gp-head {
   display: flex;

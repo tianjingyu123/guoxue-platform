@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools"
+  package="com.rebu.apprebu">
+  <uses-permission
+    android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+    tools:node="remove" />
+  <application
+    android:networkSecurityConfig="@xml/network_security_config"
+    android:usesCleartextTraffic="false"
+    tools:replace="android:networkSecurityConfig,android:usesCleartextTraffic">
+    <!-- App Link 直接进入承载 JS 的 singleTask 主 Activity。若挂在一次性透明
+         PandoraEntry，前台再次唤起时链接会随透明页退出而丢失。 -->
+    <activity-alias
+      android:name="com.rebu.apprebu.AppLinkEntry"
+      android:exported="true"
+      android:targetActivity="io.dcloud.PandoraEntryActivity">
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data
+          android:scheme="https"
+          android:host="api.rebugx.cn"
+          android:pathPrefix="/h5/" />
+      </intent-filter>
+      <!-- 分享使用独立 H5 正式域名，独立过滤器避免与 API 回跳规则组合。 -->
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data
+          android:scheme="https"
+          android:host="gx.yrydai.com"
+          android:pathPrefix="/h5/" />
+      </intent-filter>
+    </activity-alias>
+  </application>
+</manifest>

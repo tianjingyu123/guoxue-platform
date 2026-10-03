@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum } from "class-validator";
+import { IsString, IsOptional, IsEnum, IsIn, IsInt, Min } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { MemberLevel } from "@prisma/client";
 
@@ -51,10 +51,12 @@ export class GrantMemberDto {
   userId: string;
 
   @ApiProperty({ description: "会员等级" })
-  @IsEnum(MemberLevel)
+  @IsIn([MemberLevel.MONTHLY, MemberLevel.QUARTERLY, MemberLevel.YEARLY, MemberLevel.LIFETIME])
   level: MemberLevel;
 
   @ApiPropertyOptional({ description: "有效天数（MONTHLY=30, YEARLY=365, LIFETIME=永久）" })
   @IsOptional()
+  @IsInt()
+  @Min(1)
   durationDays?: number;
 }

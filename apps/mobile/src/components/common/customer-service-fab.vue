@@ -1,16 +1,16 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * 全局智能客服悬浮按钮（FAB）。
- * 病灶：客服只能从首页 Header 进，深层页面用户求助无门。
- * 注意：uni-app App.vue 无视图层，本组件需在各主要页面引入（建议封装进页面基础布局或逐页放）。
+ * 鍏ㄥ眬鏅鸿兘瀹㈡湇鎮诞鎸夐挳锛團AB锛夈€?
+ * 鐥呯伓锛氬鏈嶅彧鑳戒粠棣栭〉 Header 杩涳紝娣卞眰椤甸潰鐢ㄦ埛姹傚姪鏃犻棬銆?
+ * 娉ㄦ剰锛歶ni-app App.vue 鏃犺鍥惧眰锛屾湰缁勪欢闇€鍦ㄥ悇涓昏椤甸潰寮曞叆锛堝缓璁皝瑁呰繘椤甸潰鍩虹甯冨眬鎴栭€愰〉鏀撅級銆?
  *
- * 用法：<customer-service-fab />   放在页面根 view 内即可。
+ * 鐢ㄦ硶锛?customer-service-fab />   鏀惧湪椤甸潰鏍?view 鍐呭嵆鍙€?
  */
 import { navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 
 withDefaults(defineProps<{
-  /** 距底部距离（rpx），避开 tabBar/操作栏 */
+  /** 璺濆簳閮ㄨ窛绂伙紙rpx锛夛紝閬垮紑 tabBar/鎿嶄綔鏍?*/
   bottom?: number
 }>(), {
   bottom: 180,
@@ -20,8 +20,8 @@ function onTap() {
   navigateTo('/customer-service')
 }
 
-// 应产品要求全局隐藏悬浮客服入口（真机上悬浮遮挡内容·碍事）。
-// 保留组件与各页 <customer-service-fab /> 引用，便于后续改为非悬浮入口或一键恢复。
+// 搴斾骇鍝佽姹傚叏灞€闅愯棌鎮诞瀹㈡湇鍏ュ彛锛堢湡鏈轰笂鎮诞閬尅鍐呭路纰嶄簨锛夈€?
+// 淇濈暀缁勪欢涓庡悇椤?<customer-service-fab /> 寮曠敤锛屼究浜庡悗缁敼涓洪潪鎮诞鍏ュ彛鎴栦竴閿仮澶嶃€?
 const visible = false
 </script>
 
@@ -45,7 +45,7 @@ const visible = false
   height: 92rpx;
   border-radius: 50%;
   @include flex-center;
-  background: linear-gradient(135deg, var(--brand), var(--brand-soft));
+  background: linear-gradient(135deg, var(--brand), var(--gugong-red-soft, #d94452));
   box-shadow: 0 8rpx 24rpx rgba(196, 30, 58, 0.35);
 }
 </style>

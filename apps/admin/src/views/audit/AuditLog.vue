@@ -76,7 +76,7 @@
         width="170"
       >
         <template #default="{ row }">
-          {{ row.createdAt?.slice(0, 16).replace("T", " ") }}
+          <span :title="formatFull(row.createdAt)">{{ formatDate(row.createdAt) }}</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -110,11 +110,32 @@
         show-overflow-tooltip
       />
       <el-table-column
-        prop="userId"
         label="操作人"
-        width="200"
-        show-overflow-tooltip
-      />
+        width="160"
+      >
+        <template #default="{ row }">
+          <template v-if="row.userId">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              :title="'查看用户详情：' + row.userId"
+              @click="goUser(row.userId)"
+            >
+              {{ row.userId.slice(0, 8) }}…
+            </el-button>
+            <el-button
+              link
+              size="small"
+              title="复制完整ID"
+              @click="copyId(row.userId)"
+            >
+              复制
+            </el-button>
+          </template>
+          <span v-else>系统/-</span>
+        </template>
+      </el-table-column>
       <el-table-column
         prop="ip"
         label="IP"
@@ -139,9 +160,30 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
 import { api, auditApi } from "@/api";
+
+const router = useRouter();
+
+// 时间本地化：后端返回 UTC，前端用 Date 转本地时区展示（列表 MM-DD HH:mm，悬浮完整）
+function formatDate(d?: string) {
+  if (!d) return "-";
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return d;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(dt.getMonth() + 1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}`;
+}
+function formatFull(d?: string) {
+  if (!d) return "-";
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? d : dt.toLocaleString();
+}
+function goUser(id: string) { router.push({ name: "UserDetail", params: { id } }); }
+async function copyId(id: string) {
+  try { await navigator.clipboard.writeText(id); ElMessage.success("已复制"); } catch { /* 忽略 */ }
+}
 
 // 审计日志行（依据表格列实际访问字段声明）
 interface AuditEntry {

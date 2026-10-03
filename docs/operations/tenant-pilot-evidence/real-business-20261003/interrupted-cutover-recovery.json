@@ -1,0 +1,15 @@
+{
+  "production": false,
+  "observedRevision": 183,
+  "recoveredRevision": 184,
+  "source": "mt_customer_a",
+  "preservedFrozenTargets": [
+    "mt_cutover_1791000402093",
+    "mt_rollback_1791000501299"
+  ],
+  "blindRetry": false,
+  "deleted": false,
+  "limits": [
+    "仅本任务合成演练绑定恢复；中断后的全部备份与新增数据保留在冻结恢复库"
+  ]
+}

@@ -44,16 +44,16 @@ describe("PermissionController", () => {
     expect(result.permissions).toHaveLength(0);
   });
 
-  it("更新角色权限", async () => {
+  it("更新角色权限——透传操作人 id 供审计", async () => {
     mockService.setRolePermissions.mockResolvedValue({ permissions: ["content:read", "content:write"] });
-    const result: any = await ctrl.setRolePermissions("EDITOR", { permissions: ["content:read", "content:write"] });
+    const result: any = await ctrl.setRolePermissions("EDITOR", { permissions: ["content:read", "content:write"] }, { user: { id: "admin1" } } as any);
     expect(result.permissions).toEqual(["content:read", "content:write"]);
-    expect(mockService.setRolePermissions).toHaveBeenCalledWith("EDITOR", ["content:read", "content:write"]);
+    expect(mockService.setRolePermissions).toHaveBeenCalledWith("EDITOR", ["content:read", "content:write"], "admin1");
   });
 
   it("更新角色权限——空数组", async () => {
     mockService.setRolePermissions.mockResolvedValue({ permissions: [] });
-    const result: any = await ctrl.setRolePermissions("EDITOR", { permissions: [] });
+    const result: any = await ctrl.setRolePermissions("EDITOR", { permissions: [] }, { user: { id: "admin1" } } as any);
     expect(result.permissions).toHaveLength(0);
   });
 });

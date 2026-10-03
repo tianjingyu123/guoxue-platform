@@ -1,0 +1,113 @@
+{
+  "startedAt": "2026-10-03T14:11:14.193Z",
+  "requests": [
+    {
+      "sequence": 1,
+      "kind": "API_LIVENESS",
+      "baseUrl": "https://api.rebugx.cn/api/v1/health/live",
+      "uuid": "e23c1bcd-ce87-4f0a-bc53-c503cd4cf7e7",
+      "startedAt": "2026-10-03T14:11:14.194Z",
+      "requestUrl": "https://api.rebugx.cn/api/v1/health/live?launch_route_probe=e23c1bcd-ce87-4f0a-bc53-c503cd4cf7e7&seq=1",
+      "httpStatus": 200,
+      "tlsAuthorized": true,
+      "peerAddress": "43.180.212.44",
+      "bodyBytes": 123,
+      "bodySha256": "0b13ec186b8e0fd37d411589e1e5e5a483f7cb14ec3114acaeb0d4ef5a9af6d9",
+      "live": {
+        "status": "alive",
+        "releaseId": "preprod-cd055084-20260903-r1"
+      },
+      "endedAt": "2026-10-03T14:11:14.299Z"
+    },
+    {
+      "sequence": 2,
+      "kind": "H5_STATIC",
+      "baseUrl": "https://gx.yrydai.com/h5/",
+      "uuid": "9d0f47b6-991e-4cc5-9a9a-9ce9efc4ac28",
+      "startedAt": "2026-10-03T14:11:14.300Z",
+      "requestUrl": "https://gx.yrydai.com/h5/?launch_route_probe=9d0f47b6-991e-4cc5-9a9a-9ce9efc4ac28&seq=2",
+      "httpStatus": 200,
+      "tlsAuthorized": true,
+      "peerAddress": "43.180.212.44",
+      "bodyBytes": 1174,
+      "bodySha256": "b765d4b75e3b46dc5d89be91d29b0a094737d2c2371d44f8208da4b0a2a23dda",
+      "live": null,
+      "endedAt": "2026-10-03T14:11:14.409Z"
+    },
+    {
+      "sequence": 3,
+      "kind": "API_LIVENESS",
+      "baseUrl": "https://api.rebugx.cn/api/v1/health/live",
+      "uuid": "432bc68a-b6f6-43a8-9915-7d1436df82f8",
+      "startedAt": "2026-10-03T14:11:14.410Z",
+      "requestUrl": "https://api.rebugx.cn/api/v1/health/live?launch_route_probe=432bc68a-b6f6-43a8-9915-7d1436df82f8&seq=3",
+      "httpStatus": 200,
+      "tlsAuthorized": true,
+      "peerAddress": "43.180.212.44",
+      "bodyBytes": 123,
+      "bodySha256": "24f41a54c08c320ae25edf542177ddb2516f7e3b557292e063670bc1de0b9603",
+      "live": {
+        "status": "alive",
+        "releaseId": "preprod-cd055084-20260903-r1"
+      },
+      "endedAt": "2026-10-03T14:11:14.491Z"
+    },
+    {
+      "sequence": 4,
+      "kind": "H5_STATIC",
+      "baseUrl": "https://gx.yrydai.com/h5/",
+      "uuid": "6067e04b-6d39-456d-aa4e-bbea4375ea33",
+      "startedAt": "2026-10-03T14:11:14.492Z",
+      "requestUrl": "https://gx.yrydai.com/h5/?launch_route_probe=6067e04b-6d39-456d-aa4e-bbea4375ea33&seq=4",
+      "httpStatus": 200,
+      "tlsAuthorized": true,
+      "peerAddress": "43.180.212.44",
+      "bodyBytes": 1174,
+      "bodySha256": "b765d4b75e3b46dc5d89be91d29b0a094737d2c2371d44f8208da4b0a2a23dda",
+      "live": null,
+      "endedAt": "2026-10-03T14:11:14.574Z"
+    },
+    {
+      "sequence": 5,
+      "kind": "API_LIVENESS",
+      "baseUrl": "https://api.rebugx.cn/api/v1/health/live",
+      "uuid": "74ffb5dc-76c2-4751-be3a-aeabffd6bda5",
+      "startedAt": "2026-10-03T14:11:14.575Z",
+      "requestUrl": "https://api.rebugx.cn/api/v1/health/live?launch_route_probe=74ffb5dc-76c2-4751-be3a-aeabffd6bda5&seq=5",
+      "httpStatus": 200,
+      "tlsAuthorized": true,
+      "peerAddress": "43.180.212.44",
+      "bodyBytes": 122,
+      "bodySha256": "fd8b02357162ade0d03f30befd91007e6d2702f4028f4e70a960c624a58c1bdf",
+      "live": {
+        "status": "alive",
+        "releaseId": "preprod-cd055084-20260903-r1"
+      },
+      "endedAt": "2026-10-03T14:11:14.669Z"
+    },
+    {
+      "sequence": 6,
+      "kind": "H5_STATIC",
+      "baseUrl": "https://gx.yrydai.com/h5/",
+      "uuid": "76e7f683-94c6-418b-974b-da097fdd06f0",
+      "startedAt": "2026-10-03T14:11:14.670Z",
+      "requestUrl": "https://gx.yrydai.com/h5/?launch_route_probe=76e7f683-94c6-418b-974b-da097fdd06f0&seq=6",
+      "httpStatus": 200,
+      "tlsAuthorized": true,
+      "peerAddress": "43.180.212.44",
+      "bodyBytes": 1174,
+      "bodySha256": "b765d4b75e3b46dc5d89be91d29b0a094737d2c2371d44f8208da4b0a2a23dda",
+      "live": null,
+      "endedAt": "2026-10-03T14:11:14.769Z"
+    }
+  ],
+  "requestsSent": 6,
+  "endedAt": "2026-10-03T14:11:14.769Z",
+  "automaticRetries": false,
+  "cookiesSent": false,
+  "authorizationSent": false,
+  "strictTlsValidation": true,
+  "redirectsFollowed": false,
+  "productionConfigModified": false,
+  "nodeLogCorrelationVerified": false
+}

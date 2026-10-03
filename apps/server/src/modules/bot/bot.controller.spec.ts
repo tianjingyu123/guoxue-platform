@@ -4,11 +4,20 @@ import { BotService } from "./bot.service";
 import { CozeService } from "./coze.service";
 import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { EventEmitter } from "events";
+import { Observable } from "rxjs";
 
 const mockSSE = {} as any;
-const mockCozeSvc = { createBot: jest.fn(), listBots: jest.fn(), getBot: jest.fn(), updateBot: jest.fn(), deleteBot: jest.fn() };
+const mockCozeSvc = {
+  createBot: jest.fn(),
+  listBots: jest.fn(),
+  getBot: jest.fn(),
+  updateBot: jest.fn(),
+  deleteBot: jest.fn(),
+};
 
 const mockBotSvc = {
   create: jest.fn().mockResolvedValue({ id: "bot1", name: "国学助手" }),
@@ -21,9 +30,21 @@ const mockBotSvc = {
   addKnowledge: jest.fn().mockResolvedValue({ id: "k1", title: "知识条目" }),
   deleteKnowledgeAsOwner: jest.fn().mockResolvedValue({ success: true }),
   deleteKnowledge: jest.fn().mockResolvedValue({ success: true }),
-  chat: jest.fn().mockResolvedValue({ reply: "你好！有什么可以帮你的？" }),
+  chat: jest.fn().mockResolvedValue({
+    reply: "你好！有什么可以帮你的？",
+    quotaUse: { charge: "trial", reservationId: "r1" },
+  }),
+  markDeliveredQuota: jest.fn().mockResolvedValue(undefined),
+  releaseFailedQuotaSafely: jest.fn().mockResolvedValue(undefined),
   getBotForChat: jest.fn().mockResolvedValue({ botId: "bot1", apiKey: "key123" }),
   chatStream: jest.fn().mockReturnValue(jest.fn()),
+  precheckChat: jest.fn().mockResolvedValue({
+    id: "bot1",
+    botId: "coze-1",
+    apiKey: "key123",
+    quotaUse: { charge: "trial", reservationId: "r1" },
+  }),
+  chatStreamRich: jest.fn(),
   getChatHistory: jest.fn().mockResolvedValue([{ role: "user", content: "你好" }]),
   getBotApprovalList: jest.fn().mockResolvedValue([{ circleId: "c1", status: "PENDING" }]),
   approveBot: jest.fn().mockResolvedValue({ circleId: "c1", approved: true }),
@@ -31,6 +52,7 @@ const mockBotSvc = {
   addBotKnowledge: jest.fn().mockResolvedValue({ id: "k1", title: "新知识" }),
   updateBotKnowledge: jest.fn().mockResolvedValue({ id: "k1", title: "更新知识" }),
   getBotUsageData: jest.fn().mockResolvedValue({ totalChats: 100, activeUsers: 20 }),
+  purchaseUses: jest.fn().mockResolvedValue({ purchased: 10, paidRemaining: 10 }),
 };
 
 describe("BotController", () => {
@@ -45,14 +67,26 @@ describe("BotController", () => {
         { provide: CozeService, useValue: mockCozeSvc },
       ],
     })
-      .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
-      .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
-      .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(FeatureFlagGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(StrictRedisThrottleGuard)
+      .useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(BotController);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("购包入口将客户端请求号和当前用户传给服务端幂等逻辑", async () => {
+    await ctrl.purchaseUses({ user: { id: "u1" } } as any, "bot1", "bot-purchase-request-001");
+    expect(mockBotSvc.purchaseUses).toHaveBeenCalledWith("bot1", "u1", "bot-purchase-request-001");
+  });
 
   it("POST /bots — 创建智能体", async () => {
     const dto: any = { name: "国学助手", type: "ASSISTANT" };
@@ -118,15 +152,50 @@ describe("BotController", () => {
   it("POST /bots/:id/chat — 非流式对话", async () => {
     const req: any = { user: { id: "u1" } };
     const dto: any = { query: "你好" };
-    const result: any = await ctrl.chat(req, "bot1", dto);
+    const res = new EventEmitter();
+    const result: any = await ctrl.chat(req, res as any, "bot1", dto);
     expect(result.reply).toContain("你好");
+    expect(result.quotaUse).toBeUndefined();
     expect(mockBotSvc.chat).toHaveBeenCalledWith("bot1", "u1", dto);
+    res.emit("finish");
+    expect(mockBotSvc.markDeliveredQuota).toHaveBeenCalledWith({
+      charge: "trial",
+      reservationId: "r1",
+    });
+    expect(mockBotSvc.releaseFailedQuotaSafely).not.toHaveBeenCalled();
+  });
+
+  it("非流式连接在响应完成前关闭时释放本次预留", async () => {
+    const res = new EventEmitter();
+    await ctrl.chat({ user: { id: "u1" } } as any, res as any, "bot1", { query: "问题" } as any);
+    res.emit("close");
+    expect(mockBotSvc.releaseFailedQuotaSafely).toHaveBeenCalledWith("bot1", "u1", {
+      charge: "trial",
+      reservationId: "r1",
+    });
+    expect(mockBotSvc.markDeliveredQuota).not.toHaveBeenCalled();
+  });
+
+  it("SSE 连接首字前断开时取消上游订阅", async () => {
+    const onUnsubscribe = jest.fn();
+    mockBotSvc.chatStreamRich.mockReturnValue(new Observable(() => onUnsubscribe));
+    const res = Object.assign(new EventEmitter(), {
+      setHeader: jest.fn(),
+      flushHeaders: jest.fn(),
+      writableEnded: false,
+    });
+    await ctrl.chatStream({ user: { id: "u1" } } as any, res as any, "bot1", {
+      query: "问题",
+    } as any);
+    res.emit("close");
+    expect(onUnsubscribe).toHaveBeenCalledTimes(1);
+    expect(mockBotSvc.precheckChat).toHaveBeenCalledWith("bot1", "u1", undefined);
   });
 
   it("GET /bots/:id/chat-history/:conversationId — 对话历史", async () => {
-    const result: any = await ctrl.getChatHistory("bot1", "conv1");
+    const result: any = await ctrl.getChatHistory({ user: { id: "u1" } } as any, "bot1", "conv1");
     expect(result).toHaveLength(1);
-    expect(mockBotSvc.getChatHistory).toHaveBeenCalledWith("bot1", "conv1");
+    expect(mockBotSvc.getChatHistory).toHaveBeenCalledWith("bot1", "conv1", "u1");
   });
 
   it("GET /bots/manage/approvals — 审批列表", async () => {

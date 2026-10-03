@@ -9,6 +9,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("资金审批")
 @ApiBearerAuth()
@@ -28,16 +29,18 @@ export class FundApprovalController {
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
-  @ApiQuery({ name: "status", required: false, description: "PENDING/APPROVED/REJECTED，留空查全部" })
+  @ApiQuery({ name: "status", required: false, description: "PENDING/APPROVED/REJECTED/ALL（全部）·缺省 PENDING" })
   listPending(
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
     @Query("status") status = "PENDING",
+    @Req() req: Request,
   ) {
-    return this.approvals.list(+page, +pageSize, status);
+    return this.approvals.list(req.user.id, +page, +pageSize, status);
   }
 
   @Post("admin/:id/review")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "资金审批", targetType: "FUND_APPROVAL" })
   @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "FINANCE_ADMIN")

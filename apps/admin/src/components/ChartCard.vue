@@ -23,57 +23,86 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import echarts from '../utils/echarts'
+import type { EChartsOption } from 'echarts'
 import type { EChartsType } from 'echarts/core'
+import type { ChartOption } from '../utils/chart'
 
 const props = withDefaults(defineProps<{
   title: string
-  option?: any
+  option?: ChartOption | null
   height?: number
 }>(), { height: 300 })
 
 const chartRef = ref<HTMLElement>()
 let chart: EChartsType | null = null
-const hasData = ref(false)
+
+/**
+ * 是否有可绘数据：由 option 直接推导（computed），不依赖 render 副作用。
+ * 修复历史死锁：hasData 初始 false → v-if 不渲染容器 → chartRef 空 → render 提前返回
+ * → hasData 永远置不了 true → 后端有数图也永远"暂无数据"。
+ */
+const hasData = computed(() => {
+  const rawSeries = props.option?.series
+  const series = Array.isArray(rawSeries) ? rawSeries : rawSeries ? [rawSeries] : []
+  if (series.length === 0) return false
+  // 任一系列有数据点即认为有数（pie/bar/line 通用；无 data 字段的系列如 dataset 驱动视为有数）
+  return series.some((item) => {
+    if (!item || typeof item !== 'object' || !('data' in item)) return true
+    const data = item.data
+    return Array.isArray(data) ? data.length > 0 : true
+  })
+})
 
 function render() {
   if (!chartRef.value || !props.option) return
   if (!chart) chart = echarts.init(chartRef.value, 'guoxue')
-  chart.setOption(props.option, true)
-  hasData.value = (props.option.series?.[0]?.data?.length > 0) || (props.option.series?.length > 0)
+  chart.setOption(props.option as EChartsOption, true)
 }
 
 function resize() { chart?.resize() }
 
 watch(() => props.option, () => nextTick(render), { deep: true })
+// 容器随 hasData 卸载时同步销毁实例，避免持有已脱离文档的 DOM；重新有数后 nextTick 再 init
+watch(hasData, (v) => {
+  if (!v && chart) { chart.dispose(); chart = null }
+})
 
 onMounted(() => { nextTick(render); window.addEventListener('resize', resize) })
-onBeforeUnmount(() => { window.removeEventListener('resize', resize); chart?.dispose() })
+onBeforeUnmount(() => { window.removeEventListener('resize', resize); chart?.dispose(); chart = null })
 </script>
 
 <style scoped>
 .chart-card {
-  background: var(--color-bg-card);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
+  background: rgba(255,255,255,.94);
+  border-radius: var(--radius-xl);
+  padding: 22px 24px;
   border: 1px solid var(--color-divider);
   box-shadow: var(--shadow-card);
-  transition: box-shadow var(--transition-base);
-}
-.chart-card:hover {
-  box-shadow: var(--shadow-card-hover);
 }
 .chart-card__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-md);
+  min-height: 30px;
+  margin-bottom: 14px;
 }
 .chart-card__title {
-  font-size: var(--font-size-caption);
-  font-weight: 500;
-  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--color-text-title);
+}
+.chart-card__title::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-gold);
+  box-shadow: 0 0 0 4px var(--color-gold-lighter);
+  content: "";
 }
 .chart-card__body {
   width: 100%;

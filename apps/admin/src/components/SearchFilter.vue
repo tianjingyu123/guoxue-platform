@@ -1,5 +1,9 @@
 <template>
-  <div class="search-filter">
+  <div
+    class="search-filter"
+    role="search"
+    aria-label="筛选条件"
+  >
     <el-form
       :inline="true"
       :model="localFilters"
@@ -11,6 +15,7 @@
         <el-input
           v-model="localFilters.keyword"
           :placeholder="placeholder"
+          :prefix-icon="Search"
           clearable
           style="width: 200px"
           @keyup.enter="handleSearch"
@@ -54,11 +59,15 @@
       <el-form-item>
         <el-button
           type="primary"
+          :icon="Search"
           @click="handleSearch"
         >
           搜索
         </el-button>
-        <el-button @click="handleReset">
+        <el-button
+          :icon="RefreshLeft"
+          @click="handleReset"
+        >
           重置
         </el-button>
       </el-form-item>
@@ -68,17 +77,21 @@
 
 <script setup lang="ts">
 import { reactive, watch } from "vue"
+import { RefreshLeft, Search } from "@element-plus/icons-vue"
 
 export interface FilterDef {
   key: string
   label: string
   type: 'input' | 'select' | 'date'
   placeholder?: string
-  options?: { label: string; value: string | number }[]
+  options?: { label: string; value: string }[]
 }
 
+export type FilterState = Record<string, string | undefined>
+export type FilterValues = Record<string, string>
+
 const props = withDefaults(defineProps<{
-  filters?: Record<string, any>
+  filters?: FilterState
   customFilters?: FilterDef[]
   placeholder?: string
   showKeyword?: boolean
@@ -90,11 +103,11 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  search: [filters: Record<string, any>]
+  search: [filters: FilterValues]
   reset: []
 }>()
 
-const localFilters = reactive<Record<string, any>>({
+const localFilters = reactive<FilterState>({
   keyword: '',
   ...props.filters,
 })
@@ -110,7 +123,7 @@ watch(() => props.filters, (v) => {
 }, { deep: true })
 
 function handleSearch() {
-  const cleaned: Record<string, any> = {}
+  const cleaned: FilterValues = {}
   for (const [k, v] of Object.entries(localFilters)) {
     if (v !== '' && v !== null && v !== undefined) cleaned[k] = v
   }
@@ -127,11 +140,13 @@ function handleReset() {
 <style scoped>
 .search-filter {
   margin-bottom: 0;
-  padding: var(--spacing-lg);
-  background: var(--color-bg-card);
-  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  background: rgba(255,255,255,.9);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-sm);
 }
+
 :deep(.el-form-item) { margin-bottom: 0; }
 :deep(.el-form-item__label) {
   font-size: var(--font-size-caption);

@@ -1,11 +1,16 @@
 <script setup lang="ts">
 /** 八字排盘输入表单——从原型 input-form.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import DatePickerModal from './date-picker-modal.vue'
 import LocationPickerModal from './location-picker-modal.vue'
 import GroupPickerModal from './group-picker-modal.vue'
+// 农历→公历归一（与 qimen 等 13 个排盘入口同一把尺子；本组件仅被 pkg-paipan 页面引用，不进主包）
+import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
+import { baziApi } from '@/lib/bazi-result-data'
+import type { BaziReversePillars } from '@/lib/bazi-reverse-data'
 
 const name = ref('')
 const gender = ref<'male' | 'female'>('male')
@@ -16,16 +21,47 @@ const useTrueSolarTime = ref(true)
 const useEarlyZiHour = ref(false)
 const useDaylightSaving = ref(false)
 const saveRecord = ref(true)
+const sourcePillars = ref<BaziReversePillars | null>(null)
+const submitting = ref(false)
+let disposed = false
+onUnmounted(() => { disposed = true })
 
 const showDatePicker = ref(false)
 const showLocationPicker = ref(false)
 const showGroupPicker = ref(false)
 
+/**
+ * 从 URL query 预填（从业者工作台的「客户档案 → 用八字看这位客户」走这条路）。
+ * 只认显式传参，不传就保持默认，不影响老的进入方式。
+ */
+onLoad((q?: Record<string, string>) => {
+  if (!q) return
+  if (q.name) name.value = decodeURIComponent(q.name)
+  if (q.gender === 'female' || q.gender === '女') gender.value = 'female'
+  else if (q.gender === 'male' || q.gender === '男') gender.value = 'male'
+  const y = Number(q.year), m = Number(q.month), d = Number(q.day)
+  if (y && m && d) {
+    birthDate.value = {
+      ...birthDate.value,
+      year: y, month: m, day: d,
+      hour: q.hour === undefined ? birthDate.value.hour : Number(q.hour),
+      minute: q.minute === undefined ? 0 : Number(q.minute),
+      // 工作台传来的一律是公历（客户档案里存的就是公历生辰）
+      isLunar: false,
+    }
+  }
+  if (q.city) {
+    const city = decodeURIComponent(q.city)
+    birthPlace.value = { ...birthPlace.value, province: city, city, district: '' }
+  }
+})
+
 function pad(n: number) { return String(n).padStart(2, '0') }
 const formatBirthDate = computed(() => {
   const d = birthDate.value
   const hourStr = d.hour !== null ? `${pad(d.hour)}:${pad(d.minute || 0)}` : '未知时'
-  return `${d.year}-${pad(d.month)}-${pad(d.day)} ${hourStr}`
+  // 农历输入如实标注（数字仍是用户所选的农历年月日，提交时才归一为公历）
+  return `${sourcePillars.value ? '四柱反查 ' : d.isLunar ? '农历 ' : ''}${d.year}-${pad(d.month)}-${pad(d.day)} ${hourStr}`
 })
 const formatBirthPlace = computed(() => {
   const p = birthPlace.value
@@ -48,22 +84,94 @@ function toggleOpt(k: string) {
   else useDaylightSaving.value = !useDaylightSaving.value
 }
 
-// 与 date-picker-modal 的 confirm 事件载荷结构一致
-function onDateConfirm(d: { year: number; month: number; day: number; hour: number | null; minute: number | null; isLunar: boolean }) {
-  birthDate.value = { year: d.year, month: d.month, day: d.day, hour: d.hour ?? 12, minute: d.minute ?? 0, isLunar: d.isLunar }
+function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
 }
 
-function handleSubmit() {
-  const p = birthDate.value
+// 与 date-picker-modal 的 confirm 事件载荷结构一致
+function onDateConfirm(d: { year: number; month: number; day: number; hour: number | null; minute: number | null; isLunar: boolean; sourcePillars?: BaziReversePillars }) {
+  birthDate.value = { year: d.year, month: d.month, day: d.day, hour: d.hour ?? 12, minute: d.minute ?? 0, isLunar: d.isLunar }
+  sourcePillars.value = d.sourcePillars || null
+  if (d.sourcePillars) {
+    // 反查候选按未校正的北京时间生成；这两个选项由用户后续主动调整。
+    useTrueSolarTime.value = false
+    useDaylightSaving.value = false
+  }
+}
+
+async function handleSubmit() {
+  if (disposed || submitting.value) return
+  const p = { ...birthDate.value }
+  const selectedPlace = { ...birthPlace.value }
+  const selectedName = name.value
+  const selectedGender = gender.value
+  const sourceAtSubmit = sourcePillars.value ? { ...sourcePillars.value } : null
+  // 🔴 P0 修复（2026-07-17）：农历输入必须先归一为公历再进排盘链路。
+  // 此前 isLunar 标记只是随 query 传给 result，而 result/calculate 只吃公历数字，
+  // 农历起盘等于把农历年月日当公历排 —— 四柱全错。
+  // 归一用 toSolarSafe（与 qimen 等排盘入口同源）；非法农历日（如某月无三十，
+  // date-picker 农历日列按公历月天数截取所以可能选出）会转换抛错 → 在此拦下重选。
+  const { date, ok } = toSolarSafe({
+    year: p.year, month: p.month, day: p.day, hour: p.hour, minute: p.minute, isLunar: p.isLunar,
+  })
+  if (!ok) {
+    uni.showToast({ title: '农历日期无效，请重新选择', icon: 'none' })
+    return
+  }
+  const optionsAtSubmit = {
+    trueSolar: useTrueSolarTime.value, earlyZi: useEarlyZiHour.value, dst: useDaylightSaving.value,
+  }
+  if (sourceAtSubmit) {
+    submitting.value = true
+    try {
+      const result = await baziApi.calculate({
+        name: selectedName || undefined, gender: selectedGender === 'male' ? '男' : '女',
+        year: date.year, month: date.month, day: date.day, hour: date.hour, minute: date.minute,
+        city: selectedPlace.city || selectedPlace.province || undefined,
+        useTrueSolarTime: optionsAtSubmit.trueSolar,
+        useDaylightSaving: optionsAtSubmit.dst,
+        earlyZi: optionsAtSubmit.earlyZi,
+      })
+      if (disposed) return
+      if (JSON.stringify(birthDate.value) !== JSON.stringify(p)
+        || JSON.stringify(birthPlace.value) !== JSON.stringify(selectedPlace)
+        || name.value !== selectedName || gender.value !== selectedGender
+        || JSON.stringify(sourcePillars.value) !== JSON.stringify(sourceAtSubmit)
+        || useTrueSolarTime.value !== optionsAtSubmit.trueSolar
+        || useEarlyZiHour.value !== optionsAtSubmit.earlyZi
+        || useDaylightSaving.value !== optionsAtSubmit.dst) {
+        uni.showToast({ title: '输入已更新，请再次确认排盘', icon: 'none' })
+        return
+      }
+      const actual = result.siZhu
+      if (actual.year.gan + actual.year.zhi !== sourceAtSubmit.year
+        || actual.month.gan + actual.month.zhi !== sourceAtSubmit.month
+        || actual.day.gan + actual.day.zhi !== sourceAtSubmit.day
+        || actual.hour.gan + actual.hour.zhi !== sourceAtSubmit.hour) {
+        uni.showToast({ title: '当前时间选项与输入四柱不符，请调整后重试', icon: 'none' })
+        return
+      }
+    } catch (cause) {
+      if (disposed) return
+      uni.showToast({ title: (cause as Error)?.message || '四柱复核失败，请重试', icon: 'none' })
+      return
+    } finally {
+      submitting.value = false
+    }
+  }
   const q = [
-    `name=${encodeURIComponent(name.value || '未知')}`,
-    `gender=${gender.value === 'male' ? '男' : '女'}`,
-    `year=${p.year}`, `month=${p.month}`, `day=${p.day}`, `hour=${p.hour}`, `minute=${p.minute}`,
-    `isLunar=${p.isLunar}`,
-    `province=${encodeURIComponent(birthPlace.value.province)}`,
-    `city=${encodeURIComponent(birthPlace.value.city)}`,
-    `district=${encodeURIComponent(birthPlace.value.district)}`,
-    `trueSolar=${useTrueSolarTime.value}`, `earlyZi=${useEarlyZiHour.value}`, `dst=${useDaylightSaving.value}`,
+    `name=${encodeURIComponent(selectedName || '未知')}`,
+    `gender=${selectedGender === 'male' ? '男' : '女'}`,
+    // 归一后恒为公历，不再向 result 传 isLunar（result 只吃公历）
+    `year=${date.year}`, `month=${date.month}`, `day=${date.day}`, `hour=${date.hour}`, `minute=${date.minute}`,
+    `province=${encodeURIComponent(selectedPlace.province)}`,
+    `city=${encodeURIComponent(selectedPlace.city)}`,
+    `district=${encodeURIComponent(selectedPlace.district)}`,
+    `trueSolar=${optionsAtSubmit.trueSolar}`, `earlyZi=${optionsAtSubmit.earlyZi}`, `dst=${optionsAtSubmit.dst}`,
+    `group=${encodeURIComponent(group.value)}`,
+    `save=${saveRecord.value}`,
   ].join('&')
   navigateTo(`/paipan/bazi/result?${q}`)
 }
@@ -81,12 +189,17 @@ function handleSubmit() {
       <view class="bf-row bf-bd">
         <text class="bf-label">性别</text>
         <view class="bf-gender">
-          <view class="bf-gbtn" :class="{ 'bf-gbtn-on': gender === 'male' }" @tap="gender = 'male'"><text class="bf-gtext" :class="{ 'bf-gtext-on': gender === 'male' }">男</text></view>
-          <view class="bf-gbtn" :class="{ 'bf-gbtn-on': gender === 'female' }" @tap="gender = 'female'"><text class="bf-gtext" :class="{ 'bf-gtext-on': gender === 'female' }">女</text></view>
+          <view class="bf-gbtn" :class="{ 'bf-gbtn-on': gender === 'male' }"
+            role="radio" :aria-checked="gender === 'male'" tabindex="0"
+            @tap="gender = 'male'" @keydown="activateOnKeyboard($event, () => gender = 'male')"><text class="bf-gtext" :class="{ 'bf-gtext-on': gender === 'male' }">男</text></view>
+          <view class="bf-gbtn" :class="{ 'bf-gbtn-on': gender === 'female' }"
+            role="radio" :aria-checked="gender === 'female'" tabindex="0"
+            @tap="gender = 'female'" @keydown="activateOnKeyboard($event, () => gender = 'female')"><text class="bf-gtext" :class="{ 'bf-gtext-on': gender === 'female' }">女</text></view>
         </view>
       </view>
       <!-- 出生时间 -->
-      <view class="bf-link bf-bd" @tap="showDatePicker = true">
+      <view class="bf-link bf-bd" role="button" tabindex="0"
+        @tap="showDatePicker = true" @keydown="activateOnKeyboard($event, () => showDatePicker = true)">
         <view class="bf-link-l">
           <view class="bf-icon"><app-icon name="clock" :size="28" color="#2d5a87" /></view>
           <text class="bf-label">出生时间<text class="bf-star">*</text></text>
@@ -97,7 +210,8 @@ function handleSubmit() {
         </view>
       </view>
       <!-- 出生地区 -->
-      <view class="bf-link bf-bd" @tap="showLocationPicker = true">
+      <view class="bf-link bf-bd" role="button" tabindex="0"
+        @tap="showLocationPicker = true" @keydown="activateOnKeyboard($event, () => showLocationPicker = true)">
         <view class="bf-link-l">
           <view class="bf-icon"><app-icon name="map-pin" :size="28" color="#2d5a87" /></view>
           <text class="bf-label">出生地区</text>
@@ -108,7 +222,8 @@ function handleSubmit() {
         </view>
       </view>
       <!-- 分组 -->
-      <view class="bf-link bf-bd" @tap="showGroupPicker = true">
+      <view class="bf-link bf-bd" role="button" tabindex="0"
+        @tap="showGroupPicker = true" @keydown="activateOnKeyboard($event, () => showGroupPicker = true)">
         <view class="bf-link-l">
           <view class="bf-icon"><app-icon name="folder" :size="28" color="#2d5a87" /></view>
           <text class="bf-label">分组</text>
@@ -118,35 +233,34 @@ function handleSubmit() {
           <app-icon name="chevron-right" :size="28" color="#9ca3af" />
         </view>
       </view>
-      <!-- 时间选项 -->
+      <!-- 时间选项与存档：同属本次排盘设置，窄屏可自然换行。 -->
       <view class="bf-opts bf-bd">
-        <view v-for="o in options" :key="o.key" class="bf-opt" @tap="toggleOpt(o.key)">
-          <view class="bf-check" :class="{ 'bf-check-on': optState[o.key] }">
-            <app-icon v-if="optState[o.key]" name="check" :size="20" color="#ffffff" />
+        <view class="bf-opts-list">
+          <view v-for="o in options" :key="o.key" class="bf-opt"
+            role="checkbox" :aria-checked="optState[o.key]" tabindex="0"
+            @tap="toggleOpt(o.key)" @keydown="activateOnKeyboard($event, () => toggleOpt(o.key))">
+            <view class="bf-check" :class="{ 'bf-check-on': optState[o.key] }">
+              <app-icon v-if="optState[o.key]" name="check" :size="20" color="#ffffff" />
+            </view>
+            <text class="bf-opt-label">{{ o.label }}</text>
           </view>
-          <text class="bf-opt-label">{{ o.label }}</text>
         </view>
-      </view>
-      <!-- 真太阳时信息 + 保存 -->
-      <view class="bf-solar bf-bd">
-        <view class="bf-solar-info">
-          <text class="bf-solar-line">真太阳时：{{ formatBirthDate }}</text>
-          <text class="bf-solar-line">地址经纬：北纬39.93 东经116.42</text>
-        </view>
-        <view class="bf-save">
+        <view class="bf-save" role="switch" :aria-checked="saveRecord" tabindex="0"
+          @tap="saveRecord = !saveRecord" @keydown="activateOnKeyboard($event, () => saveRecord = !saveRecord)">
           <text class="bf-save-label">保存</text>
-          <view class="bf-switch" :class="{ 'bf-switch-on': saveRecord }" @tap="saveRecord = !saveRecord">
+          <view class="bf-switch" :class="{ 'bf-switch-on': saveRecord }">
             <view class="bf-switch-dot" :class="{ 'bf-switch-dot-on': saveRecord }" />
           </view>
         </view>
       </view>
       <!-- 开始排盘 -->
       <view class="bf-submit-wrap">
-        <view class="bf-submit" @tap="handleSubmit"><text class="bf-submit-text">开始排盘</text></view>
+        <view class="bf-submit" role="button" :aria-disabled="submitting" tabindex="0"
+          @tap="handleSubmit" @keydown="activateOnKeyboard($event, handleSubmit)"><text class="bf-submit-text">{{ submitting ? '正在核对四柱…' : '开始排盘' }}</text></view>
       </view>
     </view>
 
-    <date-picker-modal :open="showDatePicker" :initial-date="{ year: birthDate.year, month: birthDate.month, day: birthDate.day, hour: birthDate.hour, minute: birthDate.minute }" @close="showDatePicker = false" @confirm="onDateConfirm" />
+    <date-picker-modal :open="showDatePicker" :enable-sizhu="true" :zi-shi-mode="useEarlyZiHour ? 'modern' : 'traditional'" :initial-date="{ year: birthDate.year, month: birthDate.month, day: birthDate.day, hour: birthDate.hour, minute: birthDate.minute }" :initial-mode="birthDate.isLunar ? 'lunar' : 'solar'" @close="showDatePicker = false" @confirm="onDateConfirm" />
     <location-picker-modal :open="showLocationPicker" :initial-location="birthPlace.province ? birthPlace : undefined" @close="showLocationPicker = false" @confirm="(v) => birthPlace = v" />
     <group-picker-modal :open="showGroupPicker" :initial-group="group" @close="showGroupPicker = false" @confirm="(v) => group = v" />
   </view>
@@ -155,7 +269,7 @@ function handleSubmit() {
 <style scoped lang="scss">
 .bf-card { background: var(--card); border-radius: 32rpx; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04); border: 2rpx solid rgba(0,0,0,0.06); overflow: hidden; }
 .bf-bd { border-bottom: 2rpx solid rgba(0,0,0,0.06); }
-.bf-row { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 32rpx; }
+.bf-row { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 20rpx 32rpx; }
 .bf-label { font-size: 28rpx; font-weight: 500; color: var(--text-ink); }
 .bf-star { font-size: 22rpx; color: var(--brand); margin-left: 4rpx; }
 .bf-name-input { flex: 1; margin-left: 32rpx; text-align: right; font-size: 28rpx; color: var(--text-soft); }
@@ -164,26 +278,24 @@ function handleSubmit() {
 .bf-gbtn-on { background: var(--card); box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.08); }
 .bf-gtext { font-size: 28rpx; font-weight: 500; color: var(--text-soft); }
 .bf-gtext-on { color: var(--brand); }
-.bf-link { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 32rpx; }
+.bf-link { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 20rpx 32rpx; }
 .bf-link-l { display: flex; align-items: center; gap: 20rpx; }
-.bf-icon { width: 56rpx; height: 56rpx; border-radius: 16rpx; background: var(--indigo-light); display: flex; align-items: center; justify-content: center; }
+.bf-icon { width: 48rpx; height: 48rpx; border-radius: 14rpx; background: var(--indigo-light); display: flex; align-items: center; justify-content: center; }
 .bf-link-r { display: flex; align-items: center; gap: 8rpx; }
 .bf-value { font-size: 28rpx; color: var(--text-soft); }
-.bf-opts { display: flex; align-items: center; gap: 48rpx; padding: 24rpx 32rpx; background: rgba(0,0,0,0.02); }
-.bf-opt { display: flex; align-items: center; gap: 12rpx; }
+.bf-opts { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0 10rpx; padding: 8rpx 28rpx; background: rgba(0,0,0,0.02); }
+.bf-opts-list { display: flex; align-items: center; flex-wrap: wrap; gap: 0 12rpx; }
+.bf-opt { display: flex; align-items: center; gap: 10rpx; min-height: 44px; }
 .bf-check { width: 32rpx; height: 32rpx; border-radius: 8rpx; border: 4rpx solid #d1d5db; background: var(--card); display: flex; align-items: center; justify-content: center; }
 .bf-check-on { border-color: var(--brand); background: var(--brand); }
-.bf-opt-label { font-size: 22rpx; color: var(--text-soft); }
-.bf-solar { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; background: rgba(0,0,0,0.01); }
-.bf-solar-info { display: flex; flex-direction: column; gap: 4rpx; }
-.bf-solar-line { font-size: 22rpx; color: rgba(120,120,120,0.7); }
-.bf-save { display: flex; align-items: center; gap: 16rpx; }
-.bf-save-label { font-size: 22rpx; color: var(--text-soft); }
+.bf-opt-label { font-size: 26rpx; color: var(--text-soft); }
+.bf-save { display: flex; align-items: center; gap: 12rpx; min-height: 44px; flex-shrink: 0; }
+.bf-save-label { font-size: 26rpx; color: var(--text-soft); }
 .bf-switch { width: 88rpx; height: 48rpx; border-radius: 999rpx; background: #d1d5db; position: relative; }
 .bf-switch-on { background: var(--brand); }
 .bf-switch-dot { position: absolute; top: 8rpx; left: 8rpx; width: 32rpx; height: 32rpx; background: #fff; border-radius: 999rpx; box-shadow: 0 2rpx 4rpx rgba(0,0,0,0.15); transition: transform 0.2s; }
 .bf-switch-dot-on { transform: translateX(40rpx); }
-.bf-submit-wrap { padding: 32rpx; }
-.bf-submit { padding: 28rpx; background: var(--brand); border-radius: 24rpx; box-shadow: 0 8rpx 20rpx rgba(196,30,58,0.3); }
+.bf-submit-wrap { padding: 24rpx 32rpx; }
+.bf-submit { min-height: 44px; padding: 20rpx; background: var(--brand); border-radius: 24rpx; box-shadow: 0 8rpx 20rpx rgba(196,30,58,0.3); }
 .bf-submit-text { display: block; text-align: center; font-size: 32rpx; font-weight: 700; color: #fff; }
 </style>

@@ -1,139 +1,366 @@
+import { createHash } from "crypto";
 import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { PaipanRuntimeService } from "../../common/paipan-runtime.service";
+import { decrypt } from "../../common/crypto.util";
 import { PrismaService } from "../../prisma/prisma.service";
 
-/**
- * 分站 ↔ 旧排盘系统 用户同步服务
- *
- * 背景：
- * 旧排盘系统是独立的 PHP H5，通过 WebView 嵌入。
- * 每个分站需要一个专属推广链接，排盘系统据此识别分站并结算佣金。
- * 新用户（本站）注册后需在排盘系统同步创建账号，两边用户一一对应。
- *
- * 同步时机：
- * - 分站创建/开通时 → 调用同步
- * - 用户首次进入排盘 → 懒加载同步（兜底）
- */
+export interface LegacyPaipanEntry {
+  mode: "legacy" | "native";
+  url: string | null;
+  attributionReady: boolean;
+}
+
+export type StationPaipanSyncState = "SYNCED" | "PENDING_AUTHORIZATION" | "FAILED" | "PENDING";
+
 @Injectable()
 export class StationPaipanSyncService {
   private readonly logger = new Logger(StationPaipanSyncService.name);
 
-  /** 旧排盘系统 API 地址 */
-  private readonly paipanApiBase = process.env.PAIPAN_API_BASE || "";
-  /** 旧排盘系统 API 密钥 */
-  private readonly paipanApiKey = process.env.PAIPAN_API_KEY || "";
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly runtime: PaipanRuntimeService,
+  ) {}
 
-  constructor(private prisma: PrismaService) {}
+  getRuntime() {
+    return { mode: this.runtime.getMode(), legacyAvailable: this.legacyEntryAvailable() };
+  }
 
-  /**
-   * 为指定分站同步排盘账号并获取专属推广链接
-   *
-   * 场景1：用户在排盘系统已存在 → 直接获取链接
-   * 场景2：用户不存在 → 先在排盘系统注册，再获取链接
-   */
-  async syncStationPaipanLink(stationId: string): Promise<string | null> {
-    const station = await this.prisma.station.findUnique({
-      where: { id: stationId },
-      include: { user: { select: { id: true, phone: true, nickname: true } } },
+  private legacyEntryAvailable(): boolean {
+    return !this.runtime.isNative() || process.env.PAIPAN_LEGACY_ENTRY_ENABLED === "true";
+  }
+
+  async getUserEntry(userId: string, client: "app" | "h5" | "mini" = "app"): Promise<LegacyPaipanEntry> {
+    return this.getSignedUserEntry(userId, "tool", client);
+  }
+
+  /** 用户主动进入旧版时单独签发；不改变新版排盘的默认路由。 */
+  async getUserLaunchEntry(userId: string, client: "app" | "h5" | "mini" = "app"): Promise<LegacyPaipanEntry> {
+    if (client === "mini" || !this.legacyEntryAvailable()) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "旧版排盘入口暂未开放");
+    }
+    const entry = await this.getSignedUserEntry(userId, "tool", client, true);
+    return { ...entry, mode: this.runtime.getMode() };
+  }
+
+  async getUserAccountEntry(userId: string): Promise<LegacyPaipanEntry> {
+    return this.getSignedUserEntry(userId, "my");
+  }
+
+  async getStationEntry(
+    stationId: string,
+  ): Promise<{ mode: "legacy" | "native"; url: string | null }> {
+    if (this.runtime.isNative()) return { mode: "native", url: null };
+    const station = await this.prisma.station.findFirst({
+      where: { id: stationId, status: "ACTIVE" },
+      select: { paipanLink: true, paipanUserId: true },
     });
+    if (!station?.paipanLink || !/^\d+$/.test(String(station.paipanUserId || ""))) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该分站排盘入口尚未同步完成，请稍后重试");
+    }
+    const expected = this.buildReferralUrl(String(station.paipanUserId));
+    if (station.paipanLink !== expected) {
+      throw new BusinessException(
+        ErrorCode.INTERNAL_ERROR,
+        "该分站排盘入口配置异常，请联系平台处理",
+      );
+    }
+    return { mode: "legacy", url: expected };
+  }
 
-    if (!station || !station.user) {
-      this.logger.warn(`分站 ${stationId} 或关联用户不存在`);
+  /** 支付事务提交后调用；第三方失败不得反向修改本地支付和分站状态。 */
+  async syncByUserId(userId: string): Promise<string | null> {
+    const station = await this.prisma.station.findFirst({
+      where: { userId, status: "ACTIVE" },
+      select: { id: true },
+    });
+    return station ? this.syncStationPaipanLink(station.id) : null;
+  }
+
+  /** 幂等同步：查用户→已有则开通合伙人→复查 userid→原子保存映射。 */
+  async syncStationPaipanLink(stationId: string): Promise<string | null> {
+    const station = await this.prisma.station.findFirst({
+      where: { id: stationId, status: "ACTIVE" },
+      select: {
+        id: true,
+        userId: true,
+        paipanLink: true,
+        paipanUserId: true,
+        user: { select: { phone: true, phoneEnc: true } },
+      },
+    });
+    if (!station) return null;
+
+    if (/^\d+$/.test(String(station.paipanUserId || ""))) {
+      const link = this.buildReferralUrl(String(station.paipanUserId));
+      if (station.paipanLink !== link) {
+        await this.prisma.station.update({ where: { id: station.id }, data: { paipanLink: link } });
+      }
+      await this.audit(station, "SYNCED", "MAPPING_CONFIRMED");
+      return link;
+    }
+
+    let phone: string;
+    try {
+      phone = this.readPhone(station.user);
+    } catch (error) {
+      await this.audit(station, "FAILED", "PHONE_UNAVAILABLE");
+      throw error;
+    }
+
+    try {
+      const existing = await this.lookupUser(phone);
+      if (!existing.exists) {
+        await this.audit(station, "PENDING_AUTHORIZATION", "REMOTE_USER_NOT_FOUND");
+        return null;
+      }
+      await this.openPartner(phone);
+      const confirmed = await this.lookupUser(phone);
+      if (!confirmed.userId) throw new Error("REMOTE_USER_ID_INVALID");
+      const link = this.buildReferralUrl(confirmed.userId);
+      await this.prisma.station.update({
+        where: { id: station.id },
+        data: { paipanUserId: confirmed.userId, paipanLink: link },
+      });
+      await this.audit(station, "SYNCED", "PARTNER_CONFIRMED");
+      return link;
+    } catch (error) {
+      const code = this.safeFailureCode(error);
+      await this.audit(station, "FAILED", code);
+      this.logger.warn(`旧排盘分站同步失败 station=${station.id} code=${code}`);
       return null;
     }
-
-    const { user } = station;
-
-    // 如果已有排盘链接且未过期，直接返回
-    if (station.paipanLink) {
-      return station.paipanLink;
-    }
-
-    // 尝试调用旧排盘系统 API
-    let paipanUserId: string | undefined;
-    let paipanLink: string | undefined;
-
-    if (this.paipanApiBase) {
-      try {
-        const result = await this.callPaipanApi("syncUser", {
-          phone: user.phone,
-          nickname: user.nickname,
-          stationName: station.name,
-          promotionCode: station.code,
-        });
-
-        paipanUserId = result?.userId;
-        paipanLink = result?.promotionLink;
-      } catch (err: any) {
-        this.logger.warn(`排盘API同步失败，降级为默认链接: ${err.message}`);
-      }
-    }
-
-    // 降级：用默认格式拼接链接
-    if (!paipanLink) {
-      const base = process.env.PAIPAN_H5_BASE || "https://paipan.rebu.com";
-      paipanLink = `${base}/?stationCode=${station.code}&from=app`;
-    }
-
-    // 保存到数据库
-    const updateData: any = { paipanLink };
-    if (paipanUserId) updateData.paipanUserId = paipanUserId;
-
-    await this.prisma.station.update({
-      where: { id: stationId },
-      data: updateData,
-    });
-
-    this.logger.log(
-      `分站 ${station.name} 排盘链接已配置: ${paipanLink}${
-        paipanUserId ? ` (排盘UID: ${paipanUserId})` : " (降级模式)"
-      }`,
-    );
-
-    return paipanLink;
   }
 
-  /**
-   * 批量同步所有未配置排盘链接的分站
-   */
+  async getOwnSyncState(userId: string) {
+    const station = await this.prisma.station.findFirst({
+      where: { userId, status: "ACTIVE" },
+      select: {
+        id: true,
+        paipanLink: true,
+        paipanUserId: true,
+        user: { select: { phone: true, phoneEnc: true } },
+      },
+    });
+    if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "未找到已开通的分站");
+    if (station.paipanLink && /^\d+$/.test(String(station.paipanUserId || ""))) {
+      return {
+        state: "SYNCED" as StationPaipanSyncState,
+        referralUrl: station.paipanLink,
+        authorizationUrl: null,
+      };
+    }
+    const latest = await this.prisma.auditLog.findFirst({
+      where: { action: "LEGACY_PAIPAN_STATION_SYNC", targetType: "Station", targetId: station.id },
+      orderBy: { createdAt: "desc" },
+      select: { detail: true },
+    });
+    let state: StationPaipanSyncState = "PENDING";
+    try {
+      const parsed = JSON.parse(latest?.detail || "{}") as { state?: StationPaipanSyncState };
+      if (parsed.state) state = parsed.state;
+    } catch {
+      state = "PENDING";
+    }
+    return {
+      state,
+      referralUrl: null,
+      authorizationUrl:
+        state === "PENDING_AUTHORIZATION"
+          ? this.buildPartnerAuthorizationUrl(this.readPhone(station.user))
+          : null,
+    };
+  }
+
   async syncAll() {
     const stations = await this.prisma.station.findMany({
-      where: { paipanLink: null, status: "ACTIVE" },
-      select: { id: true, name: true },
+      where: { paipanUserId: null, status: "ACTIVE" },
+      select: { id: true },
     });
-
-    this.logger.log(`开始批量同步 ${stations.length} 个分站...`);
-
     let success = 0;
-    for (const s of stations) {
-      const link = await this.syncStationPaipanLink(s.id);
-      if (link) success++;
+    for (const station of stations) {
+      if (await this.syncStationPaipanLink(station.id)) success += 1;
     }
-
-    this.logger.log(`批量同步完成: ${success}/${stations.length}`);
-    return { total: stations.length, success };
+    return { total: stations.length, success, pending: stations.length - success };
   }
 
-  // ── 私有方法 ──
-
-  private async callPaipanApi(
-    action: string,
-    data: Record<string, unknown>,
-  ): Promise<{ userId?: string; promotionLink?: string } | null> {
-    const url = `${this.paipanApiBase}/api/${action}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.paipanApiKey}`,
-      },
-      body: JSON.stringify(data),
-      signal: AbortSignal.timeout(10000),
+  private async getSignedUserEntry(
+    userId: string,
+    target: "tool" | "my",
+    client: "app" | "h5" | "mini" = "app",
+    forceLegacy = false,
+  ): Promise<LegacyPaipanEntry> {
+    if (this.runtime.isNative() && !forceLegacy) return { mode: "native", url: null, attributionReady: true };
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true, phoneEnc: true, attributionStationId: true },
     });
+    if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+    // 微信 H5 使用第三方网页入口，不能按是否绑定手机错误选择 App 接口。
+    // 无手机号的普通工具交由旧站授权，不伪造手机号签名。
+    // 个人中心及推荐人开通仍保留原手机号要求。
+    if (target === "tool" && client === "mini") {
+      const url = this.parseHttpsUrl(
+        process.env.PAIPAN_MINI_H5_BASE ||
+          "https://www.yrydai.cn/guide.php?mod=index&act=guoxue",
+        "PAIPAN_MINI_H5_BASE",
+      );
+      return { mode: "legacy", url: url.toString(), attributionReady: false };
+    }
+    if (target === "tool" && (client === "h5" || (!user.phoneEnc && !user.phone))) {
+      const url = this.parseHttpsUrl(
+        process.env.PAIPAN_REFERRAL_BASE || "https://www.yrydai.com/p1.php",
+        "PAIPAN_REFERRAL_BASE",
+      );
+      url.search = "";
+      url.hash = "";
+      return { mode: "legacy", url: url.toString(), attributionReady: false };
+    }
+    const phone = this.readPhone(user);
+    const url = this.buildSignedEntryUrl(phone, target);
+    const attributionReady = await this.isAttributionReady(user.attributionStationId);
+    return { mode: "legacy", url, attributionReady };
+  }
 
-    if (!res.ok) throw new BusinessException(ErrorCode.INTERNAL_ERROR, `远程服务返回 HTTP ${res.status}`);
-    const json: any = await res.json();
-    return json?.data || json;
+  private readPhone(user: { phone?: string | null; phoneEnc?: string | null }): string {
+    const phone = String(user.phoneEnc ? decrypt(user.phoneEnc) : user.phone || "").trim();
+    if (!/^1\d{10}$/.test(phone)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "进入排盘服务前请先绑定中国大陆手机号");
+    }
+    return phone;
+  }
+
+  private buildSignedEntryUrl(phone: string, target: "tool" | "my"): string {
+    const url = this.parseHttpsUrl(
+      process.env.PAIPAN_OPERATION_H5_BASE ||
+        process.env.PAIPAN_H5_BASE ||
+        "https://www.yrydai.cn/guoxueApp.php",
+      "PAIPAN_OPERATION_H5_BASE",
+    );
+    const key = createHash("md5").update(`${phone}@rebuguoxue${phone}`, "utf8").digest("hex");
+    url.searchParams.set("mobile", phone);
+    url.searchParams.set("key", key);
+    url.searchParams.set("go", target);
+    if (target === "tool")
+      url.searchParams.set("v", String(process.env.PAIPAN_LEGACY_DISPLAY_VERSION || "1"));
+    else url.searchParams.delete("v");
+    return url.toString();
+  }
+
+  private async lookupUser(phone: string): Promise<{ exists: boolean; userId: string | null }> {
+    const url = this.parseHttpsUrl(
+      process.env.PAIPAN_USER_LOOKUP_URL || "https://www.yrydai.cn/recommend/mobileUser.php",
+      "PAIPAN_USER_LOOKUP_URL",
+    );
+    url.searchParams.set("mobile", phone);
+    const data = await this.fetchJson(url);
+    const userId = String(data?.userid || "");
+    return {
+      exists: String(data?.status) === "1" && /^\d+$/.test(userId),
+      userId: /^\d+$/.test(userId) ? userId : null,
+    };
+  }
+
+  private async openPartner(phone: string): Promise<void> {
+    const url = this.parseHttpsUrl(
+      process.env.PAIPAN_PARTNER_OPEN_URL || "https://www.yrydai.cn/recommend/partner.php",
+      "PAIPAN_PARTNER_OPEN_URL",
+    );
+    url.searchParams.set("mobile", phone);
+    await this.fetchJson(url, false);
+  }
+
+  private buildPartnerAuthorizationUrl(phone: string): string {
+    const url = this.parseHttpsUrl(
+      process.env.PAIPAN_PARTNER_OAUTH_URL ||
+        "https://www.yrydai.cn/my.php?mod=member&act=addPartner",
+      "PAIPAN_PARTNER_OAUTH_URL",
+    );
+    url.searchParams.set("mobile", phone);
+    return url.toString();
+  }
+
+  private buildReferralUrl(userId: string): string {
+    const url = this.parseHttpsUrl(
+      process.env.PAIPAN_REFERRAL_BASE || "https://www.yrydai.com/p1.php",
+      "PAIPAN_REFERRAL_BASE",
+    );
+    url.searchParams.set("ruid", userId);
+    return url.toString();
+  }
+
+  private parseHttpsUrl(value: string, name: string): URL {
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, `${name} 配置无效`);
+    }
+    if (url.protocol !== "https:" || url.username || url.password) {
+      throw new BusinessException(
+        ErrorCode.INTERNAL_ERROR,
+        `${name} 必须是无账号信息的 HTTPS 地址`,
+      );
+    }
+    return url;
+  }
+
+  private async fetchJson(url: URL, requireJson = true): Promise<any> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        signal: controller.signal,
+        redirect: "error",
+      });
+      if (!response.ok) throw new Error(`REMOTE_HTTP_${response.status}`);
+      const text = await response.text();
+      if (!requireJson && !text.trim().startsWith("{")) return {};
+      try {
+        return JSON.parse(text);
+      } catch {
+        throw new Error("REMOTE_RESPONSE_INVALID");
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private safeFailureCode(error: unknown): string {
+    const message = error instanceof Error ? error.message : "";
+    if (/^REMOTE_HTTP_\d+$/.test(message)) return message;
+    if (message === "REMOTE_RESPONSE_INVALID" || message === "REMOTE_USER_ID_INVALID")
+      return message;
+    if (error instanceof Error && error.name === "AbortError") return "REMOTE_TIMEOUT";
+    return "REMOTE_NETWORK_ERROR";
+  }
+
+  private async audit(
+    station: { id: string; userId: string },
+    state: StationPaipanSyncState,
+    code: string,
+  ): Promise<void> {
+    await this.prisma.auditLog.create({
+      data: {
+        userId: station.userId,
+        executor: "SYSTEM",
+        autonomyLevel: "L1",
+        action: "LEGACY_PAIPAN_STATION_SYNC",
+        targetType: "Station",
+        targetId: station.id,
+        detail: JSON.stringify({ state, code }),
+      },
+    });
+  }
+
+  private async isAttributionReady(stationId: string | null): Promise<boolean> {
+    if (!stationId) return true;
+    const station = await this.prisma.station.findUnique({
+      where: { id: stationId },
+      select: { paipanLink: true, paipanUserId: true },
+    });
+    return Boolean(station?.paipanLink && /^\d+$/.test(String(station.paipanUserId || "")));
   }
 }

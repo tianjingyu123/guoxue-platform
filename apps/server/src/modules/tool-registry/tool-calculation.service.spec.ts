@@ -33,7 +33,7 @@ describe("ToolCalculationService", () => {
     });
 
     it("未知 toolId 抛出异常", async () => {
-      await expect(svc.calculate({ toolId: "unknown-tool", input: {} })).rejects.toThrow("暂未实现");
+      await expect(svc.calculate({ toolId: "unknown-tool", input: {} })).rejects.toThrow("暂不提供结果");
     });
 
     it("calculateAsync 与 calculate 行为一致", async () => {

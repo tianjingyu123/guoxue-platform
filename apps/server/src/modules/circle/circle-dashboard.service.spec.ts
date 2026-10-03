@@ -3,6 +3,8 @@ import { ForbiddenException } from "@nestjs/common";
 import { CircleDashboardService } from "./circle-dashboard.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { InsightService } from "../track/insight.service";
+import { setCacheRedisService } from "../../common/cache.decorator";
+import { RedisService } from "../../redis/redis.service";
 
 const mockPrisma = {
   circle: { findUnique: jest.fn() },
@@ -102,6 +104,47 @@ describe("CircleDashboardService", () => {
       expect(Array.isArray(result.trends)).toBe(true);
       expect(result.trends.length).toBeGreaterThan(0);
     });
+  });
+
+  it("待回复清单仅包含本人可回答的问题，并优先呈现等待最久的提问", async () => {
+    mockPrisma.paidQuestion.findMany.mockResolvedValue([{ id: "q-old" }, { id: "q-new" }]);
+    await expect(svc.getPendingQuestions("c1", UID)).resolves.toEqual({ questions: [{ id: "q-old" }, { id: "q-new" }] });
+    expect(mockPrisma.paidQuestion.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { circleId: "c1", answererId: UID, status: "PENDING" },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: 20,
+    }));
+  });
+
+  it.each(["getOverview", "getTrends"] as const)("%s 有圈主缓存时仍拒绝普通成员", async (method) => {
+    // 模拟线上 Redis 中已有圈主请求产生的敏感缓存，防止命中缓存绕过归属校验。
+    setCacheRedisService({ getJson: jest.fn().mockResolvedValue({ monthRevenue: 5000, trends: [] }) } as unknown as RedisService);
+    mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER" });
+    try {
+      await expect(svc[method]("c1", "member1")).rejects.toThrow(ForbiddenException);
+      expect(mockPrisma.circleMember.findUnique).toHaveBeenCalledWith({
+        where: { circleId_userId: { circleId: "c1", userId: "member1" } },
+        select: { role: true },
+      });
+    } finally {
+      setCacheRedisService(undefined as unknown as RedisService);
+    }
+  });
+
+  it.each([
+    "getOverview", "getTrends", "getRevenueBreakdown", "getTopContributors",
+    "getHotContent", "getRecentMembers", "getChurnWarning", "getPendingQuestions",
+    "getMembersInsight", "getMemberTimeline", "getKnowledgeCandidates",
+  ])("普通成员访问经营与成员洞察入口 %s 时，读取业务数据前拒绝", async (method) => {
+    mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER" });
+    await expect((svc as any)[method]("c1", "member1", "target1")).rejects.toThrow(ForbiddenException);
+    expect(mockPrisma.circleMember.findUnique).toHaveBeenCalledWith({
+      where: { circleId_userId: { circleId: "c1", userId: "member1" } },
+      select: { role: true },
+    });
+    expect(mockPrisma.order.aggregate).not.toHaveBeenCalled();
+    expect(mockInsight.buildCustomerProfiles).not.toHaveBeenCalled();
+    expect(mockInsight.getTimeline).not.toHaveBeenCalled();
   });
 
   describe("getRevenueBreakdown", () => {

@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@ne
 import { Request } from "express";
 import { WalletService } from "./wallet.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("钱包")
 @Controller("users/wallet")
@@ -42,6 +43,13 @@ export class WalletController {
     return this.svc.getRechargeOptions();
   }
 
+  @Get("recharge-config")
+  @ApiOperation({ summary: "充值页配置（档位 + 自定义充值汇率）" })
+  @ApiResponse({ status: 200, description: "返回 { tiers, coinRate }" })
+  getRechargeConfig() {
+    return this.svc.getRechargeConfig();
+  }
+
   @Get("withdraw-info")
   @ApiOperation({ summary: "提现信息（余额/费率/已存账户）" })
   @ApiResponse({ status: 200, description: "成功" })
@@ -50,11 +58,35 @@ export class WalletController {
   }
 
   @Post("withdraw")
+  @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "提交提现申请" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   submitWithdraw(@Req() req: Request, @Body() body: { amount: number; method: string; account: Record<string, string> }) {
     return this.svc.submitWithdraw(req.user.id, body);
+  }
+
+  @Get("withdrawals")
+  @ApiOperation({
+    summary: "我的提现记录",
+    description:
+      "TRANSFERRING 的单子会带 needConfirm=true —— 微信商家转账已发起但用户还没点「确认收款」，" +
+      "钱还没到他手上。前端要据此引导他去确认，否则超时自动退回。",
+  })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  @ApiResponse({ status: 200, description: "成功" })
+  getMyWithdrawals(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.getMyWithdrawals(req.user.id, +page, +pageSize);
+  }
+
+  @Post("convert-to-coin")
+  @RedLineGate(RedLine.MONEY)
+  @ApiOperation({ summary: "收益转金币（可提现余额→金币·1元=10币·单向不可逆）" })
+  @ApiResponse({ status: 201, description: "转换成功" })
+  @ApiResponse({ status: 400, description: "余额不足/金额非法" })
+  convertToCoin(@Req() req: Request, @Body() body: { amountRmb: number }) {
+    return this.svc.convertToCoin(req.user.id, Number(body?.amountRmb));
   }
 
   @Post("recharge")

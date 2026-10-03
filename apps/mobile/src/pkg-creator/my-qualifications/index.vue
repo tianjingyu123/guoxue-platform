@@ -27,7 +27,7 @@
 
       <!-- 基础：实名认证 -->
       <view class="mq-group-label">基础认证</view>
-      <view class="mq-card" @tap="go('/pkg-mine/security/index')">
+      <view class="mq-card" @tap="go('/pkg-mine/verification/index')">
         <view class="mq-icon" style="background: #eff6ff;">
           <AppIcon name="shield-check" :size="26" :color="identityVerified ? '#16a34a' : '#94a3b8'" />
         </view>
@@ -103,7 +103,6 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { apiGet } from '@/utils/request'
 import { teacherApi } from '@/lib/teacher-data'
-import { instituteApi } from '@/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const loading = ref(true)
@@ -140,7 +139,7 @@ async function loadData() {
       // /auth/me 返回结构未建模，保留 any（仅取 identityVerified 字段）
       apiGet<any>('/auth/me'),
       teacherApi.getMyCertification().catch(() => null),
-      instituteApi.getMy().catch(() => null),
+      apiGet<unknown>('/institute/my').catch(() => null),
     ])
     identityVerified.value = !!me?.identityVerified
     certStatus.value = cert

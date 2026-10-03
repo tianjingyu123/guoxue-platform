@@ -1,0 +1,316 @@
+{
+  "verifiedAt": "2026-10-01T00:36:06.377Z",
+  "codeSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+  "presentationCodeSha": "02d30a6da4c36a82c4ea9f4d9d246a1da6e83743",
+  "sourceDirty": false,
+  "localCandidateOnly": true,
+  "nativeCandidate": {
+    "versionCode": 254,
+    "versionName": "1.1.1",
+    "formalApkProduced": false
+  },
+  "storeBrandChannelCount": 16,
+  "nonLegacyChannelPlatformDryRunCount": 18,
+  "verification": {
+    "serverJest": {
+      "suitesPassed": 13,
+      "testsPassed": 269,
+      "authenticationAndSomeBusinessDependencies": "test substitutes"
+    },
+    "node": {
+      "testsPassed": 50,
+      "batches": [
+        38,
+        12
+      ],
+      "resourceBridge": "explicit simulation"
+    },
+    "isolatedPostgresHttpVue": {
+      "groupsPassed": 8,
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+      "realPrisma": true,
+      "actualVueSfcDom": true,
+      "surfaces": [
+        "home",
+        "discover",
+        "live",
+        "shop",
+        "course",
+        "circle",
+        "agent"
+      ],
+      "syntheticAuthentication": true,
+      "codeDownloads": 0
+    },
+    "nativeCore": {
+      "jcaGroups": 10,
+      "forcedBcGroups": 10,
+      "migrationForcedExits": 5,
+      "pathConfinement": true,
+      "nodeJavaRootSignature": true,
+      "runtime": "JVM"
+    },
+    "android": {
+      "api": 34,
+      "deviceModel": "LE2100",
+      "probeGroups": 8,
+      "baseUpgradeCheckpoints": [
+        "BASE_JOURNAL_SYNCED",
+        "BASE_OLD_MOVED",
+        "BASE_NEW_MOVED",
+        "BASE_PREVIOUS_MOVED",
+        "BASE_COMMITTED"
+      ],
+      "formalPackageUnchanged": true,
+      "dcloudVerified": false,
+      "realCriticalBusinessVerified": false
+    },
+    "builds": {
+      "shared": true,
+      "server": true,
+      "admin": true,
+      "h5": true,
+      "mpWeixin": true,
+      "mobileTypecheck": true,
+      "adminTypecheck": "vue-tsc in admin build",
+      "changedSourceEslint": {
+        "errors": 0,
+        "warnings": {
+          "admin": 273,
+          "mobile": 1380,
+          "server": 133
+        }
+      },
+      "mpChecks": {
+        "wxmlFiles": 629,
+        "textFiles": 2748,
+        "mainMb": 1.62,
+        "uploadConservativeMb": 1.9,
+        "subpackageCount": 33,
+        "maxSubpackageMb": 1.68
+      }
+    }
+  },
+  "artifacts": {
+    "aar": {
+      "path": "artifacts/native-resource-update/rebu-resource-updater.aar",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+      "sourceDirty": false,
+      "sha256": "badf38ffef72adeefdcfde580a267d5a2c0d9e5724961adb308d257af41fb5d7",
+      "wgtEnabled": false,
+      "cryptoDependency": {
+        "version": "1.86",
+        "sha256": "fc50334d4d87b4272e72fa95ca748ead05bdef02ef760a5b13f64ffee317cd81",
+        "bundled": false,
+        "androidMinApi": 26,
+        "licenseSha256": "d5df95bca82c6bdab4c56982e9900bb93b9571827001ac10f1f186c069b608a9"
+      },
+      "bouncyCastleIncluded": false,
+      "utsHookChecked": true
+    },
+    "channelResources": {
+      "platform": "android",
+      "channelId": "google-play",
+      "nativeBuild": 254,
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+      "output": "artifacts/app-channels/rebu/android/google-play/b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+      "syntheticIdentity": true,
+      "artifactType": "compiled-resources",
+      "nativePackageVerified": false,
+      "wgtEnabled": false,
+      "fileCount": 494,
+      "treeHashAlgorithm": "SHA-256(sorted relativePath NUL byteLength NUL fileSHA256 LF)",
+      "treeSha256": "89be1b4e20f1a84fb14e971fa36457d1b1f8f058deaaffb82ebd24a7d476a28f",
+      "fileManifestPath": "artifacts/phase3-channel-manifests/google-play-files.json",
+      "fileManifestSha256": "d47d308463a5ed2fbabe15352de1ff1e57640764816098e886875822cd3b0e0e",
+      "capabilityManifestSha256": "ea765cfac7b59c8a9bd91c09087648eb1af3d21b4afe9a49e4e246b5abfcf1d1"
+    },
+    "testApks": [
+      {
+        "versionCode": 13,
+        "packageName": "cn.rebu.resourceprobe",
+        "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+        "sourceDirty": false,
+        "sha256": "eced3d7717b308df9ae1319658f1d2eb25d6cbf532aa9568dc5819e6f24fb38f",
+        "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+        "syntheticOnly": true,
+        "dcloud": false
+      },
+      {
+        "versionCode": 14,
+        "packageName": "cn.rebu.resourceprobe",
+        "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+        "sourceDirty": false,
+        "sha256": "8fe904571165980153166e395b99da530fc81a3fcf5e39472d20ec24ff1e7b3c",
+        "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+        "syntheticOnly": true,
+        "dcloud": false
+      },
+      {
+        "versionCode": 15,
+        "packageName": "cn.rebu.resourceprobe",
+        "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+        "sourceDirty": false,
+        "sha256": "d9a01f9fddf20118acb59e52090d269d1ab431940e2073cc8518ac68634fd4a0",
+        "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+        "syntheticOnly": true,
+        "dcloud": false
+      },
+      {
+        "versionCode": 16,
+        "packageName": "cn.rebu.resourceprobe",
+        "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+        "sourceDirty": false,
+        "sha256": "83561ebe115439d3e38c70f193c9e108e5b79905c942f3ec3f7e5ad4b9b8e4dd",
+        "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+        "syntheticOnly": true,
+        "dcloud": false
+      },
+      {
+        "versionCode": 17,
+        "packageName": "cn.rebu.resourceprobe",
+        "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+        "sourceDirty": false,
+        "sha256": "f6eb45193d9f2efb47cd175e31bde2f95e686516aa96ceac3cadcb75b3813ff3",
+        "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+        "syntheticOnly": true,
+        "dcloud": false
+      },
+      {
+        "versionCode": 18,
+        "packageName": "cn.rebu.resourceprobe",
+        "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+        "sourceDirty": false,
+        "sha256": "8ea001367ce7bf803e7bc74a387e0665f384032f27fea9f31c88abf08224841d",
+        "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+        "syntheticOnly": true,
+        "dcloud": false
+      }
+    ]
+  },
+  "logs": {
+    "phase3-server-bound.log": {
+      "path": "artifacts/phase3-server-bound.log",
+      "sha256": "b976e8e5b871400392fd6569abac399c2dde0337b10c74442cb901f23a7ff6c4",
+      "bytes": 1567
+    },
+    "phase3-node-bound.log": {
+      "path": "artifacts/phase3-node-bound.log",
+      "sha256": "d5955d458ff58eec609085b92425179b9c6b2ebc9c7738f595f1794d5b8337d8",
+      "bytes": 3638
+    },
+    "phase3-node-resource-bound.log": {
+      "path": "artifacts/phase3-node-resource-bound.log",
+      "sha256": "350dae77c12c2f770f358bf8f152c44c50f041cf499a071ad5511311c6276f95",
+      "bytes": 847
+    },
+    "phase3-native-final.log": {
+      "path": "artifacts/phase3-native-final.log",
+      "sha256": "5e59a4c379ae66822a85a63ce7d2bffc16deb03c9da2b77cf5361c0ad317880e",
+      "bytes": 623
+    },
+    "phase3-presentation-final.log": {
+      "path": "artifacts/phase3-presentation-final.log",
+      "sha256": "fb72868a6cd7cf4f6b4f329d4ad64eb8ed1871e6e5adca4a6b879755bc988186",
+      "bytes": 3399
+    },
+    "phase3-probe13-build.log": {
+      "path": "artifacts/phase3-probe13-build.log",
+      "sha256": "fa18761c28af59522ce831478f93ac0d2e6bb194120817bb3a279dfda077c1d0",
+      "bytes": 386
+    },
+    "phase3-probe13-test.log": {
+      "path": "artifacts/phase3-probe13-test.log",
+      "sha256": "2bcf305f27862ab16bbc390a8e6805ad8a491cc900bdee938a65ad5a5507a6d1",
+      "bytes": 748
+    },
+    "phase3-base-upgrade-bound.log": {
+      "path": "artifacts/phase3-base-upgrade-bound.log",
+      "sha256": "cea6d6f292276ef6170123dfbce3cf32fb805d7caa36cd2ac903536728acd6c0",
+      "bytes": 2445
+    },
+    "phase3-aar-final.log": {
+      "path": "artifacts/phase3-aar-final.log",
+      "sha256": "acf9264e145ac61e0429ab3ba37587618f1f01160747feebe762b5f92f25f967",
+      "bytes": 417
+    },
+    "phase3-channel-build.log": {
+      "path": "artifacts/phase3-channel-build.log",
+      "sha256": "aa65910c84dbe11f35b288e33e2ddd685111bca8376e29e9991ccccc11a38bea",
+      "bytes": 68030
+    },
+    "phase3-dry-runs.log": {
+      "path": "artifacts/phase3-dry-runs.log",
+      "sha256": "9899b1d5adf54ef89a286654b19e21f959216bc311e106caa731af5bcff85fbb",
+      "bytes": 119
+    },
+    "phase3-admin-bound.log": {
+      "path": "artifacts/phase3-admin-bound.log",
+      "sha256": "76da9e2552246397b1bfeef814684cbb479ab59325215639ec3222e9151473ad",
+      "bytes": 59890
+    },
+    "phase3-h5-bound.log": {
+      "path": "artifacts/phase3-h5-bound.log",
+      "sha256": "bc8ba3c944ed2220fc6b8a3015804f44fe3715243a0f5be2489d0e8cd2c25c46",
+      "bytes": 68249
+    },
+    "phase3-mp-bound.log": {
+      "path": "artifacts/phase3-mp-bound.log",
+      "sha256": "2687d2c13966da9a014065095f957e3566236cd4c1bfd3c50eb3b430be655c8c",
+      "bytes": 69050
+    },
+    "phase3-mobile-types-bound.log": {
+      "path": "artifacts/phase3-mobile-types-bound.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "phase3-admin-lint-final.log": {
+      "path": "artifacts/phase3-admin-lint-final.log",
+      "sha256": "baa061b0da70a9523c6ed324967d21124fe345b0bd0a21be73e01c7f8e4699df",
+      "bytes": 38587
+    },
+    "phase3-mobile-lint-final.log": {
+      "path": "artifacts/phase3-mobile-lint-final.log",
+      "sha256": "b73250b270cda8fdbb225f7acb54552f38d39f732fd124d0303870271be5df7a",
+      "bytes": 185451
+    },
+    "phase3-server-lint-final.log": {
+      "path": "artifacts/phase3-server-lint-final.log",
+      "sha256": "dbb423521f7788ee97bfdefffe7a1bb69164254914c53ad819a29903de7236b8",
+      "bytes": 13927
+    },
+    "phase3-shared-bound.log": {
+      "path": "artifacts/phase3-shared-bound.log",
+      "sha256": "ad2ad012c7220a92c5b5ddd186d17dee0e6683a12a27c729e5227aef6b02e00a",
+      "bytes": 135
+    },
+    "phase3-server-build-bound.log": {
+      "path": "artifacts/phase3-server-build-bound.log",
+      "sha256": "57066def7e8dbb5319fccc21c58f5f2ce1355ef89fea11692db9ca0b3d811e7b",
+      "bytes": 138
+    }
+  },
+  "isolatedDatabase": {
+    "address": "127.0.0.1:55449/channel_synthetic",
+    "user": "channel_test",
+    "ownClusterStopped": true
+  },
+  "externalActions": {
+    "pushed": false,
+    "merged": false,
+    "deployed": false,
+    "productionMigration": false,
+    "dnsChanged": false,
+    "storeSubmission": false,
+    "paidCloudPackaging": false,
+    "formalPackageReplaced": false,
+    "realTransaction": false
+  },
+  "remaining": [
+    "匹配5.23离线SDK、HBuilderX导出、独立测试包AppKey和签名输入尚未核验",
+    "DCloud Application时序/目录释放、正式完整包升级/R8及65/60秒健康窗口未实测",
+    "API26–32实机、iOS与Harmony原生恢复未实测",
+    "商店账户/应用身份/具体许可/实际提审未核验",
+    "真实历史订单和权益及支付/直播/录音/上传完整业务链未实测"
+  ]
+}

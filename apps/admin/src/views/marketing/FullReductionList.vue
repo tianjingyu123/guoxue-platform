@@ -15,7 +15,7 @@
       style="margin-bottom:12px"
     >
       <template #title>
-        <span style="font-size:13px">展示位置：<b>购物车页</b>自动匹配最优满减、<b>结算页</b>显示减免金额。创建后即生效。</span>
+        <span style="font-size:13px">展示位置：<b>购物车页</b>自动匹配最优满减、<b>结算页</b>显示减免金额。创建后为<b>草稿</b>，需点「启用」才对用户生效。</span>
       </template>
     </el-alert>
     <el-alert
@@ -77,7 +77,7 @@
       </el-table-column>
       <el-table-column
         label="操作"
-        width="160"
+        width="220"
         fixed="right"
       >
         <template #default="{ row }">
@@ -88,9 +88,25 @@
             编辑
           </el-button>
           <el-button
+            v-if="row.status !== 'ACTIVE'"
+            size="small"
+            type="success"
+            @click="activate(row)"
+          >
+            启用
+          </el-button>
+          <el-button
+            v-if="row.status === 'ACTIVE'"
+            size="small"
+            type="warning"
+            @click="deactivate(row)"
+          >
+            停用
+          </el-button>
+          <el-button
             size="small"
             type="danger"
-            @click="del(row.id)"
+            @click="del(row)"
           >
             删除
           </el-button>
@@ -151,10 +167,20 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="赠品商品ID">
-          <el-input
+        <el-form-item label="赠品商品">
+          <ProductPicker
             v-model="form.giftProductId"
-            placeholder="可选"
+            placeholder="可选：满足条件时赠送的商品"
+          />
+        </el-form-item>
+        <el-form-item
+          v-if="form.giftProductId"
+          label="赠品数量"
+        >
+          <el-input-number
+            v-model="form.giftCount"
+            :min="1"
+            style="width:100%"
           />
         </el-form-item>
         <el-form-item label="适用商品">
@@ -246,6 +272,7 @@ interface FullReductionRow {
   threshold?: number | string
   reduction?: number | string
   giftProductId?: string
+  giftCount?: number
   productIds?: string[]
   startTime?: string
   endTime?: string
@@ -256,7 +283,7 @@ interface FullReductionRow {
 
 const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<FullReductionRow[]>([]); const total = ref(0); const page = ref(1); const pages = ref<PageOption[]>([])
 const vis = ref(false); const editingId = ref('')
-const form = reactive<{ name: string; threshold: number; reduction: number; giftProductId: string; productIds: string[]; startTime: string; endTime: string; scope: string; scopePageId: string }>({ name: '', threshold: 100, reduction: 10, giftProductId: '', productIds: [], startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
+const form = reactive<{ name: string; threshold: number; reduction: number; giftProductId: string; giftCount: number; productIds: string[]; startTime: string; endTime: string; scope: string; scopePageId: string }>({ name: '', threshold: 100, reduction: 10, giftProductId: '', giftCount: 1, productIds: [], startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
 
 function statusLabel(s: string) {
   const m: Record<string, string> = { ACTIVE: '进行中', ENDED: '已结束', DRAFT: '草稿' }
@@ -264,7 +291,7 @@ function statusLabel(s: string) {
 }
 
 onMounted(() => { fetchList(); loadPages() })
-async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.items || data.pages || data.data || [] } catch { /* 忽略 */ } }
+async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = Array.isArray(data) ? data : (data.items || data.pages || data.data || []) } catch { /* 忽略 */ } }
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
@@ -278,7 +305,7 @@ async function fetchList() {
 
 function openCreate() {
   editingId.value = ''
-  Object.assign(form, { name: '', threshold: 100, reduction: 10, giftProductId: '', productIds: [], startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
+  Object.assign(form, { name: '', threshold: 100, reduction: 10, giftProductId: '', giftCount: 1, productIds: [], startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
   vis.value = true
 }
 
@@ -287,6 +314,7 @@ function openEdit(row: FullReductionRow) {
   Object.assign(form, {
     name: row.name, threshold: Number(row.threshold), reduction: Number(row.reduction),
     giftProductId: row.giftProductId || '',
+    giftCount: row.giftCount || 1,
     productIds: [...(row.productIds || [])],
     startTime: row.startTime || '', endTime: row.endTime || '',
     scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '',
@@ -300,6 +328,7 @@ async function save() {
     const payload: Record<string, unknown> = {
       name: form.name, threshold: form.threshold, reduction: form.reduction,
       giftProductId: form.giftProductId || undefined,
+      giftCount: form.giftProductId ? form.giftCount : undefined,
       productIds: form.productIds.length ? form.productIds : undefined,
       scope: form.scope, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined,
     }
@@ -307,12 +336,31 @@ async function save() {
     if (form.endTime) payload.endTime = new Date(form.endTime).toISOString()
     if (editingId.value) { await marketingApi.updateFullReduction(editingId.value, payload) }
     else { await marketingApi.createFullReduction(payload) }
-    ElMessage.success(editingId.value ? '已更新' : '满减活动创建成功'); vis.value = false; fetchList()
+    ElMessage.success(editingId.value ? '已更新' : '满减活动已创建（草稿），点「启用」后用户端生效'); vis.value = false; fetchList()
   } catch (e) { ElMessage.error((e as ApiError)?.response?.data?.message || '操作失败') } finally { saving.value = false }
 }
 
-async function del(id: string) {
-  try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteFullReduction(id); ElMessage.success('已删除'); fetchList() } catch { /* 用户取消 */ }
+/** 启用：DRAFT/ENDED → ACTIVE（后端 UpdateFullReductionDto 支持 status） */
+async function activate(row: FullReductionRow) {
+  const scopeDesc = row.productIds?.length ? `适用 ${row.productIds.length} 个商品` : '适用全场商品'
+  try {
+    await ElMessageBox.confirm(`启用后满减规则立即在购物车/结算页生效（${scopeDesc}）。确定启用？`, '启用满减', { type: 'warning', confirmButtonText: '确认启用', cancelButtonText: '取消' })
+  } catch { return }
+  try { await marketingApi.updateFullReduction(row.id, { status: 'ACTIVE' }); ElMessage.success('已启用'); fetchList() }
+  catch (e) { ElMessage.error((e as ApiError)?.response?.data?.message || '启用失败') }
+}
+/** 停用：ACTIVE → ENDED */
+async function deactivate(row: FullReductionRow) {
+  try {
+    await ElMessageBox.confirm('停用后购物车/结算页立即不再匹配该满减。确定停用？', '停用满减', { type: 'warning', confirmButtonText: '确认停用', cancelButtonText: '取消' })
+  } catch { return }
+  try { await marketingApi.updateFullReduction(row.id, { status: 'ENDED' }); ElMessage.success('已停用'); fetchList() }
+  catch (e) { ElMessage.error((e as ApiError)?.response?.data?.message || '停用失败') }
+}
+
+async function del(row: FullReductionRow) {
+  const warn = row.status === 'ACTIVE' ? '该满减正在进行中，删除后购物车/结算页立即失效。' : '删除后不可恢复。'
+  try { await ElMessageBox.confirm(`${warn}确定删除？`, '删除满减', { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' }); await marketingApi.deleteFullReduction(row.id); ElMessage.success('已删除'); fetchList() } catch { /* 用户取消 */ }
 }
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

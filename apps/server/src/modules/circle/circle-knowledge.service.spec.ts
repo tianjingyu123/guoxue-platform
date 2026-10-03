@@ -2,6 +2,8 @@ import { Test } from "@nestjs/testing";
 import { CircleKnowledgeService } from "./circle-knowledge.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VectorService } from "../ai-gateway/vector.service";
+import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { ModerationService } from "../audit/moderation.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -23,10 +25,13 @@ const mockPrisma = {
     update: jest.fn(),
     findFirst: jest.fn(),
   },
-  post: { findMany: jest.fn() },
-  paidQuestion: { findMany: jest.fn() },
+  post: { findMany: jest.fn(), findUnique: jest.fn() },
+  paidQuestion: { findMany: jest.fn(), findUnique: jest.fn() },
   comment: { findMany: jest.fn() },
   circle: { findUnique: jest.fn() },
+  // 治理 #8：knowledge.manage 矩阵位鉴权（assertManager）
+  circleMember: { findUnique: jest.fn() },
+  circleGovernanceConfig: { findUnique: jest.fn() },
 };
 
 const mockVector = {
@@ -34,6 +39,15 @@ const mockVector = {
   storeCircleKnowledge: jest.fn(),
   deleteCircleKnowledge: jest.fn(),
   searchCircleKnowledge: jest.fn(),
+};
+
+const mockAiGateway = { chat: jest.fn() };
+
+// 默认审核通过：Pass → active
+const mockModeration = {
+  textModeration: jest.fn().mockResolvedValue({ Suggestion: "Pass" }),
+  getTextSuggestion: jest.fn().mockReturnValue("Pass"),
+  getBlockedLabels: jest.fn().mockReturnValue([]),
 };
 
 describe("CircleKnowledgeService", () => {
@@ -45,6 +59,8 @@ describe("CircleKnowledgeService", () => {
         CircleKnowledgeService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: VectorService, useValue: mockVector },
+        { provide: AiGatewayService, useValue: mockAiGateway },
+        { provide: ModerationService, useValue: mockModeration },
       ],
     }).compile();
     svc = mod.get(CircleKnowledgeService);
@@ -53,6 +69,41 @@ describe("CircleKnowledgeService", () => {
   beforeEach(() => jest.clearAllMocks());
 
   it("应被定义", () => expect(svc).toBeDefined());
+
+  // 治理 #8（2026-07-11）：知识库管理接入权限矩阵 knowledge.manage
+  describe("assertManager（knowledge.manage 矩阵位）", () => {
+    it("圈主/默认矩阵管理员放行·嘉宾默认被拒", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValueOnce({ role: "OWNER" });
+      await expect(svc.assertManager("c1", "owner")).resolves.toBeUndefined();
+
+      mockPrisma.circleMember.findUnique.mockResolvedValueOnce({ role: "ADMIN" });
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValueOnce(null); // 无覆盖位 → 默认矩阵 ADMIN✓
+      await expect(svc.assertManager("c1", "admin1")).resolves.toBeUndefined();
+
+      mockPrisma.circleMember.findUnique.mockResolvedValueOnce({ role: "GUEST" });
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValueOnce(null); // 默认矩阵 GUEST✗
+      await expect(svc.assertManager("c1", "guest1")).rejects.toThrow("无知识库管理权限");
+    });
+
+    it("矩阵覆盖位生效：圈主可收回管理员/授予嘉宾知识库管理权", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValueOnce({ role: "ADMIN" });
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValueOnce({
+        rolePermissions: { ADMIN: { "knowledge.manage": false } },
+      });
+      await expect(svc.assertManager("c1", "admin1")).rejects.toThrow("无知识库管理权限");
+
+      mockPrisma.circleMember.findUnique.mockResolvedValueOnce({ role: "GUEST" });
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValueOnce({
+        rolePermissions: { GUEST: { "knowledge.manage": true } },
+      });
+      await expect(svc.assertManager("c1", "guest1")).resolves.toBeUndefined();
+    });
+
+    it("非成员一律拒绝", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValueOnce(null);
+      await expect(svc.assertManager("c1", "outsider")).rejects.toThrow(BusinessException);
+    });
+  });
 
   describe("add", () => {
     it("手动添加知识条目", async () => {
@@ -167,6 +218,17 @@ describe("CircleKnowledgeService", () => {
       expect(result).toBeNull();
     });
 
+    it("同一来源同一内容已有待确认候选时不重复入队", async () => {
+      mockPrisma.circleKnowledge.findUnique.mockResolvedValue(null);
+      mockPrisma.circleKnowledgeCandidate.findFirst.mockResolvedValueOnce({ id: "existing" });
+      const result = await svc.addCandidate({ circleId: "c1", sourceType: "post", sourceId: "p1", content: "标题\n正文" });
+      expect(result).toBeNull();
+      expect(mockPrisma.circleKnowledgeCandidate.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ circleId: "c1", sourceType: "post", sourceId: "p1", status: "pending" }),
+      }));
+      expect(mockPrisma.circleKnowledgeCandidate.create).not.toHaveBeenCalled();
+    });
+
     it("获取候选列表", async () => {
       mockPrisma.circleKnowledgeCandidate.findMany.mockResolvedValue([{ id: "c1" }]);
       mockPrisma.circleKnowledgeCandidate.count.mockResolvedValue(1);
@@ -176,7 +238,7 @@ describe("CircleKnowledgeService", () => {
 
     it("确认候选", async () => {
       mockPrisma.circleKnowledgeCandidate.findUnique.mockResolvedValue({
-        id: "c1", circleId: "c1", sourceType: "article", content: "内容",
+        id: "c1", circleId: "c1", sourceType: "article", content: "内容", status: "pending",
       });
       mockPrisma.circleKnowledge.findUnique.mockResolvedValue(null);
       mockPrisma.circleKnowledge.create.mockResolvedValue({ id: "k1" });
@@ -186,6 +248,65 @@ describe("CircleKnowledgeService", () => {
 
       const result = await svc.confirmCandidate("c1", "c1", "admin1");
       expect(result.status).toBe("confirmed");
+    });
+
+    it("已处理的候选不可重复确认", async () => {
+      mockPrisma.circleKnowledgeCandidate.findUnique.mockResolvedValue({
+        id: "cand1", circleId: "c1", sourceType: "article", status: "confirmed",
+      });
+      await expect(svc.confirmCandidate("c1", "cand1", "admin1")).rejects.toThrow("已处理");
+      expect(mockPrisma.circleKnowledge.create).not.toHaveBeenCalled();
+    });
+
+    it("来源帖子已编辑或下架时拒绝确认", async () => {
+      mockPrisma.circleKnowledgeCandidate.findUnique.mockResolvedValue({
+        id: "cand1", circleId: "c1", sourceType: "post", sourceId: "p1", content: "旧标题\n旧内容", status: "pending",
+      });
+      mockPrisma.post.findUnique.mockResolvedValue({
+        circleId: "c1", title: "新标题", content: "旧内容", status: "PUBLISHED", isEssence: true,
+      });
+      await expect(svc.confirmCandidate("c1", "cand1", "admin1")).rejects.toThrow("重新采集");
+      mockPrisma.post.findUnique.mockResolvedValue({
+        circleId: "c1", title: "旧标题", content: "旧内容", status: "HIDDEN", isEssence: true,
+      });
+      await expect(svc.confirmCandidate("c1", "cand1", "admin1")).rejects.toThrow("重新采集");
+      expect(mockPrisma.circleKnowledge.create).not.toHaveBeenCalled();
+    });
+
+    it("来源精华帖未变化时允许确认", async () => {
+      mockPrisma.circleKnowledgeCandidate.findUnique.mockResolvedValue({
+        id: "cand1", circleId: "c1", sourceType: "post", sourceId: "p1", content: "标题\n正文", status: "pending",
+      });
+      mockPrisma.post.findUnique.mockResolvedValue({
+        circleId: "c1", title: "标题", content: "正文", status: "PUBLISHED", isEssence: true,
+      });
+      mockPrisma.circleKnowledge.findUnique.mockResolvedValue(null);
+      mockPrisma.circleKnowledge.create.mockResolvedValue({ id: "k1", content: "标题\n正文" });
+      mockPrisma.circleKnowledgeCandidate.update.mockResolvedValue({ id: "cand1", status: "confirmed" });
+      mockVector.embed.mockResolvedValue([[0.1]]);
+      mockVector.storeCircleKnowledge.mockResolvedValue(undefined);
+
+      await expect(svc.confirmCandidate("c1", "cand1", "admin1")).resolves.toMatchObject({ status: "confirmed" });
+      expect(mockPrisma.circleKnowledge.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("私密或撤回答疑不可确认", async () => {
+      mockPrisma.circleKnowledgeCandidate.findUnique.mockResolvedValue({
+        id: "cand1", circleId: "c1", sourceType: "expert_qa", sourceId: "q1", content: "提炼内容", status: "pending",
+      });
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({
+        circleId: "c1", status: "ANSWERED", isPublic: false, answer: "回答",
+      });
+      await expect(svc.confirmCandidate("c1", "cand1", "admin1")).rejects.toThrow("不能入库");
+      expect(mockPrisma.circleKnowledge.create).not.toHaveBeenCalled();
+    });
+
+    it("问答采集仅扫描公开回答", async () => {
+      mockPrisma.paidQuestion.findMany.mockResolvedValue([]);
+      await svc.extractFromExpertAnswers("c1");
+      expect(mockPrisma.paidQuestion.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ isPublic: true, status: "ANSWERED" }),
+      }));
     });
 
     it("拒绝候选", async () => {
@@ -227,6 +348,68 @@ describe("CircleKnowledgeService", () => {
       const arg = mockPrisma.circleKnowledge.findMany.mock.calls.at(-1)![0];
       expect(Number.isNaN(arg.skip)).toBe(false);
       expect(arg.skip).toBe(0);
+    });
+  });
+
+  // 只读知识检索（MCP 用）
+  describe("search（只读知识检索）", () => {
+    it("非有效成员被拒绝", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue(null);
+      await expect(svc.search("c1", "u1", "关键词")).rejects.toThrow("加入该圈子");
+    });
+
+    it("向量命中仅返回 active 条目", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER", expireAt: null, circle: { status: "ACTIVE", deletedAt: null } });
+      mockVector.embed.mockResolvedValue([[0.1]]);
+      mockVector.searchCircleKnowledge.mockResolvedValue([
+        { id: "k1", content: "已发布内容", similarity: 0.9 },
+        { id: "k2", content: "已撤回内容", similarity: 0.8 },
+      ]);
+      // DB 只有 k1 仍是 active
+      mockPrisma.circleKnowledge.findMany.mockResolvedValue([
+        { id: "k1", sourceType: "manual", content: "已发布内容" },
+      ]);
+
+      const result = await svc.search("c1", "u1", "关键词");
+
+      expect(result.hits).toHaveLength(1);
+      expect(result.hits[0].id).toBe("k1");
+    });
+
+    it("圈子停用或删除后拒绝检索", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER", expireAt: null, circle: { status: "DISABLED", deletedAt: null } });
+      await expect(svc.search("c1", "u1", "关键词")).rejects.toThrow("不可用");
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "OWNER", expireAt: null, circle: { status: "ACTIVE", deletedAt: new Date() } });
+      await expect(svc.search("c1", "u1", "关键词")).rejects.toThrow("不可用");
+    });
+
+    it("过期成员被拒绝", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER", expireAt: new Date(Date.now() - 1000), circle: { status: "ACTIVE", deletedAt: null } });
+      await expect(svc.search("c1", "u1", "关键词")).rejects.toThrow("过期");
+    });
+
+    it("topK 上限为 10，防止整库导出", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER", expireAt: null, circle: { status: "ACTIVE", deletedAt: null } });
+      mockVector.embed.mockResolvedValue([[0.1]]);
+      mockVector.searchCircleKnowledge.mockResolvedValue([]);
+      mockPrisma.circleKnowledge.findMany.mockResolvedValue([]);
+      await svc.search("c1", "u1", "关键词", 100000);
+      expect(mockVector.searchCircleKnowledge).toHaveBeenCalledWith([0.1], "c1", 10);
+      expect(mockPrisma.circleKnowledge.findMany).toHaveBeenLastCalledWith(expect.objectContaining({ take: 10 }));
+    });
+
+    it("向量无命中时关键词兜底", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER", expireAt: null, circle: { status: "ACTIVE", deletedAt: null } });
+      mockVector.embed.mockResolvedValue([[0.1]]);
+      mockVector.searchCircleKnowledge.mockResolvedValue([]);
+      mockPrisma.circleKnowledge.findMany.mockResolvedValue([
+        { id: "k3", sourceType: "article", content: "匹配内容" },
+      ]);
+
+      const result = await svc.search("c1", "u1", "关键词");
+
+      expect(result.hits).toHaveLength(1);
+      expect(result.hits[0].id).toBe("k3");
     });
   });
 });

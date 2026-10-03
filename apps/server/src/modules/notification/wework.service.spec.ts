@@ -234,6 +234,13 @@ describe("WeworkService", () => {
     });
 
     describe("错误容错", () => {
+      it("HTTP 失败或企微 errcode 非零不算成功，确认发送会抛错", async () => {
+        fetchMock.mockResolvedValueOnce({ ok: false, status: 502, json: jest.fn().mockResolvedValue({ errcode: 0 }) });
+        await expect(svc.notifyAlertChecked("错误", "详情")).rejects.toThrow("未获成功回执");
+        fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: jest.fn().mockResolvedValue({ errcode: 93000 }) });
+        await expect(svc.notifyAlertChecked("错误", "详情")).rejects.toThrow("未获成功回执");
+      });
+
       it("fetch 抛异常时记录日志并返回空数组", async () => {
         fetchMock.mockRejectedValue(new Error("Connection refused"));
 
@@ -291,6 +298,13 @@ describe("WeworkService", () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({ errcode: 0, errmsg: "ok" });
+    });
+
+    it("其中一个 Webhook 成功即可确认告警送达", async () => {
+      fetchMock
+        .mockResolvedValueOnce({ ok: true, json: jest.fn().mockResolvedValue({ errcode: 0 }) })
+        .mockRejectedValueOnce(new Error("timeout"));
+      await expect(svc.notifyAlertChecked("错误", "详情")).resolves.toBeUndefined();
     });
 
     it("两个都失败时返回空数组", async () => {

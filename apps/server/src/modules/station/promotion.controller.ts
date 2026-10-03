@@ -4,6 +4,7 @@ import { Request } from "express";
 import { PromotionService } from "./promotion.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { CreateMaterialDto } from "./dto/promotion.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("推广素材库")
 @Controller("station/promotion")
@@ -49,6 +50,7 @@ export class PromotionController {
   }
 
   @Delete("materials/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除素材" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

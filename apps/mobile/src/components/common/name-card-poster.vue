@@ -8,6 +8,7 @@
  * 铁律：二维码/绘制任一步失败静默降级（无码也能保存基础名片），不阻塞不报错。
  */
 import { ref, watch, getCurrentInstance, nextTick } from 'vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { drawQrToCanvas } from '@/utils/qrcode'
 import { BRAND } from '@/lib/brand'
 
@@ -32,6 +33,14 @@ const props = withDefaults(defineProps<{
 }>(), { title: '', intro: '', qrCaption: '扫码找 TA 咨询/学习' })
 
 const emit = defineEmits<{ (e: 'close'): void }>()
+useOverlayScrollLock(
+  () => props.visible,
+  {
+    onEscape: () => emit('close'),
+    focusContainerSelector: '.card-modal',
+    initialFocusSelector: '.card-close',
+  },
+)
 
 const instance = getCurrentInstance()?.proxy
 const saving = ref(false)
@@ -55,6 +64,12 @@ watch(() => props.visible, (v) => {
 })
 
 function onClose() { emit('close') }
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<void>) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
 
 // ───────── canvas 绘制 ─────────
 
@@ -239,8 +254,9 @@ function onSaveCard() {
 </script>
 
 <template>
-  <view v-if="visible" class="overlay" @tap="onClose">
-    <view class="card-modal" @tap.stop>
+  <view v-if="visible" class="overlay" @tap="onClose" @touchmove.self.prevent>
+    <view class="card-modal" role="dialog" aria-modal="true" aria-label="从业者名片海报"
+      tabindex="-1" @tap.stop @touchmove.stop>
       <view class="card-canvas-wrap">
         <canvas
           canvas-id="nameCardPoster"
@@ -251,11 +267,14 @@ function onSaveCard() {
       <view class="card-actions">
         <!-- 原生分享（小程序生效·页面侧 onShareAppMessage 已带 ref 归因） -->
         <button class="card-btn share" open-type="share"><text class="card-btn-txt">分享给好友</text></button>
-        <view class="card-btn save" :class="{ disabled: saving }" @tap="onSaveCard">
+        <view class="card-btn save" :class="{ disabled: saving }"
+          role="button" :aria-disabled="saving" tabindex="0"
+          @tap="onSaveCard" @keydown="activateOnKeyboard($event, onSaveCard)">
           <text class="card-btn-txt">{{ saving ? '保存中...' : '保存到相册' }}</text>
         </view>
       </view>
-      <text class="card-close" @tap="onClose">关闭</text>
+      <text class="card-close" role="button" tabindex="0"
+        @tap="onClose" @keydown="activateOnKeyboard($event, onClose)">关闭</text>
     </view>
   </view>
 </template>

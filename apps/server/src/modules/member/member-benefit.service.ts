@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "@guoxue/shared";
+import { Prisma } from "@prisma/client";
 
 /**
  * 书院会员权益服务（C1 会员产品化 · 2026-07-03）
@@ -10,6 +11,14 @@ import { ErrorCode } from "@guoxue/shared";
  * 权益①的门控中枢：AI 伴读/白话对照/查词/AI 问答对免费用户每日限次，会员不限量。
  * 计数走 redis（多实例安全），key 按自然日滚动；redis 不可用时 RedisService 内存兜底（单实例语义可接受）。
  */
+/** 一次 AI 扣次的凭据：key 为当日计数键（会员不计数则无） */
+export interface AiQuotaTicket {
+  isMember: boolean;
+  remaining: number;
+  key?: string;
+  refunded?: boolean;
+}
+
 @Injectable()
 export class MemberBenefitService {
   private readonly logger = new Logger(MemberBenefitService.name);
@@ -23,6 +32,27 @@ export class MemberBenefitService {
   get dailyFreeLimit(): number {
     const n = Number(process.env.AI_DAILY_FREE_LIMIT);
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 10;
+  }
+
+  /** 临时测试额度仅作用于指定用户；到期或格式不合法时恢复普通额度。 */
+  async effectiveAiLimit(userId: string): Promise<number> {
+    const raw = await this.redis.get(`aiq:override:${userId}`);
+    if (!raw) return this.dailyFreeLimit;
+    try {
+      const value = JSON.parse(raw);
+      if (
+        Number.isInteger(value.dailyLimit) &&
+        value.dailyLimit > 0 &&
+        value.dailyLimit <= 1000 &&
+        Number.isFinite(value.expiresAt) &&
+        value.expiresAt > Date.now()
+      ) {
+        return Math.max(this.dailyFreeLimit, value.dailyLimit);
+      }
+    } catch {
+      /* 非法配置不能绕过普通额度限制。 */
+    }
+    return this.dailyFreeLimit;
   }
 
   /** 统一会员有效性判定（收口各模块散装实现） */
@@ -44,28 +74,149 @@ export class MemberBenefitService {
 
   /**
    * 消耗一次 AI 额度：会员直接放行；免费用户按日计数，超限抛 RATE_LIMITED 引导开通会员。
-   * 一次 AI 调用 = 一次计数；超限的失败调用也会计数（remaining 钳 0，不影响语义）。
+   * 计次口径（决策人 2026-09-21）：复用已有结果也计次；**生成失败必须退回**（见 refundAiQuota / runWithAiQuota）；
+   * 超限被拒的请求不计数（计数当场回退）。
+   * 返回的凭据带当日计数键，退回时按同一个键扣回，跨零点也不会退到别的日期。
    */
-  async consumeAiQuota(userId: string): Promise<{ isMember: boolean; remaining: number }> {
+  async consumeAiQuota(userId: string): Promise<AiQuotaTicket> {
     if (await this.isActiveMember(userId)) {
       return { isMember: true, remaining: -1 };
     }
-    const limit = this.dailyFreeLimit;
+    const limit = await this.effectiveAiLimit(userId);
+    const key = this.quotaKey(userId);
     // TTL 26h：跨零点自然过期即可，key 含日期不会串日
-    const { count } = await this.redis.incrWithTtl(this.quotaKey(userId), 26 * 3600);
+    const { count } = await this.redis.incrWithTtl(key, 26 * 3600);
     if (count > limit) {
+      await this.decrementFloor(key);
       throw new BusinessException(
         ErrorCode.RATE_LIMITED,
         `今日 ${limit} 次免费 AI 伴读已用完，开通书院会员即可不限量畅用`,
       );
     }
-    return { isMember: false, remaining: Math.max(0, limit - count) };
+    return { isMember: false, remaining: Math.max(0, limit - count), key };
+  }
+
+  /** 退回一次 AI 额度（生成失败时调用）。同一凭据只退一次；会员凭据无计数，直接忽略 */
+  async refundAiQuota(ticket: AiQuotaTicket): Promise<void> {
+    if (!ticket.key || ticket.refunded) return;
+    ticket.refunded = true;
+    try {
+      await this.decrementFloor(ticket.key);
+    } catch (error: any) {
+      this.logger.warn(`AI 次数退回失败：${error?.message || error}`);
+    }
+  }
+
+  /**
+   * 扣次 → 生成 → 失败退回。
+   * 失败包括：抛异常；或 failed(result) 为真（服务内部吞掉错误、返回了兜底文案的情况）。
+   * 兜底结果照常返回给用户，只是不计次。
+   */
+  async runWithAiQuota<T>(
+    userId: string,
+    fn: () => Promise<T>,
+    failed?: (result: T) => boolean,
+  ): Promise<T> {
+    const ticket = await this.consumeAiQuota(userId);
+    let result: T;
+    try {
+      result = await fn();
+    } catch (error) {
+      await this.refundAiQuota(ticket);
+      throw error;
+    }
+    if (failed?.(result)) await this.refundAiQuota(ticket);
+    return result;
+  }
+
+  /**
+   * 流式生成的计次守卫：流中途出错、或整段没有产出任何文字 → 退回。
+   * 用户主动断开（消费方提前结束迭代）且已有产出的，按已生成计次。
+   */
+  async *guardAiStream<T>(
+    ticket: AiQuotaTicket,
+    source: AsyncIterable<T>,
+    disconnected: () => boolean = () => false,
+  ): AsyncIterable<T> {
+    let produced = false;
+    let generationFailed = false;
+    const disconnectError = new Error("解读连接已断开");
+    try {
+      for await (const chunk of source) {
+        if (disconnected()) throw disconnectError;
+        if (typeof chunk === "string" ? chunk.trim().length > 0 : chunk != null) produced = true;
+        yield chunk;
+      }
+      if (disconnected()) throw disconnectError;
+    } catch (error) {
+      // 用户已收到有效内容后主动离开仍计次；模型或上游失败则退回。
+      generationFailed = error !== disconnectError;
+      throw error;
+    } finally {
+      if (generationFailed || !produced) await this.refundAiQuota(ticket);
+    }
+  }
+
+  /** 计数减一，不减到负数（带同样的 26h TTL，键已过期时不会留下无过期的孤键） */
+  private async decrementFloor(key: string): Promise<void> {
+    const v = await this.redis.incrBy(key, -1, 26 * 3600);
+    if (v < 0) await this.redis.incrBy(key, -v, 26 * 3600);
+  }
+
+  /** 解读先占额，失败撤回同一天的占额；并发请求仍受额度限制。 */
+  async withAiQuota<T>(userId: string, operation: () => Promise<T>): Promise<T> {
+    if (await this.isActiveMember(userId)) return operation();
+    const limit = await this.effectiveAiLimit(userId);
+    const key = this.quotaKey(userId);
+    const { count } = await this.redis.incrWithTtl(key, 26 * 3600);
+    try {
+      if (count > limit) {
+        throw new BusinessException(ErrorCode.RATE_LIMITED, `今日 ${limit} 次免费 AI 伴读已用完`);
+      }
+      return await operation();
+    } catch (error) {
+      await this.redis.refundCounter(key);
+      throw error;
+    }
+  }
+
+  async *withAiStreamQuota(
+    userId: string,
+    source: AsyncIterable<string>,
+    disconnected: () => boolean = () => false,
+  ): AsyncIterable<string> {
+    const member = await this.isActiveMember(userId);
+    const key = this.quotaKey(userId);
+    if (!member) {
+      const limit = await this.effectiveAiLimit(userId);
+      const { count } = await this.redis.incrWithTtl(key, 26 * 3600);
+      if (count > limit) {
+        await this.redis.refundCounter(key);
+        throw new BusinessException(ErrorCode.RATE_LIMITED, "今日免费 AI 次数已用完");
+      }
+    }
+    let produced = false;
+    let generationFailed = false;
+    const disconnectError = new Error("解读连接已断开");
+    try {
+      for await (const chunk of source) {
+        if (disconnected()) throw disconnectError;
+        if (chunk.trim()) produced = true;
+        yield chunk;
+      }
+      if (disconnected()) throw disconnectError;
+    } catch (error) {
+      generationFailed = error !== disconnectError;
+      throw error;
+    } finally {
+      if (!member && (generationFailed || !produced)) await this.redis.refundCounter(key);
+    }
   }
 
   /** AI 额度查询（前端额度提示） */
   async getAiQuota(userId: string) {
     const isMember = await this.isActiveMember(userId);
-    const limit = this.dailyFreeLimit;
+    const limit = await this.effectiveAiLimit(userId);
     if (isMember) {
       return { isMember: true, dailyLimit: -1, usedToday: 0, remaining: -1 };
     }
@@ -81,15 +232,60 @@ export class MemberBenefitService {
 
   /**
    * 发放某用户当月会员权益（积分+优惠券）。幂等：同 source（member_monthly_YYYYMM）已有积分流水则跳过。
-   * tx 可选：购买开通场景传支付事务原子发首月；月度 cron 场景不传（逐用户独立提交，单个失败不拖全批）。
+   * tx 可选：购买场景沿用支付事务；cron 场景自建逐用户事务，失败不能部分到账。
+   * 零积分方案也写零金额的权益发放记录，不增加余额，只用于当月防重。
    */
-  async grantMonthlyBenefits(userId: string, level: string, tx?: any): Promise<boolean> {
-    const db = tx ?? this.prisma;
+  async grantMonthlyBenefits(
+    userId: string,
+    level: string,
+    tx?: Prisma.TransactionClient,
+    expectedSource?: string,
+  ): Promise<boolean> {
     const now = new Date();
     const source = `member_monthly_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+    if (expectedSource && expectedSource !== source) return false;
+    if (tx)
+      return this.grantMonthlyBenefitsWithTx(tx, userId, level, source, now, false, expectedSource);
+    return this.prisma.$transaction(
+      (db) => this.grantMonthlyBenefitsWithTx(db, userId, level, source, now, true, expectedSource),
+      { maxWait: 5000, timeout: 15000 },
+    );
+  }
 
-    const config = await db.memberConfig.findUnique({ where: { level } });
+  private async grantMonthlyBenefitsWithTx(
+    db: Prisma.TransactionClient,
+    userId: string,
+    level: string,
+    source: string,
+    now: Date,
+    useCurrentLevel: boolean,
+    expectedSource?: string,
+  ): Promise<boolean> {
+    // 所有已知发放入口共用用户行锁。判重、积分、券库存与记录都在同一事务内。
+    const rows = await db.$queryRaw<Array<{ memberLevel: string; memberExpire: Date | null }>>`
+      SELECT "memberLevel"::text, "memberExpire" FROM "User" WHERE id = ${userId} FOR UPDATE
+    `;
+    const member = rows[0];
+    const effectiveNow = expectedSource ? new Date() : now;
+    const currentSource = `member_monthly_${effectiveNow.getFullYear()}${String(effectiveNow.getMonth() + 1).padStart(2, "0")}`;
+    // 批次或等待用户锁跨月后停止；不能借旧批次提前发下一月，也不补过去月份。
+    if (expectedSource && (expectedSource !== source || expectedSource !== currentSource))
+      return false;
+    if (
+      !member ||
+      member.memberLevel === "NONE" ||
+      (member.memberExpire && member.memberExpire <= effectiveNow)
+    )
+      return false;
+
+    // cron 不能使用撤销或升级前的旧快照；购买场景保留既有明确方案参数语义。
+    const config = await db.memberConfig.findUnique({
+      where: { level: useCurrentLevel ? member.memberLevel : level },
+    });
     if (!config) return false;
+    if (!Number.isSafeInteger(config.monthlyPoints) || config.monthlyPoints < 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "会员月度权益配置无效");
+    }
 
     const already = await db.pointsRecord.findFirst({
       where: { userId, source, type: "EARN" },
@@ -100,28 +296,62 @@ export class MemberBenefitService {
     if (config.monthlyPoints > 0) {
       await db.userPoints.upsert({
         where: { userId },
-        update: { balance: { increment: config.monthlyPoints }, totalEarned: { increment: config.monthlyPoints } },
+        update: {
+          balance: { increment: config.monthlyPoints },
+          totalEarned: { increment: config.monthlyPoints },
+        },
         create: { userId, balance: config.monthlyPoints, totalEarned: config.monthlyPoints },
-      });
-      await db.pointsRecord.create({
-        data: { userId, amount: config.monthlyPoints, type: "EARN", source, description: `${config.name}每月赠积分` },
       });
     }
 
+    let couponRecordId: string | null = null;
     if (config.monthlyCouponId) {
-      const template = await db.couponTemplate.findUnique({ where: { id: config.monthlyCouponId } });
-      if (template && (template.totalCount <= 0 || template.claimedCount < template.totalCount)) {
-        await db.couponTemplate.update({
-          where: { id: config.monthlyCouponId },
-          data: { claimedCount: { increment: 1 } },
-        });
-        await db.couponRecord.create({
+      // 条件更新会在竞争后重新核对库存，不能先读取库存再无条件递增。
+      const claimed = await db.couponTemplate.updateMany({
+        where: {
+          id: config.monthlyCouponId,
+          OR: [
+            { totalCount: { lte: 0 } },
+            { claimedCount: { lt: db.couponTemplate.fields.totalCount } },
+          ],
+        },
+        data: { claimedCount: { increment: 1 } },
+      });
+      if (claimed.count === 1) {
+        const couponRecord = await db.couponRecord.create({
           data: { couponId: config.monthlyCouponId, userId, status: "UNUSED" },
         });
+        couponRecordId = couponRecord.id;
       } else {
-        this.logger.warn(`会员月度赠券跳过：券模板 ${config.monthlyCouponId} 不存在或已发完`);
+        this.logger.warn("会员月度赠券跳过：券模板不存在或已发完");
       }
     }
+
+    const pointsRecord = await db.pointsRecord.create({
+      data: {
+        userId,
+        amount: config.monthlyPoints,
+        type: "EARN",
+        source,
+        description:
+          config.monthlyPoints > 0
+            ? `${config.name}每月赠积分`
+            : `${config.name}每月权益发放记录（未赠积分）`,
+      },
+    });
+
+    // 仅新实际发放；缺券/零积分不伪造到账内容，通知失败由独立任务重试。
+    await db.memberMonthlyBenefitNotice.create({
+      data: {
+        id: pointsRecord.id,
+        userId,
+        source,
+        points: config.monthlyPoints,
+        couponRecordId,
+        couponId: couponRecordId ? config.monthlyCouponId : null,
+        createdAt: pointsRecord.createdAt,
+      },
+    });
 
     return true;
   }

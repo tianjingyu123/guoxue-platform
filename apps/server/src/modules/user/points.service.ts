@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 const GROWTH_LEVELS = [0, 100, 300, 600, 1000, 2000, 5000, 10000, 20000, 50000];
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class PointsService {
@@ -18,12 +19,56 @@ export class PointsService {
     return level;
   }
 
+  /** 当前北京时间自然日、自然月对应的 UTC 查询区间。 */
+  private shanghaiPeriods(now = new Date()) {
+    const sh = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
+    const year = sh.getFullYear();
+    const month = sh.getMonth() + 1;
+    const day = sh.getDate();
+    const pad = (value: number) => String(value).padStart(2, "0");
+    const todayStart = new Date(`${year}-${pad(month)}-${pad(day)}T00:00:00+08:00`);
+    const monthStart = new Date(`${year}-${pad(month)}-01T00:00:00+08:00`);
+    const nextMonthStart = month === 12
+      ? new Date(`${year + 1}-01-01T00:00:00+08:00`)
+      : new Date(`${year}-${pad(month + 1)}-01T00:00:00+08:00`);
+    return {
+      today: { gte: todayStart, lt: new Date(todayStart.getTime() + DAY_MS) },
+      month: { gte: monthStart, lt: nextMonthStart },
+    };
+  }
+
   async getPoints(userId: string) {
     let points = await this.prisma.userPoints.findUnique({ where: { userId } });
     if (!points) {
       points = await this.prisma.userPoints.create({ data: { userId } });
     }
-    return points;
+    const periods = this.shanghaiPeriods();
+    const [today, month] = await Promise.all([
+      this.prisma.pointsRecord.aggregate({
+        where: { userId, type: "EARN", createdAt: periods.today },
+        _sum: { amount: true },
+      }),
+      this.prisma.pointsRecord.aggregate({
+        where: { userId, type: "EARN", createdAt: periods.month },
+        _sum: { amount: true },
+      }),
+    ]);
+    return {
+      ...points,
+      todayEarned: Number(today._sum.amount ?? 0),
+      monthEarned: Number(month._sum.amount ?? 0),
+    };
+  }
+
+  /** 今日是否已完成真实签到任务（供积分任务卡片展示，避免恒 false）。 */
+  async hasCheckedInToday(userId: string): Promise<boolean> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const record = await this.prisma.checkIn.findUnique({
+      where: { userId_checkInDate: { userId, checkInDate: today } },
+      select: { id: true },
+    });
+    return !!record;
   }
 
   async getPointsRecords(userId: string, rawPage = 1, rawPageSize = 20) {

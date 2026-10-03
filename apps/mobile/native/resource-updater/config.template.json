@@ -1,0 +1,18 @@
+{
+  "enabled": false,
+  "identity": {
+    "applicationId": "rebu",
+    "productId": "rebu",
+    "platform": "android",
+    "channelId": "legacy",
+    "packageName": "com.rebu.apprebu",
+    "runtimeAppId": "__UNI__277B108",
+    "nativeBuild": 254,
+    "nativeFingerprint": ""
+  },
+  "clientKey": "",
+  "signingCertificateSha256": "",
+  "apiBase": "https://api.rebugx.cn/api/v1",
+  "resourceOrigins": [],
+  "publicRoots": {}
+}

@@ -5,6 +5,7 @@ import { UpsertSearchWeightDto } from "./dto/search-weight.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("搜索权重")
 @ApiBearerAuth()
@@ -30,6 +31,7 @@ export class SearchWeightController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除搜索权重" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

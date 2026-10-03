@@ -1,0 +1,260 @@
+{
+  "prior": {
+    "run": {
+      "conclusion": "success",
+      "runId": 36773563171,
+      "readAtUtc": "2026-09-30T20:40:40.1870681Z",
+      "zipBytes": 28449,
+      "digestMatched": true,
+      "verificationCommit": "d083a7104a4e5d44c23446ed0073641f8976764d",
+      "zipSha256": "c16160a4f5f0950c153c8788b63b1d2632691ca0b5ed7bb236b10a8bba1c4e8a",
+      "artifactId": 11125790208
+    },
+    "report": {
+      "sourceCommit": "7e2fc4cae3525951004a826a9f95812b0309a372",
+      "sourceSha256": "841b09ce6b8653d514605fa4af7d6b3216cced6d521b47d2fea60ad4579f71d5",
+      "image": "rebu-linux-verify:7e2fc4ca",
+      "scope": "image-artifact-binding-no-app-start-no-db-no-external-channels",
+      "checks": [
+        {
+          "name": "image-identity",
+          "passed": true,
+          "detail": {
+            "imageId": "sha256:4b3010e563afa6f46fbe634357ca01407224cc598c181b0713858d697dcba31e",
+            "sourceCommit": "7e2fc4cae3525951004a826a9f95812b0309a372",
+            "sourceSha256": "841b09ce6b8653d514605fa4af7d6b3216cced6d521b47d2fea60ad4579f71d5",
+            "os": "linux",
+            "architecture": "amd64"
+          }
+        },
+        {
+          "name": "prisma-source-compile-runtime-binding",
+          "passed": true,
+          "detail": {
+            "schemaVersion": 1,
+            "kind": "prisma-build-binding",
+            "schemaHash": "4004f698511cae3b29ef3aef324bf00bab417160724de2938dd17ed0f06e67d5",
+            "clientVersion": "6.19.3"
+          }
+        },
+        {
+          "name": "admin-h5-base-and-public-config",
+          "passed": true,
+          "detail": [
+            {
+              "name": "admin",
+              "prefix": "/admin/",
+              "fileCount": 503,
+              "friendlyMessagesPresent": false
+            },
+            {
+              "name": "h5",
+              "prefix": "/h5/",
+              "fileCount": 1178,
+              "friendlyMessagesPresent": true
+            }
+          ]
+        }
+      ],
+      "passed": true,
+      "businessRegressionRerun": false,
+      "productionDeployment": false,
+      "databaseOperations": 0,
+      "realMessages": 0
+    }
+  },
+  "runtimeBusinessChecksActualSource": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
+  "runtimeBusinessRun": 36768859516,
+  "scope": "three-artifact-checks-not-full-business-rerun-no-app-start-no-db-no-real-channels",
+  "prior43de": {
+    "run": {
+      "zipBytes": 28554,
+      "verificationCommit": "525152248aae4985ae08128857e05257cd85fab1",
+      "runId": 36776045322,
+      "artifactId": 11125434342,
+      "digestMatched": true,
+      "conclusion": "success",
+      "readAtUtc": "2026-09-30T21:02:29.8668074Z",
+      "zipSha256": "ef904b6dfd030deae8a21be40ab85b85fad4dd1b5fb9e3b001445a8c2a08c18e"
+    },
+    "report": {
+      "sourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+      "sourceSha256": "dfa73eb2b911f64e02595f19a468be0a339f2211052196feb93d10b779f29752",
+      "image": "rebu-linux-verify:43de59ac",
+      "scope": "image-artifact-binding-no-app-start-no-db-no-external-channels",
+      "checks": [
+        {
+          "name": "image-identity",
+          "passed": true,
+          "detail": {
+            "imageId": "sha256:7834f157ed0ddd856a5c88204dfa0117a7d5cc5831e4484c00929774fa191df8",
+            "sourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+            "sourceSha256": "dfa73eb2b911f64e02595f19a468be0a339f2211052196feb93d10b779f29752",
+            "os": "linux",
+            "architecture": "amd64"
+          }
+        },
+        {
+          "name": "prisma-source-compile-runtime-binding",
+          "passed": true,
+          "detail": {
+            "schemaVersion": 1,
+            "kind": "prisma-build-binding",
+            "schemaHash": "4004f698511cae3b29ef3aef324bf00bab417160724de2938dd17ed0f06e67d5",
+            "clientVersion": "6.19.3"
+          }
+        },
+        {
+          "name": "admin-h5-base-and-public-config",
+          "passed": true,
+          "detail": [
+            {
+              "name": "admin",
+              "prefix": "/admin/",
+              "fileCount": 503,
+              "friendlyMessagesPresent": false
+            },
+            {
+              "name": "h5",
+              "prefix": "/h5/",
+              "fileCount": 1178,
+              "friendlyMessagesPresent": true
+            }
+          ]
+        }
+      ],
+      "passed": true,
+      "businessRegressionRerun": false,
+      "productionDeployment": false,
+      "databaseOperations": 0,
+      "realMessages": 0
+    }
+  },
+  "current": {
+    "run": {
+      "zipSha256": "6380addd339d98f1af1bc8cd9a9d17d5d5d02a577e3354308db98e10debf0fe3",
+      "runId": 36788059926,
+      "zipBytes": 30632,
+      "digestMatched": true,
+      "conclusion": "success",
+      "verificationCommit": "ea605e44ad498ea008bb7aac8bb0676967cf9f4d",
+      "artifactId": 11130498895,
+      "readAtUtc": "2026-09-30T22:59:40.3136562Z"
+    },
+    "report": {
+      "sourceCommit": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+      "sourceSha256": "c42ed81b26ad4a872d611b41c0a409efb8be41f7a06e992aa2e27a5631811284",
+      "image": "rebu-linux-verify:48ac4cf4",
+      "scope": "image-artifact-binding-no-app-start-no-db-no-external-channels",
+      "checks": [
+        {
+          "name": "image-identity",
+          "passed": true,
+          "detail": {
+            "imageId": "sha256:ec3ef92b8a7ae6f8a553bf3df0b74115344159e8813082a90e22f44c2cd199b6",
+            "sourceCommit": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+            "sourceSha256": "c42ed81b26ad4a872d611b41c0a409efb8be41f7a06e992aa2e27a5631811284",
+            "os": "linux",
+            "architecture": "amd64"
+          }
+        },
+        {
+          "name": "prisma-source-compile-runtime-binding",
+          "passed": true,
+          "detail": {
+            "schemaVersion": 1,
+            "kind": "prisma-build-binding",
+            "schemaHash": "4004f698511cae3b29ef3aef324bf00bab417160724de2938dd17ed0f06e67d5",
+            "clientVersion": "6.19.3"
+          }
+        },
+        {
+          "name": "admin-h5-base-and-public-config",
+          "passed": true,
+          "detail": [
+            {
+              "name": "admin",
+              "prefix": "/admin/",
+              "fileCount": 503,
+              "friendlyMessagesPresent": false
+            },
+            {
+              "name": "h5",
+              "prefix": "/h5/",
+              "fileCount": 1178,
+              "friendlyMessagesPresent": true
+            }
+          ]
+        }
+      ],
+      "passed": true,
+      "businessRegressionRerun": false,
+      "productionDeployment": false,
+      "databaseOperations": 0,
+      "realMessages": 0
+    },
+    "focusedCircleServices": {
+      "sourceCommit": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+      "sourceSha256": "c42ed81b26ad4a872d611b41c0a409efb8be41f7a06e992aa2e27a5631811284",
+      "image": "rebu-linux-verify:48ac4cf4",
+      "postgresImage": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff",
+      "passed": true,
+      "productionDeployment": false,
+      "productionDatabaseTouched": false,
+      "realNotifications": 0,
+      "checks": [
+        {
+          "name": "appeal-committed-success-notification",
+          "passed": true
+        },
+        {
+          "name": "stale-scan-manual-rejection-no-success-notification",
+          "passed": true
+        },
+        {
+          "name": "stale-scan-extended-deadline-no-success-notification",
+          "passed": true
+        },
+        {
+          "name": "appeal-real-transaction-rollback-no-success-notification",
+          "passed": true
+        },
+        {
+          "name": "two-transactions-stale-scan-postgres-cas-one-notification",
+          "passed": true
+        },
+        {
+          "name": "appeal-notification-failure-keeps-committed-ruling",
+          "passed": true
+        },
+        {
+          "name": "reward-real-ledgers-match-notified-credit",
+          "passed": true
+        },
+        {
+          "name": "reward-author-ledger-failure-rolls-back-credit-and-avoids-success-wording",
+          "passed": true
+        },
+        {
+          "name": "reward-spend-failure-no-credit-or-notification",
+          "passed": true
+        },
+        {
+          "name": "reward-notification-failure-keeps-ledgers-and-success-result",
+          "passed": true
+        }
+      ],
+      "imageId": "sha256:ec3ef92b8a7ae6f8a553bf3df0b74115344159e8813082a90e22f44c2cd199b6",
+      "postgresVersion": "18.6 (Debian 18.6-1.pgdg13+2)",
+      "targetObservedVersion": "18.4",
+      "targetPatchMatch": false,
+      "schemaScope": "final-schema-in-temporary-empty-database-not-production-upgrade",
+      "scope": "compiled-services-real-postgres-transactions-synthetic-notification-sink",
+      "httpEntryTested": false,
+      "realRedisLockTested": false,
+      "independentProcessesTested": false,
+      "existingRewardSplitPolicyPreserved": true,
+      "temporaryResourcesReleased": true
+    }
+  }
+}

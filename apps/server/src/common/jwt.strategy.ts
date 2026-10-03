@@ -68,17 +68,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string; iat?: number }) {
+  async validate(payload: { sub: string; iat?: number; sessionIssuedAt?: number }) {
     // 改密/重置/封号会写入撤销时刻：撤销前签发的 accessToken 一律拒绝（M1 会话失效）
     const revokedAt = await this.redis.get(`revoked:user:${payload.sub}`);
-    if (revokedAt && payload.iat && payload.iat * 1000 < Number(revokedAt)) {
+    // 新令牌携带毫秒级签发时刻，避免改密后同一秒立即重登的新 token 被秒级 iat 误伤。
+    // 历史令牌没有该字段时继续兼容 JWT 标准 iat。
+    const issuedAt = payload.sessionIssuedAt ?? (payload.iat ? payload.iat * 1000 : undefined);
+    if (revokedAt && issuedAt && issuedAt < Number(revokedAt)) {
       throw new UnauthorizedException();
     }
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       include: { roles: true },
     });
-    if (!user || user.status === "DISABLED") throw new UnauthorizedException();
+    // 安全修复(后端审计P1)：原先只拒 DISABLED，风控封禁写的是 BANNED(risk-control.service ban_user)
+    // 且不撤 token → 被封用户 access/refresh 全程有效永不掉线。validate 每请求查库，此处补 BANNED 后
+    // 现存 token 也会在下次请求即被拒。
+    if (!user || user.status === "DISABLED" || user.status === "BANNED") throw new UnauthorizedException();
     return { id: user.id, roles: user.roles.map((r) => r.roleType) };
   }
 }

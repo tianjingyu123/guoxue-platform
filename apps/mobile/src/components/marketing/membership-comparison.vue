@@ -80,10 +80,12 @@ const emit = defineEmits<{ (e: 'select-vip'): void }>()
 
 const expanded = ref(false)
 
-// 书院会员五项终版权益（2026-07-03 拍板）：只列真实存在的权益，不虚构
+// 书院会员权益（2026-07-03 拍板）：只列真实存在的权益，不虚构
+// 🔴 2026-07-14 撤下「付费精品电子书·全场畅读」：电子书板块 07-08 瘦身时已整体下线
+//    （前端 pkg-ebook 分包已删、后端 /ebook/* 全部 404），这条权益兑现不了 ——
+//    挂在付费会员页上就是对着掏钱的用户虚假宣传。要补新权益需董事长另行拍板。
 const benefits: BenefitItem[] = [
   { name: 'AI 伴读·白话对照', icon: 'bot', free: '每日限次', vip: '不限量', highlight: true },
-  { name: '付费精品电子书', icon: 'book-open', free: '单本购买', vip: '全场畅读', highlight: true },
   { name: '每月赠积分·优惠券', icon: 'gift', free: false, vip: true, highlight: true },
   { name: '会员专属标识', icon: 'crown', free: false, vip: true },
   { name: '专属客服', icon: 'users', free: false, vip: true },

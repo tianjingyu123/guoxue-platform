@@ -1,349 +1,342 @@
 <template>
   <!-- 加载骨架屏 -->
-  <view v-if="loading" class="skeleton-page">
-    <view class="skeleton-nav" />
-    <view class="skeleton-card" />
-    <view class="skeleton-card skeleton-card-sm" />
-    <view class="skeleton-card skeleton-card-sm" />
+  <view v-if="loading" class="page" :style="{ '--obs-safe-top': safeTop + 'px' }">
+    <view class="nav">
+      <view class="nav-bar">
+        <view class="nav-btn" @tap="onBack">
+          <AppIcon name="chevron-left" :size="40" color="#2C2C2C" />
+        </view>
+        <text class="nav-title">OBS 开播流程</text>
+        <view class="nav-placeholder" />
+      </view>
+    </view>
+    <view class="sk-summary"><view class="sk sk-line sk-w200" /></view>
+    <view class="sk-steps"><view class="sk sk-line sk-w280" /></view>
+    <view class="card"><view class="sk sk-line sk-w160 sk-mb" /><view class="sk sk-h72 sk-mb" /><view class="sk sk-h72" /></view>
+    <view class="card"><view class="sk sk-line sk-w160 sk-mb" /><view class="sk sk-h84 sk-mb" /><view class="sk sk-h84" /></view>
+    <view class="card"><view class="sk sk-line sk-w160 sk-mb" /><view class="sk sk-cta" /></view>
   </view>
+
   <!-- 错误状态 -->
   <view v-else-if="error" class="error-state">
     <text class="error-text">{{ error }}</text>
     <view class="retry-btn" @tap="fetchData">重试</view>
   </view>
+
   <!-- 正常内容 -->
-  <view v-else class="page">
+  <view v-else class="page" :style="{ '--obs-safe-top': safeTop + 'px' }">
     <!-- 顶部导航 -->
-    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="nav">
       <view class="nav-bar">
-        <view class="nav-left">
-          <view class="nav-btn" @tap="onBack">
-            <AppIcon name="chevron-left" :size="40" color="#2C2C2C" />
-          </view>
-          <text class="nav-title">OBS推流设置</text>
+        <view class="nav-btn" @tap="onBack">
+          <AppIcon name="chevron-left" :size="40" color="#2C2C2C" />
         </view>
-        <view class="nav-dl">
-          <AppIcon name="external-link" :size="28" color="#666" />
-          <text class="nav-dl-txt">下载OBS</text>
-        </view>
+        <text class="nav-title">OBS 开播流程</text>
+        <view class="nav-placeholder" />
       </view>
     </view>
 
-    <view class="body">
-      <!-- 推流状态卡片 -->
-      <view class="card status-card" :class="statusClass">
-        <view class="status-head">
-          <view class="status-left">
-            <AppIcon
-              :name="streamStatus === 'offline' ? 'wifi-off' : 'wifi'"
-              :size="40"
-              :color="streamStatus === 'online' ? '#16a34a' : streamStatus === 'connecting' ? '#f59e0b' : '#999'"
-              :class="{ pulse: streamStatus === 'connecting' }"
-            />
-            <text class="status-title">推流状态</text>
-          </view>
-          <view class="status-badge" :class="statusClass">
-            <text class="status-badge-txt">{{ statusText }}</text>
-          </view>
-        </view>
-
-        <template v-if="streamStatus === 'online'">
-          <view class="stat-grid">
-            <view class="stat-item">
-              <view class="stat-label">
-                <AppIcon name="clock" :size="24" color="#999" />
-                <text class="stat-label-txt">时长</text>
-              </view>
-              <text class="stat-value mono">{{ formatDuration(duration) }}</text>
-            </view>
-            <view class="stat-item">
-              <view class="stat-label">
-                <AppIcon name="activity" :size="24" color="#999" />
-                <text class="stat-label-txt">帧率</text>
-              </view>
-              <text class="stat-value">{{ stream.fps }} fps</text>
-            </view>
-            <view class="stat-item">
-              <view class="stat-label">
-                <AppIcon name="gauge" :size="24" color="#999" />
-                <text class="stat-label-txt">码率</text>
-              </view>
-              <text class="stat-value">{{ stream.bitrate }} kbps</text>
-            </view>
-            <view class="stat-item">
-              <view class="stat-label">
-                <AppIcon name="monitor" :size="24" color="#999" />
-                <text class="stat-label-txt">分辨率</text>
-              </view>
-              <text class="stat-value">{{ stream.resolution }}</text>
-            </view>
-          </view>
-          <view class="drop-row">
-            <text class="drop-label">丢帧率</text>
-            <text class="drop-value" :class="{ good: dropRate < 0.001 }">
-              {{ (dropRate * 100).toFixed(3) }}%
-              <text class="drop-frames">({{ stream.droppedFrames }}帧)</text>
-            </text>
-          </view>
-        </template>
-
-        <text v-else-if="streamStatus === 'offline'" class="status-offline-tip">
-          当前未检测到推流，请在OBS中开始推流
-        </text>
-      </view>
-
-      <!-- 推流配置信息 -->
-      <view class="card">
-        <view class="card-head">
-          <AppIcon name="settings" :size="32" color="#C41E3A" />
-          <text class="card-head-txt">推流配置信息</text>
-        </view>
-
-        <!-- 服务器地址 -->
-        <view class="field">
-          <text class="field-label">服务器地址（Server URL）</text>
-          <view class="field-row">
-            <view class="field-value mono">{{ stream.serverUrl }}</view>
-            <view class="field-btn" @tap="copyField(stream.serverUrl, 'server')">
-              <AppIcon :name="copiedField === 'server' ? 'check' : 'copy'" :size="32" :color="copiedField === 'server' ? '#16a34a' : '#666'" />
-            </view>
-          </view>
-        </view>
-
-        <!-- 串流密钥 -->
-        <view class="field">
-          <text class="field-label">串流密钥（Stream Key）</text>
-          <view class="field-row">
-            <view class="field-value-wrap">
-              <view class="field-value mono">{{ showKey ? stream.streamKey : maskedKey }}</view>
-              <view class="field-eye" @tap="showKey = !showKey">
-                <AppIcon :name="showKey ? 'eye-off' : 'eye'" :size="32" color="#999" />
-              </view>
-            </view>
-            <view class="field-btn" @tap="copyField(stream.streamKey, 'key')">
-              <AppIcon :name="copiedField === 'key' ? 'check' : 'copy'" :size="32" :color="copiedField === 'key' ? '#16a34a' : '#666'" />
-            </view>
-          </view>
-        </view>
-
-        <!-- 重新生成 -->
-        <view class="reset-row">
-          <text class="reset-tip">密钥泄露？点击重新生成</text>
-          <view class="reset-btn" @tap="showResetDialog = true">
-            <AppIcon name="refresh-cw" :size="28" color="#2C2C2C" />
-            <text class="reset-btn-txt">重新生成</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- OBS配置指南 -->
-      <view class="card">
-        <view class="card-head">
-          <AppIcon name="info" :size="32" color="#3b82f6" />
-          <text class="card-head-txt">OBS配置指南</text>
-        </view>
-        <view class="steps">
-          <view v-for="item in obsSteps" :key="item.step" class="step-row">
-            <view class="step-num">
-              <text class="step-num-txt">{{ item.step }}</text>
-            </view>
-            <view class="step-info">
-              <text class="step-title">{{ item.title }}</text>
-              <text class="step-desc">{{ item.desc }}</text>
-            </view>
-          </view>
-        </view>
-        <view class="warn-box">
-          <AppIcon name="alert-triangle" :size="32" color="#f59e0b" />
-          <view class="warn-text">
-            <text class="warn-title">安全提示</text>
-            <text class="warn-desc">请勿将串流密钥分享给他人，泄露可能导致直播间被盗用。如已泄露，请立即重新生成。</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 画质配置建议 -->
-      <view class="card">
-        <view class="card-head">
-          <AppIcon name="zap" :size="32" color="#f59e0b" />
-          <text class="card-head-txt">画质配置建议</text>
-        </view>
-        <text class="card-sub">根据您的网络情况选择合适的画质配置</text>
-
-        <view class="quality-list">
-          <view
-            v-for="preset in qualityPresets"
-            :key="preset.id"
-            class="quality-item"
-            :class="{ active: selectedQuality === preset.id }"
-            @tap="selectedQuality = preset.id"
-          >
-            <view class="quality-head">
-              <view class="quality-name-row">
-                <text class="quality-name">{{ preset.name }}</text>
-                <view v-if="preset.recommended" class="quality-rec">
-                  <text class="quality-rec-txt">推荐</text>
-                </view>
-              </view>
-              <view class="quality-radio" :class="{ active: selectedQuality === preset.id }">
-                <AppIcon v-if="selectedQuality === preset.id" name="check" :size="24" color="#fff" />
-              </view>
-            </view>
-            <text class="quality-desc">{{ preset.desc }}</text>
-            <view class="quality-grid">
-              <view class="quality-cell">
-                <text class="quality-cell-label">分辨率</text>
-                <text class="quality-cell-value">{{ preset.resolution }}</text>
-              </view>
-              <view class="quality-cell">
-                <text class="quality-cell-label">码率</text>
-                <text class="quality-cell-value">{{ preset.bitrate }}</text>
-              </view>
-              <view class="quality-cell">
-                <text class="quality-cell-label">帧率</text>
-                <text class="quality-cell-value">{{ preset.fps }}fps</text>
-              </view>
-              <view class="quality-cell">
-                <text class="quality-cell-label">网络要求</text>
-                <text class="quality-cell-value">{{ preset.network }}</text>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <view class="speed-row">
-          <view class="speed-left">
-            <AppIcon name="signal" :size="32" color="#C41E3A" />
-            <text class="speed-txt">不确定网络情况？</text>
-          </view>
-          <view class="speed-btn">
-            <text class="speed-btn-txt">测试网速</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- OBS输出设置参考 -->
-      <view class="card">
-        <view class="card-head">
-          <AppIcon name="monitor" :size="32" color="#06b6d4" />
-          <text class="card-head-txt">OBS输出设置参考</text>
-        </view>
-        <view class="output-list">
-          <view
-            v-for="(item, idx) in outputSettings"
-            :key="item.label"
-            class="output-row"
-            :class="{ last: idx === outputSettings.length - 1 }"
-          >
-            <text class="output-label">{{ item.label }}</text>
-            <text class="output-value">{{ item.value }}</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 常见问题 -->
-      <view class="card">
-        <text class="faq-title">常见问题</text>
-        <view class="faq-list">
-          <view v-for="(item, idx) in faq" :key="idx" class="faq-item">
-            <view class="faq-q" @tap="toggleFaq(idx)">
-              <text class="faq-q-txt">{{ item.q }}</text>
-              <AppIcon name="chevron-left" :size="32" color="#999" :class="openFaq === idx ? 'rot-up' : 'rot-down'" />
-            </view>
-            <text v-if="openFaq === idx" class="faq-a">{{ item.a }}</text>
-          </view>
-        </view>
+    <view class="obs-masthead">
+      <text class="obs-eyebrow">OBS LIVE CONTROL</text>
+      <text class="obs-title">专业推流工作台</text>
+      <text class="obs-desc">从媒体流检测到正式开播，每一步都可确认、可回退、可追踪。</text>
+      <view class="obs-capabilities">
+        <text class="obs-capability">{{ obsCapabilityLabel }}</text>
+        <text class="obs-capability">真实媒体流检测</text>
+        <text class="obs-capability secure">短期密钥保护</text>
       </view>
     </view>
 
-    <!-- 重新生成确认对话框 -->
-    <view v-if="showResetDialog" class="dialog-mask" @tap="closeReset">
-      <view class="dialog" @tap.stop>
-        <text class="dialog-title">重新生成串流密钥？</text>
-        <text class="dialog-desc">重新生成后，旧密钥将立即失效。如果正在推流，将会断开连接，需要使用新密钥重新配置OBS。</text>
-        <view class="dialog-foot">
-          <view class="dialog-btn cancel" :class="{ disabled: isResetting }" @tap="closeReset">
-            <text class="dialog-btn-txt">取消</text>
-          </view>
-          <view class="dialog-btn confirm" :class="{ disabled: isResetting }" @tap="handleResetKey">
-            <text class="dialog-btn-txt confirm-txt">{{ isResetting ? '生成中...' : '确认重新生成' }}</text>
-          </view>
+    <!-- ============ 未创建房间态 ============ -->
+    <view v-if="stage === 'none'" class="empty">
+      <view class="empty-icon">
+        <AppIcon name="monitor" :size="88" color="#C9A96E" />
+      </view>
+      <text class="empty-title">还没有可开播的 OBS 直播间</text>
+      <text class="empty-desc">先创建一个「OBS 电脑直播」形态的直播间，再回到这里获取推流码</text>
+      <view class="cta empty-cta" @tap="goCreate">去创建直播间</view>
+    </view>
+
+    <view v-else-if="stage === 'ended'" class="empty">
+      <view class="empty-icon">
+        <AppIcon name="check-circle" :size="88" color="#4F745B" />
+      </view>
+      <text class="empty-title">本场直播已经结束</text>
+      <text class="empty-desc">如需再次直播，请新建场次；本场回放生成后可在直播记录中查看。</text>
+      <view class="cta empty-cta" @tap="goCreate">创建新直播</view>
+    </view>
+
+    <!-- ============ 待开播 / 已开播 ============ -->
+    <template v-else>
+      <!-- 直播间概要 -->
+      <view class="summary">
+        <text class="summary-txt">当前直播间：<text class="summary-title">{{ roomTitle || '直播间' }}</text></text>
+        <view v-if="stage === 'living'" class="livebadge">
+          <view class="live-dot" />
+          <text class="livebadge-txt">直播中</text>
+        </view>
+        <view v-else-if="stage === 'connected'" class="livebadge connected-badge">
+          <view class="live-dot connected-dot" />
+          <text class="livebadge-txt connected-txt">推流已连接</text>
+        </view>
+        <view v-else-if="stage === 'interrupted'" class="livebadge interrupted-badge">
+          <view class="live-dot interrupted-dot" />
+          <text class="livebadge-txt interrupted-txt">推流中断</text>
+        </view>
+        <view v-else class="summary-tags">
+          <text v-if="runtime?.ingestMode === 'TRTC_RTMP'" class="summary-mode">同房连麦</text>
+          <text v-if="qualityLabel" class="summary-quality">{{ qualityLabel }}</text>
         </view>
       </view>
-    </view>
+
+      <!-- 步骤指示条 -->
+      <view class="steps">
+        <view class="stepn" :class="{ on: true }"><text class="stepn-txt">1</text></view>
+        <text :class="stage === 'ready' ? 'steplab' : 'steptxt'">获取推流码</text>
+        <view class="stepline" :class="{ done: stage !== 'ready' }" />
+        <view class="stepn" :class="{ on: stage !== 'ready' }"><text class="stepn-txt">2</text></view>
+        <text class="steptxt">配置 OBS</text>
+        <view class="stepline" :class="{ done: stage === 'connected' || stage === 'living' }" />
+        <view class="stepn" :class="{ on: stage === 'connected' || stage === 'living' }"><text class="stepn-txt">3</text></view>
+        <text :class="stage === 'living' || stage === 'connected' ? 'steplab' : 'steptxt'">{{ stage === 'living' ? '直播中' : stage === 'connected' ? '确认开播' : '检测推流' }}</text>
+      </view>
+
+      <!-- ===== 待开播主态 ===== -->
+      <template v-if="stage !== 'living'">
+        <!-- 第一步 · 推流码 -->
+        <view class="card">
+          <view class="card-h">
+            <view class="no"><text class="no-txt">1</text></view>
+            <text class="card-h-txt">获取推流码</text>
+          </view>
+
+          <!-- 服务器地址 -->
+          <view class="krow">
+            <text class="k">服务器地址</text>
+            <view class="v"><text class="v-txt mono">{{ serverUrl || '未配置' }}</text></view>
+            <view class="copy-btn" @tap="copy(serverUrl, 'server')">
+              <text class="copy-txt">{{ copiedField === 'server' ? '已复制' : '复制' }}</text>
+            </view>
+          </view>
+
+          <!-- 推流密钥 -->
+          <view class="krow">
+            <text class="k">推流密钥</text>
+            <view class="v">
+              <text class="v-txt mono">{{ streamKey ? (showKey ? streamKey : maskedKey) : '未配置' }}</text>
+              <view class="eye" @tap="showKey = !showKey">
+                <AppIcon :name="showKey ? 'eye-off' : 'eye'" :size="30" color="#999" />
+              </view>
+            </view>
+            <view class="copy-btn" @tap="copy(streamKey, 'key')">
+              <text class="copy-txt">{{ copiedField === 'key' ? '已复制' : '复制' }}</text>
+            </view>
+          </view>
+
+          <text class="tip">推流密钥含短期 UserSig，请勿截图或转发；到期或疑似泄露时重新进入本页获取</text>
+        </view>
+
+        <!-- 第二步 · 配置 OBS -->
+        <view class="card">
+          <view class="card-h">
+            <view class="no"><text class="no-txt">2</text></view>
+            <text class="card-h-txt">配置 OBS</text>
+          </view>
+          <view class="fold" @tap="navigateTo('/pkg-live/obs-guide/index')">
+            <text class="fold-txt">① 下载安装 OBS Studio</text>
+            <view class="fold-x"><text class="fold-x-txt">查看</text></view>
+          </view>
+          <view class="fold" @tap="navigateTo('/pkg-live/obs-guide/index')">
+            <text class="fold-txt">② 设置串流：粘贴地址与密钥</text>
+            <view class="fold-x"><text class="fold-x-txt">查看</text></view>
+          </view>
+          <view class="fold last" @tap="navigateTo('/pkg-live/obs-guide/index')">
+            <text class="fold-txt">③ 推荐输出参数</text>
+            <view class="fold-x"><text class="fold-x-txt">查看</text></view>
+          </view>
+          <view class="guide-more" @tap="navigateTo('/pkg-live/obs-guide/index')">
+            <text class="guide-more-txt">查看完整图文配置教程 ›</text>
+          </view>
+        </view>
+
+        <!-- 第三步 · 开始直播 -->
+        <view class="card">
+          <view class="card-h">
+            <view class="no"><text class="no-txt">3</text></view>
+            <text class="card-h-txt">开始直播</text>
+          </view>
+          <view class="connection-panel" :class="`connection-${stage}`">
+            <view class="connection-head">
+              <view class="connection-dot" />
+              <text class="connection-title">{{ connectionTitle }}</text>
+            </view>
+            <text class="connection-desc">{{ connectionDescription }}</text>
+            <text v-if="lastEventText" class="connection-time">{{ lastEventText }}</text>
+          </view>
+          <view class="cta card-cta" :class="{ dis: starting }" @tap="onStart">
+            {{ starting ? '检测中…' : startButtonText }}
+          </view>
+        </view>
+      </template>
+
+      <!-- ===== 已开播态 ===== -->
+      <template v-else>
+        <view class="card">
+          <view class="card-h">
+            <view class="no ok"><AppIcon name="check" :size="24" color="#fff" /></view>
+            <text class="card-h-txt">推流已连接</text>
+          </view>
+          <view class="runtime-grid">
+            <view class="runtime-cell"><text class="runtime-value">{{ formattedDuration }}</text><text class="runtime-label">推流时长</text></view>
+            <view class="runtime-cell"><text class="runtime-value">{{ fpsText }}</text><text class="runtime-label">帧率</text></view>
+            <view class="runtime-cell"><text class="runtime-value">{{ bitrateText }}</text><text class="runtime-label">码率</text></view>
+          </view>
+          <view class="living-row" @tap="showKeyLiving = !showKeyLiving">
+            <text class="living-desc">直播已开始，推流码可展开查看</text>
+            <view class="fold-x"><text class="fold-x-txt">{{ showKeyLiving ? '收起' : '展开' }}</text></view>
+          </view>
+          <template v-if="showKeyLiving">
+            <view class="krow living-krow">
+              <text class="k">服务器地址</text>
+              <view class="v"><text class="v-txt mono">{{ serverUrl || '未配置' }}</text></view>
+              <view class="copy-btn" @tap="copy(serverUrl, 'server')">
+                <text class="copy-txt">{{ copiedField === 'server' ? '已复制' : '复制' }}</text>
+              </view>
+            </view>
+            <view class="krow">
+              <text class="k">推流密钥</text>
+              <view class="v"><text class="v-txt mono">{{ streamKey ? maskedKey : '未配置' }}</text></view>
+              <view class="copy-btn" @tap="copy(streamKey, 'key')">
+                <text class="copy-txt">{{ copiedField === 'key' ? '已复制' : '复制' }}</text>
+              </view>
+            </view>
+          </template>
+        </view>
+
+        <view class="card">
+          <view class="card-h">
+            <view class="no"><text class="no-txt">3</text></view>
+            <text class="card-h-txt">管理直播</text>
+          </view>
+          <text class="step3-desc">前往控制台查看实时数据、弹幕与带货操作。</text>
+          <view class="cta card-cta" @tap="goConsole">进入控制台</view>
+        </view>
+      </template>
+
+      <view class="safe" />
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
-import {
-  liveApi,
-  obsQualityPresets,
-  obsPageSteps,
-  obsOutputSettings,
-  obsPageFaq,
-} from '@/lib/live-data'
+import { goBack, navigateTo } from '@/utils/router'
+import { liveApi } from '@/lib/live-data'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
+import { getObsStream, startObsLive, type ObsStreamRuntime } from './api'
 
-// 三态UI
+type ObsStage = 'none' | 'ready' | 'connected' | 'living' | 'interrupted' | 'ended'
+
 const loading = ref(true)
 const error = ref('')
-
-const statusBarHeight = ref(0)
-const stream = ref({
-  serverUrl: '',
-  streamKey: '',
-  status: 'offline' as 'online' | 'offline' | 'connecting',
-  duration: 0,
-  fps: 0,
-  bitrate: 0,
-  resolution: '',
-  droppedFrames: 0,
-  totalFrames: 0,
-})
-const obsSteps = ref(obsPageSteps)
-const qualityPresets = ref(obsQualityPresets)
-const outputSettings = ref(obsOutputSettings)
-const faq = ref(obsPageFaq)
-
+const id = ref('')
+const { safeTop } = useAppSafeArea()
+const serverUrl = ref('')
+const streamKey = ref('')
+const roomTitle = ref('')
+const qualityLabel = ref('')
+const stage = ref<ObsStage>('none')
+const runtime = ref<ObsStreamRuntime | null>(null)
 const showKey = ref(false)
+const showKeyLiving = ref(false)
 const copiedField = ref<string | null>(null)
-const showResetDialog = ref(false)
-const isResetting = ref(false)
-const selectedQuality = ref('high')
-const streamStatus = ref<'online' | 'offline' | 'connecting'>('offline')
-const duration = ref(0)
-const openFaq = ref<number | null>(null)
+const starting = ref(false)
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
-let timer: ReturnType<typeof setInterval> | null = null
-
-const statusText = computed(() =>
-  streamStatus.value === 'online' ? '推流中' : streamStatus.value === 'connecting' ? '连接中' : '离线',
-)
-const statusClass = computed(() => `s-${streamStatus.value}`)
-const dropRate = computed(() =>
-  stream.value.totalFrames > 0 ? stream.value.droppedFrames / stream.value.totalFrames : 0,
-)
-const maskedKey = computed(() => '•'.repeat(stream.value.streamKey.length))
-
-function formatDuration(seconds: number) {
+const maskedKey = computed(() => '•'.repeat(Math.min(streamKey.value.length, 24)) || '••••••••••••')
+const connectionTitle = computed(() => {
+  if (stage.value === 'connected') return '已检测到 OBS 推流'
+  if (stage.value === 'interrupted') return '推流连接已中断'
+  return '等待 OBS 推流连接'
+})
+const obsCapabilityLabel = computed(() => runtime.value?.ingestMode === 'TRTC_RTMP'
+  ? 'TRTC 同房连麦'
+  : '腾讯云标准推流')
+const connectionDescription = computed(() => {
+  if (stage.value === 'connected') return runtime.value?.ingestMode === 'TRTC_RTMP'
+    ? 'OBS 已进入与手机嘉宾相同的 TRTC 房间。确认画面和声音后，再建立 CDN 输出并正式开播。'
+    : '媒体流已到达腾讯云。确认画面和声音后，再正式向观众开播。'
+  if (stage.value === 'interrupted') return '直播仍保留，请在 OBS 中检查网络并重新推流；恢复后页面会自动更新。'
+  return '先在电脑 OBS 点击「开始推流」。本页检测到真实媒体流后，才会允许正式开播。'
+})
+const startButtonText = computed(() => stage.value === 'connected' ? '确认画面正常并正式开播' : '重新检测推流')
+const lastEventText = computed(() => runtime.value?.lastEventAt ? `最近状态：${formatClock(runtime.value.lastEventAt)}` : '')
+const formattedDuration = computed(() => {
+  const seconds = runtime.value?.duration || 0
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   const s = seconds % 60
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${pad(h)}:${pad(m)}:${pad(s)}`
+  return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
+})
+const fpsText = computed(() => runtime.value?.fps == null ? '--' : `${runtime.value.fps}`)
+const bitrateText = computed(() => runtime.value?.bitrate == null ? '--' : `${runtime.value.bitrate}k`)
+
+const qualityMap: Record<string, string> = {
+  basic: '标清',
+  hd: '高清 720P',
+  uhd: '超清 1080P',
+}
+
+function pad(value: number) {
+  return String(value).padStart(2, '0')
+}
+
+function formatClock(iso: string) {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '未知'
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+function applyRuntime(value: ObsStreamRuntime) {
+  runtime.value = value
+  serverUrl.value = value.serverUrl
+  streamKey.value = value.streamKey
+  if (value.roomStatus === 'ENDED' || value.roomStatus === 'REPLAY' || value.roomStatus === 'CANCELLED') {
+    stage.value = 'ended'
+  } else if (value.roomStatus === 'LIVING') {
+    stage.value = value.status === 'online' ? 'living' : 'interrupted'
+  } else {
+    stage.value = value.status === 'online' ? 'connected' : 'ready'
+  }
+}
+
+async function refreshRuntime(silent = true) {
+  if (!id.value) return
+  try {
+    applyRuntime(await getObsStream(id.value))
+  } catch (e) {
+    if (!silent) throw e
+  }
 }
 
 async function fetchData() {
   loading.value = true
   error.value = ''
   try {
-    const data = await liveApi.getObsStream()
-    stream.value = { ...data, status: data.status as 'online' | 'offline' | 'connecting' }
-    streamStatus.value = data.status as 'online' | 'offline' | 'connecting'
-    duration.value = data.duration
+    if (!id.value) {
+      stage.value = 'none'
+      return
+    }
+    const [room, streamRuntime] = await Promise.all([
+      liveApi.getWatch(id.value),
+      getObsStream(id.value),
+    ])
+    if (!room) throw new Error('直播间不存在或已不可访问')
+    roomTitle.value = room.title || ''
+    qualityLabel.value = qualityMap[String((room as { quality?: string }).quality || '')] || ''
+    applyRuntime(streamRuntime)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -351,49 +344,71 @@ async function fetchData() {
   }
 }
 
-onLoad(async () => {
-  try {
-    const info = uni.getSystemInfoSync()
-    statusBarHeight.value = info.statusBarHeight || 0
-  } catch (e) {}
-  await fetchData()
-  if (streamStatus.value === 'online') {
-    timer = setInterval(() => {
-      duration.value += 1
-    }, 1000)
+function startPolling() {
+  if (pollTimer || !id.value) return
+  pollTimer = setInterval(() => refreshRuntime(true), 5000)
+}
+
+function stopPolling() {
+  if (pollTimer) clearInterval(pollTimer)
+  pollTimer = null
+}
+
+onLoad((query) => {
+  id.value = (query as Record<string, string> | undefined)?.id || ''
+  fetchData().then(startPolling)
+})
+onShow(startPolling)
+onHide(stopPolling)
+onUnload(stopPolling)
+
+function copy(text: string, field: string) {
+  if (!text) {
+    uni.showToast({ title: '暂无可复制内容', icon: 'none' })
+    return
   }
-})
-
-onUnmounted(() => {
-  if (timer) clearInterval(timer)
-})
-
-function copyField(text: string, field: string) {
   uni.setClipboardData({
     data: text,
     success: () => {
       copiedField.value = field
+      uni.showToast({ title: '已复制', icon: 'none' })
       setTimeout(() => (copiedField.value = null), 2000)
     },
   })
 }
 
-function toggleFaq(idx: number) {
-  openFaq.value = openFaq.value === idx ? null : idx
+async function onStart() {
+  if (starting.value || !id.value) {
+    if (!id.value) uni.showToast({ title: '缺少直播间信息', icon: 'none' })
+    return
+  }
+  starting.value = true
+  try {
+    const latest = await getObsStream(id.value)
+    applyRuntime(latest)
+    if (latest.status !== 'online') {
+      uni.showToast({ title: '尚未检测到 OBS 推流', icon: 'none' })
+      return
+    }
+    if (latest.roomStatus === 'WAITING') {
+      await startObsLive(id.value)
+      await refreshRuntime(false)
+      uni.showToast({ title: '已正式开播', icon: 'success' })
+      setTimeout(() => navigateTo(`/pkg-live/console/index?id=${id.value}&source=obs`), 600)
+    }
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '开播失败，请重试', icon: 'none' })
+  } finally {
+    starting.value = false
+  }
 }
 
-function closeReset() {
-  if (isResetting.value) return
-  showResetDialog.value = false
+function goConsole() {
+  navigateTo(`/pkg-live/console/index?id=${id.value}&source=obs`)
 }
 
-function handleResetKey() {
-  if (isResetting.value) return
-  isResetting.value = true
-  setTimeout(() => {
-    isResetting.value = false
-    showResetDialog.value = false
-  }, 1500)
+function goCreate() {
+  navigateTo('/pkg-live/create/index')
 }
 
 function onBack() {
@@ -402,27 +417,503 @@ function onBack() {
 </script>
 
 <style scoped>
-/* 骨架屏 */
-.skeleton-page {
+.page {
   min-height: 100vh;
   background: #FAF8F5;
+  box-sizing: border-box;
+  padding-top: calc(max(var(--obs-safe-top, 0px), env(safe-area-inset-top)) + 88rpx);
+  padding-bottom: 48rpx;
+}
+
+/* 顶部导航 */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  box-sizing: border-box;
+  padding-top: max(var(--obs-safe-top, 0px), env(safe-area-inset-top));
+  background: #FAF8F5;
+  border-bottom: 1rpx solid #E8E2D8;
+}
+.nav-bar {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24rpx;
+}
+.nav-btn {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+}
+.nav-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #2C2C2C;
+}
+.nav-placeholder {
+  width: 56rpx;
+}
+
+.obs-masthead {
+  margin: 22rpx 32rpx 10rpx;
+  padding: 36rpx 34rpx 32rpx;
+  border-radius: 32rpx;
+  background: linear-gradient(145deg, #151217 0%, #27212a 70%, #342719 100%);
+  box-shadow: 0 18rpx 40rpx rgba(31,23,28,.17);
+}
+.obs-eyebrow { display: block; color: #d4ad66; font-size: 19rpx; font-weight: 800; letter-spacing: 3rpx; }
+.obs-title { display: block; margin-top: 14rpx; color: #fff; font-size: 38rpx; line-height: 1.35; font-weight: 700; font-family: var(--font-serif); }
+.obs-desc { display: block; margin-top: 10rpx; color: #aaa0ad; font-size: 23rpx; line-height: 1.6; }
+.obs-capabilities { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 22rpx; }
+.obs-capability { padding: 9rpx 15rpx; border-radius: 999rpx; color: #d7cfd8; background: rgba(255,255,255,.08); border: 1rpx solid rgba(255,255,255,.13); font-size: 20rpx; }
+.obs-capability.secure { color: #8fd0a4; border-color: rgba(79,116,91,.7); background: rgba(79,116,91,.16); }
+
+/* 直播间概要 */
+.summary {
+  background: #fff;
+  padding: 20rpx 32rpx;
+  border-bottom: 1rpx solid #F0EBE2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.summary-txt {
+  font-size: 24rpx;
+  color: #6E6E73;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.summary-title {
+  color: #2C2C2C;
+  font-weight: 600;
+}
+.summary-quality {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  font-size: 24rpx;
+  color: #C9A96E;
+  font-weight: 600;
+}
+.livebadge {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  background: #FBF0F2;
+  border-radius: 999rpx;
+  padding: 6rpx 20rpx;
+}
+.live-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #C41E3A;
+  animation: breath 1.6s ease-in-out infinite;
+}
+@keyframes breath {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.livebadge-txt {
+  font-size: 24rpx;
+  color: #C41E3A;
+  font-weight: 600;
+}
+.summary-tags { flex-shrink: 0; margin-left: 16rpx; display: flex; align-items: center; gap: 10rpx; }
+.summary-mode { font-size: 22rpx; color: #4F745B; background: #EDF4EF; border-radius: 999rpx; padding: 6rpx 14rpx; font-weight: 600; }
+.connected-badge { background: #EDF4EF; }
+.connected-dot { background: #4F745B; animation: none; }
+.connected-txt { color: #4F745B; }
+.interrupted-badge { background: #FFF4E5; }
+.interrupted-dot { background: #C77A22; }
+.interrupted-txt { color: #9A5A12; }
+
+/* 步骤指示条 */
+.steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 28rpx 20rpx;
+  background: #FAF8F5;
+}
+.stepn {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  border: 1rpx solid #DDD5C8;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.stepn.on {
+  background: #C41E3A;
+  border-color: #C41E3A;
+}
+.stepn-txt {
+  font-size: 24rpx;
+  color: #999;
+}
+.stepn.on .stepn-txt {
+  color: #fff;
+}
+.steptxt {
+  font-size: 24rpx;
+  color: #999;
+}
+.steplab {
+  font-size: 24rpx;
+  color: #C41E3A;
+  font-weight: 600;
+}
+.stepline {
+  width: 48rpx;
+  height: 2rpx;
+  background: #E8E2D8;
+}
+.stepline.done {
+  background: #C41E3A;
+}
+
+/* 卡片 */
+.card {
+  background: #fff;
+  margin: 24rpx 32rpx 0;
+  border-radius: 24rpx;
+  border: 1rpx solid #F0EBE2;
   padding: 32rpx;
 }
-.skeleton-nav {
-  height: 88rpx;
-  background: #fff;
+.card-h {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 28rpx;
+}
+.no {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: #C41E3A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.no.ok {
+  background: #C9A96E;
+}
+.no-txt {
+  font-size: 24rpx;
+  color: #fff;
+  font-weight: 600;
+}
+.card-h-txt {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #2C2C2C;
+}
+
+/* 推流码行 */
+.krow {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+.k {
+  width: 130rpx;
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: #999;
+}
+.v {
+  flex: 1;
+  min-width: 0;
+  height: 76rpx;
+  box-sizing: border-box;
+  background: #FAF8F5;
+  border: 1rpx solid #F0EBE2;
   border-radius: 16rpx;
-  margin-bottom: 32rpx;
+  display: flex;
+  align-items: center;
+  padding: 0 20rpx;
 }
-.skeleton-card {
-  height: 360rpx;
+.v-txt {
+  flex: 1;
+  min-width: 0;
+  font-size: 24rpx;
+  color: #6E6E73;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mono {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+.eye {
+  flex-shrink: 0;
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8rpx;
+}
+.copy-btn {
+  flex-shrink: 0;
+  height: 76rpx;
+  padding: 0 24rpx;
+  border: 1rpx solid #C41E3A;
+  border-radius: 999rpx;
   background: #fff;
-  border-radius: 24rpx;
-  margin-bottom: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.skeleton-card-sm {
-  height: 240rpx;
+.copy-txt {
+  font-size: 24rpx;
+  color: #C41E3A;
 }
+.tip {
+  display: block;
+  font-size: 22rpx;
+  color: #C41E3A;
+  margin-top: 8rpx;
+}
+
+/* 折叠教程 */
+.fold {
+  height: 84rpx;
+  box-sizing: border-box;
+  border: 1rpx solid #F0EBE2;
+  border-radius: 20rpx;
+  margin-bottom: 16rpx;
+  padding: 0 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fold.last {
+  margin-bottom: 0;
+}
+.fold-txt {
+  font-size: 26rpx;
+  color: #2C2C2C;
+}
+.fold-x {
+  flex-shrink: 0;
+  border: 1rpx solid #E8E2D8;
+  border-radius: 999rpx;
+  padding: 6rpx 18rpx;
+}
+.fold-x-txt {
+  font-size: 22rpx;
+  color: #999;
+}
+.guide-more {
+  margin-top: 20rpx;
+  display: flex;
+  justify-content: center;
+}
+.guide-more-txt {
+  font-size: 24rpx;
+  color: #C41E3A;
+  font-weight: 600;
+}
+
+/* 第三步说明 */
+.step3-desc {
+  display: block;
+  font-size: 26rpx;
+  color: #6E6E73;
+  line-height: 1.7;
+}
+.connection-panel {
+  margin-top: 8rpx;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background: #F7F3EC;
+  border: 1rpx solid #E6DED1;
+}
+.connection-connected {
+  background: #EDF4EF;
+  border-color: #C9DACD;
+}
+.connection-interrupted {
+  background: #FFF4E5;
+  border-color: #EACBA2;
+}
+.connection-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.connection-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: #9B948A;
+}
+.connection-connected .connection-dot { background: #4F745B; }
+.connection-interrupted .connection-dot { background: #C77A22; }
+.connection-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #181614;
+}
+.connection-desc {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #68615A;
+}
+.connection-time {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: #8C847A;
+}
+.runtime-grid {
+  display: flex;
+  margin: 20rpx 0 8rpx;
+  padding: 20rpx 0;
+  border-radius: 14rpx;
+  background: #F7F3EC;
+}
+.runtime-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-right: 1rpx solid #E6DED1;
+}
+.runtime-cell:last-child { border-right: 0; }
+.runtime-value {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #181614;
+}
+.runtime-label {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #8C847A;
+}
+.card-cta {
+  margin-top: 28rpx;
+}
+
+/* 已开播 */
+.living-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.living-desc {
+  font-size: 26rpx;
+  color: #6E6E73;
+}
+.living-krow {
+  margin-top: 24rpx;
+}
+
+/* 主按钮 */
+.cta {
+  height: 96rpx;
+  border-radius: 999rpx;
+  background: #C41E3A;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 600;
+  box-shadow: 0 8rpx 24rpx rgba(196, 30, 58, 0.25);
+}
+.cta.dis {
+  background: #DDD5C8;
+  box-shadow: none;
+}
+
+/* 未创建房间态 */
+.empty {
+  padding: 96rpx 64rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.empty-icon {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 50%;
+  background: #F0EBE2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 40rpx;
+}
+.empty-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #2C2C2C;
+  margin-bottom: 16rpx;
+  text-align: center;
+}
+.empty-desc {
+  font-size: 26rpx;
+  color: #999;
+  line-height: 1.7;
+  text-align: center;
+  margin-bottom: 48rpx;
+}
+.empty-cta {
+  width: 100%;
+}
+
+.safe {
+  height: 48rpx;
+}
+
+/* 骨架屏 */
+.sk {
+  background: linear-gradient(90deg, #EFEAE1 25%, #F7F4EE 50%, #EFEAE1 75%);
+  background-size: 200% 100%;
+  animation: sk 1.4s infinite;
+  border-radius: 12rpx;
+}
+@keyframes sk {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.sk-summary {
+  background: #fff;
+  padding: 20rpx 32rpx;
+  border-bottom: 1rpx solid #F0EBE2;
+}
+.sk-steps {
+  padding: 28rpx 32rpx;
+  display: flex;
+  justify-content: center;
+}
+.sk-line {
+  height: 28rpx;
+}
+.sk-w200 { width: 400rpx; }
+.sk-w280 { width: 480rpx; }
+.sk-w160 { width: 240rpx; }
+.sk-mb { margin-bottom: 20rpx; }
+.sk-h72 { height: 76rpx; }
+.sk-h84 { height: 84rpx; }
+.sk-cta { height: 96rpx; border-radius: 999rpx; }
 
 /* 错误状态 */
 .error-state {
@@ -441,573 +932,9 @@ function onBack() {
 }
 .retry-btn {
   padding: 20rpx 64rpx;
-  background: var(--brand);
+  background: #C41E3A;
   color: #fff;
   border-radius: 24rpx;
   font-size: 28rpx;
-}
-
-.page {
-  min-height: 100vh;
-  background: #FAF8F5;
-  padding-bottom: 48rpx;
-}
-
-/* 顶部导航 */
-.nav {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: rgba(255, 255, 255, 0.95);
-  border-bottom: 1rpx solid #E8E3DB;
-}
-.nav-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 88rpx;
-  padding: 0 32rpx;
-}
-.nav-left {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-.nav-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.nav-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #2C2C2C;
-}
-.nav-dl {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  padding: 8rpx 16rpx;
-}
-.nav-dl-txt {
-  font-size: 24rpx;
-  color: #666;
-}
-
-.body {
-  padding: 32rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 32rpx;
-}
-
-/* 卡片基础 */
-.card {
-  background: #fff;
-  border-radius: 24rpx;
-  padding: 32rpx;
-  border: 1rpx solid #E8E3DB;
-}
-.card-head {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  margin-bottom: 32rpx;
-}
-.card-head-txt {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #2C2C2C;
-}
-.card-sub {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-  margin-bottom: 24rpx;
-}
-
-/* 推流状态卡 */
-.status-card {
-  border-width: 2rpx;
-}
-.status-card.s-online {
-  border-color: rgba(22, 163, 74, 0.3);
-  background: rgba(22, 163, 74, 0.05);
-}
-.status-card.s-connecting {
-  border-color: rgba(245, 158, 11, 0.3);
-  background: rgba(245, 158, 11, 0.05);
-}
-.status-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24rpx;
-}
-.status-left {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-.status-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #2C2C2C;
-}
-.status-badge {
-  padding: 4rpx 20rpx;
-  border-radius: 999rpx;
-  background: #999;
-}
-.status-badge.s-online {
-  background: #16a34a;
-}
-.status-badge.s-connecting {
-  background: #f59e0b;
-}
-.status-badge-txt {
-  font-size: 22rpx;
-  color: #fff;
-}
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16rpx;
-}
-.stat-item {
-  text-align: center;
-  padding: 16rpx 8rpx;
-  border-radius: 16rpx;
-  background: #fff;
-}
-.stat-label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6rpx;
-  margin-bottom: 8rpx;
-}
-.stat-label-txt {
-  font-size: 20rpx;
-  color: #999;
-}
-.stat-value {
-  font-size: 26rpx;
-  font-weight: 700;
-  color: #2C2C2C;
-}
-.mono {
-  font-family: 'SF Mono', 'Roboto Mono', monospace;
-}
-.drop-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 24rpx;
-  padding-top: 24rpx;
-  border-top: 1rpx solid #E8E3DB;
-}
-.drop-label {
-  font-size: 24rpx;
-  color: #999;
-}
-.drop-value {
-  font-size: 24rpx;
-  font-weight: 500;
-  color: #f59e0b;
-}
-.drop-value.good {
-  color: #16a34a;
-}
-.drop-frames {
-  font-size: 24rpx;
-  color: #999;
-  margin-left: 8rpx;
-}
-.status-offline-tip {
-  font-size: 26rpx;
-  color: #999;
-}
-
-/* 字段 */
-.field {
-  margin-bottom: 32rpx;
-}
-.field-label {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-  margin-bottom: 12rpx;
-}
-.field-row {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-.field-value-wrap {
-  position: relative;
-  flex: 1;
-  display: flex;
-  align-items: center;
-}
-.field-value {
-  flex: 1;
-  min-width: 0;
-  height: 72rpx;
-  line-height: 48rpx;
-  padding: 12rpx 24rpx;
-  background: rgba(232, 227, 219, 0.4);
-  border-radius: 16rpx;
-  font-size: 26rpx;
-  color: #2C2C2C;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.field-value-wrap .field-value {
-  padding-right: 72rpx;
-}
-.field-eye {
-  position: absolute;
-  right: 24rpx;
-  top: 50%;
-  transform: translateY(-50%);
-}
-.field-btn {
-  flex-shrink: 0;
-  width: 72rpx;
-  height: 72rpx;
-  border: 1rpx solid #E8E3DB;
-  border-radius: 16rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-}
-.reset-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 8rpx;
-}
-.reset-tip {
-  font-size: 24rpx;
-  color: #999;
-}
-.reset-btn {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  padding: 10rpx 20rpx;
-  border: 1rpx solid #E8E3DB;
-  border-radius: 12rpx;
-}
-.reset-btn-txt {
-  font-size: 24rpx;
-  color: #2C2C2C;
-}
-
-/* 步骤 */
-.steps {
-  display: flex;
-  flex-direction: column;
-  gap: 24rpx;
-}
-.step-row {
-  display: flex;
-  gap: 24rpx;
-}
-.step-num {
-  flex-shrink: 0;
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 999rpx;
-  background: rgba(196, 30, 58, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.step-num-txt {
-  font-size: 24rpx;
-  font-weight: 700;
-  color: var(--brand);
-}
-.step-info {
-  flex: 1;
-  padding-top: 4rpx;
-}
-.step-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2C2C2C;
-}
-.step-desc {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-  margin-top: 4rpx;
-}
-.warn-box {
-  display: flex;
-  align-items: flex-start;
-  gap: 16rpx;
-  margin-top: 32rpx;
-  padding: 24rpx;
-  border-radius: 16rpx;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1rpx solid rgba(245, 158, 11, 0.2);
-}
-.warn-text {
-  flex: 1;
-}
-.warn-title {
-  display: block;
-  font-size: 24rpx;
-  font-weight: 500;
-  color: #d97706;
-}
-.warn-desc {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-  margin-top: 4rpx;
-  line-height: 1.5;
-}
-
-/* 画质预设 */
-.quality-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-}
-.quality-item {
-  padding: 24rpx;
-  border-radius: 16rpx;
-  border: 2rpx solid #E8E3DB;
-}
-.quality-item.active {
-  border-color: var(--brand);
-  background: rgba(196, 30, 58, 0.05);
-}
-.quality-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16rpx;
-}
-.quality-name-row {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-.quality-name {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2C2C2C;
-}
-.quality-rec {
-  padding: 2rpx 12rpx;
-  border-radius: 8rpx;
-  background: #16a34a;
-}
-.quality-rec-txt {
-  font-size: 20rpx;
-  color: #fff;
-}
-.quality-radio {
-  width: 40rpx;
-  height: 40rpx;
-  border-radius: 999rpx;
-  border: 2rpx solid rgba(153, 153, 153, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.quality-radio.active {
-  border-color: var(--brand);
-  background: var(--brand);
-}
-.quality-desc {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-  margin-bottom: 16rpx;
-}
-.quality-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16rpx;
-}
-.quality-cell-label {
-  display: block;
-  font-size: 22rpx;
-  color: #999;
-}
-.quality-cell-value {
-  display: block;
-  font-size: 24rpx;
-  font-weight: 500;
-  color: #2C2C2C;
-  margin-top: 2rpx;
-}
-.speed-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 32rpx;
-  padding: 24rpx;
-  border-radius: 16rpx;
-  background: rgba(232, 227, 219, 0.4);
-}
-.speed-left {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-.speed-txt {
-  font-size: 26rpx;
-  color: #2C2C2C;
-}
-.speed-btn {
-  padding: 10rpx 24rpx;
-  border: 1rpx solid #E8E3DB;
-  border-radius: 12rpx;
-  background: #fff;
-}
-.speed-btn-txt {
-  font-size: 24rpx;
-  color: #2C2C2C;
-}
-
-/* 输出参考 */
-.output-list {
-  display: flex;
-  flex-direction: column;
-}
-.output-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16rpx 0;
-  border-bottom: 1rpx solid #E8E3DB;
-}
-.output-row.last {
-  border-bottom: none;
-}
-.output-label {
-  font-size: 26rpx;
-  color: #999;
-}
-.output-value {
-  font-size: 26rpx;
-  font-weight: 500;
-  color: #2C2C2C;
-}
-
-/* FAQ */
-.faq-title {
-  display: block;
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #2C2C2C;
-  margin-bottom: 24rpx;
-}
-.faq-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-}
-.faq-q {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16rpx 0;
-}
-.faq-q-txt {
-  font-size: 26rpx;
-  color: #2C2C2C;
-}
-.faq-a {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-  padding: 0 0 16rpx 16rpx;
-  line-height: 1.6;
-  white-space: pre-line;
-}
-.rot-down {
-  transform: rotate(-90deg);
-}
-.rot-up {
-  transform: rotate(90deg);
-}
-
-/* 对话框 */
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48rpx;
-}
-.dialog {
-  width: 100%;
-  max-width: 640rpx;
-  background: #fff;
-  border-radius: 24rpx;
-  padding: 40rpx;
-}
-.dialog-title {
-  display: block;
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #2C2C2C;
-  margin-bottom: 16rpx;
-}
-.dialog-desc {
-  display: block;
-  font-size: 26rpx;
-  color: #999;
-  line-height: 1.6;
-  margin-bottom: 40rpx;
-}
-.dialog-foot {
-  display: flex;
-  gap: 16rpx;
-  justify-content: flex-end;
-}
-.dialog-btn {
-  padding: 16rpx 32rpx;
-  border-radius: 12rpx;
-}
-.dialog-btn.cancel {
-  border: 1rpx solid #E8E3DB;
-  background: #fff;
-}
-.dialog-btn.confirm {
-  background: #ef4444;
-}
-.dialog-btn.disabled {
-  opacity: 0.5;
-}
-.dialog-btn-txt {
-  font-size: 26rpx;
-  color: #2C2C2C;
-}
-.confirm-txt {
-  color: #fff;
-}
-
-/* 动画 */
-.pulse {
-  animation: pulse 1.2s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
 }
 </style>

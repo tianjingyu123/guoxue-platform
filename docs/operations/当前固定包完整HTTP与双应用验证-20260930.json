@@ -1,0 +1,37 @@
+{
+  "verificationCommit": "71f967930f12cd301f079280a550ec8b9f450ea8",
+  "checks": 22,
+  "artifactSha256": "b4b3a35078bf6b672cfb45f929aeb19433dcb63c1aeeab76603f943024e1810b",
+  "realMoneyOperations": 0,
+  "disclosureHttpCases": 8,
+  "notificationTargetScopes": {
+    "allTargets": false,
+    "order": true,
+    "post": true
+  },
+  "artifactId": 11136952671,
+  "paymentRefundHttpCases": 22,
+  "realNotifications": 0,
+  "productionDeployment": false,
+  "rewardHttpCases": 19,
+  "passed": true,
+  "cleanup": {
+    "rebu-app-second-de4afa454f": true,
+    "rebu-app-de4afa454f": true,
+    "rebu-db-de4afa454f": true,
+    "rebu-redis-de4afa454f": true,
+    "networkAbsent": true
+  },
+  "allNotificationTriggersCompleted": false,
+  "realChannelsVerified": false,
+  "postDetailHttpCases": 89,
+  "sourceCommit": "4e7c962ee14e8f0087871c15a2c31235f516d23d",
+  "checkedAtUtc": "2026-10-01T02:13:08.1348323Z",
+  "targetNodesVerified": false,
+  "releaseDecision": "NO-GO",
+  "imageId": "sha256:c702a9aa201acafee12e79d4635ff789bfb12fea078e9cd97583acf3ad5a79be",
+  "runId": 36804307977,
+  "sourceSha256": "177d79608062f74525a296a750ebc2f2921d6030b99bf4f62a53d17fac2e036d",
+  "productionMigration": false,
+  "artifactBytes": 52689
+}

@@ -5,6 +5,7 @@ import { RegisterAnomalyRuleDto } from "./dto/ai-infra.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("🤖 AI异常检测")
 @Controller("ai/anomalies")
@@ -41,13 +42,28 @@ export class AnomalyDetectorController {
   }
 
   @Post("rules")
+  @RedLineGate(RedLine.COMPLIANCE)
+  @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "注册/更新检测规则" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async registerRule(
     @Body() body: RegisterAnomalyRuleDto,
   ) {
-    this.detector.registerRule(body);
+    await this.detector.registerRule(body);
     return { success: true };
+  }
+
+  @Post("rules/:ruleId/toggle")
+  @RedLineGate(RedLine.COMPLIANCE)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "启用/停用检测规则" })
+  @ApiResponse({ status: 201, description: "操作成功" })
+  @ApiResponse({ status: 404, description: "规则不存在" })
+  async toggleRule(
+    @Param("ruleId") ruleId: string,
+    @Body() body: { enabled?: boolean },
+  ) {
+    return this.detector.toggleRule(ruleId, body?.enabled);
   }
 }

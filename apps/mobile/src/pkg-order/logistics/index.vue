@@ -90,7 +90,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { orderApi, logisticsStatusMap } from '@/lib/order-data'
+import { orderApi, logisticsStatusMap } from '@/pkg-order/lib/order-data'
 
 const loading = ref(true)
 const error = ref('')

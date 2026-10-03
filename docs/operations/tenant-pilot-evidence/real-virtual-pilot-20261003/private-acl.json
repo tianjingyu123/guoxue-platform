@@ -1,0 +1,11 @@
+{
+  "production": false,
+  "powerShellVersion": "7.6.5",
+  "allRequestedPathsRead": true,
+  "errorsTerminate": true,
+  "rootInheritanceProtected": true,
+  "rootRules": 3,
+  "runtimeJsonAndCredentialFilesChecked": 3509,
+  "excessAllowRules": 0,
+  "credentialsPrinted": false
+}

@@ -1,0 +1,247 @@
+{
+  "parent": "6545c2fed32c0bb8fc68c0165d5b8cecb5d57016",
+  "previousBusiness": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
+  "source": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+  "files": [
+    {
+      "path": "apps/server/src/modules/voice/voice-session.service.ts",
+      "sha256": "0d45f4dc9904b0d71a245dd1a36390d61c30bbc76c2bb9bc12f4e71059c7dbce"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "sha256": "e9ebd54fdc9e9b2f3e8a812633a99c033d051854871eb29a71bc1ee775110737"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session-idempotency.spec.ts",
+      "sha256": "07d33d8e890deb0bf3cd2effcfbee849b2b8cd564a6395be101aeb75f8ab053e"
+    }
+  ],
+  "localTests": 77,
+  "suites": 9,
+  "compiledTests": 17,
+  "typecheckExit": 0,
+  "buildExit": 0,
+  "lintErrors": 0,
+  "lintWarnings": [
+    {
+      "path": "voice-session-idempotency.spec.ts",
+      "warnings": 0
+    },
+    {
+      "path": "voice-session.integration.spec.ts",
+      "warnings": 26
+    },
+    {
+      "path": "voice-session.service.ts",
+      "warnings": 7
+    }
+  ],
+  "priorOfficialFailures": [
+    {
+      "runId": 37034239589,
+      "artifactId": 11238554432,
+      "zipSha256": "f7001c2bca20f5e77a884300c65650625410f2e991674c66fcf7de9e4eba64a7",
+      "head": "a7aaf125974ea8fc78372f7933038ddaa3a9488a",
+      "conclusion": "failure"
+    },
+    {
+      "runId": 37035652610,
+      "artifactId": 11239741040,
+      "zipSha256": "6f3fa2ca561176a749b501f5dd50490673425f16841a19f1cec117373bce3c6e",
+      "head": "f968049b9ee0393be5b485d954a7fbe2e95da7ae",
+      "conclusion": "failure"
+    }
+  ],
+  "oldCodeCounterexample": true,
+  "realPostgres": true,
+  "provider": "mock",
+  "realChannels": false,
+  "realPayment": false,
+  "production": false,
+  "newMigration": false,
+  "formalDockerRuntime": false,
+  "releaseReady": false,
+  "checkedAt": "2026-10-02T17:24:25.168Z",
+  "record": "语音重复启动修复与最终软件补验-20261002.json",
+  "ci": {
+    "jobsPassed": 8,
+    "runId": 37037741661,
+    "fullCIComplete": true,
+    "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+    "skipped": 411,
+    "production": false,
+    "checkedAt": "2026-10-02T17:21:10.3360843Z",
+    "shards": [
+      {
+        "summary": "2026-10-02T17:05:14.7812044Z Tests:       124 skipped, 3098 passed, 3222 total",
+        "skipped": 124,
+        "id": 110940636528,
+        "name": "单元测试 (2/3)",
+        "passed": 3098
+      },
+      {
+        "summary": "2026-10-02T17:15:28.3287854Z Tests:       157 skipped, 2852 passed, 3009 total",
+        "skipped": 157,
+        "id": 110940636646,
+        "name": "单元测试 (1/3)",
+        "passed": 2852
+      },
+      {
+        "summary": "2026-10-02T17:05:23.6644222Z Tests:       130 skipped, 3066 passed, 3196 total",
+        "skipped": 130,
+        "id": 110940636653,
+        "name": "单元测试 (3/3)",
+        "passed": 3066
+      }
+    ],
+    "passed": 9016
+  },
+  "image": {
+    "runId": 37038125608,
+    "artifactId": 11240918867,
+    "digest": "sha256:3c993975aac66ff057bd958365df012298946a60b96ca337a4ddcc4ee8b798e0",
+    "head": "eb4256548493d4094bdfaa68ec46190b0d043221",
+    "conclusion": "success",
+    "digestVerified": true,
+    "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+    "packageSha256": "cf10bae36c7e899453076f0b678b5fc063cd94cb888df7cc1064a9e9d5521fb7",
+    "passedChecks": 30,
+    "formalDockerfile": true,
+    "imageIdentity": {
+      "id": "sha256:9888e6cd289754ebc470ee61e701012c6f2d6c704a529cb10037544ef0d9d951",
+      "os": "linux",
+      "architecture": "amd64",
+      "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+      "sourceSha256": "cf10bae36c7e899453076f0b678b5fc063cd94cb888df7cc1064a9e9d5521fb7"
+    },
+    "migrationLedger": {
+      "total": 132,
+      "complete": 132,
+      "failed": 0
+    },
+    "cleanup": {
+      "rebu-app-second-b77d307ec5": true,
+      "rebu-app-b77d307ec5": true,
+      "rebu-db-b77d307ec5": true,
+      "rebu-redis-b77d307ec5": true,
+      "networkAbsent": true
+    },
+    "practitioner": {
+      "passed": true,
+      "compiledService": true,
+      "firstPurchaseConcurrentTwoMonths": true,
+      "renewalConcurrentTwoMonths": true,
+      "notificationFailureDoesNotUndoPaid": true,
+      "durableRetryOnce": true,
+      "concurrentRefundDoesNotRevive": true,
+      "refundReplayIdempotent": true,
+      "schoolMembershipUnchanged": true,
+      "noRealChannel": true,
+      "redisStub": true,
+      "realSignatureTransport": false
+    },
+    "twoNodeProduction": false,
+    "realChannels": false,
+    "phoneTest": false,
+    "production": false,
+    "checkedAt": "2026-10-02T17:19:23.748Z"
+  },
+  "skipCoverage": {
+    "defaultSkipped": 411,
+    "softwareCovered": 382,
+    "hardwareDeferred": 29,
+    "unclassified": 0,
+    "newSoftwarePassed": 109,
+    "oldSoftwareEvidenceCount": 280,
+    "newBoundaryCases": 7,
+    "verifiedSourceHashLines": 4674,
+    "historySource": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
+    "softwareRuns": [
+      {
+        "runId": 37038125412,
+        "artifactId": 11240598735,
+        "digest": "sha256:9ab6d1b3fe547faf0cfdcd53b00507855a824bda2e04ca5a03be5487e6f034db",
+        "head": "eb4256548493d4094bdfaa68ec46190b0d043221",
+        "conclusion": "failure",
+        "digestVerified": true
+      },
+      {
+        "runId": 37038707779,
+        "artifactId": 11240279585,
+        "digest": "sha256:a741796f5a512f700930a486eac37f7b943868554038377c976c0435aa1714e1",
+        "head": "263038873da735687efb42d77e346e3090e187be",
+        "conclusion": "success",
+        "digestVerified": true
+      },
+      {
+        "runId": 37038125608,
+        "artifactId": 11240918867,
+        "digest": "sha256:3c993975aac66ff057bd958365df012298946a60b96ca337a4ddcc4ee8b798e0",
+        "head": "eb4256548493d4094bdfaa68ec46190b0d043221",
+        "conclusion": "success",
+        "digestVerified": true
+      }
+    ]
+  },
+  "officialBuild": {
+    "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+    "runId": 37037741661,
+    "artifactId": 11242080442,
+    "officialDigest": "sha256:0f53270027cc76150e62bd8ebf3593d7873510adfb0200695110431eef0532b1",
+    "digestVerified": true,
+    "voicePath": "modules/voice/voice-session.service.js",
+    "compiledVoiceSha256": "50d828e89de0f204dd13ed79ec91d5bba2aab0d69170fab5b8d67aeaa98a1e7c",
+    "containsQuotaConflict": true,
+    "compiledArchiveNotRuntimeExecution": true,
+    "production": false
+  },
+  "client": {
+    "baseline": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+    "sameInput": true,
+    "files": 5427,
+    "bytes": 54196362,
+    "newBuild": false,
+    "newDeviceTest": false,
+    "publicConfigFingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b",
+    "defaultPhoneLoginOperational": false,
+    "appPhoneLoginSwitch": "未设置，源码默认为关闭"
+  },
+  "package": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-02T17:01:13.272Z",
+    "archive": "gx-deploy-91-launch-20261002-e556e7d66.tar.gz",
+    "sha256": "cf10bae36c7e899453076f0b678b5fc063cd94cb888df7cc1064a9e9d5521fb7",
+    "releaseId": "launch-20261002-e556e7d66",
+    "commit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+    "expectedCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+    "fileCount": 4481,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "draft": {
+    "tag": "launch-20261002-e556e7d66",
+    "published": false,
+    "checkedAt": "2026-10-02T17:02:19.2752219Z",
+    "assetId": 606072628,
+    "officialDigestMatches": true,
+    "bytes": 15836884,
+    "archiveSha256": "cf10bae36c7e899453076f0b678b5fc063cd94cb888df7cc1064a9e9d5521fb7",
+    "releaseId": 402002901,
+    "draft": true,
+    "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3"
+  },
+  "notificationMatrix": "本版通知入口与持久恢复矩阵-20261002.json",
+  "N4AllClosed": false,
+  "N5CouponPolicyDecided": false,
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3"
+}

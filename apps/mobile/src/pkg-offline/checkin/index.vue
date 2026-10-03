@@ -1,98 +1,137 @@
 <template>
-  <view class="ck-page">
+  <view class="c4-page">
     <!-- 顶部导航 -->
-    <view class="ck-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="ck-nav">
-        <view class="ck-icon-btn" @tap="goBack">
-          <app-icon name="arrow-left" :size="20" color="#1a1a1a" />
+    <view class="c4-header" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="c4-nav">
+        <view class="c4-icon-btn" @tap="onBack">
+          <app-icon name="chevron-left" :size="22" color="#2C2C2C" />
         </view>
-        <text class="ck-nav-title">课程签到</text>
-        <view class="ck-nav-placeholder" />
+        <text class="c4-nav-title">{{ view === 'list' ? '我的报名' : '到店凭证' }}</text>
+        <view class="c4-nav-placeholder" />
+      </view>
+      <!-- 态①：状态 Tab -->
+      <view v-if="view === 'list'" class="c4-tabs">
+        <view v-for="t in tabs" :key="t.key" class="c4-tab" :class="{ on: tab === t.key }" @tap="tab = t.key">
+          <text class="c4-tab-text">{{ t.label }}{{ t.key === 'pending' && pendingList.length ? ` (${pendingList.length})` : '' }}</text>
+        </view>
       </view>
     </view>
 
-    <scroll-view scroll-y class="ck-body">
+    <scroll-view scroll-y class="c4-body">
       <!-- 三态 -->
-      <view v-if="loading" class="ck-state">
+      <view v-if="loading" class="c4-state">
         <view class="spinner" />
-        <text class="ck-state-text">加载中…</text>
+        <text class="c4-state-text">加载中…</text>
       </view>
-      <view v-else-if="errMsg" class="ck-state">
-        <app-icon name="alert-circle" :size="44" color="#d1d5db" />
-        <text class="ck-state-text">{{ errMsg }}</text>
-        <view class="retry-btn" @tap="load"><text class="retry-text">重试</text></view>
-      </view>
-      <view v-else-if="!reg" class="ck-state">
-        <app-icon name="ticket" :size="48" color="#d1d5db" />
-        <text class="ck-state-text">你还没有报名该课程</text>
-        <view class="retry-btn" @tap="goCourse"><text class="retry-text">去报名</text></view>
+      <view v-else-if="errMsg" class="c4-state">
+        <app-icon name="alert-circle" :size="44" color="#d8cfc0" />
+        <text class="c4-state-text">{{ errMsg }}</text>
+        <view class="c4-retry" @tap="load"><text class="c4-retry-text">重试</text></view>
       </view>
 
-      <template v-else>
-        <!-- 课程信息卡 -->
-        <view class="ck-card ck-course">
-          <view class="ck-cover">
-            <image lazy-load v-if="reg.course.cover" :src="reg.course.cover" class="ck-cover-img" mode="aspectFill" />
-            <app-icon v-else name="graduation-cap" :size="44" color="#d8b48a" />
-          </view>
-          <view class="ck-course-info">
-            <text class="ck-course-title">{{ reg.course.title }}</text>
-            <view v-if="reg.course.teacher" class="ck-instructor">
-              <view class="ck-avatar"><app-icon name="user" :size="16" color="#9ca3af" /></view>
-              <text class="ck-ins-name">{{ reg.course.teacher.name }}</text>
+      <!-- ============ 态①：报名列表 ============ -->
+      <template v-else-if="view === 'list'">
+        <view v-if="currentList.length === 0" class="c4-state">
+          <app-icon name="ticket" :size="48" color="#d8cfc0" />
+          <text class="c4-state-text">{{ emptyText }}</text>
+          <view class="c4-retry" @tap="goDiscover"><text class="c4-retry-text">去发现线下课</text></view>
+        </view>
+
+        <view v-else class="c4-list">
+          <view v-for="r in currentList" :key="r.id" class="c4-card">
+            <view class="c4-card-top">
+              <view class="c4-badge" :class="badgeClass(r)">{{ statusLabel(r) }}</view>
+              <text class="c4-order-no">报名号 {{ shortId(r.id) }}</text>
             </view>
-            <view class="ck-detail">
-              <view class="ck-detail-row">
-                <app-icon name="calendar" :size="16" color="#9ca3af" />
-                <text class="ck-detail-main">{{ fmtCourseTime(reg.course.startTime) }} - {{ fmtCourseTime(reg.course.endTime) }}</text>
+            <view class="c4-card-main">
+              <view class="c4-cover">
+                <image v-if="r.course.cover" :src="r.course.cover" class="c4-cover-img" mode="aspectFill" />
+                <view v-else class="c4-cover-ph"><app-icon name="graduation-cap" :size="26" color="#cbb892" /></view>
               </view>
-              <view class="ck-detail-row">
-                <app-icon name="map-pin" :size="16" color="#9ca3af" />
-                <view>
-                  <text class="ck-detail-main">{{ reg.course.station?.name || '上课地点' }}</text>
-                  <text class="ck-detail-sub">{{ reg.course.location || reg.course.station?.address }}</text>
+              <view class="c4-card-info">
+                <text class="c4-course-title">{{ r.course.title }}</text>
+                <text class="c4-course-time">{{ sessionTime(r.course) }}</text>
+                <text class="c4-course-loc">{{ locText(r) }}</text>
+              </view>
+            </view>
+
+            <!-- 待到店：出示凭证 + 取消 -->
+            <template v-if="r.status === 'REGISTERED'">
+              <view class="c4-card-actions">
+                <view class="c4-btn c4-btn-primary" @tap="showTicket(r)"><text class="c4-btn-text">出示到店凭证</text></view>
+                <view class="c4-btn c4-btn-o" @tap="onCancel(r)"><text class="c4-btn-o-text">取消报名</text></view>
+              </view>
+              <text class="c4-refund-hint">{{ refundHint(r.course) }}</text>
+            </template>
+            <!-- 已完成：写评价 -->
+            <template v-else-if="r.status === 'SIGNED_IN'">
+              <view class="c4-card-actions">
+                <view class="c4-btn c4-btn-o" @tap="showTicket(r)"><text class="c4-btn-o-text">查看核销回执</text></view>
+                <view class="c4-btn c4-btn-primary" @tap="goReview(r)"><text class="c4-btn-text">写评价</text></view>
+              </view>
+            </template>
+            <!-- 已取消 -->
+            <template v-else>
+              <text class="c4-cancelled-hint">报名已取消{{ Number(r.course.price) > 0 ? ' · 如已付款请联系驿站处理' : '' }}</text>
+            </template>
+          </view>
+
+          <view class="c4-list-foot">
+            <text>平台不代收付费课费用；取消仅释放预约名额。已向驿站付款的退改退款，请凭付款凭证联系驿站处理；免费课距开课 ≥24h 可在线取消。</text>
+          </view>
+        </view>
+      </template>
+
+      <!-- ============ 态②/③：凭证 / 回执 ============ -->
+      <template v-else-if="active">
+        <view class="c4-ticket-wrap">
+          <view class="c4-ticket" :class="{ done: activeSigned }">
+            <!-- 票头 -->
+            <view class="c4-ticket-head" :class="activeSigned ? 'head-gold' : 'head-red'">
+              <text class="c4-ticket-course">{{ active.course.title }}</text>
+              <text class="c4-ticket-time">{{ sessionTime(active.course) }}</text>
+              <text v-if="!activeSigned" class="c4-ticket-addr">{{ locText(active) }}</text>
+              <view class="c4-ticket-meta">
+                <view class="c4-ticket-chip">{{ activeSigned ? '✓ 已到店' : '待到店' }}</view>
+                <text class="c4-ticket-user">{{ activeSigned ? ('核销时间 ' + fmtCourseTime(active.signedAt)) : ('学员：' + userName) }}</text>
+              </view>
+            </view>
+            <!-- 撕线打孔 -->
+            <view class="c4-perf"><view class="c4-perf-hole left" /><view class="c4-perf-hole right" /></view>
+            <!-- 票体 -->
+            <view class="c4-ticket-body">
+              <view class="c4-qr-box" :class="{ dim: activeSigned }">
+                <canvas canvas-id="c4-qr" class="c4-qr-canvas" />
+                <view v-if="activeSigned" class="c4-stamp">已核销</view>
+              </view>
+              <template v-if="!activeSigned">
+                <text v-if="active.verifyCode" class="c4-code-tip">扫码不便？向驿站工作人员报 6 位核销码</text>
+                <view v-if="active.verifyCode" class="c4-code6">
+                  <view v-for="(d, i) in codeDigits" :key="i" class="c4-code-cell">{{ d }}</view>
                 </view>
-              </view>
+                <text class="c4-ticket-note">凭证长按二维码可保存 · 核销后自动更新为「已到店」</text>
+              </template>
+              <template v-else>
+                <text class="c4-done-title">签到成功，请入座</text>
+                <text class="c4-done-sub">核销驿站：{{ active.course.station?.name || '驿站前台' }}</text>
+              </template>
             </view>
           </view>
-        </view>
 
-        <!-- 报名状态 -->
-        <view class="ck-card ck-status-card">
-          <view class="ck-status-row">
-            <view class="ck-status-icon" :style="{ background: signed ? '#dcfce7' : '#fff7ed' }">
-              <app-icon :name="signed ? 'check-circle-2' : 'clock'" :size="22" :color="signed ? '#16a34a' : '#ea580c'" />
+          <!-- 待到店：导航 / 联系 -->
+          <template v-if="!activeSigned">
+            <view class="c4-ticket-actions">
+              <view class="c4-btn c4-btn-o" @tap="goNav"><app-icon name="map-pin" :size="14" color="#C41E3A" /><text class="c4-btn-o-text">导航到店</text></view>
+              <view class="c4-btn c4-btn-o" @tap="callStation"><app-icon name="phone" :size="14" color="#C41E3A" /><text class="c4-btn-o-text">联系驿站</text></view>
             </view>
-            <view>
-              <text class="ck-status-title">{{ signed ? '已签到' : '待签到' }}</text>
-              <text class="ck-status-sub">{{ signed ? (reg.signedAt ? '签到时间 ' + fmtCourseTime(reg.signedAt) : '已完成现场核销') : '请到场出示下方凭证码核销' }}</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 凭证码 -->
-        <view v-if="!signed" class="ck-card ck-voucher">
-          <text class="ck-voucher-title">我的报名凭证</text>
-          <view class="ck-qr"><app-icon name="qr-code" :size="120" color="#1a1a1a" /></view>
-          <text v-if="reg.qrCode" class="ck-voucher-code">{{ reg.qrCode }}</text>
-          <text class="ck-voucher-hint">到场时向驿站工作人员出示，由驿站扫码核销签到</text>
-        </view>
-
-        <view v-else class="ck-card ck-done">
-          <app-icon name="check-circle-2" :size="48" color="#16a34a" />
-          <text class="ck-done-text">签到完成，祝学习愉快</text>
-          <!-- 课程同学圈引导（课程有 circleId 才显示） -->
-          <view v-if="reg.course.circleId" class="ck-circle-btn" @tap="goCircle">
-            <app-icon name="users" :size="16" color="#fff" />
-            <text class="ck-circle-btn-text">加入课程同学圈</text>
-          </view>
-          <text v-if="reg.course.circleId" class="ck-circle-hint">和同学继续交流学习心得</text>
-        </view>
-
-        <!-- 联系驿站 -->
-        <view v-if="reg.course.station?.phone" class="ck-call-btn" @tap="onCall">
-          <app-icon name="phone" :size="16" color="#4b5563" />
-          <text class="ck-call-text">联系驿站</text>
+            <text class="c4-ticket-foot">到店后请出示本凭证给驿站工作人员</text>
+            <text v-if="activePayAtStation" class="c4-ticket-foot">本凭证仅用于预约核销，不是付款凭证；支付后请向驿站索取收款凭证</text>
+          </template>
+          <!-- 已核销：同学圈 / 评价 -->
+          <template v-else>
+            <view v-if="active.course.circleId" class="c4-btn c4-btn-primary c4-full" @tap="goCircle"><app-icon name="users" :size="15" color="#fff" /><text class="c4-btn-text">加入课程同学圈</text></view>
+            <view class="c4-btn c4-btn-o c4-full" @tap="goReview(active)"><text class="c4-btn-o-text">课程结束后来写个评价</text></view>
+          </template>
         </view>
       </template>
     </scroll-view>
@@ -100,102 +139,261 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick, getCurrentInstance } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { offlineApi, fmtCourseTime, type MyRegistration } from '@/lib/offline-data'
+import { getUserInfo } from '@/utils/storage'
+import { drawQrToCanvas } from '@/utils/qrcode'
+import { offlineApi, fmtCourseTime, type MyRegistration, type OfflineCourse } from '@/lib/offline-data'
 
+const instance = getCurrentInstance()
 const statusBarHeight = ref(0)
 try {
   const info = uni.getSystemInfoSync()
   statusBarHeight.value = info.statusBarHeight || 0
 } catch {}
 
+const userName = computed(() => {
+  const u = getUserInfo<{ nickname?: string }>()
+  return u?.nickname || '本人'
+})
+
 const loading = ref(true)
 const errMsg = ref('')
-const courseId = ref('')
-const reg = ref<MyRegistration | null>(null)
+const list = ref<MyRegistration[]>([])
+const view = ref<'list' | 'ticket'>('list')
+const active = ref<MyRegistration | null>(null)
+const initCourseId = ref('')
 
-const signed = computed(() => reg.value?.status === 'SIGNED_IN')
+const tabs = [
+  { key: 'pending', label: '待到店' },
+  { key: 'done', label: '已完成' },
+  { key: 'cancelled', label: '已取消' },
+] as const
+const tab = ref<'pending' | 'done' | 'cancelled'>('pending')
+
+const pendingList = computed(() => list.value.filter((r) => r.status === 'REGISTERED'))
+const doneList = computed(() => list.value.filter((r) => r.status === 'SIGNED_IN'))
+const cancelledList = computed(() => list.value.filter((r) => r.status === 'CANCELLED'))
+const currentList = computed(() =>
+  tab.value === 'pending' ? pendingList.value : tab.value === 'done' ? doneList.value : cancelledList.value,
+)
+const emptyText = computed(() =>
+  tab.value === 'pending' ? '暂无待到店的报名' : tab.value === 'done' ? '还没有已完成的课程' : '没有已取消的报名',
+)
+
+const activeSigned = computed(() => active.value?.status === 'SIGNED_IN')
+const activePayAtStation = computed(() => Number(active.value?.course.price || 0) > 0)
+const codeDigits = computed(() => (active.value?.verifyCode || '').padEnd(6, ' ').slice(0, 6).split(''))
 
 async function load() {
-  if (!courseId.value) { loading.value = false; errMsg.value = '缺少课程参数'; return }
   loading.value = true
   errMsg.value = ''
   try {
-    reg.value = await offlineApi.getMyRegistration(courseId.value)
+    list.value = await offlineApi.getMyCourseRegistrations()
+    // 从课程详情「出示凭证」进入：自动定位该报名的凭证态
+    if (initCourseId.value) {
+      const hit = list.value.find((r) => r.courseId === initCourseId.value)
+      if (hit) { showTicket(hit); initCourseId.value = '' }
+    }
   } catch (e) {
     const msg = (e as Error)?.message
-    errMsg.value = msg?.includes('未登录') ? '请先登录后查看签到' : (msg || '加载失败')
+    errMsg.value = msg?.includes('未登录') ? '请先登录后查看我的报名' : (msg || '加载失败')
   } finally {
     loading.value = false
   }
 }
 onLoad((q) => {
-  courseId.value = q && (q.courseId || q.id) ? String(q.courseId || q.id) : ''
+  initCourseId.value = q && (q.courseId || q.id) ? String(q.courseId || q.id) : ''
   load()
 })
 
-function goCourse() {
-  if (courseId.value) navigateTo(`/offline/courses/${courseId.value}`)
+// ── 时间/文案 ──
+const WEEK = ['日', '一', '二', '三', '四', '五', '六']
+function sessionTime(c: OfflineCourse): string {
+  const s = new Date(c.startTime)
+  const e = new Date(c.endTime)
+  if (isNaN(s.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  const wd = WEEK[s.getDay()]
+  return `${s.getMonth() + 1}月${s.getDate()}日(${wd}) ${p(s.getHours())}:${p(s.getMinutes())}–${p(e.getHours())}:${p(e.getMinutes())}`
 }
-function onCall() {
-  if (reg.value?.course.station?.phone) uni.makePhoneCall({ phoneNumber: reg.value.course.station.phone }).catch(() => {})
+function locText(r: MyRegistration): string {
+  const st = r.course.station
+  return [st?.name, r.course.location || st?.address].filter(Boolean).join(' · ')
+}
+function shortId(id: string): string {
+  return 'R' + id.replace(/-/g, '').slice(0, 10).toUpperCase()
+}
+function hoursToStart(startTime: string): number {
+  return (new Date(startTime).getTime() - Date.now()) / 3600000
+}
+function refundHint(c: OfflineCourse): string {
+  const h = hoursToStart(c.startTime)
+  if (Number(c.price) > 0) {
+    return h >= 24
+      ? '可取消预约名额 · 已付款请联系驿站处理'
+      : '不足24小时 · 请联系驿站协商处理'
+  }
+  return h >= 24 ? '距开课 >24h · 可在线取消报名' : '距开课 <24h · 请联系驿站'
+}
+function statusLabel(r: MyRegistration): string {
+  return r.status === 'SIGNED_IN' ? '已到店' : r.status === 'CANCELLED' ? '已取消' : '待到店'
+}
+function badgeClass(r: MyRegistration): string {
+  return r.status === 'SIGNED_IN' ? 'badge-gold' : r.status === 'CANCELLED' ? 'badge-grey' : 'badge-red'
+}
+
+// ── 二维码渲染 ──
+function renderQr() {
+  const text = active.value?.qrCode
+  if (!text) return
+  try {
+    const ctx = uni.createCanvasContext('c4-qr', instance)
+    ctx.setFillStyle('#ffffff')
+    ctx.fillRect(0, 0, 190, 190)
+    drawQrToCanvas(ctx, text, 12, 12, 166, { padding: 0, radius: 0, foreground: '#1a1a1a' })
+    ctx.draw()
+  } catch { /* 画布不可用则留白，不阻断凭证展示 */ }
+}
+function showTicket(r: MyRegistration) {
+  active.value = r
+  view.value = 'ticket'
+  nextTick(() => setTimeout(renderQr, 60))
+}
+
+// ── 操作 ──
+function onBack() {
+  if (view.value === 'ticket') { view.value = 'list'; active.value = null; return }
+  goBack()
+}
+function onCancel(r: MyRegistration) {
+  if (hoursToStart(r.course.startTime) < 24) {
+    uni.showModal({ title: '不足24小时', content: '距开课不足24小时，无法在线取消；请联系驿站协商处理', showCancel: false })
+    return
+  }
+  const paidAtStation = Number(r.course.price) > 0
+  uni.showModal({
+    title: '取消报名',
+    content: paidAtStation
+      ? '确定取消本次预约？本操作只释放名额；平台未代收款，如已向驿站付款请凭付款凭证联系驿站处理。'
+      : '确定取消本次报名？取消后名额将释放。',
+    confirmText: '确定取消',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await offlineApi.cancelRegistration(r.courseId)
+        uni.showToast({ title: '已取消', icon: 'success' })
+        await load()
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '取消失败', icon: 'none' })
+      }
+    },
+  })
+}
+function goDiscover() { navigateTo('/pkg-offline/courses/index') }
+function goReview(r: MyRegistration) { navigateTo(`/pkg-offline/course-detail/index?id=${r.courseId}`) }
+function goNav() {
+  const st = active.value?.course.station
+  if (!st?.name) return
+  uni.showToast({ title: '正在打开地图导航', icon: 'none' })
+}
+function callStation() {
+  const phone = active.value?.course.station?.phone
+  if (phone) uni.makePhoneCall({ phoneNumber: phone }).catch(() => {})
+  else uni.showToast({ title: '驿站未留电话', icon: 'none' })
 }
 function goCircle() {
-  const circleId = reg.value?.course.circleId
-  if (circleId) navigateTo(`/pkg-circle/circles/detail?id=${circleId}`)
+  const cid = active.value?.course.circleId
+  if (cid) navigateTo(`/pkg-circle/circles/detail?id=${cid}`)
 }
 </script>
 
 <style lang="scss" scoped>
-.ck-page { min-height: 100vh; background: #f7f8fa; display: flex; flex-direction: column; }
-.ck-header { position: sticky; top: 0; z-index: 40; background: rgba(255,255,255,0.95); border-bottom: 1px solid #f0f0f0; }
-.ck-nav { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px; }
-.ck-icon-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
-.ck-nav-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
-.ck-nav-placeholder { width: 32px; }
-.ck-body { flex: 1; height: 0; padding: 16px; }
+/* 视觉 token：宣纸白 #FAF8F5 / 卡片白 / 朱红 #C41E3A / 金 #C9A96E / 圆角18px / 页边距20px */
+.c4-page { height: 100vh; background: #FAF8F5; display: flex; flex-direction: column; }
+.c4-header { background: #FAF8F5; }
+.c4-nav { display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 0 14px; }
+.c4-icon-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+.c4-nav-title { font-size: 16px; font-weight: 600; color: #2C2C2C; }
+.c4-nav-placeholder { width: 32px; }
 
-.ck-state { padding-top: 100px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.ck-state-text { font-size: 13px; color: #9ca3af; }
-.spinner { width: 28px; height: 28px; border: 3px solid #f0f0f0; border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.c4-tabs { display: flex; border-bottom: 1px solid #EFEAE3; }
+.c4-tab { flex: 1; text-align: center; padding: 12px 0; position: relative; }
+.c4-tab-text { font-size: 13px; color: #6E6E73; }
+.c4-tab.on .c4-tab-text { color: #C41E3A; font-weight: 700; }
+.c4-tab.on::after { content: ''; position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 22px; height: 2.5px; border-radius: 2px; background: #C41E3A; }
+
+.c4-body { flex: 1; height: 0; min-height: 0; }
+
+.c4-state { padding-top: 90px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.c4-state-text { font-size: 13px; color: #999; }
+.spinner { width: 28px; height: 28px; border: 3px solid #EFEAE3; border-top-color: #C41E3A; border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.retry-btn { margin-top: 4px; padding: 8px 22px; border: 1px solid var(--brand); border-radius: 999px; }
-.retry-text { font-size: 13px; color: var(--brand); }
+.c4-retry { margin-top: 4px; padding: 8px 22px; border: 1px solid #C41E3A; border-radius: 999px; }
+.c4-retry-text { font-size: 13px; color: #C41E3A; }
 
-.ck-card { background: #fff; border: 1px solid #f0f0f0; border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
-.ck-cover { position: relative; height: 150px; background: linear-gradient(135deg, #f5ede0, #ece0cd); display: flex; align-items: center; justify-content: center; }
-.ck-cover-img { width: 100%; height: 100%; }
-.ck-course-info { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.ck-course-title { font-size: 18px; font-weight: 600; color: #1a1a1a; line-height: 1.3; }
-.ck-instructor { display: flex; align-items: center; gap: 8px; }
-.ck-avatar { width: 28px; height: 28px; border-radius: 999px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; }
-.ck-ins-name { font-size: 14px; font-weight: 500; color: #1a1a1a; }
-.ck-detail { display: flex; flex-direction: column; gap: 8px; }
-.ck-detail-row { display: flex; align-items: flex-start; gap: 8px; }
-.ck-detail-main { font-size: 14px; color: #1a1a1a; display: block; }
-.ck-detail-sub { font-size: 12px; color: #9ca3af; }
+/* 态①列表 */
+.c4-list { padding: 14px 20px 40px; }
+.c4-card { background: #fff; border-radius: 18px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 10px rgba(60,40,20,0.05); }
+.c4-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.c4-badge { font-size: 10px; font-weight: 600; color: #fff; border-radius: 6px; padding: 3px 9px; }
+.badge-red { background: #C41E3A; }
+.badge-gold { background: #C9A96E; }
+.badge-grey { background: #b8b0a4; }
+.c4-order-no { font-size: 11px; color: #999; }
+.c4-card-main { display: flex; align-items: flex-start; gap: 11px; }
+.c4-cover { width: 104px; flex-shrink: 0; border-radius: 12px; overflow: hidden; position: relative; }
+.c4-cover::before { content: ''; display: block; padding-top: 62.5%; } /* 16:10 */
+.c4-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.c4-cover-ph { position: absolute; inset: 0; background: linear-gradient(135deg, #f5ede0, #ece0cd); display: flex; align-items: center; justify-content: center; }
+.c4-card-info { flex: 1; display: flex; flex-direction: column; }
+.c4-course-title { font-size: 15px; font-weight: 700; color: #2C2C2C; font-family: 'Songti SC', serif; line-height: 1.3; }
+.c4-course-time { font-size: 11px; color: #999; margin: 5px 0 3px; }
+.c4-course-loc { font-size: 11px; color: #999; }
+.c4-card-actions { display: flex; gap: 10px; margin-top: 12px; }
+.c4-refund-hint { display: block; text-align: center; font-size: 11px; color: #999; margin-top: 8px; }
+.c4-cancelled-hint { display: block; text-align: center; font-size: 12px; color: #b8b0a4; margin-top: 10px; }
+.c4-list-foot { padding: 8px 4px 0; font-size: 11px; color: #b0a89c; line-height: 1.7; }
 
-.ck-status-card { padding: 16px; }
-.ck-status-row { display: flex; align-items: center; gap: 12px; }
-.ck-status-icon { width: 44px; height: 44px; border-radius: 999px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.ck-status-title { font-size: 15px; font-weight: 600; color: #1a1a1a; display: block; }
-.ck-status-sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+.c4-btn { flex: 1; height: 40px; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.c4-btn-primary { background: #C41E3A; }
+.c4-btn-text { font-size: 13px; font-weight: 600; color: #fff; }
+.c4-btn-o { background: #fff; border: 1px solid #C41E3A; }
+.c4-btn-o-text { font-size: 13px; font-weight: 600; color: #C41E3A; }
+.c4-full { width: 100%; flex: none; margin-top: 12px; }
 
-.ck-voucher { padding: 24px 16px; display: flex; flex-direction: column; align-items: center; }
-.ck-voucher-title { font-size: 14px; font-weight: 600; color: #1a1a1a; margin-bottom: 16px; }
-.ck-qr { width: 180px; height: 180px; background: #f3f4f6; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-.ck-voucher-code { font-size: 18px; font-weight: 700; letter-spacing: 2px; color: #1a1a1a; margin-top: 16px; }
-.ck-voucher-hint { font-size: 12px; color: #9ca3af; margin-top: 8px; text-align: center; line-height: 1.6; }
+/* 态②/③票券 */
+.c4-ticket-wrap { padding: 22px 20px 40px; }
+.c4-ticket { background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(60,40,20,0.12); }
+.c4-ticket-head { padding: 20px; }
+.head-red { background: linear-gradient(135deg, #C41E3A, #a5162e); }
+.head-gold { background: linear-gradient(135deg, #C9A96E, #b8964f); }
+.c4-ticket-course { display: block; font-size: 19px; font-weight: 700; color: #fff; font-family: 'Songti SC', serif; }
+.c4-ticket-time { display: block; font-size: 12.5px; color: rgba(255,255,255,0.92); margin-top: 8px; }
+.c4-ticket-addr { display: block; font-size: 11px; color: rgba(255,255,255,0.82); margin-top: 3px; }
+.c4-ticket-meta { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.c4-ticket-chip { background: rgba(255,255,255,0.22); border-radius: 6px; padding: 3px 9px; font-size: 10px; font-weight: 600; color: #fff; }
+.c4-ticket-user { font-size: 11px; color: rgba(255,255,255,0.9); }
 
-.ck-done { padding: 32px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.ck-done-text { font-size: 14px; color: #16a34a; }
-.ck-circle-btn { margin-top: 4px; height: 42px; padding: 0 28px; background: var(--brand); border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.ck-circle-btn-text { font-size: 14px; color: #fff; font-weight: 500; }
-.ck-circle-hint { font-size: 12px; color: #9ca3af; }
+.c4-perf { position: relative; height: 0; border-top: 2px dashed #e4ddd0; }
+.c4-perf-hole { position: absolute; top: -11px; width: 22px; height: 22px; border-radius: 50%; background: #FAF8F5; }
+.c4-perf-hole.left { left: -11px; }
+.c4-perf-hole.right { right: -11px; }
 
-.ck-call-btn { height: 44px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.ck-call-text { font-size: 14px; color: #4b5563; }
+.c4-ticket-body { padding: 24px 20px; display: flex; flex-direction: column; align-items: center; }
+.c4-qr-box { position: relative; width: 190px; height: 190px; border-radius: 16px; background: #fff; display: flex; align-items: center; justify-content: center; }
+.c4-qr-box.dim { opacity: 0.9; }
+.c4-qr-canvas { width: 190px; height: 190px; }
+.c4-stamp { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-14deg); border: 3px solid #C9A96E; color: #C9A96E; border-radius: 12px; padding: 8px 18px; font-size: 20px; font-weight: 800; font-family: 'Songti SC', serif; opacity: 0.9; background: rgba(250,248,245,0.55); }
+.c4-code-tip { font-size: 11px; color: #999; margin: 16px 0 10px; }
+.c4-code6 { display: flex; gap: 9px; justify-content: center; }
+.c4-code-cell { width: 40px; height: 50px; border-radius: 10px; background: #FAF8F5; border: 1px solid #EFEAE3; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: #C41E3A; font-family: 'Songti SC', serif; }
+.c4-ticket-note { font-size: 11px; color: #999; margin-top: 16px; text-align: center; line-height: 1.6; }
+.c4-done-title { font-size: 19px; font-weight: 700; color: #2C2C2C; font-family: 'Songti SC', serif; margin-top: 18px; }
+.c4-done-sub { font-size: 11px; color: #999; margin-top: 8px; }
+
+.c4-ticket-actions { display: flex; gap: 12px; margin-top: 14px; }
+.c4-ticket-foot { display: block; text-align: center; font-size: 11px; color: #999; margin-top: 14px; line-height: 1.8; }
 </style>

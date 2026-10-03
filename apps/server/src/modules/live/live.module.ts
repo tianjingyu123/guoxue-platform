@@ -10,11 +10,21 @@ import { LiveReportService } from "./live-report.service";
 import { WebhookModule } from "../webhook/webhook.module";
 import { CoinModule } from "../coin/coin.module";
 import { RevenueModule } from "../revenue/revenue.module";
+import { AuditModule } from "../audit/audit.module";
+import { NotificationModule } from "../notification/notification.module";
+import { ImModule } from "../im/im.module";
+import { CircleModule } from "../circle/circle.module";
+import { LivePresenceService } from "./live-presence.service";
+import { LiveMixingService } from "./live-mixing.service";
+import { TrtcCallbackGuard } from "../../common/trtc-callback.guard";
+import { LiveCredentialsGuard } from "./live-credentials.guard";
 
 @Module({
-  imports: [WebhookModule, CoinModule, RevenueModule],
+  // NotificationModule：开播时给预约用户发圈内通知（LIVE 类·V0 待办 #36/#25）
+  // ImModule：开播时创建腾讯 IM AVChatRoom 弹幕群（fail-open·未配置不阻断开播）
+  imports: [WebhookModule, CoinModule, RevenueModule, AuditModule, NotificationModule, ImModule, CircleModule],
   controllers: [LiveController, LiveDashboardController],
-  providers: [LiveService, LiveQualityService, LiveStreamService, LiveDashboardService, LiveDataCollectorService, LiveReportService],
+  providers: [LiveService, LivePresenceService, LiveMixingService, TrtcCallbackGuard, LiveCredentialsGuard, LiveQualityService, LiveStreamService, LiveDashboardService, LiveDataCollectorService, LiveReportService],
   exports: [LiveService, LiveStreamService],
 })
 export class LiveModule {}

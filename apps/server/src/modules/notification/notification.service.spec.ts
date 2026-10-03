@@ -3,6 +3,8 @@ import { NotificationService } from "./notification.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { PushService } from "./push.service";
+import { PushAudienceService } from "../user/push-audience.service";
+import { Prisma } from "@prisma/client";
 
 const mockPush = {
   send: jest.fn().mockResolvedValue(null),
@@ -16,13 +18,16 @@ const mockRedis = {
   get: jest.fn().mockResolvedValue(null),
   set: jest.fn().mockResolvedValue(null),
   del: jest.fn().mockResolvedValue(null),
+  setNX: jest.fn().mockResolvedValue(true),
 };
 
 const mockPrisma = {
   notification: {
     create: jest.fn(),
     createMany: jest.fn(),
+    createManyAndReturn: jest.fn(),
     findMany: jest.fn(),
+    findFirst: jest.fn(),
     findUnique: jest.fn(),
     count: jest.fn(),
     update: jest.fn(),
@@ -31,6 +36,8 @@ const mockPrisma = {
   auth: {
     findMany: jest.fn().mockResolvedValue([]),
   },
+  $executeRawUnsafe: jest.fn().mockResolvedValue(1),
+  $queryRawUnsafe: jest.fn().mockResolvedValue([]),
 };
 
 describe("NotificationService", () => {
@@ -40,6 +47,7 @@ describe("NotificationService", () => {
     const mod = await Test.createTestingModule({
       providers: [
         NotificationService,
+        PushAudienceService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: PushService, useValue: mockPush },
@@ -49,6 +57,27 @@ describe("NotificationService", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  describe("批量通知内部事务持久化", () => {
+    it("受保护的持久化必须有事件键，拒绝时不写入也不外发", async () => {
+      const persist = jest.fn();
+      await expect(svc.batchSend({ userIds: ["u1"], type: "LIVE_STARTED", title: "t", content: "c" }, undefined, persist)).rejects.toThrow("事件键");
+      expect(persist).not.toHaveBeenCalled();
+      expect(mockPrisma.notification.createMany).not.toHaveBeenCalled();
+      expect(mockPrisma.notification.createManyAndReturn).not.toHaveBeenCalled();
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockPush.sendMiniSubscribeMsg).not.toHaveBeenCalled();
+    });
+
+    it("内部事务回滚不能进入推送准备，也不另用默认写入补通知", async () => {
+      const persist = jest.fn().mockRejectedValue(new Error("synthetic transaction rollback"));
+      await expect(svc.batchSend({ userIds: ["u1"], type: "LIVE_STARTED", title: "t", content: "c" }, "LIVE_STARTED:r1", persist)).rejects.toThrow("transaction rollback");
+      expect(persist).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.notification.createManyAndReturn).not.toHaveBeenCalled();
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockPush.sendMiniSubscribeMsg).not.toHaveBeenCalled();
+    });
+  });
 
   describe("send", () => {
     it("发送单条通知成功", async () => {
@@ -68,6 +97,48 @@ describe("NotificationService", () => {
     });
   });
 
+  describe("sendOnce", () => {
+    it("同一幂等键只认领一次", async () => {
+      mockPrisma.notification.create.mockResolvedValue({ id: "n-once" });
+      mockRedis.setNX.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+      await expect(svc.sendOnce("u1", "ORDER_PAID:o1", { type: "PURCHASE", title: "支付成功", content: "已支付" })).resolves.toEqual(expect.objectContaining({ id: "n-once" }));
+      await expect(svc.sendOnce("u1", "ORDER_PAID:o1", { type: "PURCHASE", title: "支付成功", content: "已支付" })).resolves.toBeNull();
+      expect(mockPrisma.notification.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("落库失败释放幂等锁，允许重试", async () => {
+      mockRedis.setNX.mockResolvedValue(true);
+      mockPrisma.notification.create.mockRejectedValueOnce(new Error("db down"));
+      await expect(svc.sendOnce("u1", "ORDER_PAID:o2", { type: "PURCHASE", title: "支付成功", content: "已支付" })).rejects.toThrow("db down");
+      expect(mockRedis.del).toHaveBeenCalledWith("notification:sent:u1:ORDER_PAID:o2");
+    });
+
+    it("落库后偏好查询失败仍保留幂等锁，避免重试生成第二条", async () => {
+      mockRedis.setNX.mockResolvedValue(true);
+      mockRedis.getJson.mockRejectedValueOnce(new Error("redis prefs down"));
+      mockPrisma.notification.create.mockResolvedValue({ id: "n-persisted" });
+      await expect(svc.sendOnce("u1", "ORDER_PAID:o3", {
+        type: "PURCHASE", title: "支付成功", content: "已支付",
+      })).resolves.toEqual({ id: "n-persisted" });
+      expect(mockRedis.del).not.toHaveBeenCalledWith("notification:sent:u1:ORDER_PAID:o3");
+      expect(mockPrisma.notification.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("Redis 幂等标记丢失后由数据库唯一键拦住重复通知", async () => {
+      mockRedis.setNX.mockResolvedValue(true);
+      mockPrisma.notification.create.mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError("duplicate", { code: "P2002", clientVersion: "6.19.3" }),
+      );
+      await expect(svc.sendOnce("u1", "ORDER_PAID:o4", {
+        type: "PURCHASE", title: "支付成功", content: "已支付",
+      })).resolves.toBeNull();
+      expect(mockPrisma.notification.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ idempotencyKey: "u1:ORDER_PAID:o4" }),
+      }));
+      expect(mockRedis.del).not.toHaveBeenCalledWith("notification:sent:u1:ORDER_PAID:o4");
+    });
+  });
+
   describe("batchSend", () => {
     it("批量发送通知成功", async () => {
       mockPrisma.notification.createMany.mockResolvedValue({ count: 3 });
@@ -84,6 +155,32 @@ describe("NotificationService", () => {
         userIds: [], type: "SYSTEM", title: "群发", content: "测试",
       });
       expect(result.count).toBe(0);
+    });
+
+    it("直播补偿重试时只为本次新增的用户建站内通知和准备推送", async () => {
+      mockPrisma.notification.createManyAndReturn
+        .mockResolvedValueOnce([{ id: "n1", userId: "u1" }])
+        .mockResolvedValueOnce([]);
+      const dto = { userIds: ["u1", "u1"], type: "LIVE_STARTED", title: "已开播", content: "点击进入", targetType: "LIVE_ROOM", targetId: "r1", category: "LIVE" as const };
+      expect((await svc.batchSend(dto, "LIVE_STARTED:r1")).count).toBe(1);
+      expect((await svc.batchSend(dto, "LIVE_STARTED:r1")).count).toBe(0);
+      expect(mockPrisma.notification.createManyAndReturn).toHaveBeenCalledWith(expect.objectContaining({
+        skipDuplicates: true,
+        data: [expect.objectContaining({ idempotencyKey: "u1:LIVE_STARTED:r1" })],
+      }));
+      expect(mockPrisma.auth.findMany).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.notification.createMany).not.toHaveBeenCalled();
+    });
+
+    it("直播站内通知已落库后推送准备失败仍返回成功，补偿重试不再建第二条", async () => {
+      mockPrisma.notification.createManyAndReturn
+        .mockResolvedValueOnce([{ id: "n2", userId: "u2" }])
+        .mockResolvedValueOnce([]);
+      mockPrisma.auth.findMany.mockRejectedValueOnce(new Error("push auth unavailable"));
+      const dto = { userIds: ["u2"], type: "LIVE_REMINDER", title: "即将开播", content: "请准备" };
+      await expect(svc.batchSend(dto, "LIVE_REMINDER:r2")).resolves.toEqual(expect.objectContaining({ count: 1 }));
+      await expect(svc.batchSend(dto, "LIVE_REMINDER:r2")).resolves.toEqual(expect.objectContaining({ count: 0 }));
+      expect(mockPrisma.notification.createManyAndReturn).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -116,6 +213,15 @@ describe("NotificationService", () => {
     });
   });
 
+  it("通知详情按当前用户过滤，不能用其他用户通知 ID 读取", async () => {
+    mockPrisma.notification.findFirst.mockResolvedValue(null);
+    await expect(svc.getById("other-user-notification", "u1")).rejects.toThrow("通知不存在");
+    expect(mockPrisma.notification.findFirst).toHaveBeenCalledWith({
+      where: { id: "other-user-notification", userId: "u1" },
+    });
+    expect(mockPrisma.notification.update).not.toHaveBeenCalled();
+  });
+
   describe("getUnreadCount", () => {
     it("获取未读数成功", async () => {
       mockPrisma.notification.count.mockResolvedValue(5);
@@ -136,6 +242,95 @@ describe("NotificationService", () => {
       mockPrisma.notification.update.mockResolvedValue({ id: "n1", isRead: true });
       const result = await svc.markRead("n1", "u1");
       expect(result.isRead).toBe(true);
+    });
+  });
+
+  // ───────── 圈内通知中心：分类和通知同次写入，不影响其他事件 ─────────
+
+  describe("圈内通知：send 分类落库", () => {
+    it("send 带 category 时在首次创建中保存category+circleId", async () => {
+      mockPrisma.notification.create.mockResolvedValue({ id: "n1" });
+      await svc.send("u1", { type: "POST_COMMENT", title: "帖子有新回复", content: "x", category: "INTERACT", circleId: "c1" });
+      expect(mockPrisma.notification.create).toHaveBeenCalledWith({ data: expect.objectContaining({ category: "INTERACT", circleId: "c1" }) });
+      expect(mockPrisma.$executeRawUnsafe).not.toHaveBeenCalled();
+    });
+
+    it("send 不带 category 不触发分类落库", async () => {
+      mockPrisma.notification.create.mockResolvedValue({ id: "n1" });
+      await svc.send("u1", { type: "SYSTEM", title: "t", content: "c" });
+      expect(mockPrisma.notification.create.mock.calls[0][0].data).not.toHaveProperty("category");
+      expect(mockPrisma.$executeRawUnsafe).not.toHaveBeenCalled();
+    });
+
+    it("分类创建失败不返回成功，也不进入推送准备", async () => {
+      mockPrisma.notification.create.mockRejectedValueOnce(new Error("synthetic category failure"));
+      await expect(svc.send("u1", { type: "LIVE_STARTED", title: "t", content: "c", category: "LIVE" })).rejects.toThrow("synthetic category failure");
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockPrisma.$executeRawUnsafe).not.toHaveBeenCalled();
+    });
+
+    it("batchSend 带 category 只随本批创建数据写入，取消时间窗口补打标", async () => {
+      mockPrisma.notification.createMany.mockResolvedValue({ count: 2 });
+      await svc.batchSend({ userIds: ["u1", "u2"], type: "LIVE_STARTED", title: "t", content: "c", targetId: "r1", category: "LIVE", circleId: "c1" });
+      expect(mockPrisma.notification.createMany).toHaveBeenCalledWith({ data: [
+        expect.objectContaining({ userId: "u1", category: "LIVE", circleId: "c1" }),
+        expect.objectContaining({ userId: "u2", category: "LIVE", circleId: "c1" }),
+      ] });
+      expect(mockPrisma.$executeRawUnsafe).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("圈内通知：getCircleNotifications", () => {
+    it("全部分类：只取 category 非空并返回四类未读分组", async () => {
+      mockPrisma.$queryRawUnsafe
+        .mockResolvedValueOnce([{ id: "n1", category: "GOVERN", isRead: false }]) // 列表
+        .mockResolvedValueOnce([{ cnt: 1 }]) // total
+        .mockResolvedValueOnce([{ category: "GOVERN", cnt: 2 }, { category: "LIVE", cnt: 1 }]); // 未读分组
+      const result = await svc.getCircleNotifications("u1");
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(result.unread).toEqual({ ALL: 3, INTERACT: 0, TRADE: 0, GOVERN: 2, LIVE: 1 });
+      expect(mockPrisma.$queryRawUnsafe.mock.calls[0][0]).toContain(`"category" IS NOT NULL`);
+    });
+
+    it("按分类筛选：SQL 带 category 条件且传入分类参数", async () => {
+      mockPrisma.$queryRawUnsafe
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ cnt: 0 }])
+        .mockResolvedValueOnce([]);
+      await svc.getCircleNotifications("u1", "TRADE", 1, 20);
+      const [sql, ...params] = mockPrisma.$queryRawUnsafe.mock.calls[0];
+      expect(sql).toContain(`AND "category"=$2`);
+      expect(params).toEqual(["u1", "TRADE", 20, 0]);
+    });
+
+    it("非法分类抛业务异常", async () => {
+      await expect(svc.getCircleNotifications("u1", "FOO")).rejects.toThrow("INTERACT/TRADE/GOVERN/LIVE");
+    });
+  });
+
+  describe("圈内通知：markCircleAllRead", () => {
+    it("全量已读：只更新 category 非空的未读", async () => {
+      mockPrisma.$executeRawUnsafe.mockResolvedValueOnce(3);
+      const result = await svc.markCircleAllRead("u1");
+      expect(result).toEqual({ success: true, count: 3 });
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
+        expect.stringContaining(`"category" IS NOT NULL`),
+        "u1",
+      );
+    });
+
+    it("按分类已读：SQL 附加分类条件", async () => {
+      mockPrisma.$executeRawUnsafe.mockResolvedValueOnce(1);
+      await svc.markCircleAllRead("u1", "LIVE");
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
+        expect.stringContaining(`AND "category"=$2`),
+        "u1", "LIVE",
+      );
+    });
+
+    it("非法分类抛业务异常", async () => {
+      await expect(svc.markCircleAllRead("u1", "BAD")).rejects.toThrow("INTERACT/TRADE/GOVERN/LIVE");
     });
   });
 

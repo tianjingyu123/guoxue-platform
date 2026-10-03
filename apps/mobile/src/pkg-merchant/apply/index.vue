@@ -1,421 +1,613 @@
+<!--
+  M2 · 入驻申请（V0 视觉稿还原 · 暖纸 token）
+  两态同页复用：
+    态A 首次填写 → apply + submit → M3 审核中
+    态B 驳回后重提 → onLoad getApplication 回填 → updateApplication + submit → M3
+  一张表单四大分组：主体信息 / 资质证照 / 联系人 / 经营类目。
+-->
 <template>
-  <view class="ma-page">
+  <view class="m2-page">
     <!-- 顶部导航 -->
-    <view class="ma-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="ma-header-inner">
-        <view class="ma-back" @tap="go('/merchant/join')">
-          <AppIcon name="arrow-left" :size="20" color="#1a1a1a" />
+    <view class="m2-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="m2-nav-inner">
+        <view class="m2-back" @tap="goBack">
+          <AppIcon name="arrow-left" :size="18" color="#2C2C2C" />
         </view>
-        <text class="ma-title">商家入驻申请</text>
+        <text class="m2-nav-title">{{ isEdit ? '修改申请' : '入驻申请' }}</text>
       </view>
     </view>
 
-    <scroll-view scroll-y class="ma-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
-      <!-- 进度条 -->
-      <view class="ma-progress-sec">
-        <view class="ma-steps">
-          <view v-for="(step, index) in steps" :key="step.id" class="ma-step-wrap">
-            <view class="ma-step-col">
-              <view class="ma-step-circle" :class="{ 'ma-step-on': currentStep >= step.id }">
-                <AppIcon v-if="currentStep > step.id" name="check" :size="16" color="#ffffff" />
-                <text v-else>{{ step.id }}</text>
-              </view>
-              <text class="ma-step-name" :class="{ 'ma-step-name-on': currentStep >= step.id }">{{ step.name }}</text>
-            </view>
-            <view v-if="index < steps.length - 1" class="ma-step-line" :class="{ 'ma-step-line-on': currentStep > step.id }" />
+    <!-- 加载态 -->
+    <view v-if="loading" class="m2-state" :style="{ paddingTop: statusBarHeight + 52 + 'px' }">
+      <text class="m2-state-txt">加载中…</text>
+    </view>
+    <!-- 错误态 -->
+    <view v-else-if="error" class="m2-state" :style="{ paddingTop: statusBarHeight + 52 + 'px' }">
+      <AppIcon name="alert-circle" :size="40" color="#C41E3A" />
+      <text class="m2-state-txt">{{ error }}</text>
+      <view class="m2-state-btn" @tap="load"><text>重试</text></view>
+    </view>
+
+    <template v-else>
+      <scroll-view scroll-y class="m2-scroll" :style="{ paddingTop: statusBarHeight + 52 + 'px' }">
+        <!-- 驳回原因提示条（态B） -->
+        <view v-if="isEdit && rejectReason" class="m2-reject">
+          <view class="m2-reject-ic">
+            <AppIcon name="alert-circle" :size="18" color="#C41E3A" />
           </view>
+          <text class="m2-reject-txt"><text class="m2-reject-b">申请被驳回：</text>{{ rejectReason }}</text>
         </view>
 
-        <!-- 完成度 -->
-        <view class="ma-completeness">
-          <view class="ma-comp-head">
-            <text class="ma-comp-label">表单完成度</text>
-            <text class="ma-comp-pct">{{ completeness.percentage }}%</text>
-          </view>
-          <view class="ma-comp-bar">
-            <view class="ma-comp-fill" :style="{ width: completeness.percentage + '%' }" />
-          </view>
-          <text class="ma-comp-hint">已填写 {{ completeness.filled }}/{{ completeness.total }} 项必填信息</text>
-        </view>
-      </view>
+        <!-- 主体信息 -->
+        <view class="m2-group">
+          <view class="m2-group-t"><text>主体信息</text></view>
 
-      <view class="ma-body">
-        <!-- 店铺信息 -->
-        <view class="ma-card">
-          <view class="ma-card-head">
-            <AppIcon name="store" :size="20" color="#c41e3a" />
-            <text class="ma-card-title">店铺信息</text>
+          <view class="m2-trust-card">
+            <view class="m2-trust-icon"><AppIcon name="shield-check" :size="22" color="#FFFFFF" /></view>
+            <view class="m2-trust-copy">
+              <text class="m2-trust-title">一次建档，持续守护经营安全</text>
+              <text class="m2-trust-desc">证件仅用于主体核验、风险审查和监管要求，不在店铺公开展示；通过后每 6 个月复核一次。</text>
+            </view>
           </view>
-          <view class="ma-logo-row">
-            <view class="ma-logo-box" @tap="comingSoon">
-              <view class="ma-logo-upload">
-                <AppIcon name="camera" :size="24" color="#999" />
-                <text class="ma-logo-txt">上传Logo</text>
+
+          <view class="m2-field">
+            <text class="m2-label">主体类型 <text class="m2-req">*</text></text>
+            <view class="m2-type-row">
+              <view class="m2-type" :class="{ active: form.merchantType === 'ENTERPRISE' }" @tap="form.merchantType = 'ENTERPRISE'">
+                <AppIcon name="building-2" :size="18" :color="form.merchantType === 'ENTERPRISE' ? '#C41E3A' : '#7d7468'" />
+                <text>企业</text>
               </view>
-              <view class="ma-logo-plus">
-                <AppIcon name="plus" :size="16" color="#ffffff" />
+              <view class="m2-type" :class="{ active: form.merchantType === 'INDIVIDUAL' }" @tap="form.merchantType = 'INDIVIDUAL'">
+                <AppIcon name="store" :size="18" :color="form.merchantType === 'INDIVIDUAL' ? '#C41E3A' : '#7d7468'" />
+                <text>个体工商户</text>
               </view>
             </view>
-            <text class="ma-logo-tip">建议尺寸 200x200px</text>
           </view>
 
-          <view class="ma-field">
-            <text class="ma-label">店铺名称 <text class="ma-req">*</text></text>
+          <view class="m2-field">
+            <text class="m2-label">主体名称 / 店铺名 <text class="m2-req">*</text></text>
             <input
-              class="ma-input"
-              :class="{ 'ma-input-err': fieldError('shopName') }"
-              placeholder="请输入店铺名称（2-20字符）"
-              placeholder-class="ma-ph"
+              class="m2-input"
+              :class="{ 'm2-input-err': fieldErr('shopName') }"
+              placeholder="对外展示的店铺名称，最多20字"
+              placeholder-class="m2-ph"
               :maxlength="20"
-              v-model="formData.shopName"
+              v-model="form.shopName"
               @blur="markTouched('shopName')"
             />
-            <view class="ma-count-row">
-              <text class="ma-count">{{ formData.shopName.length }}/20</text>
-            </view>
-            <view v-if="fieldError('shopName')" class="ma-err">
-              <AppIcon name="alert-circle" :size="12" color="#dc2626" />
-              <text>{{ fieldError('shopName') }}</text>
+            <view v-if="fieldErr('shopName')" class="m2-err">
+              <AppIcon name="alert-circle" :size="12" color="#C41E3A" />
+              <text>{{ fieldErr('shopName') }}</text>
             </view>
           </view>
 
-          <view class="ma-field">
-            <text class="ma-label">店铺简介</text>
-            <textarea
-              class="ma-textarea"
-              placeholder="介绍您的店铺特色"
-              placeholder-class="ma-ph"
-              :maxlength="200"
-              v-model="formData.shopDesc"
-            />
-            <view class="ma-count-row">
-              <text class="ma-count">{{ formData.shopDesc.length }}/200</text>
+          <view class="m2-field">
+            <text class="m2-label">统一社会信用代码 <text class="m2-req">*</text></text>
+            <input class="m2-input" :class="{ 'm2-input-err': fieldErr('unifiedSocialCreditCode') }"
+              placeholder="请输入营业执照上的 18 位代码" placeholder-class="m2-ph" :maxlength="18"
+              v-model="form.unifiedSocialCreditCode" @blur="markTouched('unifiedSocialCreditCode')" />
+            <view v-if="fieldErr('unifiedSocialCreditCode')" class="m2-err">
+              <AppIcon name="alert-circle" :size="12" color="#C41E3A" /><text>{{ fieldErr('unifiedSocialCreditCode') }}</text>
             </view>
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">法定代表人 / 经营者 <text class="m2-req">*</text></text>
+            <input class="m2-input" placeholder="与营业执照保持一致" placeholder-class="m2-ph"
+              v-model="form.legalRepresentative" />
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">注册地址 <text class="m2-req">*</text></text>
+            <textarea class="m2-textarea m2-textarea-address" placeholder="请输入营业执照注册地址"
+              placeholder-class="m2-ph" :maxlength="200" v-model="form.registeredAddress" />
           </view>
         </view>
 
-        <!-- 联系人信息 -->
-        <view class="ma-card">
-          <view class="ma-card-head">
-            <AppIcon name="phone" :size="20" color="#c41e3a" />
-            <text class="ma-card-title">联系人信息</text>
-          </view>
+        <!-- 资质证照 -->
+        <view class="m2-group">
+          <view class="m2-group-t"><text>资质证照</text></view>
 
-          <view class="ma-field">
-            <text class="ma-label">联系人姓名 <text class="ma-req">*</text></text>
+          <view class="m2-field">
+            <text class="m2-label">身份证号 <text class="m2-req">*</text></text>
             <input
-              class="ma-input"
-              :class="{ 'ma-input-err': fieldError('contactName') }"
-              placeholder="请输入真实姓名"
-              placeholder-class="ma-ph"
-              v-model="formData.contactName"
-              @blur="markTouched('contactName')"
-            />
-            <view v-if="fieldError('contactName')" class="ma-err">
-              <AppIcon name="alert-circle" :size="12" color="#dc2626" />
-              <text>{{ fieldError('contactName') }}</text>
-            </view>
-          </view>
-
-          <view class="ma-field">
-            <text class="ma-label">手机号码 <text class="ma-req">*</text></text>
-            <input
-              class="ma-input"
-              :class="{ 'ma-input-err': fieldError('contactPhone') }"
-              placeholder="请输入手机号"
-              placeholder-class="ma-ph"
-              type="text"
-              :maxlength="11"
-              v-model="formData.contactPhone"
-              @blur="markTouched('contactPhone')"
-            />
-            <view v-if="fieldError('contactPhone')" class="ma-err">
-              <AppIcon name="alert-circle" :size="12" color="#dc2626" />
-              <text>{{ fieldError('contactPhone') }}</text>
-            </view>
-          </view>
-
-          <view class="ma-field">
-            <text class="ma-label">身份证号 <text class="ma-req">*</text></text>
-            <input
-              class="ma-input"
-              :class="{ 'ma-input-err': fieldError('idNumber') }"
-              placeholder="请输入身份证号码"
-              placeholder-class="ma-ph"
+              class="m2-input"
+              :class="{ 'm2-input-err': fieldErr('idNumber') }"
+              :placeholder="isEdit ? '如需修改请重新输入' : '请输入身份证号码'"
+              placeholder-class="m2-ph"
               :maxlength="18"
-              v-model="formData.idNumber"
+              v-model="form.idNumber"
               @blur="markTouched('idNumber')"
             />
-            <view v-if="fieldError('idNumber')" class="ma-err">
-              <AppIcon name="alert-circle" :size="12" color="#dc2626" />
-              <text>{{ fieldError('idNumber') }}</text>
+            <view v-if="fieldErr('idNumber')" class="m2-err">
+              <AppIcon name="alert-circle" :size="12" color="#C41E3A" />
+              <text>{{ fieldErr('idNumber') }}</text>
             </view>
           </view>
 
-          <view class="ma-field">
-            <text class="ma-label">身份证照片 <text class="ma-opt">（选填，可后台补充）</text></text>
-            <view class="ma-id-grid">
-              <view class="ma-id-upload" @tap="comingSoon">
-                <AppIcon name="upload" :size="24" color="#999" />
-                <text class="ma-upload-txt">人像面</text>
+          <view class="m2-qual-note">
+            <AppIcon name="shield-check" :size="18" color="#805E2C" />
+            <text>当前仅支持个体工商户或企业入驻。营业执照用于主体核验与后续商户进件，不会在店铺公开展示。</text>
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">营业执照 <text class="m2-req">*</text></text>
+            <view
+              class="m2-upload m2-upload-license"
+              :class="{
+                'm2-upload-done': !!form.businessLicense,
+                'm2-upload-busy': uploadingKey === 'businessLicense',
+                'm2-upload-error': !!fieldErr('businessLicense'),
+              }"
+              @tap="handleCredential('businessLicense')"
+            >
+              <image v-if="form.businessLicense" class="m2-upload-img" :src="form.businessLicense" mode="aspectFill" />
+              <view v-else class="m2-upload-copy">
+                <AppIcon :name="uploadingKey === 'businessLicense' ? 'loader-2' : 'upload'" :size="22" color="#A57935" />
+                <text class="m2-upload-txt">{{ uploadingKey === 'businessLicense' ? '上传中…' : '上传营业执照' }}</text>
+                <text class="m2-upload-sz">JPG / PNG / WebP · 最大 10MB</text>
               </view>
-              <view class="ma-id-upload" @tap="comingSoon">
-                <AppIcon name="upload" :size="24" color="#999" />
-                <text class="ma-upload-txt">国徽面</text>
+              <text v-if="form.businessLicense" class="m2-upload-badge">已上传 · 点击管理</text>
+            </view>
+            <view v-if="fieldErr('businessLicense')" class="m2-err m2-err-mt">
+              <AppIcon name="alert-circle" :size="12" color="#C41E3A" />
+              <text>{{ fieldErr('businessLicense') }}</text>
+            </view>
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">营业执照有效期 <text class="m2-req">*</text></text>
+            <view class="m2-valid-row">
+              <input v-if="!form.licenseLongTerm" class="m2-input m2-valid-input" type="text"
+                placeholder="YYYY-MM-DD" placeholder-class="m2-ph" :maxlength="10"
+                v-model="form.licenseValidUntil" />
+              <view class="m2-longterm" :class="{ active: form.licenseLongTerm }" @tap="form.licenseLongTerm = !form.licenseLongTerm">
+                <AppIcon :name="form.licenseLongTerm ? 'check-square' : 'square'" :size="17"
+                  :color="form.licenseLongTerm ? '#C41E3A' : '#8b8175'" />
+                <text>长期有效</text>
               </view>
+            </view>
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">身份证（人像面 / 国徽面）<text class="m2-req">*</text></text>
+            <view class="m2-up-row">
+              <view
+                class="m2-upload m2-upload-sm"
+                :class="{ 'm2-upload-done': !!form.idCardFront, 'm2-upload-busy': uploadingKey === 'idCardFront' }"
+                @tap="handleCredential('idCardFront')"
+              >
+                <image v-if="form.idCardFront" class="m2-upload-img" :src="form.idCardFront" mode="aspectFill" />
+                <view v-else class="m2-upload-copy">
+                  <AppIcon :name="uploadingKey === 'idCardFront' ? 'loader-2' : 'upload'" :size="18" color="#A57935" />
+                  <text class="m2-upload-txt">{{ uploadingKey === 'idCardFront' ? '上传中…' : '人像面' }}</text>
+                </view>
+                <text v-if="form.idCardFront" class="m2-upload-badge">已上传 · 点击管理</text>
+              </view>
+              <view
+                class="m2-upload m2-upload-sm"
+                :class="{ 'm2-upload-done': !!form.idCardBack, 'm2-upload-busy': uploadingKey === 'idCardBack' }"
+                @tap="handleCredential('idCardBack')"
+              >
+                <image v-if="form.idCardBack" class="m2-upload-img" :src="form.idCardBack" mode="aspectFill" />
+                <view v-else class="m2-upload-copy">
+                  <AppIcon :name="uploadingKey === 'idCardBack' ? 'loader-2' : 'upload'" :size="18" color="#A57935" />
+                  <text class="m2-upload-txt">{{ uploadingKey === 'idCardBack' ? '上传中…' : '国徽面' }}</text>
+                </view>
+                <text v-if="form.idCardBack" class="m2-upload-badge">已上传 · 点击管理</text>
+              </view>
+            </view>
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">行业许可 / 品牌授权 <text class="m2-opt">（按经营类目补充）</text></text>
+            <view class="m2-upload m2-upload-license"
+              :class="{ 'm2-upload-done': !!form.industryPermit, 'm2-upload-busy': uploadingKey === 'industryPermit' }"
+              @tap="handleCredential('industryPermit')">
+              <image v-if="form.industryPermit" class="m2-upload-img" :src="form.industryPermit" mode="aspectFill" />
+              <view v-else class="m2-upload-copy">
+                <AppIcon :name="uploadingKey === 'industryPermit' ? 'loader-2' : 'file-plus-2'" :size="22" color="#A57935" />
+                <text class="m2-upload-txt">{{ uploadingKey === 'industryPermit' ? '上传中…' : '上传补充经营资质' }}</text>
+                <text class="m2-upload-sz">食品、出版物、品牌商品等类目需按要求提供</text>
+              </view>
+              <text v-if="form.industryPermit" class="m2-upload-badge">已上传 · 点击管理</text>
             </view>
           </view>
         </view>
 
-        <!-- 资质材料 -->
-        <view class="ma-card">
-          <view class="ma-card-head">
-            <AppIcon name="file-text" :size="20" color="#c41e3a" />
-            <text class="ma-card-title">资质材料</text>
+        <!-- 联系人 -->
+        <view class="m2-group">
+          <view class="m2-group-t"><text>联系人</text></view>
+
+          <view class="m2-field">
+            <text class="m2-label">联系人姓名 <text class="m2-req">*</text></text>
+            <input
+              class="m2-input"
+              :class="{ 'm2-input-err': fieldErr('contactName') }"
+              placeholder="请输入真实姓名"
+              placeholder-class="m2-ph"
+              v-model="form.contactName"
+              @blur="markTouched('contactName')"
+            />
+            <view v-if="fieldErr('contactName')" class="m2-err">
+              <AppIcon name="alert-circle" :size="12" color="#C41E3A" />
+              <text>{{ fieldErr('contactName') }}</text>
+            </view>
           </view>
-          <view class="ma-field">
-            <text class="ma-label">营业执照 <text class="ma-opt">（选填，企业商家建议提供）</text></text>
-            <view class="ma-license-upload" @tap="comingSoon">
-              <AppIcon name="upload" :size="32" color="#999" />
-              <text class="ma-license-txt">点击上传营业执照</text>
-              <text class="ma-license-tip">支持 jpg、png 格式，小于 5MB</text>
+
+          <view class="m2-field">
+            <text class="m2-label">联系电话 <text class="m2-req">*</text></text>
+            <input
+              class="m2-input"
+              :class="{ 'm2-input-err': fieldErr('contactPhone') }"
+              :placeholder="isEdit ? '如需修改请重新输入' : '请输入手机号'"
+              placeholder-class="m2-ph"
+              type="text"
+              :maxlength="11"
+              v-model="form.contactPhone"
+              @blur="markTouched('contactPhone')"
+            />
+            <view v-if="fieldErr('contactPhone')" class="m2-err">
+              <AppIcon name="alert-circle" :size="12" color="#C41E3A" />
+              <text>{{ fieldErr('contactPhone') }}</text>
             </view>
           </view>
         </view>
 
         <!-- 经营类目 -->
-        <view class="ma-card">
-          <view class="ma-card-head ma-card-head-between">
-            <view class="ma-card-head-left">
-              <AppIcon name="shield" :size="20" color="#c41e3a" />
-              <text class="ma-card-title">经营类目</text>
+        <view class="m2-group">
+          <view class="m2-group-t m2-group-t-between">
+            <text>经营类目</text>
+            <text class="m2-cat-count">已选 {{ form.categories.length }}/5</text>
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">主营类目 <text class="m2-req">*</text></text>
+            <view class="m2-cats">
+              <view
+                v-for="cat in categories"
+                :key="cat.id"
+                class="m2-cat"
+                :class="{ 'm2-cat-on': form.categories.includes(cat.id) }"
+                @tap="toggleCategory(cat.id)"
+              >
+                <text>{{ cat.name }}</text>
+                <AppIcon v-if="form.categories.includes(cat.id)" name="check" :size="13" color="#FFFFFF" />
+              </view>
             </view>
-            <text class="ma-cat-count">已选 {{ formData.categories.length }}/5</text>
-          </view>
-          <view class="ma-cats">
-            <view
-              v-for="cat in categories"
-              :key="cat.id"
-              class="ma-cat"
-              :class="{ 'ma-cat-on': formData.categories.includes(cat.id) }"
-              @tap="toggleCategory(cat.id)"
-            >
-              <text>{{ cat.name }}</text>
-              <AppIcon v-if="formData.categories.includes(cat.id)" name="check" :size="14" color="#ffffff" />
+            <view v-if="fieldErr('categories')" class="m2-err m2-err-mt">
+              <AppIcon name="alert-circle" :size="12" color="#C41E3A" />
+              <text>{{ fieldErr('categories') }}</text>
             </view>
           </view>
-          <view v-if="fieldError('categories')" class="ma-err ma-err-mt">
-            <AppIcon name="alert-circle" :size="14" color="#dc2626" />
-            <text>{{ fieldError('categories') }}</text>
-          </view>
-          <view v-if="formData.categories.length >= 5" class="ma-warn ma-err-mt">
-            <AppIcon name="alert-circle" :size="14" color="#d97706" />
-            <text>最多选择5个经营类目</text>
+
+          <view class="m2-field m2-field-last">
+            <text class="m2-label">补充说明</text>
+            <textarea
+              class="m2-textarea"
+              placeholder="选填，简述经营范围"
+              placeholder-class="m2-ph"
+              :maxlength="200"
+              v-model="form.shopIntro"
+            />
+            <view class="m2-count-row"><text class="m2-count">{{ form.shopIntro.length }}/200</text></view>
           </view>
         </view>
 
-        <!-- 协议同意 -->
-        <view class="ma-agree">
-          <view class="ma-checkbox" :class="{ 'ma-checkbox-on': agreedToTerms }" @tap="agreedToTerms = !agreedToTerms">
-            <AppIcon v-if="agreedToTerms" name="check" :size="12" color="#ffffff" />
+        <view class="m2-consent-card">
+          <view class="m2-consent" @tap="form.privacyConsent = !form.privacyConsent">
+            <AppIcon :name="form.privacyConsent ? 'check-square' : 'square'" :size="19"
+              :color="form.privacyConsent ? '#C41E3A' : '#8b8175'" />
+            <text>我同意平台为入驻审核、风险控制及监管要求处理上述身份与证照信息，并已阅读隐私说明。</text>
           </view>
-          <view class="ma-agree-txt">
-            <text class="ma-agree-normal">我已阅读并同意</text>
-            <text class="ma-agree-link" @tap="go('/merchant/terms')">《商家入驻协议》</text>
-            <text class="ma-agree-normal">和</text>
-            <text class="ma-agree-link" @tap="go('/merchant/terms')">《平台服务条款》</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="ma-bottom-placeholder" />
-    </scroll-view>
-
-    <!-- 底部提交 -->
-    <view class="ma-footer">
-      <view class="ma-footer-back" @tap="go('/merchant/join')">
-        <text>返回</text>
-      </view>
-      <view class="ma-footer-submit" :class="{ 'ma-footer-submit-disabled': isSubmitting || !agreedToTerms }" @tap="handleSubmit">
-        <template v-if="isSubmitting">
-          <view class="ma-spin"><AppIcon name="loader-2" :size="16" color="#ffffff" /></view>
-          <text>提交中...</text>
-        </template>
-        <template v-else>
-          <AppIcon name="check-circle-2" :size="16" color="#ffffff" />
-          <text>提交申请</text>
-        </template>
-      </view>
-    </view>
-
-    <!-- 提交进度弹窗 -->
-    <view v-if="isSubmitting" class="ma-modal-mask">
-      <view class="ma-modal">
-        <text class="ma-modal-title">正在提交申请</text>
-        <view class="ma-modal-steps">
-          <view v-for="s in progressSteps" :key="s.id" class="ma-modal-step">
-            <view class="ma-modal-circle" :class="submitStep > s.id ? 'ma-modal-done' : submitStep === s.id ? 'ma-modal-active' : 'ma-modal-idle'">
-              <AppIcon v-if="submitStep > s.id" name="check" :size="16" color="#ffffff" />
-              <view v-else-if="submitStep === s.id" class="ma-spin"><AppIcon name="loader-2" :size="16" color="#ffffff" /></view>
-              <text v-else>{{ s.id }}</text>
-            </view>
-            <text class="ma-modal-name" :class="{ 'ma-modal-name-on': submitStep >= s.id }">{{ s.name }}</text>
-            <text v-if="submitStep > s.id" class="ma-modal-ok">完成</text>
+          <view class="m2-consent" @tap="form.complianceDeclaration = !form.complianceDeclaration">
+            <AppIcon :name="form.complianceDeclaration ? 'check-square' : 'square'" :size="19"
+              :color="form.complianceDeclaration ? '#C41E3A' : '#8b8175'" />
+            <text>我承诺材料真实、完整、持续有效；发生主体、地址、许可或有效期变化时，将及时更新并重新提交审核。</text>
           </view>
         </view>
-        <text class="ma-modal-hint">请勿关闭页面，正在处理中...</text>
+
+        <view class="m2-bottom-ph" />
+      </scroll-view>
+
+      <!-- 底部提交 -->
+      <view class="m2-foot">
+        <view
+          class="m2-cta"
+          :class="{ 'm2-cta-loading': isSubmitting, 'm2-cta-disabled': !canSubmit }"
+          @tap="handleSubmit"
+        >
+          <view v-if="isSubmitting" class="m2-spin" />
+          <text>{{ isSubmitting ? '提交中…' : (isEdit ? '重新提交审核' : '提交审核') }}</text>
+        </view>
       </view>
-    </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantApi, productCategories } from '@/lib/merchant-data'
+import { merchantApi, productCategories } from '@/pkg-merchant/lib/merchant-data'
+import { chooseAndUploadImage } from '@/utils/request'
 
 const categories = productCategories
+type CredentialKey = 'businessLicense' | 'idCardFront' | 'idCardBack' | 'industryPermit'
 
-const steps = [
-  { id: 1, name: '填写信息' },
-  { id: 2, name: '提交审核' },
-  { id: 3, name: '开通店铺' },
-]
+const statusBarHeight = ref(0)
+const loading = ref(true)
+const error = ref('')
+const isEdit = ref(false)        // 是否为「驳回后重提」态（已有申请）
+const rejectReason = ref('')     // 驳回原因
+const isSubmitting = ref(false)
+const uploadingKey = ref<CredentialKey | ''>('')
+const touched = reactive<Record<string, boolean>>({})
 
-const progressSteps = [
-  { id: 1, name: '创建申请' },
-  { id: 2, name: '提交审核' },
-  { id: 3, name: '处理完成' },
-]
+const form = reactive({
+  shopName: '',
+  shopIntro: '',
+  contactName: '',
+  contactPhone: '',
+  idNumber: '',
+  businessLicense: '',
+  idCardFront: '',
+  idCardBack: '',
+  merchantType: 'ENTERPRISE' as 'ENTERPRISE' | 'INDIVIDUAL',
+  unifiedSocialCreditCode: '',
+  legalRepresentative: '',
+  registeredAddress: '',
+  licenseValidUntil: '',
+  licenseLongTerm: false,
+  industryPermit: '',
+  privacyConsent: false,
+  complianceDeclaration: false,
+  categories: [] as string[],
+})
 
-// 各校验器入参类型不一（string / string[]），由统一 Record 映射时形参逆变约束只能取 any
+// ───────── 校验 ─────────
+// 各校验器入参类型不一（string / string[]），统一 Record 映射形参逆变只能取 any
 const validators: Record<string, (v: any) => string | null> = {
   shopName: (v: string) => {
-    if (!v.trim()) return '请输入店铺名称'
-    if (v.length < 2) return '店铺名称至少2个字符'
-    if (v.length > 20) return '店铺名称不能超过20个字符'
+    if (!v.trim()) return '请输入主体名称 / 店铺名'
+    if (v.trim().length < 2) return '名称至少2个字符'
     return null
   },
   contactName: (v: string) => {
     if (!v.trim()) return '请输入联系人姓名'
-    if (v.length < 2) return '姓名至少2个字符'
+    if (v.trim().length < 2) return '姓名至少2个字符'
     return null
   },
   contactPhone: (v: string) => {
-    if (!v.trim()) return '请输入手机号码'
-    if (!/^1[3-9]\d{9}$/.test(v)) return '请输入正确的手机号码'
+    // 态B 脱敏留空时不强制（提交时按需覆盖），态A 必填
+    if (!v.trim()) return isEdit.value ? null : '请输入联系电话'
+    if (!/^1[3-9]\d{9}$/.test(v.trim())) return '请输入正确的手机号'
     return null
   },
   idNumber: (v: string) => {
-    if (!v.trim()) return '请输入身份证号码'
-    if (!/^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/.test(v)) return '请输入正确的身份证号码'
+    if (!v.trim()) return isEdit.value ? null : '请输入身份证号码'
+    if (!/^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/.test(v.trim()))
+      return '请输入正确的身份证号码'
+    return null
+  },
+  businessLicense: (v: string) => {
+    if (!v) return '请上传清晰、完整的营业执照'
+    return null
+  },
+  unifiedSocialCreditCode: (v: string) => {
+    if (!/^[0-9A-Z]{18}$/.test(v.trim().toUpperCase())) return '请输入 18 位统一社会信用代码'
     return null
   },
   categories: (v: string[]) => {
-    if (v.length === 0) return '请至少选择一个经营类目'
+    if (!v || v.length === 0) return '请至少选择一个经营类目'
     return null
   },
 }
 
-const currentStep = ref(1)
-const isSubmitting = ref(false)
-const submitStep = ref(0)
-const agreedToTerms = ref(false)
-const statusBarHeight = ref(0)
-const touched = reactive<Record<string, boolean>>({})
-
-const formData = reactive({
-  shopName: '',
-  shopLogo: '',
-  shopDesc: '',
-  contactName: '',
-  contactPhone: '',
-  idNumber: '',
-  categories: [] as string[],
-})
-
-function fieldError(field: string): string | null {
+function fieldErr(field: string): string | null {
   if (!touched[field]) return null
-  const validator = validators[field]
-  if (!validator) return null
-  return validator((formData as Record<string, unknown>)[field])
+  const fn = validators[field]
+  if (!fn) return null
+  return fn((form as Record<string, unknown>)[field])
 }
 
 function markTouched(field: string) {
   touched[field] = true
 }
 
-const completeness = computed(() => {
-  const required = ['shopName', 'contactName', 'contactPhone', 'idNumber']
-  const filled = required.filter((f) => {
-    const v = (formData as Record<string, unknown>)[f]
-    return typeof v === 'string' && v.trim() !== ''
-  })
-  return {
-    filled: filled.length,
-    total: required.length,
-    percentage: Math.round((filled.length / required.length) * 100),
-  }
+// 提交按钮可点判断（态A 必填齐全；态B 至少店名齐全）
+const canSubmit = computed(() => {
+  if (isSubmitting.value || !!uploadingKey.value) return false
+  return (
+    !!form.shopName.trim() &&
+    !!form.businessLicense &&
+    !!form.idCardFront &&
+    !!form.idCardBack &&
+    !!form.unifiedSocialCreditCode.trim() &&
+    !!form.legalRepresentative.trim() &&
+    !!form.registeredAddress.trim() &&
+    (form.licenseLongTerm || /^\d{4}-\d{2}-\d{2}$/.test(form.licenseValidUntil)) &&
+    !!form.contactName.trim() &&
+    (isEdit.value || /^1[3-9]\d{9}$/.test(form.contactPhone.trim())) &&
+    (isEdit.value || !!form.idNumber.trim()) &&
+    form.categories.length > 0 &&
+    form.privacyConsent &&
+    form.complianceDeclaration
+  )
 })
 
-function comingSoon() {
-  uni.showToast({ title: '图片上传功能即将开放', icon: 'none' })
+// ───────── 数据加载（判定 A/B 态） ─────────
+async function load() {
+  loading.value = true
+  error.value = ''
+  try {
+    const app = await merchantApi.getApplication()
+    // 已有申请 → 态B 驳回重提，回填表单
+    isEdit.value = true
+    rejectReason.value = app.rejectReason || ''
+    form.shopName = app.shopName || ''
+    form.shopIntro = app.shopIntro || ''
+    form.contactName = app.contactName || ''
+    form.categories = [...(app.categoryIds || [])]
+    form.businessLicense = app.businessLicense || ''
+    form.idCardFront = app.idCardFront || ''
+    form.idCardBack = app.idCardBack || ''
+    form.merchantType = app.merchantType || 'ENTERPRISE'
+    form.unifiedSocialCreditCode = app.unifiedSocialCreditCode || ''
+    form.legalRepresentative = app.legalRepresentative || ''
+    form.registeredAddress = app.registeredAddress || ''
+    form.licenseValidUntil = app.licenseValidUntil ? app.licenseValidUntil.slice(0, 10) : ''
+    form.licenseLongTerm = !!app.licenseLongTerm
+    form.industryPermit = app.qualificationFiles?.[0]?.url || ''
+    form.privacyConsent = !!app.privacyConsentAt
+    form.complianceDeclaration = !!app.complianceDeclarationAt
+    // 身份证号 / 手机号后端脱敏返回，不回填输入框，留空按需重填（提交时仅覆盖有值字段）
+    form.idNumber = ''
+    form.contactPhone = ''
+  } catch (e) {
+    // 404 = 未申请 → 态A 首次填写（这是正常路径，非错误）
+    const msg = (e as Error)?.message || ''
+    if (msg.includes('404') || msg.includes('未申请') || msg.includes('未找到') || msg.includes('不存在') || msg.includes('Not Found')) {
+      isEdit.value = false
+    } else if (msg) {
+      // 其他错误才真正报错
+      error.value = msg
+    } else {
+      isEdit.value = false
+    }
+  } finally {
+    loading.value = false
+  }
 }
 
 function toggleCategory(id: string) {
-  const idx = formData.categories.indexOf(id)
-  if (idx >= 0) {
-    formData.categories.splice(idx, 1)
-  } else if (formData.categories.length < 5) {
-    formData.categories.push(id)
-  }
+  const idx = form.categories.indexOf(id)
+  if (idx >= 0) form.categories.splice(idx, 1)
+  else if (form.categories.length < 5) form.categories.push(id)
+  else uni.showToast({ title: '最多选择5个类目', icon: 'none' })
   markTouched('categories')
 }
 
-function validateForm(): boolean {
-  const fields = ['shopName', 'contactName', 'contactPhone', 'idNumber', 'categories']
-  fields.forEach((f) => markTouched(f))
-  for (const field of fields) {
-    const validator = validators[field]
-    if (validator && validator((formData as Record<string, unknown>)[field])) return false
+async function chooseCredential(key: CredentialKey) {
+  if (uploadingKey.value) return
+  uploadingKey.value = key
+  try {
+    form[key] = await chooseAndUploadImage()
+    if (key === 'businessLicense') markTouched('businessLicense')
+  } catch (e) {
+    const message = (e as Error)?.message || ''
+    if (message && message !== '已取消') uni.showToast({ title: message, icon: 'none' })
+  } finally {
+    uploadingKey.value = ''
   }
+}
+
+function handleCredential(key: CredentialKey) {
+  if (uploadingKey.value) return
+  const url = form[key]
+  if (!url) {
+    chooseCredential(key)
+    return
+  }
+  uni.showActionSheet({
+    itemList: ['预览图片', '重新上传', '移除图片'],
+    success: ({ tapIndex }) => {
+      if (tapIndex === 0) uni.previewImage({ urls: [url], current: url })
+      if (tapIndex === 1) chooseCredential(key)
+      if (tapIndex === 2) {
+        form[key] = ''
+        if (key === 'businessLicense') markTouched('businessLicense')
+      }
+    },
+  })
+}
+
+function validateForm(): boolean {
+  const fields = isEdit.value
+    ? ['shopName', 'contactPhone', 'idNumber', 'businessLicense', 'unifiedSocialCreditCode', 'categories']
+    : ['shopName', 'contactName', 'contactPhone', 'idNumber', 'businessLicense', 'unifiedSocialCreditCode', 'categories']
+  fields.forEach((f) => markTouched(f))
+  for (const f of fields) {
+    const fn = validators[f]
+    if (fn && fn((form as Record<string, unknown>)[f])) return false
+  }
+  if (form.categories.length === 0) {
+    markTouched('categories')
+    return false
+  }
+  if (!form.idCardFront || !form.idCardBack || !form.legalRepresentative.trim() || !form.registeredAddress.trim()) return false
+  if (!form.licenseLongTerm && !/^\d{4}-\d{2}-\d{2}$/.test(form.licenseValidUntil)) return false
+  if (!form.privacyConsent || !form.complianceDeclaration) return false
   return true
 }
 
 async function handleSubmit() {
   if (isSubmitting.value) return
-  if (!agreedToTerms.value) {
-    uni.showToast({ title: '请先同意入驻协议', icon: 'none' })
-    return
-  }
   if (!validateForm()) {
     uni.showToast({ title: '请完善必填信息', icon: 'none' })
     return
   }
   isSubmitting.value = true
-  submitStep.value = 1
   try {
-    // 1. 创建入驻申请（PENDING_REVIEW）
-    await merchantApi.apply({
-      shopName: formData.shopName.trim(),
-      shopIntro: formData.shopDesc.trim() || undefined,
-      contactName: formData.contactName.trim(),
-      contactPhone: formData.contactPhone.trim(),
-      idCardNumber: formData.idNumber.trim(),
-      categoryIds: formData.categories,
-    })
-    submitStep.value = 2
-    // 2. 提交审核（开启自动审核时直接进入待缴保证金）
+    if (isEdit.value) {
+      // 态B：仅提交有值字段（脱敏留空不覆盖原值）
+      const payload: Record<string, unknown> = {
+        shopName: form.shopName.trim(),
+        shopIntro: form.shopIntro.trim() || undefined,
+        categoryIds: form.categories,
+        businessLicense: form.businessLicense,
+        idCardFront: form.idCardFront || undefined,
+        idCardBack: form.idCardBack || undefined,
+        merchantType: form.merchantType,
+        unifiedSocialCreditCode: form.unifiedSocialCreditCode.trim().toUpperCase(),
+        legalRepresentative: form.legalRepresentative.trim(),
+        registeredAddress: form.registeredAddress.trim(),
+        licenseValidUntil: form.licenseLongTerm ? undefined : form.licenseValidUntil,
+        licenseLongTerm: form.licenseLongTerm,
+        qualificationFiles: form.industryPermit
+          ? [{ type: 'INDUSTRY_PERMIT', title: '行业许可 / 品牌授权', url: form.industryPermit }]
+          : [],
+        privacyConsent: form.privacyConsent,
+        complianceDeclaration: form.complianceDeclaration,
+      }
+      if (form.contactName.trim()) payload.contactName = form.contactName.trim()
+      if (form.idNumber.trim()) payload.idCardNumber = form.idNumber.trim()
+      if (form.contactPhone.trim()) payload.contactPhone = form.contactPhone.trim()
+      await merchantApi.updateApplication(payload)
+    } else {
+      // 态A：创建申请
+      await merchantApi.apply({
+        shopName: form.shopName.trim(),
+        shopIntro: form.shopIntro.trim() || undefined,
+        contactName: form.contactName.trim(),
+        contactPhone: form.contactPhone.trim(),
+        idCardNumber: form.idNumber.trim(),
+        categoryIds: form.categories,
+        businessLicense: form.businessLicense,
+        idCardFront: form.idCardFront || undefined,
+        idCardBack: form.idCardBack || undefined,
+        merchantType: form.merchantType,
+        unifiedSocialCreditCode: form.unifiedSocialCreditCode.trim().toUpperCase(),
+        legalRepresentative: form.legalRepresentative.trim(),
+        registeredAddress: form.registeredAddress.trim(),
+        licenseValidUntil: form.licenseLongTerm ? undefined : form.licenseValidUntil,
+        licenseLongTerm: form.licenseLongTerm,
+        qualificationFiles: form.industryPermit
+          ? [{ type: 'INDUSTRY_PERMIT', title: '行业许可 / 品牌授权', url: form.industryPermit }]
+          : [],
+        privacyConsent: form.privacyConsent,
+        complianceDeclaration: form.complianceDeclaration,
+      })
+    }
+    // 统一提交审核 → 进入待审核态
     await merchantApi.submit()
-    submitStep.value = 3
-    await new Promise((r) => setTimeout(r, 400))
-    navigateTo('/merchant/application-status')
+    uni.showToast({ title: '提交成功', icon: 'success' })
+    setTimeout(() => navigateTo('/pkg-merchant/application-status/index'), 700)
   } catch (e) {
     const msg = (e as Error)?.message || '提交失败'
     if (msg.includes('已提交') || msg.includes('已存在')) {
       uni.showToast({ title: '您已提交过入驻申请', icon: 'none' })
-      setTimeout(() => navigateTo('/merchant/application-status'), 800)
+      setTimeout(() => navigateTo('/pkg-merchant/application-status/index'), 800)
     } else {
       uni.showToast({ title: msg, icon: 'none' })
     }
@@ -424,143 +616,226 @@ async function handleSubmit() {
   }
 }
 
-function go(url: string) {
-  navigateTo(url)
+function goBack() {
+  const pages = getCurrentPages()
+  if (pages.length > 1) uni.navigateBack()
+  else navigateTo('/pkg-merchant/application-status/index')
 }
 
-uni.getSystemInfo({
-  success: (res) => {
-    statusBarHeight.value = res.statusBarHeight || 0
-  },
+onMounted(() => {
+  uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
+  load()
 })
 </script>
 
-<style scoped>
-.ma-page { min-height: 100vh; background: #f5f5f5; }
+<style lang="scss" scoped>
+$paper: #FAF8F5;
+$card: #FFF;
+$red: #C41E3A;
+$gold: #C9A96E;
+$ink: #2C2C2C;
+$ink2: #6E6E73;
+$ink3: #9A9A9A;
+$line: #EDEAE4;
+$wash: #F5F1EA;
+$green: #2E8B57;
 
-.ma-header { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: #fff; border-bottom: 1px solid rgba(0,0,0,0.06); }
-.ma-header-inner { display: flex; align-items: center; height: 44px; padding: 0 16px; }
-.ma-back { margin-right: 12px; }
-.ma-title { font-size: 18px; font-weight: 600; color: #1a1a1a; }
+.m2-page { min-height: 100vh; background: $paper; }
 
-.ma-scroll { height: 100vh; box-sizing: border-box; }
+/* 顶部导航 */
+.m2-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+  background: rgba(250, 248, 245, 0.94);
+  border-bottom: 1px solid $line;
+}
+.m2-nav-inner {
+  position: relative; height: 88rpx;
+  display: flex; align-items: center; justify-content: center;
+}
+.m2-back {
+  position: absolute; left: 36rpx;
+  width: 88rpx; height: 88rpx; border-radius: 50%;
+  background: $card; border: 1px solid $line;
+  display: flex; align-items: center; justify-content: center;
+}
+.m2-nav-title { font-size: 34rpx; font-weight: 700; color: $ink; }
 
-/* 进度条 */
-.ma-progress-sec { padding: 16px; background: linear-gradient(90deg, rgba(196,30,58,0.05), rgba(196,30,58,0.1)); }
-.ma-steps { display: flex; align-items: center; justify-content: space-between; }
-.ma-step-wrap { display: flex; align-items: center; }
-.ma-step-col { display: flex; flex-direction: column; align-items: center; }
-.ma-step-circle { width: 32px; height: 32px; border-radius: 50%; background: #e5e5e5; color: #999; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; }
-.ma-step-circle text { color: #999; }
-.ma-step-on { background: var(--brand); }
-.ma-step-on text { color: #fff; }
-.ma-step-name { font-size: 12px; color: #999; margin-top: 4px; }
-.ma-step-name-on { color: var(--brand); font-weight: 500; }
-.ma-step-line { width: 48px; height: 2px; margin: 0 8px; background: #e5e5e5; margin-bottom: 18px; }
-.ma-step-line-on { background: var(--brand); }
+/* 三态 */
+.m2-state {
+  min-height: 100vh; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 20rpx; padding-left: 48rpx; padding-right: 48rpx;
+}
+.m2-state-txt { font-size: 28rpx; color: $ink3; }
+.m2-state-btn {
+  margin-top: 12rpx; height: 72rpx; width: 280rpx;
+  border-radius: 999px; background: $red;
+  display: flex; align-items: center; justify-content: center;
+}
+.m2-state-btn text { font-size: 28rpx; color: #FFF; }
 
-.ma-completeness { margin-top: 16px; padding: 12px; background: #fff; border-radius: 8px; border: 1px solid rgba(0,0,0,0.06); }
-.ma-comp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.ma-comp-label { font-size: 14px; color: #999; }
-.ma-comp-pct { font-size: 14px; font-weight: 500; color: #1a1a1a; }
-.ma-comp-bar { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
-.ma-comp-fill { height: 100%; background: var(--brand); border-radius: 4px; transition: width 0.5s; }
-.ma-comp-hint { display: block; font-size: 12px; color: #999; margin-top: 8px; }
+/* 滚动区 */
+.m2-scroll { height: 100vh; box-sizing: border-box; }
 
-/* Body */
-.ma-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
-.ma-card { background: #fff; border-radius: 12px; padding: 16px; }
-.ma-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.ma-card-head-between { justify-content: space-between; }
-.ma-card-head-left { display: flex; align-items: center; gap: 8px; }
-.ma-card-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+/* 驳回提示条 */
+.m2-reject {
+  margin: 28rpx 40rpx 0;
+  border: 1px solid rgba(196, 30, 58, 0.3);
+  background: rgba(196, 30, 58, 0.05);
+  border-radius: 24rpx; padding: 24rpx 28rpx;
+  display: flex; align-items: flex-start; gap: 18rpx;
+}
+.m2-reject-ic { flex: none; line-height: 1; margin-top: 2rpx; }
+.m2-reject-txt { flex: 1; font-size: 24rpx; color: $ink2; line-height: 1.6; }
+.m2-reject-b { color: $red; font-weight: 600; }
 
-/* Logo */
-.ma-logo-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.ma-logo-box { position: relative; }
-.ma-logo-upload { width: 80px; height: 80px; border-radius: 12px; background: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed #ddd; }
-.ma-logo-txt { font-size: 12px; color: #999; margin-top: 4px; }
-.ma-logo-plus { position: absolute; bottom: -4px; right: -4px; width: 24px; height: 24px; border-radius: 50%; background: var(--brand); display: flex; align-items: center; justify-content: center; }
-.ma-logo-tip { font-size: 14px; color: #999; }
+/* 分组 */
+.m2-group { margin: 36rpx 40rpx 0; }
+.m2-group-t {
+  font-size: 30rpx; font-weight: 700; color: $ink;
+  margin-bottom: 24rpx;
+  display: flex; align-items: center;
+  padding-left: 20rpx; position: relative;
+}
+.m2-group-t::before {
+  content: ''; position: absolute; left: 0;
+  width: 8rpx; height: 30rpx; background: $red; border-radius: 4rpx;
+}
+.m2-group-t-between { justify-content: space-between; }
+.m2-cat-count { font-size: 24rpx; font-weight: 400; color: $ink3; }
+.m2-trust-card {
+  display: flex; gap: 20rpx; margin-bottom: 28rpx; padding: 26rpx;
+  border-radius: 26rpx; color: #fff;
+  background: radial-gradient(circle at 92% 10%, rgba(255,255,255,.18), transparent 32%), linear-gradient(135deg, #473423, #9a6e36);
+  box-shadow: 0 12rpx 32rpx rgba(80, 53, 26, .12);
+}
+.m2-trust-icon { width: 54rpx; height: 54rpx; border-radius: 18rpx; flex: none; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.16); }
+.m2-trust-copy { flex: 1; min-width: 0; }
+.m2-trust-title { display: block; font-size: 27rpx; font-weight: 700; }
+.m2-trust-desc { display: block; margin-top: 8rpx; font-size: 21rpx; line-height: 1.6; color: rgba(255,255,255,.72); }
+.m2-type-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18rpx; }
+.m2-type { height: 84rpx; border-radius: 22rpx; border: 1rpx solid $line; background: #fff; display: flex; align-items: center; justify-content: center; gap: 10rpx; color: $ink2; font-size: 25rpx; }
+.m2-type.active { color: $red; border-color: rgba(196,30,58,.35); background: rgba(196,30,58,.04); box-shadow: inset 0 0 0 1rpx rgba(196,30,58,.08); }
+.m2-valid-row { display: flex; gap: 18rpx; align-items: center; }
+.m2-valid-input { flex: 1; min-width: 0; }
+.m2-longterm { flex: none; height: 84rpx; padding: 0 22rpx; border-radius: 22rpx; border: 1rpx solid $line; background: #fff; display: flex; align-items: center; gap: 8rpx; font-size: 23rpx; color: $ink2; }
+.m2-longterm.active { color: $red; border-color: rgba(196,30,58,.28); background: rgba(196,30,58,.04); }
+.m2-textarea-address { height: 112rpx; padding: 22rpx 28rpx; border: 1rpx solid $line; border-radius: 24rpx; background: #fff; }
+.m2-consent-card { margin: 38rpx 40rpx 0; padding: 26rpx; border-radius: 26rpx; background: #fff; border: 1rpx solid $line; }
+.m2-consent { display: flex; align-items: flex-start; gap: 14rpx; padding: 10rpx 0; }
+.m2-consent text { flex: 1; font-size: 22rpx; line-height: 1.65; color: $ink2; }
 
-/* Field */
-.ma-field { margin-bottom: 16px; }
-.ma-field:last-child { margin-bottom: 0; }
-.ma-label { display: block; font-size: 14px; font-weight: 500; color: #1a1a1a; margin-bottom: 8px; }
-.ma-req { color: #dc2626; }
-.ma-opt { color: #999; font-weight: normal; font-size: 12px; }
-.ma-input { height: 44px; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 0 12px; font-size: 14px; color: #1a1a1a; box-sizing: border-box; width: 100%; }
-.ma-input-err { border-color: #dc2626; }
-.ma-ph { color: #bbb; }
-.ma-textarea { width: 100%; min-height: 72px; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font-size: 14px; color: #1a1a1a; box-sizing: border-box; }
-.ma-count-row { display: flex; justify-content: flex-end; margin-top: 4px; }
-.ma-count { font-size: 12px; color: #999; }
-.ma-err { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
-.ma-err text { font-size: 12px; color: #dc2626; }
-.ma-err-mt { margin-top: 8px; }
-.ma-warn { display: flex; align-items: center; gap: 4px; }
-.ma-warn text { font-size: 12px; color: #d97706; }
+/* 字段 */
+.m2-field { margin-bottom: 26rpx; }
+.m2-field-last { margin-bottom: 0; }
+.m2-label {
+  display: block; font-size: 24rpx; color: $ink2; margin-bottom: 12rpx;
+}
+.m2-req { color: $red; }
+.m2-opt { color: $ink3; font-size: 22rpx; }
 
-/* Phone row */
-.ma-phone-row { display: flex; gap: 8px; }
-.ma-input-flex { flex: 1; }
-.ma-code-btn { width: 112px; flex-shrink: 0; height: 44px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.ma-code-btn text { font-size: 14px; color: #1a1a1a; }
-.ma-code-btn-disabled { opacity: 0.5; }
+.m2-input {
+  height: 88rpx; width: 100%; box-sizing: border-box;
+  background: $card; border: 1px solid $line; border-radius: 24rpx;
+  padding: 0 28rpx; font-size: 26rpx; color: $ink;
+}
+.m2-input-err { border-color: $red; }
+.m2-ph { color: $ink3; }
 
-/* ID photos */
-.ma-id-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.ma-id-upload { aspect-ratio: 3 / 2; border-radius: 8px; background: #f5f5f5; border: 2px dashed #ddd; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.ma-upload-txt { font-size: 12px; color: #999; margin-top: 4px; }
+.m2-textarea {
+  width: 100%; box-sizing: border-box;
+  height: 140rpx; min-height: 140rpx;
+  background: $card; border: 1px solid $line; border-radius: 24rpx;
+  padding: 20rpx 28rpx; font-size: 26rpx; color: $ink;
+}
+.m2-count-row { display: flex; justify-content: flex-end; margin-top: 8rpx; }
+.m2-count { font-size: 22rpx; color: $ink3; }
 
-/* License */
-.ma-license-upload { aspect-ratio: 4 / 3; border-radius: 8px; background: #f5f5f5; border: 2px dashed #ddd; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.ma-license-txt { font-size: 14px; color: #999; margin-top: 8px; }
-.ma-license-tip { font-size: 12px; color: #bbb; margin-top: 4px; }
+/* 下拉选择 */
+.m2-picker {
+  height: 88rpx; box-sizing: border-box;
+  background: $card; border: 1px solid $line; border-radius: 24rpx;
+  padding: 0 28rpx;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.m2-picker-txt { font-size: 26rpx; color: $ink3; }
+.m2-picker-on { color: $ink; font-weight: 500; }
 
-/* Categories */
-.ma-cat-count { font-size: 12px; color: #999; }
-.ma-cats { display: flex; flex-wrap: wrap; gap: 8px; }
-.ma-cat { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px; background: #f0f0f0; }
-.ma-cat text { font-size: 14px; font-weight: 500; color: #666; }
-.ma-cat-on { background: var(--brand); }
-.ma-cat-on text { color: #fff; }
+/* 上传占位 */
+.m2-upload {
+  background: $wash; border: 1.5px dashed #D8CFC2; border-radius: 24rpx;
+  height: 184rpx;
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10rpx;
+}
+.m2-upload-license { height: 238rpx; }
+.m2-upload-sm { height: 140rpx; }
+.m2-upload-copy { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; }
+.m2-upload-txt { font-size: 24rpx; color: $ink2; }
+.m2-upload-sz { font-size: 20rpx; color: $ink3; }
+.m2-up-row { display: flex; gap: 22rpx; }
+.m2-up-row .m2-upload { flex: 1; }
+.m2-upload-img { width: 100%; height: 100%; }
+.m2-upload-done { border-style: solid; border-color: rgba(128, 94, 44, .32); background: #EDE3D1; }
+.m2-upload-busy { opacity: .64; pointer-events: none; }
+.m2-upload-error { border-color: rgba(196, 30, 58, .72); background: #FFF7F7; }
+.m2-upload-badge {
+  position: absolute; left: 14rpx; right: 14rpx; bottom: 12rpx;
+  height: 46rpx; border-radius: 23rpx;
+  display: flex; align-items: center; justify-content: center;
+  color: #FFFFFF; font-size: 20rpx; font-weight: 600;
+  background: rgba(44, 35, 25, .72); backdrop-filter: blur(8rpx);
+}
+.m2-qual-note {
+  display: flex; align-items: flex-start; gap: 12rpx;
+  margin: 0 28rpx 26rpx; padding: 20rpx 22rpx;
+  border: 1rpx solid rgba(128, 94, 44, .18);
+  border-radius: 18rpx; background: #FBF5E9;
+}
+.m2-qual-note text { flex: 1; font-size: 22rpx; line-height: 1.58; color: #725E43; }
 
-/* Agree */
-.ma-agree { display: flex; align-items: flex-start; gap: 8px; padding: 0 4px; }
-.ma-checkbox { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #999; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
-.ma-checkbox-on { background: var(--brand); border-color: var(--brand); }
-.ma-agree-txt { flex: 1; line-height: 1.5; }
-.ma-agree-normal { font-size: 14px; color: #999; }
-.ma-agree-link { font-size: 14px; color: var(--brand); }
+/* 类目 chips */
+.m2-cats { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.m2-cat {
+  display: flex; align-items: center; gap: 8rpx;
+  padding: 14rpx 24rpx; border-radius: 999px;
+  background: $wash; border: 1px solid $line;
+}
+.m2-cat text { font-size: 26rpx; font-weight: 500; color: $ink2; }
+.m2-cat-on { background: $red; border-color: $red; }
+.m2-cat-on text { color: #FFF; }
 
-.ma-bottom-placeholder { height: 96px; }
+/* 错误提示 */
+.m2-err { display: flex; align-items: center; gap: 8rpx; margin-top: 12rpx; }
+.m2-err text { font-size: 22rpx; color: $red; }
+.m2-err-mt { margin-top: 16rpx; }
 
-/* Footer */
-.ma-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid rgba(0,0,0,0.06); display: flex; align-items: center; gap: 12px; }
-.ma-footer-back { flex: 1; height: 48px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.ma-footer-back text { font-size: 16px; color: #1a1a1a; }
-.ma-footer-submit { flex: 2; height: 48px; background: var(--brand); border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.ma-footer-submit text { font-size: 16px; font-weight: 500; color: #fff; }
-.ma-footer-submit-disabled { opacity: 0.5; }
+.m2-bottom-ph { height: 200rpx; }
 
-/* Spin animation */
-.ma-spin { display: inline-flex; animation: ma-spin 1s linear infinite; }
-@keyframes ma-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+/* 底部提交 */
+.m2-foot {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  padding: 28rpx 40rpx calc(36rpx + env(safe-area-inset-bottom));
+  background: rgba(250, 248, 245, 0.96);
+  border-top: 1px solid $line;
+}
+.m2-cta {
+  height: 100rpx; border-radius: 999px;
+  background: $red;
+  display: flex; align-items: center; justify-content: center; gap: 18rpx;
+  box-shadow: 0 6px 16px rgba(196, 30, 58, 0.28);
+}
+.m2-cta text { font-size: 32rpx; font-weight: 600; color: #FFF; }
+.m2-cta-loading { opacity: 0.7; box-shadow: none; }
+.m2-cta-disabled { background: #D8D2C8; box-shadow: none; }
 
-/* Modal */
-.ma-modal-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 16px; }
-.ma-modal { width: 100%; max-width: 320px; background: #fff; border-radius: 12px; padding: 24px; }
-.ma-modal-title { display: block; font-size: 16px; font-weight: 600; color: #1a1a1a; text-align: center; margin-bottom: 24px; }
-.ma-modal-steps { display: flex; flex-direction: column; gap: 16px; }
-.ma-modal-step { display: flex; align-items: center; gap: 12px; }
-.ma-modal-circle { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; }
-.ma-modal-idle { background: #eee; color: #999; }
-.ma-modal-idle text { color: #999; }
-.ma-modal-active { background: var(--brand); }
-.ma-modal-done { background: #22c55e; }
-.ma-modal-name { flex: 1; font-size: 14px; color: #999; }
-.ma-modal-name-on { color: #1a1a1a; font-weight: 500; }
-.ma-modal-ok { font-size: 12px; color: #16a34a; }
-.ma-modal-hint { display: block; font-size: 12px; color: #999; text-align: center; margin-top: 24px; }
+/* 提交菊花 */
+.m2-spin {
+  width: 34rpx; height: 34rpx;
+  border: 5rpx solid rgba(255, 255, 255, 0.4);
+  border-top-color: #FFF; border-radius: 50%;
+  animation: m2-spin 0.7s linear infinite;
+}
+@keyframes m2-spin { to { transform: rotate(360deg); } }
 </style>

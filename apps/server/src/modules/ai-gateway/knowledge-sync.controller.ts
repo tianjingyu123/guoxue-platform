@@ -6,6 +6,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("圈主助理知识库同步")
 @ApiBearerAuth()
@@ -69,6 +70,20 @@ export class KnowledgeSyncController {
   ) {
     // 安全：操作人强制取自 req.user.id；service 内校验圈主 + where 加 circleId 约束
     return this.syncService.removeFromKnowledge(body.circleId, req.user.id, knowledgeId);
+  }
+
+  @Post("admin/remove/:knowledgeId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
+  @UseGuards(RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理端从知识库移除内容（超管/运营·后台管理任意圈子）" })
+  @ApiResponse({ status: 201, description: "移除成功" })
+  async adminRemoveFromKnowledge(
+    @Req() req: Request,
+    @Param("knowledgeId") knowledgeId: string,
+    @Body() body: { circleId: string },
+  ) {
+    return this.syncService.adminRemoveFromKnowledge(body.circleId, req.user.id, knowledgeId);
   }
 
   @Get("candidates/:circleId")

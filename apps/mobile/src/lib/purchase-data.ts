@@ -3,6 +3,7 @@
  * 后端 POST /shop/orders 是统一下单接口（CreateOrderDto.type 区分业务）。
  */
 import { apiGet, apiPost } from '@/utils/request'
+import { getTempReferrer } from '@/utils/referral'
 
 /** 业务类型（对齐后端 CreateOrderDto.type） */
 export type PurchaseBizType = 'PRODUCT' | 'COURSE' | 'CIRCLE' | 'MEMBER' | 'BOT'
@@ -57,7 +58,21 @@ export interface OrderResult {
 interface RawCircleJoinResp { orderId?: string; id?: string; orderNo?: string; priceYuan?: number }
 interface RawCoursePurchaseResp { id?: string; orderId?: string; orderNo?: string; amount?: number }
 /** 聚合支付/支付状态网关原始响应（H5 跳转/扫码字段，页面按渠道取用） */
-interface PaymentGatewayResult { h5Url?: string; payUrl?: string; qrCode?: string; codeUrl?: string; code_url?: string; outTradeNo?: string; status?: string; paid?: boolean; [k: string]: unknown }
+interface PaymentGatewayResult {
+  h5Url?: string
+  payUrl?: string
+  qrCode?: string
+  codeUrl?: string
+  code_url?: string
+  outTradeNo?: string
+  status?: string
+  paid?: boolean
+  // #ifdef H5 || APP-PLUS
+  trans_stat?: string
+  resp_code?: string
+  // #endif
+  [k: string]: unknown
+}
 
 export const purchaseApi = {
   /**
@@ -74,7 +89,9 @@ export const purchaseApi = {
       return { id: r?.orderId || r?.id || '', orderNo: r?.orderNo, amount: r?.priceYuan, ...r } as OrderResult
     }
     if (params.type === 'COURSE') {
-      const r = await apiPost<RawCoursePurchaseResp>(`/courses/${params.targetId}/purchase`, {})
+      const r = await apiPost<RawCoursePurchaseResp>(`/courses/${params.targetId}/purchase`, {
+        tempReferrerId: getTempReferrer(),
+      })
       return { id: r?.id || r?.orderId || '', orderNo: r?.orderNo, amount: r?.amount, ...r } as OrderResult
     }
     return apiPost<OrderResult>('/shop/orders', params)
@@ -86,6 +103,14 @@ export const purchaseApi = {
    */
   payByChannel: (orderId: string, channel: PayChannel) =>
     apiPost<PaymentGatewayResult>('/huifu/pay', { orderId, payType: HUIFU_PAY_TYPE[channel] }),
+  // #ifdef H5 || APP-PLUS
+  /**
+   * 主动查询汇付支付结果。服务端会验签汇付查单响应，并仅在 trans_stat=S 时完成订单入账。
+   * 客户端不得根据“已返回二维码”推断支付成功。
+   */
+  queryHuifuPayment: (outTradeNo: string) =>
+    apiPost<PaymentGatewayResult>('/huifu/query', { outTradeNo }),
+  // #endif
   /** 拉起微信 Native 扫码支付（PC 兜底）— POST /shop/orders/:id/pay/native */
   payNative: (orderId: string) => apiPost<PaymentGatewayResult>(`/shop/orders/${orderId}/pay/native`, {}),
   /** 查询订单支付状态 — GET /shop/orders/:id/payment-status */

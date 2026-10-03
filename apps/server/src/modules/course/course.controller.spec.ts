@@ -1,4 +1,5 @@
 import { Test } from "@nestjs/testing";
+import { GUARDS_METADATA } from "@nestjs/common/constants";
 import { CourseController } from "./course.controller";
 import { CourseService } from "./course.service";
 import { SystemService } from "../system/system.service";
@@ -35,6 +36,7 @@ const mockCourseSvc = {
   scoreWork: jest.fn().mockResolvedValue({ id: "w1", score: 90 }),
   createReview: jest.fn().mockResolvedValue({ id: "rv1", rating: 5 }),
   listReviews: jest.fn().mockResolvedValue([{ id: "rv1", rating: 5 }]),
+  getMyReviewStatus: jest.fn().mockResolvedValue({ hasReviewed: true, status: "PUBLISHED" }),
   getCourseRating: jest.fn().mockResolvedValue({ average: 4.5, count: 20 }),
   getCourseStats: jest.fn().mockResolvedValue({ enrollments: 100, revenue: 5000 }),
   getCreatedCourses: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
@@ -84,14 +86,39 @@ describe("CourseController", () => {
 
   it("GET /courses — 课程列表", async () => {
     const q: any = { page: 1, pageSize: 20 };
-    const result: any = await ctrl.list(q);
+    const req: any = { user: undefined }; // 游客
+    const result: any = await ctrl.list(req, q);
     expect(result).toHaveLength(1);
+  });
+
+  it("GET /courses — 非管理员传 auditStatus=PENDING 被忽略（不泄未过审内容）", async () => {
+    const q: any = { page: 1, pageSize: 20, auditStatus: "PENDING" };
+    const req: any = { user: { id: "u1", roles: [] } };
+    await ctrl.list(req, q);
+    expect(mockCourseSvc.listCourses).toHaveBeenCalledWith(
+      expect.objectContaining({ auditStatus: undefined }),
+    );
+  });
+
+  it("GET /courses — 管理员 status=PENDING 透传为 auditStatus（审核队列不再落到已通过）", async () => {
+    const q: any = { page: 1, pageSize: 20, status: "PENDING" };
+    const req: any = { user: { id: "admin", roles: ["SUPER_ADMIN"] } };
+    await ctrl.list(req, q);
+    expect(mockCourseSvc.listCourses).toHaveBeenCalledWith(
+      expect.objectContaining({ auditStatus: "PENDING" }),
+    );
   });
 
   it("GET /courses/my — 我购买的课程", async () => {
     const req: any = { user: { id: "u1" } };
     const result: any = await ctrl.getMyCourses(req, 1, 20);
     expect(result).toHaveLength(1);
+  });
+
+  it("GET /courses/my?targetId=... — 仅按本人课程筛选", async () => {
+    const req: any = { user: { id: "u1" } };
+    await ctrl.getMyCourses(req, 1, 1, "free-course");
+    expect(mockCourseSvc.getMyCourses).toHaveBeenCalledWith("u1", 1, 1, "free-course");
   });
 
   it("GET /courses/dashboard — 学习看板", async () => {
@@ -113,7 +140,7 @@ describe("CourseController", () => {
   });
 
   it("GET /courses/:id — 课程详情", async () => {
-    const result: any = await ctrl.detail("c1");
+    const result: any = await ctrl.detail("c1", { user: undefined } as any);
     expect(result.title).toBe("国学入门");
   });
 
@@ -214,6 +241,13 @@ describe("CourseController", () => {
     const q: any = { page: 1, pageSize: 20 };
     const result: any = await ctrl.getReviews("c1", q);
     expect(result).toHaveLength(1);
+  });
+
+  it("GET /courses/:id/reviews/my — 使用会话用户查询本人评价", async () => {
+    const req: any = { user: { id: "u1" } };
+    await expect(ctrl.getMyReviewStatus(req, "c1")).resolves.toEqual({ hasReviewed: true, status: "PUBLISHED" });
+    expect(mockCourseSvc.getMyReviewStatus).toHaveBeenCalledWith("u1", "c1");
+    expect(Reflect.getMetadata(GUARDS_METADATA, ctrl.getMyReviewStatus)).toContain(JwtAuthGuard);
   });
 
   it("GET /courses/:id/rating — 评分统计", async () => {

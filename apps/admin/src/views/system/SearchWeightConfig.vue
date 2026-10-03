@@ -42,6 +42,16 @@
       </el-button>
     </el-alert>
 
+    <el-alert
+      v-if="hasUnsaved"
+      type="warning"
+      :closable="false"
+      show-icon
+      title="有未保存的权重调整"
+      description="调整滑块后需逐行点击「保存」才会生效。带红点的行为未保存修改，离开页面前请先保存。"
+      style="margin-bottom:12px"
+    />
+
     <el-table
       v-loading="loading"
       :data="list"
@@ -79,6 +89,7 @@
             show-input
             :disabled="!row.enabled"
             style="width:160px"
+            @input="markDirty(row)"
           />
         </template>
       </el-table-column>
@@ -99,14 +110,19 @@
         width="170"
       >
         <template #default="{ row }">
-          <el-button
-            size="small"
-            type="primary"
-            :loading="!!row._saving"
-            @click="saveWeight(row)"
+          <el-badge
+            :is-dot="!!row._dirty"
+            type="danger"
           >
-            保存
-          </el-button>
+            <el-button
+              size="small"
+              :type="row._dirty ? 'danger' : 'primary'"
+              :loading="!!row._saving"
+              @click="saveWeight(row)"
+            >
+              {{ row._dirty ? '保存*' : '保存' }}
+            </el-button>
+          </el-badge>
           <el-button
             size="small"
             type="danger"
@@ -202,7 +218,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { searchApi } from '@/api'
 
@@ -222,6 +239,7 @@ interface SearchWeightRow {
   weight: number
   enabled: boolean
   _saving?: boolean
+  _dirty?: boolean
 }
 
 const loading = ref(false); const loadError = ref(false); const list = ref<SearchWeightRow[]>([]); const filterType = ref('')
@@ -229,22 +247,37 @@ const saving = ref(false); const seeding = ref(false)
 const addVis = ref(false)
 const addForm = reactive({ entityType: 'article', fieldName: 'all', weight: 1.0 })
 
+// 有未保存的权重调整（滑块改动后尚未点保存）
+const hasUnsaved = computed(() => list.value.some(r => r._dirty))
+
 onMounted(() => fetchList())
+
+// 离开页面时若有未保存调整则二次确认
+onBeforeRouteLeave(async () => {
+  if (!hasUnsaved.value) return true
+  try {
+    await ElMessageBox.confirm('有未保存的搜索权重调整，离开将丢失这些修改。确定离开？', '未保存提示', { type: 'warning', confirmButtonText: '仍要离开', cancelButtonText: '留在本页' })
+    return true
+  } catch { return false }
+})
 
 async function fetchList() {
   loading.value = true
   loadError.value = false
   try {
     const { data } = await searchApi.getWeights(filterType.value || undefined)
-    list.value = (data || []).map((r: SearchWeightRow) => ({ ...r, weight: Number(r.weight) }))
+    list.value = (data || []).map((r: SearchWeightRow) => ({ ...r, weight: Number(r.weight), _dirty: false }))
   } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
+
+function markDirty(row: SearchWeightRow) { row._dirty = true }
 
 async function saveWeight(row: SearchWeightRow) {
   if (row._saving) return
   row._saving = true
   try {
     await searchApi.upsertWeight({ entityType: row.entityType, fieldName: row.fieldName, weight: Number(row.weight), enabled: row.enabled })
+    row._dirty = false
     ElMessage.success('已保存')
   } catch { } finally { row._saving = false }
 }

@@ -1,11 +1,18 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
-import { createHash } from "node:crypto";
 import { PrismaService } from "../../prisma/prisma.service";
-import { RedisService } from "../../redis/redis.service";
 import { SemanticSearchService } from "./semantic-search.service";
+import { isPublicContentQuarantined, type PublicQuarantineType } from "../../common/public-content-quarantine";
+import { COMMERCIAL_CLASSIC_LICENSES } from "../classic/classic-publication-policy";
 
-/** 搜索结果缓存 TTL */
-const SEARCH_CACHE_TTL = 120;
+/**
+ * 古籍公开口径（原生 SQL 版，与 PUBLIC_CLASSIC_BOOK_WHERE 一致）：已发布、未删除、且有已审计的可商用许可。
+ * 2026-09-21 补：此前搜索只看 PUBLISHED，版权未审的书名简介会出现在公开搜索与内容导览里，点进去却 404。
+ * 许可值来自受控常量（非用户输入），可安全内联。
+ */
+const PUBLIC_CLASSIC_SQL =
+  `"status" = 'PUBLISHED' AND "deletedAt" IS NULL AND EXISTS (SELECT 1 FROM "ClassicCopyright" cc WHERE cc."bookId" = "ClassicBook"."id" AND cc."auditedAt" IS NOT NULL AND cc."license" IN (${COMMERCIAL_CLASSIC_LICENSES.map((l) => `'${l}'`).join(",")}))`;
+const PUBLIC_CONTENT_SQL =
+  `"status" = 'PUBLISHED' AND "deletedAt" IS NULL AND "stationId" IS NULL AND ("scheduledAt" IS NULL OR "scheduledAt" <= NOW())`;
 
 /**
  * ## 选型理由
@@ -13,7 +20,7 @@ const SEARCH_CACHE_TTL = 120;
  *   不引入额外基础设施。中文分词用 PG 内置的 zhparser 或 simple 分词即可
  * - **为什么语义搜索是 Optional：** 语义搜索依赖 Embedding API（额外成本+延迟），
  *   作为可选的增强层注入，主流程始终可用。semantic 未注入时自动回退到 FTS
- * - **为什么缓存 120s：** 搜索结果实时性要求低，2 分钟缓存大幅降低 DB 压力
+ * - **公开搜索缓存边界：** 撤权内容不可继续返回，隔离候选先不读取/写入结果缓存；合入前需测数据库负载
  * - **未来演进：** 当日搜索 QPS >100 或需要拼音/模糊/同义词时 → 考虑 Meilisearch；
  *   当数据量 >100 万条时 → 考虑 ElasticSearch
  * - **考虑过的方案：**
@@ -27,7 +34,6 @@ export class SearchService {
 
   constructor(
     private prisma: PrismaService,
-    private redis: RedisService,
     @Optional() private semantic?: SemanticSearchService,
   ) {}
 
@@ -46,21 +52,19 @@ export class SearchService {
     return this.semantic.suggestSimilar(query, limit);
   }
 
-  /** 全局搜索（加权重排 + LIKE 回退，带缓存） */
+  /** 全局搜索（加权重排 + LIKE 回退，每次核对当前公开状态） */
   async search(params: {
     q: string;
     type?: string;
     page?: number;
     pageSize?: number;
     weightMap?: Map<string, number>;
+    /** 兼容旧调用；所有公开搜索均重新按当前发布状态检索。 */
+    fresh?: boolean;
   }) {
     const { q, type, page = 1, pageSize = 20, weightMap } = params;
 
     if (!q?.trim()) return { q, type };
-
-    const cacheKey = `search:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
-    const cached = await this.redis.getJson<any>(cacheKey);
-    if (cached) return cached;
 
     const limit = type ? pageSize : 5;
     const offset = type ? (page - 1) * pageSize : 0;
@@ -89,15 +93,15 @@ export class SearchService {
     if (!type || type === "classic") {
       searches.push(this.ftsOrLike("ClassicBook", q, limit, offset, weightMap).then((rows) => { results.classics = rows; }));
     }
-    if (!type || type === "ebook") {
-      searches.push(this.ftsOrLike("Ebook", q, limit, offset, weightMap).then((rows) => { results.ebooks = rows; }));
-    }
+    // 🔴 2026-07-14 下架电子书搜索：电子书板块 2026-07-08 瘦身时已拍板删除，
+    //    前端 pkg-ebook 分包整个删掉了，但搜索这里还在返回 10 本库存电子书 ——
+    //    用户搜到卡片点进去跳 /ebook/:id，全项目没有这个页 → 必然白屏。
+    //    （库里的 Ebook 表和数据保留不动，只是不再对外可搜。）
     if (!type || type === "content") {
       searches.push(this.ftsOrLike("Content", q, limit, offset, weightMap).then((rows) => { results.contents = rows; }));
     }
 
     await Promise.all(searches);
-    await this.redis.setJson(cacheKey, results, SEARCH_CACHE_TTL);
     return results;
   }
 
@@ -117,10 +121,17 @@ export class SearchService {
       rows = await this.runLike(entityType, q, limit, offset);
     }
 
-    // 3. 应用权重
+    const quarantineType = this.toPublicQuarantineType(entityType);
+    if (quarantineType) {
+      rows = rows.filter((row) => !isPublicContentQuarantined(quarantineType, String(row.id || "")));
+    }
+
+    // 3. 应用权重（按实体整体加权：weightMap 存的实体键与本层表名映射对齐）
     if (weightMap && weightMap.size > 0) {
+      // 搜索表名（Article/ClassicBook…）→ 权重表 entityType（article/classic…）
+      const weightEntity = entityType === "ClassicBook" ? "classic" : entityType.toLowerCase();
+      const entityWeight = weightMap.get(`${weightEntity}:all`) ?? 1.0;
       for (const row of rows) {
-        const entityWeight = weightMap.get(`${entityType.toLowerCase()}:all`) ?? 1.0;
         row.rank = (row.rank || 0.1) * entityWeight;
       }
       rows.sort((a, b) => (b.rank || 0) - (a.rank || 0));
@@ -129,28 +140,43 @@ export class SearchService {
     return rows;
   }
 
-  /** PostgreSQL 全文搜索 */
+  private toPublicQuarantineType(entityType: string): PublicQuarantineType | null {
+    switch (entityType) {
+      case "Article": return "article";
+      case "Course": return "course";
+      case "Product": return "product";
+      case "Circle": return "circle";
+      case "Video": return "video";
+      default: return null;
+    }
+  }
+
+  /**
+   * PostgreSQL 全文搜索
+   * 公共搜索只返回公共池内容：文章/课程须审核通过且 visibility=PLATFORM（CIRCLE_ONLY 为圈内私有，标题摘要也不得外泄），
+   * 并排除软删除（2026-09-17 修复跨圈泄露，口径与 article.service getHomeFeed / course.service 一致）。
+   */
   private async runFts(entityType: string, q: string, limit: number, offset: number): Promise<any[]> {
     const configs: Record<string, { table: string; fields: string; select: string; where: string }> = {
       Article: {
         table: "Article", fields: "coalesce(title,'') || ' ' || coalesce(excerpt,'')",
-        select: `id, title, cover, excerpt, "viewCount"`, where: `"auditStatus" = 'APPROVED'`,
+        select: `id, title, cover, excerpt, "viewCount"`, where: `"auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "deletedAt" IS NULL`,
       },
       Course: {
         table: "Course", fields: "coalesce(title,'') || ' ' || coalesce(intro,'')",
-        select: `id, title, cover, intro, price, "studentCount"`, where: `"auditStatus" = 'APPROVED'`,
+        select: `id, title, cover, intro, price, "studentCount"`, where: `"auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "deletedAt" IS NULL`,
       },
       Product: {
         table: "Product", fields: "coalesce(title,'') || ' ' || coalesce(intro,'')",
-        select: `id, title, images, price, "salesCount"`, where: `"status" = 'ON_SALE'`,
+        select: `id, title, images, price, "salesCount"`, where: `"status" = 'ON_SALE' AND "deletedAt" IS NULL`,
       },
       Circle: {
         table: "Circle", fields: "coalesce(name,'') || ' ' || coalesce(intro,'')",
-        select: `id, name, cover, intro, "memberCount"`, where: `"status" = 'ACTIVE'`,
+        select: `id, name, cover, intro, price, "memberCount"`, where: `"status" = 'ACTIVE' AND "deletedAt" IS NULL`,
       },
       Video: {
         table: "Video", fields: "coalesce(title,'')",
-        select: `id, title, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, description, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED' AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "isPrivate" = false`,
       },
       User: {
         table: "User", fields: "coalesce(nickname,'')",
@@ -158,11 +184,11 @@ export class SearchService {
       },
       ClassicBook: {
         table: "ClassicBook", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(intro,'')",
-        select: `id, title, author, cover, category, dynasty`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, author, cover, category, dynasty`, where: PUBLIC_CLASSIC_SQL,
       },
       Content: {
         table: "Content", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(excerpt,'')",
-        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: PUBLIC_CONTENT_SQL,
       },
       Ebook: {
         table: "Ebook", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(description,'')",
@@ -204,23 +230,23 @@ export class SearchService {
     const configs: Record<string, { table: string; searchFields: string[]; select: string; where: string }> = {
       Article: {
         table: "Article", searchFields: ["title", "excerpt"],
-        select: `id, title, cover, excerpt, "viewCount"`, where: `"auditStatus" = 'APPROVED'`,
+        select: `id, title, cover, excerpt, "viewCount"`, where: `"auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "deletedAt" IS NULL`,
       },
       Course: {
         table: "Course", searchFields: ["title", "intro"],
-        select: `id, title, cover, intro, price, "studentCount"`, where: `"auditStatus" = 'APPROVED'`,
+        select: `id, title, cover, intro, price, "studentCount"`, where: `"auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "deletedAt" IS NULL`,
       },
       Product: {
         table: "Product", searchFields: ["title", "intro"],
-        select: `id, title, images, price, "salesCount"`, where: `"status" = 'ON_SALE'`,
+        select: `id, title, images, price, "salesCount"`, where: `"status" = 'ON_SALE' AND "deletedAt" IS NULL`,
       },
       Circle: {
         table: "Circle", searchFields: ["name", "intro"],
-        select: `id, name, cover, intro, "memberCount"`, where: `"status" = 'ACTIVE'`,
+        select: `id, name, cover, intro, price, "memberCount"`, where: `"status" = 'ACTIVE' AND "deletedAt" IS NULL`,
       },
       Video: {
         table: "Video", searchFields: ["title"],
-        select: `id, title, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, description, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED' AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "isPrivate" = false`,
       },
       User: {
         table: "User", searchFields: ["nickname"],
@@ -228,11 +254,11 @@ export class SearchService {
       },
       ClassicBook: {
         table: "ClassicBook", searchFields: ["title", "author", "intro"],
-        select: `id, title, author, cover, category, dynasty`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, author, cover, category, dynasty`, where: PUBLIC_CLASSIC_SQL,
       },
       Content: {
         table: "Content", searchFields: ["title", "author", "excerpt"],
-        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: PUBLIC_CONTENT_SQL,
       },
       Ebook: {
         table: "Ebook", searchFields: ["title", "author", "description"],
@@ -316,7 +342,7 @@ export class SearchService {
       this.prisma.$queryRaw<any[]>`
         SELECT id, title FROM "Article"
         WHERE to_tsvector('simple', coalesce(title,'')) @@ plainto_tsquery('simple', ${q})
-          AND "auditStatus" = 'APPROVED'
+          AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "deletedAt" IS NULL
         ORDER BY ts_rank(to_tsvector('simple', coalesce(title,'')),
                          plainto_tsquery('simple', ${q})) DESC
         LIMIT 3
@@ -324,7 +350,7 @@ export class SearchService {
       this.prisma.$queryRaw<any[]>`
         SELECT id, title FROM "Course"
         WHERE to_tsvector('simple', coalesce(title,'')) @@ plainto_tsquery('simple', ${q})
-          AND "auditStatus" = 'APPROVED'
+          AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "deletedAt" IS NULL
         ORDER BY ts_rank(to_tsvector('simple', coalesce(title,'')),
                          plainto_tsquery('simple', ${q})) DESC
         LIMIT 3
@@ -332,7 +358,7 @@ export class SearchService {
       this.prisma.$queryRaw<any[]>`
         SELECT id, name FROM "Circle"
         WHERE to_tsvector('simple', coalesce(name,'')) @@ plainto_tsquery('simple', ${q})
-          AND "status" = 'ACTIVE'
+          AND "status" = 'ACTIVE' AND "deletedAt" IS NULL
         ORDER BY ts_rank(to_tsvector('simple', coalesce(name,'')),
                          plainto_tsquery('simple', ${q})) DESC
         LIMIT 2
@@ -340,7 +366,7 @@ export class SearchService {
       this.prisma.$queryRaw<any[]>`
         SELECT id, title FROM "Content"
         WHERE to_tsvector('simple', coalesce(title,'')) @@ plainto_tsquery('simple', ${q})
-          AND "status" = 'PUBLISHED'
+          AND "status" = 'PUBLISHED' AND "deletedAt" IS NULL
         ORDER BY ts_rank(to_tsvector('simple', coalesce(title,'')),
                          plainto_tsquery('simple', ${q})) DESC
         LIMIT 3
@@ -348,10 +374,16 @@ export class SearchService {
     ]);
 
     return [
-      ...articles.map((a) => ({ label: a.title, type: "article", id: a.id })),
+      ...articles
+        .filter((a) => !isPublicContentQuarantined("article", String(a.id || "")))
+        .map((a) => ({ label: a.title, type: "article", id: a.id })),
       ...contents.map((c) => ({ label: c.title, type: "content", id: c.id })),
-      ...courses.map((c) => ({ label: c.title, type: "course", id: c.id })),
-      ...circles.map((c) => ({ label: c.name, type: "circle", id: c.id })),
+      ...courses
+        .filter((c) => !isPublicContentQuarantined("course", String(c.id || "")))
+        .map((c) => ({ label: c.title, type: "course", id: c.id })),
+      ...circles
+        .filter((c) => !isPublicContentQuarantined("circle", String(c.id || "")))
+        .map((c) => ({ label: c.name, type: "circle", id: c.id })),
     ].slice(0, 10);
   }
 

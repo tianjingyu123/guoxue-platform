@@ -6,12 +6,14 @@ import { createE2eApp } from "./e2e-setup"
 describe("Auth E2E", () => {
   let app: INestApplication
   let prisma: any
+  let redis: any
   let jwt: JwtService
 
   beforeAll(async () => {
     const ctx = await createE2eApp()
     app = ctx.app
     prisma = ctx.prisma
+    redis = ctx.redis
     jwt = app.get(JwtService)
   })
 
@@ -32,10 +34,13 @@ describe("Auth E2E", () => {
         id: "u1", nickname: "张三", phone: "13800138000",
       })
       prisma.userRole.findMany.mockResolvedValue([])
+      redis.get.mockImplementation((key: string) =>
+        key === "sms:code:REGISTER:13800138000" ? "123456" : null,
+      )
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/auth/register/phone")
-        .send({ nickname: "张三", phone: "13800138000", password: "Abc12345" })
+        .send({ nickname: "张三", phone: "13800138000", code: "123456", password: "Abc12345" })
         .expect(201)
 
       expect(res.body.accessToken).toBeDefined()
@@ -53,7 +58,7 @@ describe("Auth E2E", () => {
     it("密码太短返回 400", async () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/auth/register/phone")
-        .send({ nickname: "张三", phone: "13800138000", password: "12" })
+        .send({ nickname: "张三", phone: "13800138000", code: "123456", password: "12" })
         .expect(400)
 
       expect(res.body.message).toBeDefined()

@@ -83,6 +83,42 @@ export function phoneHmac(phone: string): string {
   return createHmac("sha256", getKey()).update(phone, "utf8").digest("hex");
 }
 
+// ─────────────────────────────────────────────────
+// 收款账号加密（提现 PII·个保法）—— 双写切读向后兼容工具
+// 标杆同 commission 的 encrypt()/decrypt()：写入加密、读取解密、展示前脱敏。
+// ─────────────────────────────────────────────────
+
+/** 将收款账户 JSON 整体加密为密文字符串（写入 xxxEnc 列）。null/undefined → null。 */
+export function encryptAccountInfo(info: unknown): string | null {
+  if (info == null) return null;
+  return encrypt(JSON.stringify(info));
+}
+
+/**
+ * 解析收款账户 JSON（双写切读·向后兼容）：
+ * 优先解密密文列 enc（新数据）后 JSON.parse；enc 为空或解析失败则回退明文列 plain（存量数据）。
+ * 🔴 存量 enc=null → 直接返回 plain，绝不因缺密文而报错。
+ */
+export function resolveAccountInfo(enc: string | null | undefined, plain: unknown): unknown {
+  if (enc) {
+    try {
+      return JSON.parse(decrypt(enc));
+    } catch {
+      /* 密文损坏/非 JSON → 回退明文列 */
+    }
+  }
+  return plain ?? null;
+}
+
+/**
+ * 解析收款账号字符串（双写切读·向后兼容）：优先解密 enc，回退明文 plain。
+ * decrypt() 对非本系统密文原样返回，故 enc 即便误存明文也安全；enc=null 时用 plain。
+ */
+export function resolveAccount(enc: string | null | undefined, plain: string | null | undefined): string {
+  if (enc) return decrypt(enc);
+  return plain ?? "";
+}
+
 /**
  * 构造手机号写入字段（M4 灰度期三列同写）：
  * 明文 phone（灰度期保留，切读完成后删）+ phoneHash（确定性，查询用）+ phoneEnc（密文，展示用）。

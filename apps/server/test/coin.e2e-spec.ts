@@ -68,40 +68,25 @@ describe("Coin E2E", () => {
   // ═══════════════════ 消费 ═══════════════════
 
   describe("POST /api/v1/coin/spend", () => {
-    it("余额不足返回业务错误", async () => {
-      const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
-      prisma.virtualCoinAccount.findUnique.mockResolvedValue({
-        userId: "u1", balance: 10, totalRecharged: 100, totalSpent: 90,
-      })
-
-      prisma.virtualCoinAccount.updateMany.mockResolvedValue({ count: 0 })
-
+    it("未认证返回 401", async () => {
       await request(app.getHttpServer())
         .post("/api/v1/coin/spend")
-        .set("Authorization", `Bearer ${token}`)
         .send({ amountCoin: 100, scene: "PAID_QUESTION", description: "付费提问" })
-        .expect(400)
+        .expect(401)
     })
 
-    it("消费成功", async () => {
+    it("拒绝客户端直接发起业务扣币", async () => {
       const token = jwt.sign({ sub: "u1" })
       prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
-      prisma.virtualCoinAccount.findUnique.mockResolvedValue({
-        userId: "u1", balance: 500, totalRecharged: 1000, totalSpent: 500,
-      })
-      prisma.virtualCoinAccount.updateMany.mockResolvedValue({ count: 1 })
-      prisma.virtualCoinTransaction.create.mockResolvedValue({
-        id: "tx1", amountCoin: -100, scene: "PAID_QUESTION",
-      })
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/coin/spend")
         .set("Authorization", `Bearer ${token}`)
         .send({ amountCoin: 100, scene: "PAID_QUESTION", description: "付费提问" })
-        .expect(201)
+        .expect(400)
 
-      expect(res.body.transaction).toBeDefined()
+      expect(res.body.message).toContain("不支持直接扣币")
+      expect(prisma.virtualCoinAccount.updateMany).not.toHaveBeenCalled()
     })
   })
 
@@ -176,8 +161,21 @@ describe("Coin E2E", () => {
   describe("POST /api/v1/coin/gifts/send", () => {
     it("送礼成功", async () => {
       const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.user.findUnique.mockResolvedValue({
+        id: "u1",
+        status: "ACTIVE",
+        roles: [],
+        identityVerified: true,
+        birthday: new Date("1990-01-01T00:00:00.000Z"),
+      })
       prisma.gift.findUnique.mockResolvedValue({ id: "g1", name: "鲜花", priceCoin: 10 })
+      prisma.liveGiftSpendingPreference.findUnique.mockResolvedValue({
+        userId: "u1",
+        singleLimitCoin: 100,
+        dailyLimitCoin: 1000,
+        reminderEnabled: true,
+      })
+      prisma.giftRecord.aggregate.mockResolvedValue({ _sum: { totalCoin: 0 } })
       prisma.virtualCoinAccount.findUnique.mockResolvedValue({
         userId: "u1", balance: 100, totalRecharged: 100, totalSpent: 0,
       })
@@ -193,9 +191,19 @@ describe("Coin E2E", () => {
               update: prisma.virtualCoinAccount.update,
               updateMany: prisma.virtualCoinAccount.updateMany,
               findUnique: prisma.virtualCoinAccount.findUnique,
+              // 事务内开户使用upsert，保持送礼的真实服务调用和原扣款断言。
+              upsert: prisma.virtualCoinAccount.upsert,
             },
             virtualCoinTransaction: { create: prisma.virtualCoinTransaction.create },
-            giftRecord: { create: prisma.giftRecord.create },
+            giftRecord: {
+              create: prisma.giftRecord.create,
+              aggregate: prisma.giftRecord.aggregate,
+            },
+            user: { findUnique: prisma.user.findUnique },
+            liveGiftSpendingPreference: {
+              findUnique: prisma.liveGiftSpendingPreference.findUnique,
+            },
+            $executeRawUnsafe: prisma.$executeRawUnsafe,
           })
         }
         return Promise.all(arg)

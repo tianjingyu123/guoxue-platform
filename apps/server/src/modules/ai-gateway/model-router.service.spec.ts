@@ -137,6 +137,22 @@ describe("ModelRouterService", () => {
       expect(result.model).toBe("deepseek-v3");
       expect(result.costCapped).toBe(true);
     });
+
+    it("月度用量查询显式转换时间参数类型", async () => {
+      mockSystem.getConfig.mockResolvedValue({
+        configValue: JSON.stringify(fullConfig),
+      });
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([
+        { total_prompt: 0n, total_completion: 0n },
+      ]);
+
+      await svc.resolve("vision");
+
+      const [sql, scene, monthStart] = mockPrisma.$queryRawUnsafe.mock.calls[0];
+      expect(sql).toContain('"createdAt" >= $2::timestamp');
+      expect(scene).toBe("vision");
+      expect(monthStart).toBeInstanceOf(Date);
+    });
   });
 
   describe("缓存", () => {

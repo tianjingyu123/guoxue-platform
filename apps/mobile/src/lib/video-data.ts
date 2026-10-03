@@ -3,7 +3,16 @@
  * @data-needs: 视频流，参数 id(来自 onLoad 定位起始视频)，GET 返回 VideoItem[]
  */
 
-import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
+import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
+
+// 微信小程序部分运行环境没有 URLSearchParams；视频列表是首页视频入口的首个请求，
+// 这里直接拼接查询参数，避免入口加载阶段抛出「URLSearchParams is not defined」。
+function queryString(values: Record<string, unknown>): string {
+  return Object.entries(values)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    .join('&')
+}
 
 export interface VideoProduct {
   id: string
@@ -20,21 +29,24 @@ export interface VideoHotComment {
   likes: number
 }
 
-/** 视频评论（真连通用 comment 端点·targetType=VIDEO） */
+/** 视频评论（真连通用 comment 端点·targetType=VIDEO·含楼中楼 replies） */
 export interface VideoComment {
   id: string
+  userId: string
   user: string
   avatar: string
   content: string
   likes: number
   createdAt: string
+  /** 楼中楼回复（后端 findByTarget 内联返回·递归结构） */
+  replies: VideoComment[]
 }
 
 export interface VideoAuthor {
   id: string
   name: string
   avatar: string
-  isFollowed: boolean
+  isFollowed?: boolean
   followers: number
   verified: boolean
 }
@@ -48,11 +60,20 @@ export interface VideoItem {
   likes: number
   comments: number
   shares: number
-  isLiked: boolean
-  isCollected: boolean
+  isLiked?: boolean
+  isCollected?: boolean
+  collectCount?: number
   music: string
   products: VideoProduct[]
   hotComments: VideoHotComment[]
+  /** 来源圈子（内容圈子化：每条视频标明出处，顶栏来源胶囊可点跳圈子详情） */
+  circle?: { id: string; name: string }
+  /**
+   * 「仅自己可见」灰标（内容被机审降级时仅作者可见的展示标识）。
+   * 纯前瞻声明：当前列表/详情接口尚未下发该字段，故 UI 恒不显示；
+   * 后端补字段后自动生效。不参与任何交互/数据组装逻辑。
+   */
+  selfOnly?: boolean
 }
 
 export const mockVideos: VideoItem[] = [
@@ -226,12 +247,16 @@ export interface VideoListItem {
   id: string
   title: string
   coverUrl: string
+  videoUrl?: string
   duration: number
-  author: { name: string; avatar: string }
+  author: { id?: string; name: string; avatar: string; isFollowed?: boolean }
   likes: number
   plays: number
   hasProduct: boolean
   isHot: boolean
+  isLiked?: boolean
+  isCollected?: boolean
+  isFollowed?: boolean
 }
 
 // ===== 搜索页（/videos/search）数据 —— 照搬原型 app/videos/search/page.tsx =====
@@ -241,6 +266,7 @@ export interface VideoSearchResult {
   author: string
   authorAvatar: string
   cover: string
+  videoUrl?: string
   duration: string
   views: number
   publishedAt: string
@@ -300,11 +326,56 @@ interface RawVideo {
   coverUrl?: string; videoUrl?: string
   likeCount?: number; likes?: number; commentCount?: number; comments?: number; shareCount?: number; shares?: number
   products?: RawVideoProduct[]
+  isLiked?: boolean; isCollected?: boolean; isFollowed?: boolean; collectCount?: number
+  /** 来源圈子（后端 /videos 与 /videos/:id 均 include circle:{id,name}） */
+  circle?: { id?: string; name?: string } | null
 }
-/** 通用评论原始响应（GET /comment·targetType=VIDEO） */
+/** 通用评论原始响应（GET /comment·targetType=VIDEO·replies 为后端内联楼中楼） */
 interface RawComment {
-  id?: string; content?: string; likeCount?: number; createdAt?: string
+  id?: string; content?: string; likeCount?: number; createdAt?: string; parentId?: string | null
   user?: { id?: string; nickname?: string; avatar?: string } | null
+  replies?: RawComment[]
+}
+
+/** 后端评论 → 前端 VideoComment（递归映射楼中楼） */
+function adaptComment(c: RawComment): VideoComment {
+  return {
+    id: c.id || '',
+    userId: c.user?.id || '',
+    user: c.user?.nickname || '匿名用户',
+    avatar: c.user?.avatar || '',
+    content: c.content || '',
+    likes: c.likeCount ?? 0,
+    createdAt: c.createdAt || '',
+    replies: Array.isArray(c.replies) ? c.replies.map(adaptComment) : [],
+  }
+}
+
+/** 评论时间 → 相对时间（刚刚/x分钟前/x小时前/x天前/日期） */
+export function formatCommentTime(iso: string): string {
+  if (!iso) return ''
+  const t = new Date(iso).getTime()
+  if (!Number.isFinite(t)) return ''
+  const diff = Date.now() - t
+  if (diff < 60_000) return '刚刚'
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}分钟前`
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}小时前`
+  if (diff < 30 * 86_400_000) return `${Math.floor(diff / 86_400_000)}天前`
+  const d = new Date(t)
+  return `${d.getMonth() + 1}-${d.getDate()}`
+}
+
+/**
+ * 反转义历史坏数据：后端旧版 SanitizePipe 曾把 URL 存成 HTML 实体（https:&#x2F;&#x2F;…），
+ * 导致 <video src> 无效播不了。后端读取路径已归一化，此处前端再兜底一层（独立部署也生效）。
+ */
+function unescapeUrl(s?: string): string {
+  if (!s || !s.includes('&')) return s || ''
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&#x2F;/g, '/')
+    .replace(/&#x27;/g, "'")
+    .replace(/&quot;/g, '"')
 }
 
 /** 后端视频 → 前端 VideoItem（全屏流；followers/verified/music/hotComments 后端无→默认） */
@@ -316,38 +387,111 @@ function adaptVideoItem(v: RawVideo): VideoItem {
       id: v.user?.id || '',
       name: v.user?.nickname || '',
       avatar: v.user?.avatar || '',
-      isFollowed: false,
+      isFollowed: knownInteractionState(v.isFollowed),
       followers: 0,
       verified: false,
     },
-    coverUrl: v.coverUrl || '',
-    videoUrl: v.videoUrl || '',
+    coverUrl: unescapeUrl(v.coverUrl),
+    videoUrl: unescapeUrl(v.videoUrl),
     likes: v.likeCount ?? v.likes ?? 0,
     comments: v.commentCount ?? v.comments ?? 0,
     shares: v.shareCount ?? v.shares ?? 0,
-    isLiked: false,
-    isCollected: false,
+    isLiked: knownInteractionState(v.isLiked),
+    isCollected: knownInteractionState(v.isCollected),
+    collectCount: interactionCount(v.collectCount),
     music: '原声',
     // id 取 productId（VideoProduct 关联行的 id 是关联表主键，非商品 id·购买/加购要用商品 id）
     products: Array.isArray(v.products)
       ? v.products.map((p: RawVideoProduct) => ({ id: String(p.productId ?? p.id ?? ''), name: p.title || p.name || '', price: Number(p.price) || 0, originalPrice: Number(p.originalPrice) || 0, image: (Array.isArray(p.images) && p.images[0]) || p.image || '', sales: p.salesCount ?? p.sales ?? 0 }))
       : [],
     hotComments: [],
+    // 来源圈子：仅当后端确实返回圈子关联时映射（无圈子 → undefined，顶栏胶囊不渲染）
+    circle: v.circle?.id ? { id: v.circle.id, name: v.circle.name || '' } : undefined,
   }
 }
 
+/** 瀑布流精简项 → 全屏流基础项；切到该条后详情页会按 id 懒加载完整作者/圈子/商品字段。 */
+function adaptVideoListItem(v: VideoListItem): VideoItem {
+  return {
+    id: v.id,
+    title: v.title,
+    author: {
+      id: v.author?.id || '',
+      name: v.author?.name || '',
+      avatar: v.author?.avatar || '',
+      isFollowed: knownInteractionState(v.isFollowed ?? v.author?.isFollowed),
+      followers: 0,
+      verified: false,
+    },
+    coverUrl: unescapeUrl(v.coverUrl),
+    videoUrl: unescapeUrl(v.videoUrl),
+    likes: v.likes ?? 0,
+    comments: 0,
+    shares: 0,
+    isLiked: knownInteractionState(v.isLiked),
+    isCollected: knownInteractionState(v.isCollected),
+    music: '原声',
+    products: [],
+    hotComments: [],
+  }
+}
+
+/** 缺字段保持未知，不将历史接口/畸形数据伪装成“未点赞”。 */
+function knownInteractionState(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined
+}
+function interactionCount(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined
+}
+
 export const videoApi = {
-  /** 发布视频 — POST /videos（错误传播给页面） */
-  async publish(data: Record<string, unknown>): Promise<unknown> {
+  /** 发布视频 — POST /videos（错误传播给页面；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台·发布即可见，机审后台异步） */
+  async publish(data: { circleId?: string; title: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; products?: string[]; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }): Promise<unknown> {
     return await apiPost('/videos', data)
   },
 
-  /** 视频列表（全屏流）— GET /videos（错误传播给页面三态，不回退假 mock） */
-  async list(_params?: Record<string, unknown>): Promise<VideoItem[]> {
-    const res = await apiGet<RawVideo[] | { videos?: RawVideo[]; data?: RawVideo[] }>('/videos?pageSize=50')
+  /**
+   * 视频列表（全屏流）— GET /videos（错误传播给页面三态，不回退假 mock）
+   * 后端已支持分页（video.controller @Get() → svc.list({page,pageSize})·返回 {videos,total,page,pageSize}）。
+   * page 从 1 起。去重以 id 为准（同名视频是合法数据，纯按 title 去重会误杀·与页面跨页去重同口径）；
+   * title 去重仅作为 seed 种子数据防线保留（种子曾把同一条内容用不同 id 反复灌入）——
+   * 深链目标若被本防线滤掉，由详情页 pendingId→getById 单拉插队兜底，不会「静默换片」。
+   */
+  async list(params?: { page?: number; pageSize?: number }): Promise<VideoItem[]> {
+    const page = params?.page ?? 1
+    const pageSize = params?.pageSize ?? 50
+    const res = await apiGet<RawVideo[] | { videos?: RawVideo[]; data?: RawVideo[] }>(`/videos?page=${page}&pageSize=${pageSize}`)
     const arr = Array.isArray(res) ? res : (res?.videos ?? res?.data ?? [])
-    const seen = new Set<string>()
-    return arr.map(adaptVideoItem).filter((v: VideoItem) => { if (seen.has(v.title)) return false; seen.add(v.title); return true })
+    const seenIds = new Set<string>()
+    const seenTitles = new Set<string>()
+    return arr.map(adaptVideoItem).filter((v: VideoItem) => {
+      if (v.id && seenIds.has(v.id)) return false
+      if (v.title && seenTitles.has(v.title)) return false // seed 防线（见上方注释）
+      if (v.id) seenIds.add(v.id)
+      if (v.title) seenTitles.add(v.title)
+      return true
+    })
+  },
+
+  /**
+   * 全屏流统一数据源：详情接口字段完整，但在分站口径下可能少于瀑布流；两者按 id 合并，
+   * 避免列表明明有多条、进入详情却永远只有一条而无法上下滑动。
+   */
+  async listFeed(params?: { page?: number; pageSize?: number }): Promise<VideoItem[]> {
+    const page = params?.page ?? 1
+    const pageSize = params?.pageSize ?? 50
+    const [detailResult, itemResult] = await Promise.allSettled([
+      videoApi.list({ page, pageSize }),
+      videoApi.listItems({ page, pageSize, sort: 'recommend' }),
+    ])
+    const detailed = detailResult.status === 'fulfilled' ? detailResult.value : []
+    const compact = itemResult.status === 'fulfilled' ? itemResult.value : []
+    if (!detailed.length && !compact.length) {
+      const reason = detailResult.status === 'rejected' ? detailResult.reason : itemResult.status === 'rejected' ? itemResult.reason : null
+      throw reason instanceof Error ? reason : new Error('视频加载失败，请重试')
+    }
+    const seen = new Set(detailed.map((v) => v.id).filter(Boolean))
+    return [...detailed, ...compact.filter((v) => !seen.has(v.id)).map(adaptVideoListItem)]
   },
 
   /** 视频详情 — GET /videos/:id（错误传播） */
@@ -381,9 +525,10 @@ export const videoApi = {
   },
 
   /** 收藏切换 — POST /videos/:id/collect（后端返回 {collected}） */
-  async collect(id: string): Promise<{ success: boolean; isCollected: boolean }> {
-    const res = await apiPost<{ collected: boolean }>(`/videos/${id}/collect`)
-    return { success: true, isCollected: !!res?.collected }
+  async collect(id: string): Promise<{ success: boolean; isCollected: boolean; collectCount?: number }> {
+    const res = await apiPost<{ collected: boolean; collectCount?: number }>(`/videos/${id}/collect`)
+    if (typeof res?.collected !== 'boolean') throw new Error('收藏状态暂不可用，请稍后重试')
+    return { success: true, isCollected: res.collected, collectCount: interactionCount(res.collectCount) }
   },
 
   /** 记录分享 — POST /videos/:id/share */
@@ -402,21 +547,20 @@ export const videoApi = {
     return { success: true, message: '删除成功' }
   },
 
-  /** 点赞切换 — POST /videos/:id/like（后端返回 {liked}，计数由页面本地维护） */
-  async like(id: string): Promise<{ success: boolean; isLiked: boolean }> {
-    const res = await apiPost<{ liked: boolean }>(`/videos/${id}/like`)
-    return { success: true, isLiked: !!res?.liked }
+  /** 点赞切换 — 使用后端确认状态和计数，不按本机旧缓存猜计数。 */
+  async like(id: string): Promise<{ success: boolean; isLiked: boolean; likeCount?: number }> {
+    const res = await apiPost<{ liked: boolean; likeCount?: number }>(`/videos/${id}/like`)
+    if (typeof res?.liked !== 'boolean') throw new Error('点赞状态暂不可用，请稍后重试')
+    return { success: true, isLiked: res.liked, likeCount: interactionCount(res.likeCount) }
   },
 
   /**
    * 瀑布流列表 — GET /videos/items（后端结构已对齐 VideoListItem；seed 有大量重复→按标题去重）
    * sort: recommend(默认)/hot/follow —— 三 tab 各驱动不同查询；错误传播给页面三态，不回退假 mock。
    */
-  async listItems(params?: { sort?: string }): Promise<VideoListItem[]> {
-    const q = new URLSearchParams()
-    q.set('pageSize', '50')
-    if (params?.sort) q.set('sort', params.sort)
-    const res = await apiGet<VideoListItem[] | { data?: VideoListItem[]; items?: VideoListItem[] }>(`/videos/items?${q.toString()}`)
+  async listItems(params?: { page?: number; pageSize?: number; sort?: string }): Promise<VideoListItem[]> {
+    const q = queryString({ page: params?.page ?? 1, pageSize: params?.pageSize ?? 50, sort: params?.sort })
+    const res = await apiGet<VideoListItem[] | { data?: VideoListItem[]; items?: VideoListItem[] }>(`/videos/items?${q}`)
     const arr = Array.isArray(res) ? res : (res?.data ?? res?.items ?? [])
     const seen = new Set<string>()
     return arr.filter((v: VideoListItem) => { const k = v.title || v.id; if (seen.has(k)) return false; seen.add(k); return true })
@@ -427,12 +571,8 @@ export const videoApi = {
    * 后端 items 字段已对齐 VideoSearchResult(id/title/author/authorAvatar/cover/duration/views/publishedAt/category)，直接返回。
    */
   async search(params: { keyword?: string; category?: string; page?: number; pageSize?: number } = {}): Promise<VideoSearchResult[]> {
-    const q = new URLSearchParams()
-    if (params.keyword) q.set('keyword', params.keyword)
-    if (params.category) q.set('category', params.category)
-    q.set('page', String(params.page ?? 1))
-    q.set('pageSize', String(params.pageSize ?? 20))
-    const res = await apiGet<{ items?: VideoSearchResult[] } | VideoSearchResult[]>(`/videos/search?${q.toString()}`)
+    const q = queryString({ keyword: params.keyword, category: params.category, page: params.page ?? 1, pageSize: params.pageSize ?? 20 })
+    const res = await apiGet<{ items?: VideoSearchResult[] } | VideoSearchResult[]>(`/videos/search?${q}`)
     return Array.isArray(res) ? res : (res?.items ?? [])
   },
 
@@ -452,23 +592,16 @@ export const videoApi = {
 
   // ───────── 评论子系统（P2·复用通用 comment 端点·targetType=VIDEO）─────────
 
-  /** 视频评论列表 — GET /comment?targetType=VIDEO&targetId=（错误传播三态） */
-  async getComments(videoId: string, page = 1, pageSize = 20): Promise<VideoComment[]> {
-    const res = await apiGet<{ data?: RawComment[] } | RawComment[]>(`/comment?targetType=VIDEO&targetId=${videoId}&page=${page}&pageSize=${pageSize}`)
-    const arr = Array.isArray(res) ? res : (res?.data ?? [])
-    return arr.map((c: RawComment): VideoComment => ({
-      id: c.id || '',
-      user: c.user?.nickname || '匿名用户',
-      avatar: c.user?.avatar || '',
-      content: c.content || '',
-      likes: c.likeCount ?? 0,
-      createdAt: c.createdAt || '',
-    }))
+  /** 视频评论列表 — GET /comment?targetType=VIDEO&targetId=（错误传播三态·apiGetPaged 保留 pagination.total·含楼中楼） */
+  async getComments(videoId: string, page = 1, pageSize = 20): Promise<{ items: VideoComment[]; total: number }> {
+    const res = await apiGetPaged<RawComment>(`/comment?targetType=VIDEO&targetId=${videoId}&page=${page}&pageSize=${pageSize}`)
+    return { items: res.items.map(adaptComment), total: res.total }
   },
 
-  /** 发表视频评论 — POST /comment（后端过内容审核·返回新评论） */
-  async postComment(videoId: string, content: string): Promise<void> {
-    await apiPost('/comment', { targetType: 'VIDEO', targetId: videoId, content })
+  /** 发表视频评论 — POST /comment（后端过内容审核·返回新评论供乐观插入·parentId=楼中楼回复） */
+  async postComment(videoId: string, content: string, parentId?: string): Promise<VideoComment> {
+    const res = await apiPost<RawComment>('/comment', { targetType: 'VIDEO', targetId: videoId, content, ...(parentId ? { parentId } : {}) })
+    return adaptComment(res || {})
   },
 
   /** 点赞评论 — POST /comment/:id/like */

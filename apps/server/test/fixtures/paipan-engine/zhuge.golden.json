@@ -1,0 +1,17 @@
+{
+ "tool": "zhuge",
+ "tz": "Asia/Shanghai",
+ "mode": "groups",
+ "source": "迁移前前端引擎 + 前端结果页原映射（apps/mobile/src/pkg-paipan/zhuge）",
+ "generatedAt": "2026-09-21",
+ "calls": 64983,
+ "groups": 6,
+ "byGroup": {
+  "pos1": "34cff0b6955f45ac",
+  "pos2": "5a30b2938e97c96a",
+  "pos3": "69172b2eab2ef331",
+  "nums": "c74d61599777e84f",
+  "digits": "76ccb4a4ab0b9c80",
+  "bad": "057f006851497db2"
+ }
+}

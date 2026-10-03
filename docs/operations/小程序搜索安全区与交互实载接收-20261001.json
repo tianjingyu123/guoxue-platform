@@ -1,0 +1,517 @@
+{
+  "sourceCommit": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
+  "checkedAt": "2026-10-01T07:12:34.338Z",
+  "receivedCommits": [
+    "7614ef396b2503c121b744ff0cdd9658df986165",
+    "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3"
+  ],
+  "actualMain": {
+    "mergeableState": "unstable",
+    "state": "open",
+    "draft": true,
+    "checkedAt": "2026-10-01T07:03:50.8899230Z",
+    "prNumber": 1,
+    "mergeable": true,
+    "baseSha": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "defaultBranch": "master",
+    "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+    "actualMainHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "headSha": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
+    "baseRef": "master",
+    "headRef": "codex/launch-review-20260930"
+  },
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（下述明确范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "sourceEquivalence": {
+    "mobileBuild": "7614ef396b2503c121b744ff0cdd9658df986165",
+    "finalCommit": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
+    "testOnlyDifference": true,
+    "backendInputsUnchangedFrom877": true,
+    "adminInputsReused": true
+  },
+  "runtime": {
+    "simulation": true,
+    "realDevice": false,
+    "checksPassed": 10,
+    "checks": [
+      {
+        "name": "video-search-controls-and-cancel",
+        "passed": true,
+        "entry": {
+          "left": 247,
+          "top": 61,
+          "width": 37,
+          "height": 37
+        },
+        "button": {
+          "left": 244,
+          "top": 59,
+          "width": 44,
+          "height": 44
+        },
+        "input": {
+          "left": 58,
+          "top": 69.796875,
+          "width": 159,
+          "height": 22.390625
+        },
+        "screenshot": {
+          "file": "video-search.png",
+          "sha256": "e3bb70366d18cecb3c6dbde3d623c8554575c86a4ddf1179cea60ace72b7c53a"
+        }
+      },
+      {
+        "name": "replay-header-overlay-and-cancel",
+        "passed": true,
+        "back": {
+          "left": 8,
+          "top": 47.5,
+          "width": 44,
+          "height": 44
+        },
+        "entry": {
+          "left": 244,
+          "top": 47.5,
+          "width": 44,
+          "height": 44
+        },
+        "button": {
+          "left": 244,
+          "top": 59,
+          "width": 44,
+          "height": 44
+        },
+        "input": {
+          "left": 52,
+          "top": 69.796875,
+          "width": 166,
+          "height": 22.390625
+        },
+        "statusBarHeight": 47,
+        "screenshot": {
+          "file": "replay-search.png",
+          "sha256": "8224051b98463f8e04dfc11fbafb572b79d7ab182ddc41c93aea60801045e3ad"
+        }
+      },
+      {
+        "name": "circle-action-safe-area",
+        "passed": true,
+        "button": {
+          "left": 244,
+          "top": 33,
+          "width": 44,
+          "height": 44
+        },
+        "screenshot": {
+          "file": "circle.png",
+          "sha256": "4b25cf596b829fc83928854b46a9c09c44915a3f25e3abc32a5c6b487f1c95ce"
+        }
+      },
+      {
+        "name": "home-support-safe-area",
+        "passed": true,
+        "buttons": [
+          {
+            "left": 193,
+            "top": 50,
+            "width": 39,
+            "height": 39
+          },
+          {
+            "left": 237,
+            "top": 50,
+            "width": 39,
+            "height": 39
+          }
+        ],
+        "screenshot": {
+          "file": "home.png",
+          "sha256": "2b51b4b8bbc56a39e2983479bc8636f8488358b2d56caec3060e14c5cf592739"
+        }
+      },
+      {
+        "name": "home-entry-视频",
+        "passed": true,
+        "route": "pkg-video/list/index"
+      },
+      {
+        "name": "home-entry-古籍馆",
+        "passed": true,
+        "route": "pkg-classics/home/index"
+      },
+      {
+        "name": "login-visible-consent-and-cancel",
+        "passed": true,
+        "background": "rgb(7, 193, 96)",
+        "screenshot": {
+          "file": "login-agreed.png",
+          "sha256": "092314919db9dcfccb42803859b4148ef2a9e0f5a0514242c9ce072e01305702"
+        }
+      },
+      {
+        "name": "competition-back",
+        "passed": true
+      },
+      {
+        "name": "course-detail-solid-footer-after-scroll-and-return",
+        "passed": true,
+        "background": "rgb(255, 255, 255)",
+        "screenshot": {
+          "file": "course-scroll.png",
+          "sha256": "b1678f8c08e1824aaffe69687fc269fbbee5b2e6b1e6eeb5600eb1087087e710"
+        }
+      },
+      {
+        "name": "paipan-upgrade-and-return",
+        "passed": true,
+        "sourceCommit": "7614ef396b2503c121b744ff0cdd9658df986165",
+        "simulation": true,
+        "realDevice": false,
+        "startedAt": "2026-10-01T06:55:37.115Z",
+        "path": "pages/paipan/index",
+        "title": "热卜排盘工具正在升级中",
+        "returned": "pages/index/index",
+        "finishedAt": "2026-10-01T06:55:42.862Z"
+      }
+    ],
+    "inputsUnchanged": true,
+    "inputFiles": 2756,
+    "historicalRoutes": {
+      "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+      "routesPassed": 10,
+      "newRunForCurrentSource": false
+    },
+    "additionalSearchObservation": {
+      "sourceCommit": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
+      "simulation": true,
+      "realDevice": false,
+      "checks": [
+        {
+          "requested": "/pkg-search/search/index",
+          "actual": "pkg-search/search/index",
+          "rects": [
+            {
+              "selector": ".back-btn",
+              "left": 4,
+              "top": 55,
+              "width": 45,
+              "height": 45
+            },
+            {
+              "selector": ".search-input",
+              "left": 83,
+              "top": 66.296875,
+              "width": 59,
+              "height": 22.390625
+            },
+            {
+              "selector": ".search-action",
+              "left": 162,
+              "top": 65.5,
+              "width": 38,
+              "height": 24
+            }
+          ],
+          "capsule": {
+            "width": 87,
+            "height": 32,
+            "left": 296,
+            "top": 51,
+            "right": 383,
+            "bottom": 83
+          }
+        },
+        {
+          "requested": "/pkg-circle/circles/search",
+          "actual": "pkg-circle/circles/search",
+          "rects": [
+            {
+              "selector": ".cs-back",
+              "left": 16,
+              "top": 37,
+              "width": 44,
+              "height": 44
+            },
+            {
+              "selector": ".cs-input",
+              "left": 107,
+              "top": 37,
+              "width": 167,
+              "height": 44
+            },
+            {
+              "selector": ".cs-cancel",
+              "notPresent": true
+            }
+          ],
+          "capsule": {
+            "width": 87,
+            "height": 32,
+            "left": 296,
+            "top": 51,
+            "right": 383,
+            "bottom": 83
+          }
+        }
+      ],
+      "finishedAt": "2026-10-01T07:05:21.185Z"
+    }
+  },
+  "localTests": {
+    "imAndMenuPassed": 15,
+    "imAndMenuLogSha256": "7d6f2f0838b45bb4fdd9f61f16e0d397a8787396157ecc6e1b38964f48d8012f",
+    "typecheckPassed": true,
+    "typecheckLogSha256": "99bdd9c86490f797989178369f41fa63af2086c1984036071c2d7d3323ba7d76",
+    "eslintPassed": true,
+    "eslintLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "publicConfig": {
+    "file": "apps/mobile/.env.production",
+    "api": "https://api.rebugx.cn",
+    "h5": "https://gx.yrydai.com/h5/",
+    "assets": "https://static.rebugx.cn",
+    "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b",
+    "oneClickEnabled": false
+  },
+  "client": {
+    "targets": 5,
+    "files": 5423,
+    "textFiles": 5357,
+    "bytes": 53941021,
+    "errors": 0,
+    "afterOfficialToolsVerified": true
+  },
+  "mini": {
+    "officialPreviewSucceeded": true,
+    "infoSha256": "c1fb57c0be9a9d23ccb3b0bdf186e54c1812743eae208762a23eae6e10739e9c",
+    "mainBytes": 1964711,
+    "mainRemainingBytes": 132441,
+    "maxSubpackage": "/pkg-paipan/",
+    "maxSubpackageBytes": 1959687,
+    "maxSubpackageRemainingBytes": 137465,
+    "subpackageCount": 33,
+    "totalBytes": 12739020,
+    "noUpload": true,
+    "noReview": true
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T06:57:05.830Z",
+    "archive": "gx-deploy-91-launch-20261001-a1d6116ec.tar.gz",
+    "sha256": "499feefe950cfd8a0209d3ff16cc6cc21d4fb2aca4557e0bc474644b2f426a9e",
+    "releaseId": "launch-20261001-a1d6116ec",
+    "commit": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
+    "expectedCommit": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
+    "fileCount": 4433,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "officialAndroidResource": {
+    "sourceCommit": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
+    "checkedAt": "2026-10-01T07:03:13.144Z",
+    "webAudit": {
+      "success": true,
+      "errors": [],
+      "files": 489,
+      "changedFiles": [
+        "app-service.js",
+        "manifest.json"
+      ],
+      "appId": "__UNI__277B108",
+      "versionCode": "254",
+      "genericBundleSha256": "d202f0e1ec3b9ee6383bc4c596661be9c4da1b3e0943974541b324c991c7b4a2",
+      "officialBundleSha256": "4547179187521a4bb7cae73283e1e7453bb1ba0e487d3e40f17ffb636f63e0fb",
+      "spaceBound": true
+    },
+    "nativeChecks": [
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/config.json",
+        "bytes": 70,
+        "sha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+        "genericSha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+        "exact": true,
+        "allowedDifference": null
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/libs/rebu-resource-updater.aar",
+        "bytes": 33238,
+        "sha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+        "genericSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+        "exact": true,
+        "allowedDifference": null
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/src/index.kt",
+        "bytes": 1149,
+        "sha256": "3738ba28858b91aa73b429c8d0b706bcfb78afe968fd986615b68e73a40685d9",
+        "genericSha256": "1eb3b1bdf674ed3eb982615f065c5b06bdada4504d287aae27f91c1d9b164606",
+        "exact": false,
+        "allowedDifference": "仅空间绑定新增 import io.dcloud.unicloud.*"
+      }
+    ],
+    "files": 492,
+    "bytes": 12827330,
+    "contentSha256": "d4560aa84f4ac7828eef3fe76a37447b8b66b4da67db9cda8e7e70d16f6b4d0b",
+    "archive": "artifacts/releases/android254-hbuilder-a1d6116ec-resources.tar.gz",
+    "archiveBytes": 2852981,
+    "archiveSha256": "f69c7a86c57e6665de8cc2a7bd8fb187278689dcf5518b8b5a4c2b04c9ae60aa",
+    "archiveExtractedAllFilesExact": true,
+    "signedApk": false,
+    "paidPackaging": false,
+    "oneClickEnabled": false
+  },
+  "draftArchive": {
+    "published": false,
+    "checkedAt": "2026-10-01T07:04:00.3328446Z",
+    "draft": true,
+    "assets": [
+      {
+        "sha256": "499feefe950cfd8a0209d3ff16cc6cc21d4fb2aca4557e0bc474644b2f426a9e",
+        "assetId": 602653350,
+        "bytes": 15708597,
+        "name": "gx-deploy-91-launch-20261001-a1d6116ec.tar.gz",
+        "officialDigestMatches": true
+      },
+      {
+        "sha256": "f69c7a86c57e6665de8cc2a7bd8fb187278689dcf5518b8b5a4c2b04c9ae60aa",
+        "assetId": 602659049,
+        "bytes": 2852981,
+        "name": "android254-hbuilder-a1d6116ec-resources.tar.gz",
+        "officialDigestMatches": true
+      }
+    ],
+    "tag": "launch-20261001-a1d6116ec",
+    "sourceCommit": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
+    "releaseId": 400717392
+  },
+  "ci": {
+    "sourceCommit": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
+    "suitesPassed": 662,
+    "testsPassed": 8899,
+    "runId": 36827247805,
+    "suitesSkipped": 26,
+    "logs": [
+      {
+        "suites": "Test Suites: 8 skipped, 221 passed, 221 of 229 total",
+        "sha256": "51fce1dc7bab35e1180fbd7000d7bfd8e45498429884d2e852493c375d96d624",
+        "tests": "Tests:       50 skipped, 3022 passed, 3072 total",
+        "jobId": 110256074961,
+        "name": "单元测试 (2/3)"
+      },
+      {
+        "suites": "Test Suites: 10 skipped, 219 passed, 219 of 229 total",
+        "sha256": "bb67d236ec33bbce37f47a6ec4b8b645bd5d95baea49b9c8eb8636b88267cc61",
+        "tests": "Tests:       39 skipped, 3038 passed, 3077 total",
+        "jobId": 110256075010,
+        "name": "单元测试 (3/3)"
+      },
+      {
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "sha256": "26fdeeadf46ec1618186e268083d1e265708052072f6ee8fcef9d1db1ac742d9",
+        "tests": "Tests:       44 skipped, 2839 passed, 2883 total",
+        "jobId": 110256075018,
+        "name": "单元测试 (1/3)"
+      }
+    ],
+    "status": "success",
+    "checkedAt": "2026-10-01T07:12:01.5677154Z",
+    "testsSkipped": 133,
+    "jobsPassed": 8,
+    "fullyVerified": true
+  },
+  "linux": {
+    "image": "sha256:5752d664e32e6453d8e577a95a76f715a4e5479f9a001b62e291a8b52e3e4baf",
+    "runtimeReportSha256": "743d444ce16178923666800dee8d3f1cbe7521b85312c48a797a52ec9530ff5d",
+    "verificationSource": "a1e65c76248279b6ece20fdb63ea32692ad1ed6c",
+    "artifact": {
+      "officialDigestMatches": true,
+      "bytes": 55198,
+      "sha256": "1bf1a93a3740a8dbf9da3ebf8186caf95021a2bac20fe32591a5e5fb659bacf0",
+      "id": 11145584914
+    },
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry"
+    ],
+    "sourceArchiveSha256": "499feefe950cfd8a0209d3ff16cc6cc21d4fb2aca4557e0bc474644b2f426a9e",
+    "production": false,
+    "cleanupAllConfirmed": true,
+    "businessSource": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
+    "passed": true,
+    "checksPassed": 23,
+    "runId": 36827962807,
+    "checkedAt": "2026-10-01T07:09:55.8996393Z",
+    "realChannels": false,
+    "fullyVerified": true
+  },
+  "notCovered": [
+    "消息搜索登录态实际控件",
+    "通用搜索完整输入和结果旅程（实测输入宽度59px，需后续布局优化）",
+    "服务器古籍原图解码",
+    "最终同版Android/iOS/Harmony签名包",
+    "真实取号授权",
+    "真实支付退款权益返回",
+    "旧排盘分享接收完整手机旅程",
+    "语音额度/真IM/受控直播",
+    "25条生产迁移与两节点最终部署",
+    "通知完整触发矩阵/真实推送",
+    "最终运营清理和容量告警"
+  ],
+  "notPerformed": [
+    "部署",
+    "生产迁移",
+    "真实通知",
+    "真实订单余额操作",
+    "云函数上传",
+    "计费取号",
+    "付费打包",
+    "小程序上传审核",
+    "公开发布"
+  ],
+  "intermediateFailuresPreserved": [
+    {
+      "report": "artifacts/channel-intake-20260930/mini-search-safe-7614ef396/runtime-report.json",
+      "reason": "同步SDK查询超时，0项检查，输入未变"
+    },
+    {
+      "report": "artifacts/channel-intake-20260930/mini-search-safe-7614ef396-v2/runtime-report.json",
+      "passed": 8,
+      "failed": 2,
+      "reason": "排盘SDK超时及课程组件选择器错误，后续分项补测通过"
+    },
+    {
+      "report": "artifacts/channel-intake-20260930/search-safe-gate-job-110253850571.log",
+      "reason": "旧沙箱未加载新安全区函数，a1d执行真实工具函数后15项回归及本版门禁通过"
+    }
+  ]
+}

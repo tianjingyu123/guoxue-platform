@@ -2,9 +2,11 @@ import { Test } from "@nestjs/testing";
 import { ImController } from "./im.controller";
 import { ImService } from "./im.service";
 import { ImPolicyService } from "./im-policy.service";
+import { ImFallbackService } from "./im-fallback.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 const mockImSvc = {
+  isConfigured: jest.fn().mockReturnValue(false),
   genUserSig: jest.fn().mockResolvedValue({ userId: "u1", sig: "sig123", expire: 86400 }),
   importAccount: jest.fn().mockResolvedValue({ success: true }),
   queryAccountState: jest.fn().mockResolvedValue([{ userId: "u1", status: "Online" }]),
@@ -28,6 +30,15 @@ const mockImSvc = {
   getGroupMembers: jest.fn().mockResolvedValue({ MemberList: [{ Member_Account: "u1" }] }),
 };
 
+const mockFallbackSvc = {
+  conversations: jest.fn().mockResolvedValue([]),
+  history: jest.fn().mockResolvedValue({ messages: [], isCompleted: true }),
+  sendText: jest.fn().mockResolvedValue({ id: "fm1", content: "你好" }),
+  markRead: jest.fn().mockResolvedValue({ success: true }),
+  updatePreference: jest.fn().mockResolvedValue({ isPinned: true }),
+  clearConversation: jest.fn().mockResolvedValue({ success: true }),
+};
+
 describe("ImController", () => {
   let ctrl: ImController;
 
@@ -37,6 +48,7 @@ describe("ImController", () => {
       providers: [
         { provide: ImService, useValue: mockImSvc },
         { provide: ImPolicyService, useValue: {} },
+        { provide: ImFallbackService, useValue: mockFallbackSvc },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
@@ -45,6 +57,52 @@ describe("ImController", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  it("GET /im/capabilities — 未配置腾讯IM时返回站内过渡能力", () => {
+    expect(ctrl.capabilities()).toEqual({
+      mode: "FALLBACK", c2c: true, notifications: true, groups: false, friends: false, calls: false,
+    });
+  });
+
+  it("GET /im/capabilities — 已配置 IM 但未配置 TRTC 时不误报可通话", () => {
+    mockImSvc.isConfigured.mockReturnValueOnce(true);
+    const priorId = process.env.TRTC_SDK_APP_ID;
+    const priorSecret = process.env.TRTC_SECRET_KEY;
+    try {
+      delete process.env.TRTC_SDK_APP_ID;
+      delete process.env.TRTC_SECRET_KEY;
+      expect(ctrl.capabilities()).toEqual({
+        mode: "TENCENT", c2c: true, notifications: true, groups: true, friends: true, calls: false,
+      });
+    } finally {
+      if (priorId === undefined) delete process.env.TRTC_SDK_APP_ID;
+      else process.env.TRTC_SDK_APP_ID = priorId;
+      if (priorSecret === undefined) delete process.env.TRTC_SECRET_KEY;
+      else process.env.TRTC_SECRET_KEY = priorSecret;
+    }
+  });
+
+  it("GET /im/capabilities — IM 与 TRTC 均配置后才开放通话", () => {
+    mockImSvc.isConfigured.mockReturnValueOnce(true);
+    const priorId = process.env.TRTC_SDK_APP_ID;
+    const priorSecret = process.env.TRTC_SECRET_KEY;
+    try {
+      process.env.TRTC_SDK_APP_ID = "1600030106";
+      process.env.TRTC_SECRET_KEY = "test-secret";
+      expect(ctrl.capabilities().calls).toBe(true);
+    } finally {
+      if (priorId === undefined) delete process.env.TRTC_SDK_APP_ID;
+      else process.env.TRTC_SDK_APP_ID = priorId;
+      if (priorSecret === undefined) delete process.env.TRTC_SECRET_KEY;
+      else process.env.TRTC_SECRET_KEY = priorSecret;
+    }
+  });
+
+  it("POST /im/fallback/c2c/send — 发送站内过渡私信", async () => {
+    const req: any = { user: { id: "u1" } };
+    await ctrl.fallbackSend(req, { toUserId: "u2", text: "你好" } as any);
+    expect(mockFallbackSvc.sendText).toHaveBeenCalledWith("u1", "u2", "你好");
+  });
 
   it("POST /im/user-sig — 生成UserSig", async () => {
     const req: any = { user: { id: "u1" } };

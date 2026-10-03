@@ -1,7 +1,7 @@
 <template>
   <div class="rag-template">
     <div class="page-header">
-      <h2>📝 RAG Prompt 模板管理</h2>
+      <h2>RAG Prompt 模板管理</h2>
       <el-button
         type="primary"
         @click="openCreate"

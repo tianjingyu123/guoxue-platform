@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { PAID_ORDER_STATUSES } from "./order-status.constants";
 
 @Injectable()
 export class BigScreenService {
@@ -32,7 +33,7 @@ export class BigScreenService {
       this.prisma.product.count({ where: { status: "ON_SALE" } }),
       this.prisma.classicBook.count(),
       this.prisma.article.count({ where: { auditStatus: "APPROVED" } }),
-      this.prisma.order.aggregate({ where: { status: { in: ["PAID", "COMPLETED"] } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { status: { in: PAID_ORDER_STATUSES } }, _sum: { amount: true } }),
     ]);
 
     const data = {
@@ -58,17 +59,17 @@ export class BigScreenService {
     const oneHourAgo = new Date(Date.now() - 3600000);
 
     const [todayOrders, todayRevenue, hourOrders, typeBreakdown, recentOrders] = await Promise.all([
-      this.prisma.order.count({ where: { createdAt: { gte: today }, status: { in: ["PAID", "COMPLETED"] } } }),
-      this.prisma.order.aggregate({ where: { createdAt: { gte: today }, status: { in: ["PAID", "COMPLETED"] } }, _sum: { amount: true } }),
-      this.prisma.order.count({ where: { createdAt: { gte: oneHourAgo }, status: { in: ["PAID", "COMPLETED"] } } }),
+      this.prisma.order.count({ where: { createdAt: { gte: today }, status: { in: PAID_ORDER_STATUSES } } }),
+      this.prisma.order.aggregate({ where: { createdAt: { gte: today }, status: { in: PAID_ORDER_STATUSES } }, _sum: { amount: true } }),
+      this.prisma.order.count({ where: { createdAt: { gte: oneHourAgo }, status: { in: PAID_ORDER_STATUSES } } }),
       this.prisma.order.groupBy({
         by: ["type"],
-        where: { createdAt: { gte: today }, status: { in: ["PAID", "COMPLETED"] } },
+        where: { createdAt: { gte: today }, status: { in: PAID_ORDER_STATUSES } },
         _sum: { amount: true },
         _count: true,
       }),
       this.prisma.order.findMany({
-        where: { status: { in: ["PAID", "COMPLETED"] } },
+        where: { status: { in: PAID_ORDER_STATUSES } },
         orderBy: { createdAt: "desc" },
         take: 20,
         select: { id: true, type: true, amount: true, createdAt: true },

@@ -25,24 +25,23 @@ include:
 # main 分支
 # ═══════════════════════════════════════════════════════════
 main:
-
   # ───────────────────────────────────────────────────────
   # 1. Push → CI 检查
   # ───────────────────────────────────────────────────────
   push:
     - name: CI — 类型检查 + 代码风格 + 测试 + 构建
       docker:
-        image: node:20
+        image: node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
       env:
         PNPM_VERSION: "10"
-        NODE_VERSION: "20"
+        NODE_VERSION: "24.18.0"
         # 测试用环境变量（生产凭据走 CNB 凭据管理）
         DATABASE_URL: postgresql://guoxue_test:test123@localhost:5432/guoxue_test
         REDIS_URL: redis://localhost:6379/0
         JWT_SECRET: test-jwt-secret-32-bytes-key-!
         ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
         NODE_ENV: test
-      ifModify:  # 跳过纯文档/计划文件变更
+      ifModify: # 跳过纯文档/计划文件变更
         - "!(*.md)"
         - "!(docs/**)"
         - "!('.claude/**')"
@@ -78,10 +77,10 @@ main:
                   -e POSTGRES_PASSWORD=test123 \
                   -e POSTGRES_DB=guoxue_test \
                   -p 5432:5432 \
-                  pgvector/pgvector:pg16 2>/dev/null || true
+                  pgvector/pgvector:pg16@sha256:a36250871de0833b8757561c72f2477ef1ddd1101afa4e617fb552e0de514c6b 2>/dev/null || true
                 docker run -d --name redis-test \
                   -p 6379:6379 \
-                  redis:7-alpine 2>/dev/null || true
+                  redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2 2>/dev/null || true
                 # 等待就绪
                 for i in $(seq 1 15); do
                   if docker exec pg-test pg_isready -U guoxue_test 2>/dev/null; then break; fi
@@ -122,7 +121,7 @@ main:
     - stages:
         # 代码评审
         - name: 代码评审
-          image: cnbcool/code-review:latest
+          image: cnbcool/code-review@sha256:2b987c266aa77e732392cd5a65427c744bbf425fa67e92638f926339c14cc0c1
           settings:
             comment: true
             max_comments: 10
@@ -137,7 +136,7 @@ main:
   tag_push:
     - name: 生产部署
       docker:
-        image: docker:24-dind
+        image: docker:24-dind@sha256:9b17a9f25adf17b88d0a013b4f00160754adf4b07ccbe9986664a49886c2c98e
       services:
         - docker
       stages:
@@ -171,6 +170,11 @@ main:
 
         - name: 执行数据库迁移
           script: |
+            if [ "${ALLOW_PROD_DB_MIGRATION:-}" != "reviewed" ]; then
+              echo "生产迁移未获人工审查授权：请设置 ALLOW_PROD_DB_MIGRATION=reviewed"
+              exit 64
+            fi
+
             echo "$PROD_SSH_KEY" > ~/.ssh/prod_key
             chmod 600 ~/.ssh/prod_key
             TAG=$(git describe --tags --abbrev=0)
@@ -255,9 +259,9 @@ main:
   api_trigger_perf:
     - name: 性能压测
       docker:
-        image: node:20
+        image: node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
       env:
-        NODE_VERSION: "20"
+        NODE_VERSION: "24.18.0"
         PNPM_VERSION: "10"
         DATABASE_URL: postgresql://guoxue:guoxue123@localhost:5432/guoxue
         REDIS_URL: redis://localhost:6379
@@ -268,7 +272,7 @@ main:
         # 压测场景：可通过 API 触发时传入
         SCENARIO: "${CNB_SCENARIO:-load}"
         BASE_URL: "${CNB_BASE_URL:-http://localhost:3000}"
-      timeout: 3600  # 最长 1 小时
+      timeout: 3600 # 最长 1 小时
 
       stages:
         # ——— Stage 1: 环境准备 ———
@@ -291,16 +295,18 @@ main:
                   -e POSTGRES_PASSWORD=guoxue123 \
                   -e POSTGRES_DB=guoxue \
                   -p 5432:5432 \
-                  postgres:16-alpine 2>/dev/null || true
+                  postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777 2>/dev/null || true
                 docker run -d --name redis-perf \
                   -p 6379:6379 \
-                  redis:7-alpine 2>/dev/null || true
+                  redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2 2>/dev/null || true
                 for i in $(seq 1 15); do
                   if docker exec pg-perf pg_isready -U guoxue 2>/dev/null; then break; fi
                   sleep 2
                 done
             - name: 执行迁移
-              script: pnpm --filter @guoxue/server exec prisma migrate deploy
+              script: |
+                cd apps/server
+                CONFIRM_EMPTY_DATABASE=YES sh prisma/migrations-deploy/bootstrap-empty-database.sh
             - name: 构建服务
               script: pnpm --filter @guoxue/server build
 
@@ -330,24 +336,22 @@ main:
                   sleep 2
                 done
 
-            - name: 安装 k6
+            - name: 验收固定 k6 镜像
               script: |
-                # 安装 k6 压测工具
-                apt-get update -qq && apt-get install -y -qq gnupg 2>/dev/null
-                gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69 2>/dev/null || true
-                echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | tee /etc/apt/sources.list.d/k6.list
-                apt-get update -qq && apt-get install -y -qq k6 2>/dev/null || \
-                  (curl -sL https://github.com/grafana/k6/releases/latest/download/k6-linux-amd64.tar.gz | tar xz && mv k6-linux-amd64/k6 /usr/local/bin/k6)
+                docker pull grafana/k6:2.1.0@sha256:65c920dc067d5e2e00befbf982af6ad6ad0117034e8b1c65817c7975c52d4669
 
             - name: 运行性能测试
               script: |
                 mkdir -p results
-                k6 run \
+                docker run --rm --network host \
+                  -v "$PWD/tests/performance/k6/main.js:/script.js:ro" \
+                  -v "$PWD/results:/results" \
                   --env SCENARIO="$SCENARIO" \
                   --env BASE_URL="$BASE_URL" \
-                  --out json=results/raw.json \
-                  --summary-export=results/summary.json \
-                  tests/performance/k6/main.js
+                  grafana/k6:2.1.0@sha256:65c920dc067d5e2e00befbf982af6ad6ad0117034e8b1c65817c7975c52d4669 \
+                  run --out json=/results/raw.json \
+                  --summary-export=/results/summary.json \
+                  /script.js
               allowFailure: true
 
             - name: 输出结果摘要
@@ -373,7 +377,7 @@ develop:
   push:
     - name: CI — 开发分支快速检查
       docker:
-        image: node:20
+        image: node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
       stages:
         - name: 安装 & 类型检查
           stages:
@@ -395,7 +399,7 @@ $:
   push:
     - name: 轻量检查
       docker:
-        image: node:20
+        image: node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
       stages:
         - name: 安装 & 类型检查
           script: |

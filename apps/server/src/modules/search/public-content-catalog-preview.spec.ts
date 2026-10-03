@@ -1,0 +1,66 @@
+import type { PrismaClient } from "@prisma/client";
+import { collectPublicCatalogPreview, scanPublicCatalogReadonly } from "./public-content-catalog-preview";
+
+describe("只读公开目录预览", () => {
+  it("七类来源仅查询安全元数据，限制单类条数，二次过滤返回值", async () => {
+    const now = new Date("2026-09-23T12:00:00Z");
+    const findMany = jest.fn().mockResolvedValue([]);
+    const articleFind = jest.fn().mockResolvedValue([
+      { id: "ok", title: "公开文章", excerpt: "摘要", content: "私有正文", tags: [],
+        visibility: "PLATFORM", auditStatus: "APPROVED", deletedAt: null, scheduledAt: null, createdAt: now },
+      { id: "bad", title: "圈内文章", excerpt: "不应出现", visibility: "CIRCLE_ONLY",
+        auditStatus: "APPROVED", deletedAt: null, createdAt: now },
+    ]);
+    const prisma = Object.fromEntries(
+      ["article", "course", "video", "product", "circle", "content", "classicBook"]
+        .map((key) => [key, { findMany: key === "article" ? articleFind : findMany }]),
+    ) as unknown as PrismaClient;
+
+    const entries = await collectPublicCatalogPreview(prisma, 500, now);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].sourceId).toBe("ok");
+    expect(JSON.stringify(entries)).not.toContain("私有正文");
+    expect(articleFind.mock.calls[0][0].take).toBe(50);
+    expect(articleFind.mock.calls[0][0].where.stationId).toBeNull();
+    expect(articleFind.mock.calls[0][0].select).not.toHaveProperty("content");
+    expect(findMany).toHaveBeenCalledTimes(6);
+    for (const [args] of findMany.mock.calls) {
+      expect(args.select).not.toHaveProperty("body");
+      expect(args.select).not.toHaveProperty("detail");
+      expect(args.select).not.toHaveProperty("videoUrl");
+    }
+    const productQuery = findMany.mock.calls[2][0];
+    expect(productQuery.where).toMatchObject({ stationId: null, circleId: null });
+  });
+
+  it("按 ID 翻页扫描，仅返回数量与指纹，不把普通扫描误称一致快照", async () => {
+    const now = new Date("2026-09-23T12:00:00Z");
+    const articleFind = jest.fn()
+      .mockResolvedValueOnce([{ id: "a1", title: "公开文章", excerpt: "摘要", tags: [],
+        visibility: "PLATFORM", auditStatus: "APPROVED", deletedAt: null, scheduledAt: null, createdAt: now }])
+      .mockResolvedValueOnce([]);
+    const empty = jest.fn().mockResolvedValue([]);
+    const prisma = Object.fromEntries(
+      ["article", "course", "video", "product", "circle", "content", "classicBook"]
+        .map((key) => [key, { findMany: key === "article" ? articleFind : empty }]),
+    ) as unknown as PrismaClient;
+    const result = await scanPublicCatalogReadonly(prisma, 1, now);
+    expect(result).toMatchObject({ counts: { article: 1, course: 0 }, pages: 2, snapshotConsistent: false });
+    expect(result.fingerprint).toMatch(/^[0-9a-f]{64}$/);
+    expect(articleFind.mock.calls[1][0].where.id).toEqual({ gt: "a1" });
+    expect(empty).toHaveBeenCalledTimes(6);
+    expect(JSON.stringify(result)).not.toContain("公开文章");
+  });
+
+  it("超过页数上限拒绝生成扫描摘要", async () => {
+    const now = new Date("2026-09-23T12:00:00Z");
+    const forever = jest.fn().mockResolvedValue([{ id: "a1", title: "公开文章", tags: [],
+      visibility: "PLATFORM", auditStatus: "APPROVED", deletedAt: null, createdAt: now }]);
+    const empty = jest.fn().mockResolvedValue([]);
+    const prisma = Object.fromEntries(
+      ["article", "course", "video", "product", "circle", "content", "classicBook"]
+        .map((key) => [key, { findMany: key === "article" ? forever : empty }]),
+    ) as unknown as PrismaClient;
+    await expect(scanPublicCatalogReadonly(prisma, 1, now, 1)).rejects.toThrow("页数上限");
+  });
+});

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { CircleRefundService } from "./circle-refund.service";
@@ -6,6 +6,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("圈子退款")
 @Controller("circle-refund")
@@ -29,9 +30,9 @@ export class CircleRefundController {
   apply(
     @Param("circleId") circleId: string,
     @Req() req: Request,
-    @Body() body: { reason?: string; refundType?: "normal" | "full" },
+    @Body() body: { reason?: string; refundType?: "normal" | "full"; expectedActualRefund?: number },
   ) {
-    return this.svc.applyRefund(circleId, req.user.id, body.reason, body.refundType);
+    return this.svc.applyRefund(circleId, req.user.id, body.reason, body.refundType, body.expectedActualRefund);
   }
 
   @Get("my")
@@ -58,7 +59,16 @@ export class CircleRefundController {
     return this.svc.getOwnerPending(req.user.id);
   }
 
+  @Get("owner-reviewed")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "圈主已审核退款记录（只读、分页）" })
+  @ApiBearerAuth()
+  ownerReviewed(@Req() req: Request, @Query("limit") limit?: string, @Query("offset") offset?: string) {
+    return this.svc.getOwnerReviewed(req.user.id, Number(limit), Number(offset));
+  }
+
   @Post(":id/owner-review")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "圈子退款圈主审核", targetType: "CIRCLE_REFUND" })
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "圈主审核退款（同意/驳回）" })
@@ -80,7 +90,47 @@ export class CircleRefundController {
     return this.svc.getAdminPending();
   }
 
+  @Get("admin-manual-recalls")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
+  @ApiOperation({
+    summary: "待人工核对的圈主分成追回（只读）",
+    description:
+      "系统判定不出该冲正哪一笔收益时留下的待办。只读，不提供自动冲抵——" +
+      "自动冲抵等于回到「猜」，而这些行正因为判定不出才存在。",
+  })
+  @ApiBearerAuth()
+  adminManualRecalls(
+    @Query("limit") limit?: string,
+    @Query("offset") offset?: string,
+    @Query("state") state?: "pending" | "resolved",
+  ) {
+    return this.svc.getManualRecalls({ limit: Number(limit), offset: Number(offset), state });
+  }
+
+  @Post("manual-recalls/:id/resolve")
+  @RedLineGate(RedLine.MONEY)
+  @Auditable({ action: "圈主分成追回人工结案", targetType: "COMMISSION_RECALL" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
+  @ApiOperation({
+    summary: "人工结案一条待办（无需调整 / 按指定收益行冲正）",
+    description:
+      "财务人员或超级管理员任意一人可结案，无需双人复核。两种结论：no_change（核实后无需调整，不动资金）、" +
+      "adjust（确需调整，按人工指定的 revenueRecordId 及实际退款比例冲正）。系统不挑选收益行，只校验指定行归属；" +
+      "核对依据必填，累计冲正不得超过原圈主收益，重复提交会被拒绝。",
+  })
+  @ApiBearerAuth()
+  resolveManualRecall(
+    @Param("id") id: string,
+    @Req() req: Request,
+    @Body() body: { decision?: string; revenueRecordId?: string; note?: string },
+  ) {
+    return this.svc.resolveManualRecall(id, req.user.id, body);
+  }
+
   @Post(":id/admin-review")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "圈子退款平台审核", targetType: "CIRCLE_REFUND" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")

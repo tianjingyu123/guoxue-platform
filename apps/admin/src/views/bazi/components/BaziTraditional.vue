@@ -36,7 +36,7 @@ const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXian
         v-if="taiYangShi"
         class="correction-item"
       >
-        🌞 真太阳时校正：{{ taiYangShi.desc }}
+        真太阳时校正：{{ taiYangShi.desc }}
       </span>
       <span
         v-if="daylightSaving && daylightSaving.adjusted"

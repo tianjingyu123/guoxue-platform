@@ -1,0 +1,162 @@
+{
+  "sourceCommit": "927ffc8e65793b63aea7ae7372e7fc938624876b",
+  "parent": "c988591dc3d5665d2beee260142de0167304972f",
+  "acceptedBranches": [
+    "codex/channel-intake-review-20260930",
+    "release/launch-staging-20260927"
+  ],
+  "merge": "逐个快进，无冲突；没有覆盖其他窗口或改master",
+  "files": [
+    "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+    "apps/server/src/modules/live/live.service.spec.ts",
+    "apps/server/src/modules/live/live.service.ts",
+    "apps/server/src/modules/notification/notification.service.spec.ts",
+    "apps/server/src/modules/notification/notification.service.ts"
+  ],
+  "local": {
+    "sourceCommit": "927ffc8e65793b63aea7ae7372e7fc938624876b",
+    "parent": "c988591dc3d5665d2beee260142de0167304972f",
+    "files": [
+      "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "apps/server/src/modules/live/live.service.spec.ts",
+      "apps/server/src/modules/live/live.service.ts",
+      "apps/server/src/modules/notification/notification.service.spec.ts",
+      "apps/server/src/modules/notification/notification.service.ts"
+    ],
+    "relatedPassed": 624,
+    "suites": 28,
+    "newTests": 24,
+    "compiledPassed": 22,
+    "bindings": [
+      {
+        "path": "modules/live/live.service",
+        "sourceSha256": "a7fd0da1b92e10007d67f5fe1cbab847dbc2271e26175a8b83600873866cfd32",
+        "compiledSha256": "315ff99f09cdea6c618e43049a2206ad60b89254f7ec66feaef58177d32d5e49"
+      },
+      {
+        "path": "modules/notification/notification.service",
+        "sourceSha256": "7d05953383dc8097514ecec8c48954cc59057cce96ace710ad0d6161f013d1ed",
+        "compiledSha256": "24ab860e79fa2f1928eb701ec9dcf956ee13135ce944c26626d3b72db63d537c"
+      }
+    ],
+    "typesPassed": true,
+    "buildPassed": true,
+    "lintErrors": 0,
+    "lintWarnings": 14,
+    "schemaAndMigrationsUnchanged": true,
+    "migrationCount": 134,
+    "clientInputsUnchanged": true,
+    "previousClientEvidence": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
+    "realRedis": false,
+    "realChannels": false,
+    "newDeviceTest": false,
+    "production": false,
+    "checkedAt": "2026-10-02T22:02:42.789Z"
+  },
+  "linux": {
+    "sourceCommit": "927ffc8e65793b63aea7ae7372e7fc938624876b",
+    "verificationHead": "87fa22677fccc8042d5b6eec40449b79ce91aa98",
+    "runId": 37070987490,
+    "artifactId": 11253844053,
+    "artifactDigest": "sha256:407eb833cc2f236565da8037b44beee147bf2c8f98dbd630fdf3633694d5660c",
+    "digestVerified": true,
+    "sourceHashesVerified": 1971,
+    "compiledSourceBindingsVerified": 2,
+    "passedTests": 624,
+    "passedSuites": 28,
+    "compiledPassed": 22,
+    "typesAndBuildPassed": true,
+    "lintErrors": 0,
+    "lintWarnings": 15,
+    "realPostgres": true,
+    "realRedis": false,
+    "realChannels": false,
+    "production": false,
+    "formalDockerfileImage": false,
+    "firstRun": {
+      "runId": 37070459652,
+      "status": "failed",
+      "passedTests": 606,
+      "failedSuites": 2,
+      "reason": "验证工具错误引用两条不存在课程测试路径；修复工具后同业务源码重验"
+    },
+    "checkedAt": "2026-10-02T22:20:38.169Z"
+  },
+  "baseline": {
+    "sourceCommit": "c988591dc3d5665d2beee260142de0167304972f",
+    "realCompiledServices": true,
+    "realPostgres": true,
+    "cancellationSecondConnection": true,
+    "results": [
+      {
+        "kind": "reminder",
+        "cancelledBeforeInsert": true,
+        "noticesAfterCancellation": 1,
+        "cancelledBookingIncorrectlyMarked": true
+      },
+      {
+        "kind": "started",
+        "cancelledBeforeInsert": true,
+        "noticesAfterCancellation": 1,
+        "cancelledBookingIncorrectlyMarked": true
+      }
+    ],
+    "bindings": [
+      {
+        "path": "apps/server/src/modules/live/live.service.ts",
+        "gitLfSha256": "9fb616d9455286c110ba15921e7783c5c8c16f4eb086d4bacd84ba2c40b652df",
+        "compiledSha256": "9623e4a42bba8d06d2ef1eb7579b6baa2a8f29bf4926bbd9439005491d56ad90"
+      },
+      {
+        "path": "apps/server/src/modules/notification/notification.service.ts",
+        "gitLfSha256": "32aa26b7711c07de89d311d5fcb772307fa3812411aa7bfb3b3a6baea5987cb5",
+        "compiledSha256": "44489ab46057edbdcc6cbbae7ac3b9c4d1774b67e4920149ff4ee413e5aaeb2b"
+      }
+    ],
+    "externalCalls": 0,
+    "redisStub": true,
+    "production": false,
+    "checkedAt": "2026-10-02T21:47:05.228Z"
+  },
+  "finalCi": {
+    "state": "接收后待本轮整版运行；不套用c988旧结果"
+  },
+  "previousDeliveryCi": {
+    "sourceCommit": "c988591dc3d5665d2beee260142de0167304972f",
+    "runId": 37068369246,
+    "passed": 9102,
+    "skipped": 545,
+    "conclusion": "success",
+    "artifactId": 11253962307,
+    "artifactDigest": "sha256:78ee2e30c4bcfeba027b6c8282e05ad4f9c10a12ea0e2d6297a67dcfe38b74e5"
+  },
+  "keys": [
+    "<userId>:LIVE_REMINDER:<roomId>",
+    "<userId>:LIVE_STARTED:<roomId>"
+  ],
+  "transaction": "名单选取后再次锁房间与预约；站内通知和通知标记同事务，提交后才可选推送；取消先提交则不发，通知先锁则取消等待",
+  "uncovered": [
+    "真实Redis跨进程锁",
+    "真实媒体、真IM、匹配基座及同版真机",
+    "真实外发渠道",
+    "正式Cron和两节点",
+    "最新927正式Dockerfile镜像",
+    "直播可见性/圈成员撤销等未列竞态不推广"
+  ],
+  "schemaAnd134MigrationsUnchanged": true,
+  "realFunds": false,
+  "production": false,
+  "releaseReady": false,
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "rollback": [
+    "先撤回本批交付文档",
+    "再撤回927ffc8e65793b63aea7ae7372e7fc938624876b回c988；五文件一批，不混入课程、体积或礼物修复",
+    "该批不含迁移；回退前核对后续依赖，不自动执行线上回退"
+  ],
+  "checkedAt": "2026-10-02T22:22:24.587Z"
+}

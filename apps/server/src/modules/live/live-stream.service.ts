@@ -8,22 +8,36 @@ import { createHash } from "crypto";
 @Injectable()
 export class LiveStreamService {
   private readonly logger = new Logger(LiveStreamService.name);
-  private readonly pushDomain: string;
-  private readonly playDomain: string;
-  private readonly pushKey: string;
-  private readonly playKey: string;
-  private readonly appName: string;
 
   constructor() {
-    this.pushDomain = process.env.LIVE_PUSH_DOMAIN || "";
-    this.playDomain = process.env.LIVE_PLAY_DOMAIN || "";
-    this.pushKey = process.env.LIVE_PUSH_KEY || "";
-    this.playKey = process.env.LIVE_PLAY_KEY || "";
-    this.appName = process.env.LIVE_APP_NAME || "live";
-
     if (!this.pushDomain || !this.playDomain) {
       this.logger.warn("直播推拉流域名未配置，请在 .env 中设置 LIVE_PUSH_DOMAIN 和 LIVE_PLAY_DOMAIN");
     }
+  }
+
+  /** 后台第三方配置保存后会同步更新 process.env，因此必须按调用读取。 */
+  private get pushDomain(): string {
+    return String(process.env.LIVE_PUSH_DOMAIN || "").trim();
+  }
+
+  private get playDomain(): string {
+    return String(process.env.LIVE_PLAY_DOMAIN || "").trim();
+  }
+
+  private get pushKey(): string {
+    return String(process.env.LIVE_PUSH_KEY || "").trim();
+  }
+
+  private get playKey(): string {
+    return String(process.env.LIVE_PLAY_KEY || "").trim();
+  }
+
+  private get appName(): string {
+    return String(process.env.LIVE_APP_NAME || "live").trim() || "live";
+  }
+
+  isReady(): boolean {
+    return !!(this.pushDomain && this.playDomain && this.pushKey && this.playKey);
   }
 
   /** 生成 txTime（十六进制时间戳） */
@@ -39,8 +53,8 @@ export class LiveStreamService {
 
   /** 生成推流地址（带防盗链） */
   genPushUrl(streamKey: string, validitySeconds: number = 86400): string {
-    if (!this.pushDomain) {
-      this.logger.error("推流域名未配置");
+    if (!this.pushDomain || !this.pushKey) {
+      this.logger.error("推流域名或推流鉴权密钥未配置");
       return "";
     }
     const txTime = this.genTxTime(validitySeconds);
@@ -67,7 +81,10 @@ export class LiveStreamService {
     flv: string;
     hls: string;
   } {
-    if (!this.playDomain) return { flv: "", hls: "" };
+    if (!this.playDomain || !this.playKey) {
+      this.logger.error("播放域名或播放鉴权密钥未配置");
+      return { flv: "", hls: "" };
+    }
     const txTime = this.genTxTime(validitySeconds);
     const txSecret = this.genTxSecret(this.playKey, streamKey, txTime);
     const base = `https://${this.playDomain}/${this.appName}/${streamKey}`;
@@ -79,6 +96,10 @@ export class LiveStreamService {
 
   /** 验证直播回调签名是否合法 */
   verifyCallbackSign(body: Record<string, any>, receivedSign: string): boolean {
+    if (!this.pushKey || !receivedSign) {
+      this.logger.error("直播回调验签密钥或签名缺失");
+      return false;
+    }
     // 腾讯云直播回调签名规则：MD5(key + JSON(sorted(body)))
     const sortedKeys = Object.keys(body).sort();
     const sortedJson = JSON.stringify(body, sortedKeys);

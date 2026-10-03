@@ -124,7 +124,7 @@ export class TfidfVectorProvider implements VectorRecallProvider {
 
     // 加载所有内容
     const [articles, courses, products, circles] = await Promise.all([
-      this.prisma.article.findMany({ where: { auditStatus: "APPROVED" }, select: { id: true, title: true, tags: true } }),
+      this.prisma.article.findMany({ where: { auditStatus: "APPROVED", visibility: "PLATFORM" }, select: { id: true, title: true, tags: true } }),
       this.prisma.course.findMany({ where: { auditStatus: "APPROVED" }, select: { id: true, title: true, tags: true } }),
       this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: { id: true, title: true, tags: true } }),
       this.prisma.circle.findMany({ select: { id: true, name: true, tags: true } }),

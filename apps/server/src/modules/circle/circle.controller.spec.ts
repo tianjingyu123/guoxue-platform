@@ -1,8 +1,12 @@
 import { Test } from "@nestjs/testing";
 import { CircleController } from "./circle.controller";
 import { CircleService } from "./circle.service";
+import { CircleInsightService } from "./services/circle-insight.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
+import type { Request } from "express";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 
 const mockCircleSvc = {
   create: jest.fn().mockResolvedValue({ id: "c1", name: "国学研究圈" }),
@@ -11,6 +15,7 @@ const mockCircleSvc = {
   getDetail: jest.fn().mockResolvedValue({ id: "c1", name: "国学研究圈", memberCount: 100 }),
   update: jest.fn().mockResolvedValue({ id: "c1", name: "更新名称" }),
   getAnnouncement: jest.fn().mockResolvedValue({ content: "欢迎加入" }),
+  getAnnouncementReadStatus: jest.fn().mockResolvedValue({ isRead: true }),
   setAnnouncement: jest.fn().mockResolvedValue({ content: "新公告" }),
   join: jest.fn().mockResolvedValue({ memberId: "m1", circleId: "c1" }),
   leave: jest.fn().mockResolvedValue({ success: true }),
@@ -32,6 +37,7 @@ const mockCircleSvc = {
   getCircleRanking: jest.fn().mockResolvedValue([{ id: "c1", memberCount: 500 }]),
   getMemberLeaderboard: jest.fn().mockResolvedValue([{ userId: "u1", postCount: 30 }]),
   getHotContentRanking: jest.fn().mockResolvedValue([{ id: "p1", likes: 100 }]),
+  rewardPost: jest.fn().mockResolvedValue({ success: true, amount: 8 }),
 };
 
 describe("CircleController", () => {
@@ -40,15 +46,46 @@ describe("CircleController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [CircleController],
-      providers: [{ provide: CircleService, useValue: mockCircleSvc }],
+      providers: [
+        { provide: CircleService, useValue: mockCircleSvc },
+        // 并行批新增依赖（AI 搜索推荐/年度报告）：controller spec 仅注入占位 mock
+        {
+          provide: CircleInsightService,
+          useValue: {
+            aiSearchRecommend: jest.fn().mockResolvedValue([]),
+            annualReport: jest.fn().mockResolvedValue({}),
+          },
+        },
+      ],
     })
-      .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
-      .overrideGuard(StationIsolationGuard).useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(FeatureFlagGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(StationIsolationGuard)
+      .useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(CircleController);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("打赏只采用登录用户身份并传递重试编号", async () => {
+    await expect(ctrl.rewardPost("c1", "p1", { user: { id: "u1" } } as any, 8, "谢谢", "request-001")).resolves.toEqual({ success: true, amount: 8 });
+    expect(mockCircleSvc.rewardPost).toHaveBeenCalledWith("c1", "p1", "u1", 8, "谢谢", "request-001");
+  });
+
+  it.each([{}, null, 123, "x".repeat(201)])("打赏留言类型或长度无效时不调用业务服务", message => {
+    expect(() => ctrl.rewardPost("c1", "p1", { user: { id: "u1" } } as any, 8, message as string)).toThrow("打赏留言");
+    expect(mockCircleSvc.rewardPost).not.toHaveBeenCalled();
+  });
+
+  it.each(["short", "illegal.value", "x".repeat(129), null, 123])("打赏请求编号无效时不调用业务服务", requestId => {
+    expect(() => ctrl.rewardPost("c1", "p1", { user: { id: "u1" } } as any, 8, undefined, requestId as string)).toThrow("请求编号");
+    expect(mockCircleSvc.rewardPost).not.toHaveBeenCalled();
+  });
 
   it("POST /circles — 创建圈子", async () => {
     const req: any = { user: { id: "u1" } };
@@ -84,6 +121,14 @@ describe("CircleController", () => {
   it("GET /circles/:id/announcement — 公告", async () => {
     const result: any = await ctrl.getAnnouncement("c1");
     expect(result.content).toBe("欢迎加入");
+  });
+
+  it("GET /circles/:id/announcements/:announcementId/read-status — 身份只取 JWT", async () => {
+    const req: any = { user: { id: "u1" } };
+    await expect(ctrl.getAnnouncementReadStatus("c1", "a1", req)).resolves.toEqual({
+      isRead: true,
+    });
+    expect(mockCircleSvc.getAnnouncementReadStatus).toHaveBeenCalledWith("c1", "a1", "u1");
   });
 
   it("PUT /circles/:id/announcement — 设置公告", async () => {
@@ -135,8 +180,23 @@ describe("CircleController", () => {
   });
 
   it("GET /circles/:id/posts/:postId — 帖子详情", async () => {
-    const result: any = await ctrl.getPostDetail("p1");
+    const result: any = await ctrl.getPostDetail("p1", "c1", { user: { id: "u1" } } as unknown as Request);
     expect(result.title).toBe("帖子详情");
+    expect(mockCircleSvc.getPostDetail).toHaveBeenCalledWith("p1", { circleId: "c1", userId: "u1", platformAdmin: false });
+  });
+
+  it("无圈子上下文的详情仍传递真实登录身份，匿名不获得管理权限", async () => {
+    await ctrl.getPostDetailById("p1", {} as Request);
+    expect(mockCircleSvc.getPostDetail).toHaveBeenCalledWith("p1", { userId: undefined, platformAdmin: false });
+    await ctrl.getPostDetailById("p1", { user: { id: "admin", roles: ["SUPER_ADMIN"] } } as unknown as Request);
+    expect(mockCircleSvc.getPostDetail).toHaveBeenCalledWith("p1", { userId: "admin", platformAdmin: true });
+  });
+
+  it("两种详情入口都解析可选JWT，财务角色不是内容管理角色", async () => {
+    expect(Reflect.getMetadata("__guards__", CircleController.prototype.getPostDetail)).toContain(OptionalAuthGuard);
+    expect(Reflect.getMetadata("__guards__", CircleController.prototype.getPostDetailById)).toContain(OptionalAuthGuard);
+    await ctrl.getPostDetailById("p1", { user: { id: "finance", roles: ["FINANCE_ADMIN"] } } as unknown as Request);
+    expect(mockCircleSvc.getPostDetail).toHaveBeenCalledWith("p1", { userId: "finance", platformAdmin: false });
   });
 
   it("PUT /circles/:id/posts/:postId — 更新帖子", async () => {

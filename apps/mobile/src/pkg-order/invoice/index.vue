@@ -20,9 +20,9 @@
       </view>
     </view>
 
-    <view v-if="!invoiceAvailable" class="notice-banner">
-      <app-icon name="info" :size="32" color="#A16207" />
-      <text class="notice-text">电子发票功能即将开放，如需发票请联系在线客服</text>
+    <view class="notice-banner">
+      <app-icon name="shield-check" :size="32" color="#A16207" />
+      <text class="notice-text">提交后由平台财务审核开具，预计 1–3 个工作日；开具后可在“已申请”中下载。</text>
     </view>
 
     <scroll-view scroll-y class="scroll-area">
@@ -37,30 +37,30 @@
             <text class="card-title">选择订单</text>
           </view>
           <view v-if="applicableOrders.length === 0" class="orders-empty">
-            <text class="orders-empty-text">暂无可开票订单</text>
+            <text class="orders-empty-text">还没有可开票的订单——已完成的实付订单才能开票</text>
           </view>
           <view v-else class="order-list">
             <view
               v-for="order in applicableOrders"
               :key="order.orderId"
               class="order-item"
-              :class="{ selected: selectedOrders.includes(order.orderId) }"
+              :class="{ selected: selectedOrderId === order.orderId }"
               @tap="toggleOrder(order.orderId)"
             >
-              <view class="order-radio" :class="{ selected: selectedOrders.includes(order.orderId) }">
-                <app-icon v-if="selectedOrders.includes(order.orderId)" name="check" :size="20" color="#FFFFFF" />
+              <view class="order-radio" :class="{ selected: selectedOrderId === order.orderId }">
+                <app-icon v-if="selectedOrderId === order.orderId" name="check" :size="20" color="#FFFFFF" />
               </view>
               <view class="order-info">
                 <text class="order-name">{{ order.productName }}</text>
                 <text class="order-no">订单号：{{ order.orderNo }}</text>
                 <text class="order-time">{{ order.createdAt }}</text>
               </view>
-              <text class="order-amount">¥{{ order.amount }}</text>
+              <text class="order-amount">¥{{ formatPrice(order.amount) }}</text>
             </view>
           </view>
-          <view v-if="selectedOrders.length > 0" class="order-total">
-            <text class="order-total-label">已选 {{ selectedOrders.length }} 笔订单</text>
-            <text class="order-total-value">¥{{ totalAmount }}</text>
+          <view v-if="selectedOrderId" class="order-total">
+            <text class="order-total-label">本次开票金额</text>
+            <text class="order-total-value">¥{{ formatPrice(totalAmount) }}</text>
           </view>
         </view>
 
@@ -94,20 +94,6 @@
               <text class="field-label">税号 <text class="req">*</text></text>
               <input class="field-input" v-model="taxNumber" placeholder="请输入纳税人识别号" />
             </view>
-            <view class="field">
-              <text class="field-label">接收邮箱 <text class="req">*</text></text>
-              <view class="field-icon-wrap">
-                <app-icon name="mail" :size="36" color="#999999" class="field-icon" />
-                <input class="field-input has-icon" v-model="email" placeholder="用于接收电子发票" />
-              </view>
-            </view>
-            <view class="field">
-              <text class="field-label">联系电话（选填）</text>
-              <view class="field-icon-wrap">
-                <app-icon name="phone" :size="36" color="#999999" class="field-icon" />
-                <input class="field-input has-icon" v-model="phone" placeholder="方便开票问题联系" />
-              </view>
-            </view>
           </view>
         </view>
 
@@ -117,8 +103,8 @@
           <view class="tips-body">
             <text class="tips-title">温馨提示</text>
             <view class="tips-li"><text class="tips-text">电子发票与纸质发票具有同等法律效力</text></view>
-            <view class="tips-li"><text class="tips-text">发票将在1-3个工作日内发送至您的邮箱</text></view>
-            <view class="tips-li"><text class="tips-text">如有问题请联系客服</text></view>
+            <view class="tips-li"><text class="tips-text">一张申请对应一笔已完成订单，提交前请核对抬头与税号</text></view>
+            <view class="tips-li"><text class="tips-text">开具后可直接下载；如被驳回，可修正信息后重新申请</text></view>
           </view>
         </view>
 
@@ -144,22 +130,22 @@
           <text v-if="rec.taxNumber" class="record-tax">税号：{{ rec.taxNumber }}</text>
           <view class="record-foot">
             <view class="record-foot-left">
-              <text class="record-amount">¥{{ rec.amount }}</text>
+              <text class="record-amount">¥{{ formatPrice(rec.amount) }}</text>
               <text class="record-time">{{ rec.createdAt }}</text>
             </view>
             <view class="record-actions">
-              <view v-if="rec.status === 'completed'" class="record-btn primary" @tap="downloadInvoice(rec)">
+              <view v-if="rec.status === 'completed' && rec.invoiceUrl" class="record-btn primary" @tap="downloadInvoice(rec)">
                 <app-icon name="download" :size="24" color="#FFFFFF" />
                 <text class="record-btn-text primary">下载</text>
               </view>
-              <view class="record-btn ghost">
+              <view class="record-btn ghost" @tap="showInvoiceDetail(rec)">
                 <app-icon name="eye" :size="24" color="#666666" />
                 <text class="record-btn-text">详情</text>
               </view>
             </view>
           </view>
-          <view v-if="rec.status === 'rejected' && rec.rejectReason" class="reject-tip">
-            <text class="reject-text">驳回原因：{{ rec.rejectReason }}</text>
+          <view v-if="rec.status === 'rejected'" class="reject-tip">
+            <text class="reject-text">申请未通过，请核对抬头和税号后重新申请，或联系客服了解详情。</text>
           </view>
         </view>
         <view class="bottom-gap" />
@@ -168,8 +154,8 @@
 
     <!-- 底部提交 -->
     <view v-if="activeTab === 'apply'" class="submit-bar" :style="{ paddingBottom: 16 + safeBottom + 'px' }">
-      <view class="submit-btn" :class="{ disabled: selectedOrders.length === 0 }" @tap="submitApply">
-        <text class="submit-text">提交申请{{ totalAmount > 0 ? ' ¥' + totalAmount : '' }}</text>
+      <view class="submit-btn" :class="{ disabled: !selectedOrderId || submitting }" @tap="submitApply">
+        <text class="submit-text">提交申请{{ totalAmount > 0 ? ' ¥' + formatPrice(totalAmount) : '' }}</text>
       </view>
     </view>
   </view>
@@ -178,10 +164,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { orderApi, invoiceStatusConfig, INVOICE_AVAILABLE, type InvoiceOrder, type InvoiceRecord } from '@/lib/order-data'
-
-// 后端暂无电子发票子系统，统一诚实降级提示（不臆造可开票数据）
-const invoiceAvailable = INVOICE_AVAILABLE
+import { orderApi, invoiceStatusConfig, type InvoiceOrder, type InvoiceRecord } from '@/pkg-order/lib/order-data'
+import { formatPrice } from '@/utils/format'
 
 const safeBottom = ref(0)
 const activeTab = ref<'apply' | 'list'>('apply')
@@ -219,22 +203,16 @@ const invoiceTypes = [
   { key: 'company' as const, label: '企业发票', icon: 'building-2', desc: '公司报销使用' },
 ]
 
-const selectedOrders = ref<string[]>([])
+const selectedOrderId = ref('')
 const invoiceType = ref<'personal' | 'company'>('personal')
 const title = ref('')
 const taxNumber = ref('')
-const email = ref('')
-const phone = ref('')
 const submitting = ref(false)
 
-const totalAmount = computed(() =>
-  applicableOrders.value.filter((o) => selectedOrders.value.includes(o.orderId)).reduce((s, o) => s + o.amount, 0),
-)
+const totalAmount = computed(() => applicableOrders.value.find((o) => o.orderId === selectedOrderId.value)?.amount || 0)
 
 function toggleOrder(orderId: string) {
-  const i = selectedOrders.value.indexOf(orderId)
-  if (i === -1) selectedOrders.value.push(orderId)
-  else selectedOrders.value.splice(i, 1)
+  selectedOrderId.value = selectedOrderId.value === orderId ? '' : orderId
 }
 
 function statusCfg(status: string) {
@@ -254,7 +232,7 @@ onMounted(() => { loadData() })
 
 async function submitApply() {
   if (submitting.value) return
-  if (selectedOrders.value.length === 0) {
+  if (!selectedOrderId.value) {
     uni.showToast({ title: '请选择要开票的订单', icon: 'none' })
     return
   }
@@ -266,30 +244,61 @@ async function submitApply() {
     uni.showToast({ title: '请输入税号', icon: 'none' })
     return
   }
-  if (!email.value.trim()) {
-    uni.showToast({ title: '请输入接收邮箱', icon: 'none' })
-    return
-  }
   submitting.value = true
   try {
-    await orderApi.applyInvoice(selectedOrders.value, invoiceType.value, title.value, email.value, taxNumber.value || undefined)
-    selectedOrders.value = []
+    await orderApi.applyInvoice(selectedOrderId.value, invoiceType.value, title.value, taxNumber.value || undefined)
+    selectedOrderId.value = ''
     title.value = ''
     taxNumber.value = ''
-    email.value = ''
-    phone.value = ''
     activeTab.value = 'list'
     uni.showToast({ title: '申请已提交', icon: 'success' })
-    loadData()
-  } catch {
-    uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+    await loadData()
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败，请重试', icon: 'none' })
   } finally {
     submitting.value = false
   }
 }
 
-function downloadInvoice(_rec: InvoiceRecord) {
-  uni.showToast({ title: '发票下载中', icon: 'none' })
+function showInvoiceDetail(rec: InvoiceRecord) {
+  const lines = [
+    `订单号：${rec.orderNo || '-'}`,
+    `类型：${rec.type === 'company' ? '企业发票' : '个人发票'}`,
+    `抬头：${rec.title}`,
+    rec.taxNumber ? `税号：${rec.taxNumber}` : '',
+    `金额：¥${formatPrice(rec.amount)}`,
+    `状态：${statusCfg(rec.status).label}`,
+  ].filter(Boolean)
+  uni.showModal({ title: '发票详情', content: lines.join('\n'), showCancel: false, confirmText: '知道了' })
+}
+
+function copyInvoiceLink(url: string) {
+  uni.setClipboardData({
+    data: url,
+    success: () => uni.showToast({ title: '下载链接已复制', icon: 'none' }),
+  })
+}
+
+function downloadInvoice(rec: InvoiceRecord) {
+  const url = rec.invoiceUrl || ''
+  if (!/^https?:\/\//i.test(url)) {
+    uni.showToast({ title: '发票文件暂不可用，请联系客服', icon: 'none' })
+    return
+  }
+  // #ifdef H5
+  const opened = window.open(url, '_blank', 'noopener,noreferrer')
+  if (!opened) copyInvoiceLink(url)
+  // #endif
+  // #ifndef H5
+  uni.downloadFile({
+    url,
+    success: (download) => {
+      if (download.statusCode !== 200) { copyInvoiceLink(url); return }
+      uni.openDocument({ filePath: download.tempFilePath, showMenu: true, fail: () => copyInvoiceLink(url) })
+    },
+    fail: () => copyInvoiceLink(url),
+  })
+  // #endif
 }
 </script>
 
@@ -677,7 +686,7 @@ function downloadInvoice(_rec: InvoiceRecord) {
 }
 
 .bottom-gap {
-  height: 180rpx;
+  height: calc(240rpx + env(safe-area-inset-bottom));
 }
 
 /* 提交栏 */

@@ -5,7 +5,7 @@ import {
   LegendComponent, DataZoomComponent, ToolboxComponent,
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
-import guoxueTheme from "./echarts-theme";
+import guoxueTheme, { techScreenTheme } from "./echarts-theme";
 
 echarts.use([
   BarChart, LineChart, PieChart, GaugeChart, ScatterChart, FunnelChart,
@@ -15,6 +15,7 @@ echarts.use([
 ]);
 
 echarts.registerTheme("guoxue", guoxueTheme);
+echarts.registerTheme("tech-screen", techScreenTheme);
 
 export default echarts;
 export { echarts };

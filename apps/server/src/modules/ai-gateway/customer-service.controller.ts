@@ -52,8 +52,14 @@ export class CustomerServiceController {
     res.flushHeaders();
 
     try {
+      let answer = "";
       for await (const chunk of this.cs.askStream(body.question, userId, body.history)) {
+        answer = (answer + chunk).slice(-12000);
         res.write(this.sse.encode({ type: "chunk", content: chunk }));
+      }
+      const recommendation = await this.cs.buildRecommendation(answer, body.question);
+      if (recommendation) {
+        res.write(this.sse.encode({ type: "meta", recommendation }));
       }
       res.write(this.sse.encode({ type: "done" }));
     } catch (err: any) {

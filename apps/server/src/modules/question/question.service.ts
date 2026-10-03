@@ -1,9 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { HttpStatus } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
 import { AuditService } from "../audit/audit.service";
@@ -14,10 +16,24 @@ export class QuestionService {
   private readonly logger = new Logger(QuestionService.name);
   constructor(
     private prisma: PrismaService,
+    private redis: RedisService,
     private coin: CoinService,
     private revenue: RevenueService,
     private audit: AuditService,
   ) {}
+
+  /**
+   * 每小时自动退款超时未答的付费提问（分布式锁防多实例重复跑）。
+   * 修复(后端审计C2)：refundExpiredQuestions 原仅 admin 手动端点触发，达人不答则钱不自动退。
+   * 对齐 bounty 现有 hourly cron 范式。退款逻辑本身未改动（沿用已上线的手动路径）。
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async refundExpiredQuestionsCron() {
+    await this.redis.runExclusive("question_refund_expired", 300, async () => {
+      const res = await this.refundExpiredQuestions();
+      if (res.refunded > 0) this.logger.log(`超时提问自动退款: ${res.refunded} 笔`);
+    });
+  }
 
   /** 发起付费提问（扣币与建记录同一事务，防丢钱） */
   async ask(userId: string, dto: {
@@ -27,6 +43,7 @@ export class QuestionService {
     question: string;
     images?: string[];
     priceCoin: number;
+    expectedPriceCoin?: number;
     peekPriceCoin?: number;
     isPublic?: boolean;
   }) {
@@ -39,6 +56,27 @@ export class QuestionService {
       where: { circleId: dto.circleId, userId: dto.answererId },
     });
     if (!member) throw new BusinessException(ErrorCode.BAD_REQUEST, "回答者不在该圈子中");
+
+    // 🔴 定价以达人(answerer)本人在该圈的配置为准，绝不信客户端传入的 priceCoin/peekPriceCoin。
+    //    否则提问者可自设最低价(@Min10)压达人收入 —— 付款方单方面决定了收款方的收益。
+    const priceCoin = member.questionPriceCoin;
+    if (!priceCoin || priceCoin <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该达人未开放付费提问");
+    }
+    if (dto.expectedPriceCoin != null && dto.expectedPriceCoin !== priceCoin) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "达人报价已变化，请刷新后确认再提问", HttpStatus.CONFLICT);
+    }
+    const peekPriceCoin = member.peekPriceCoin ?? 0;
+
+    // 圈子治理 #10（2026-07-11）：被禁言成员在该圈内不能发起付费提问（轻量直查 CircleViolation·避免跨模块依赖·置于扣币前）
+    const mute = await this.prisma.circleViolation.findFirst({
+      where: { circleId: dto.circleId, userId, type: "MUTE", status: "ACTIVE", expiresAt: { gt: new Date() } },
+      select: { expiresAt: true },
+    });
+    if (mute) {
+      const until = mute.expiresAt ? mute.expiresAt.toISOString().slice(0, 16).replace("T", " ") : "";
+      throw new BusinessException(ErrorCode.FORBIDDEN, `你在该圈处于禁言期${until ? `（至 ${until}）` : ""}，暂不能发起提问`);
+    }
 
     // 内容审核（先审后发；置于扣币事务前，违规内容不扣币）
     await this.audit.moderateTextOrThrow([dto.questionTitle, dto.question].filter(Boolean).join(" "), {
@@ -53,7 +91,7 @@ export class QuestionService {
     // 扣币与创建问题在同一事务内，确保中间异常时币不会丢失
     return this.prisma.$transaction(async (tx) => {
       await this.coin.spend(userId, {
-        amountCoin: dto.priceCoin,
+        amountCoin: priceCoin,
         scene: "PAID_QUESTION",
         description: `向圈主/嘉宾付费提问`,
       }, tx);
@@ -66,8 +104,8 @@ export class QuestionService {
           answererId: dto.answererId,
           question: questionText,
           images: dto.images || [],
-          priceCoin: dto.priceCoin,
-          peekPriceCoin: dto.peekPriceCoin || 0,
+          priceCoin,
+          peekPriceCoin,
           status: "PENDING",
         },
         include: {
@@ -97,25 +135,40 @@ export class QuestionService {
       ? `${dto.answer}\n[音频回复: ${dto.answerAudioUrl}]`
       : dto.answer;
 
-    const updated = await this.prisma.paidQuestion.update({
-      where: { id: questionId },
-      data: {
-        answer: answerText,
-        status: "ANSWERED",
-        answeredAt: new Date(),
-      },
-      include: {
-        asker: { select: { id: true, nickname: true, avatar: true } },
-        answerer: { select: { id: true, nickname: true, avatar: true } },
-      },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // 审核耗时期间可能发生拒答/超时退款；只有抢到 PENDING 的回答者才能入账。
+      const claimed = await tx.paidQuestion.updateMany({
+        where: { id: questionId, status: "PENDING" },
+        data: { answer: answerText, status: "ANSWERED", answeredAt: new Date() },
+      });
+      if (claimed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "问题状态已变更，请刷新后重试");
+      // 回答成立与旧口径收益记录同事务；收益写入失败则问题保持待答，允许重试。
+      await this.revenue.record({
+        userId: answererId,
+        scene: "QUESTION",
+        refId: questionId,
+        amountCoin: question.priceCoin,
+      }, tx);
+      const result = await tx.paidQuestion.findUnique({
+        where: { id: questionId },
+        include: {
+          asker: { select: { id: true, nickname: true, avatar: true } },
+          answerer: { select: { id: true, nickname: true, avatar: true } },
+        },
+      });
+      if (!result) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+      return result;
     });
 
-    this.revenue.record({
-      userId: answererId,
+    // 统一总账影子双写（引擎口径转正后即为可提现真源）
+    this.revenue.settleLedger({
       scene: "QUESTION",
+      refType: "QUESTION",
       refId: questionId,
       amountCoin: question.priceCoin,
-    }).catch((err) => this.logger.warn("退款通知失败", err));
+      payerId: question.askerId,
+      parties: { PROVIDER: { type: "USER", id: answererId, userId: answererId } },
+    }).catch(() => undefined); // settleLedger 内部已兜底，此处仅防未处理 rejection
 
     return updated;
   }
@@ -127,14 +180,16 @@ export class QuestionService {
     if (question.answererId !== answererId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有被提问者可以拒绝");
     if (question.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "问题状态不允许拒绝");
 
-    await this.coin.refund(question.askerId, question.priceCoin, `回答者拒绝了您的提问（问题ID: ${questionId}）${reason ? `，理由: ${reason}` : ""}`);
-
-    return this.prisma.paidQuestion.update({
-      where: { id: questionId },
-      data: {
-        status: "REFUNDED",
-        answer: reason || "回答者拒绝了该提问",
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.paidQuestion.updateMany({
+        where: { id: questionId, status: "PENDING" },
+        data: { status: "REFUNDED", answer: reason || "回答者拒绝了该提问" },
+      });
+      if (claimed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "问题状态已变更，请刷新后重试");
+      await this.coin.refund(question.askerId, question.priceCoin, `回答者拒绝了您的提问（问题ID: ${questionId}）${reason ? `，理由: ${reason}` : ""}`, tx);
+      const result = await tx.paidQuestion.findUnique({ where: { id: questionId } });
+      if (!result) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+      return result;
     });
   }
 
@@ -142,6 +197,9 @@ export class QuestionService {
   async peek(userId: string, questionId: string) {
     const question = await this.prisma.paidQuestion.findUnique({ where: { id: questionId } });
     if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+    if (!question.isPublic && userId !== question.askerId && userId !== question.answererId) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+    }
     if (question.status !== "ANSWERED") throw new BusinessException(ErrorCode.BAD_REQUEST, "问题尚未回答");
     if (question.peekPriceCoin <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该问题不支持围观");
 
@@ -170,12 +228,34 @@ export class QuestionService {
       });
     });
 
+    // 围观分成（董事长拍板 2026-07-10）：平台 40% / 提问者 30% / 达人 30%
     this.revenue.record({
       userId: question.answererId,
       scene: "PEEK",
       refId: questionId,
       amountCoin: question.peekPriceCoin,
-    }).catch((err) => this.logger.warn("退款通知失败", err));
+    }).catch((err) => this.logger.warn("围观达人分成入账失败", err));
+    this.revenue.record({
+      userId: question.askerId,
+      scene: "PEEK_ASKER",
+      refId: questionId,
+      amountCoin: question.peekPriceCoin,
+    }).catch((err) => this.logger.warn("围观提问者分成入账失败", err));
+
+    // 统一总账影子双写：一次 settle 落全三方（达人/提问者/平台）。
+    // 凭据 refId 必须带围观者 userId —— 围观是「每人每次一笔交易」，
+    // 若只用 questionId，settle() 的幂等守卫会把第二个围观者的分成整个吃掉。
+    this.revenue.settleLedger({
+      scene: "PEEK",
+      refType: "PEEK",
+      refId: `${questionId}:${userId}`,
+      amountCoin: question.peekPriceCoin,
+      payerId: userId,
+      parties: {
+        PROVIDER: { type: "USER", id: question.answererId, userId: question.answererId },
+        ASKER: { type: "USER", id: question.askerId, userId: question.askerId },
+      },
+    }).catch(() => undefined);
 
     return question;
   }
@@ -183,7 +263,7 @@ export class QuestionService {
   /** 超时自动退款（由定时任务调用） */
   async refundExpiredQuestions() {
     const now = new Date();
-    const TIMEOUT_HOURS = 72;
+    const TIMEOUT_HOURS = 48; // 董事长拍板 2026-07-10：图文提问超时退款与悬赏统一为 48 小时
     const deadline = new Date(now.getTime() - TIMEOUT_HOURS * 3600000);
 
     const expiredQuestions = await this.prisma.paidQuestion.findMany({
@@ -191,24 +271,33 @@ export class QuestionService {
         status: "PENDING",
         createdAt: { lt: deadline },
       },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: 200,
     });
 
     if (expiredQuestions.length === 0) return { refunded: 0 };
 
-    // 批量更新问题状态为 CLOSED
-    const expiredIds = expiredQuestions.map((q) => q.id);
-    await this.prisma.paidQuestion.updateMany({
-      where: { id: { in: expiredIds } },
-      data: { status: "CLOSED" },
-    });
-
-    // 并发退款（coin.refund 涉及余额事务，不能简单批量）
-    const results = await Promise.allSettled(
-      expiredQuestions.map((q) =>
-        this.coin.refund(q.askerId, q.priceCoin, `提问超时自动退款（问题ID: ${q.id}，已超${TIMEOUT_HOURS}小时）`),
-      ),
-    );
-    const refunded = results.filter((r) => r.status === "fulfilled").length;
+    // 每笔独立事务：仅 PENDING 可认领；状态和退币同成同败，失败保留待下次重试。
+    const results: PromiseSettledResult<boolean>[] = [];
+    for (let i = 0; i < expiredQuestions.length; i += 10) {
+      const batch = expiredQuestions.slice(i, i + 10);
+      results.push(...await Promise.allSettled(
+        batch.map((q) =>
+          this.prisma.$transaction(async (tx) => {
+            const claimed = await tx.paidQuestion.updateMany({
+              where: { id: q.id, status: "PENDING" },
+              data: { status: "REFUNDED" },
+            });
+            if (claimed.count === 0) return false;
+            await this.coin.refund(q.askerId, q.priceCoin, `提问超时自动退款（问题ID: ${q.id}，已超${TIMEOUT_HOURS}小时）`, tx);
+            return true;
+          }),
+        ),
+      ));
+    }
+    const refunded = results.filter((r) => r.status === "fulfilled" && r.value).length;
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed > 0) this.logger.warn(`超时提问退币失败 ${failed} 笔，保持待处理供下次重试`);
 
     return { refunded };
   }
@@ -251,18 +340,43 @@ export class QuestionService {
     });
   }
 
-  /** 圈子问答列表 */
+  /** 公开问答列表：忽略客户端传入的用户筛选与 isPublic=false，绝不带出付费答案。 */
   async listQuestions(dto: { circleId?: string; status?: string; isPublic?: boolean; askerId?: string; answererId?: string; participantId?: string; page?: number; pageSize?: number }) {
     const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
-    const where: Prisma.PaidQuestionWhereInput = {};
+    const where: Prisma.PaidQuestionWhereInput = { isPublic: true };
     if (dto.circleId) where.circleId = dto.circleId;
     if (dto.status) where.status = dto.status;
-    if (dto.askerId) where.askerId = dto.askerId;
-    if (dto.answererId) where.answererId = dto.answererId;
-    // 参与者维度（我提问的 + 我回答的）；由调用方在 askerId/answererId/participantId 中择一使用
-    if (dto.participantId) where.OR = [{ askerId: dto.participantId }, { answererId: dto.participantId }];
     if ((dto as any).stationId !== undefined) where.stationId = (dto as any).stationId || null;
 
+    const [questions, total] = await Promise.all([
+      this.prisma.paidQuestion.findMany({
+        where,
+        select: {
+          id: true, circleId: true, askerId: true, answererId: true,
+          questionTitle: true, question: true, images: true,
+          priceCoin: true, peekPriceCoin: true, peekCount: true,
+          isPublic: true, status: true, answeredAt: true, createdAt: true,
+          asker: { select: { id: true, nickname: true, avatar: true } },
+          answerer: { select: { id: true, nickname: true, avatar: true } },
+          circle: { select: { id: true, name: true } },
+        },
+        skip,
+        take: pageSize,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+      this.prisma.paidQuestion.count({ where }),
+    ]);
+    return { questions, total, page, pageSize };
+  }
+
+  /** 本人问答记录：身份只取 JWT，不信任查询串中的 askerId/answererId/participantId。 */
+  async listMyQuestions(userId: string, dto: { circleId?: string; status?: string; askerId?: string; answererId?: string; page?: number; pageSize?: number }) {
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
+    const where: Prisma.PaidQuestionWhereInput = dto.askerId
+      ? { askerId: userId }
+      : dto.answererId ? { answererId: userId } : { OR: [{ askerId: userId }, { answererId: userId }] };
+    if (dto.circleId) where.circleId = dto.circleId;
+    if (dto.status) where.status = dto.status;
     const [questions, total] = await Promise.all([
       this.prisma.paidQuestion.findMany({
         where,
@@ -273,7 +387,7 @@ export class QuestionService {
         },
         skip,
         take: pageSize,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       this.prisma.paidQuestion.count({ where }),
     ]);
@@ -299,6 +413,9 @@ export class QuestionService {
       },
     });
     if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+    if (!question.isPublic && currentUserId !== question.askerId && currentUserId !== question.answererId) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+    }
 
     const canViewAnswer = await this.canViewAnswer(question, currentUserId);
     if (!canViewAnswer && question.answer != null) {
@@ -322,10 +439,17 @@ export class QuestionService {
     if (question.isPublic && question.peekPriceCoin <= 0) {
       return true;
     }
-    // 已围观（付费查看过）：查 PEEK_ANSWER 消费记录
+    // 已围观（付费查看过）：查 PEEK_ANSWER 消费记录。
+    // 🔴 纵深防御：必须校验金额付够了（spend 落库 amountCoin 为负，故 lte:-围观价）。
+    //    否则即使有人绕过 /coin/spend 白名单造出一条 1 币的 PEEK_ANSWER 流水，也拿不到答案。
     if (currentUserId) {
       const peeked = await this.prisma.virtualCoinTransaction.findFirst({
-        where: { userId: currentUserId, scene: "PEEK_ANSWER", refId: question.id },
+        where: {
+          userId: currentUserId,
+          scene: "PEEK_ANSWER",
+          refId: question.id,
+          amountCoin: { lte: -question.peekPriceCoin },
+        },
         select: { id: true },
       });
       if (peeked) return true;

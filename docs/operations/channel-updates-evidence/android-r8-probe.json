@@ -1,0 +1,633 @@
+{
+  "verifiedAt": "2026-10-01T01:14:28.502Z",
+  "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+  "sourceDirty": false,
+  "minified": true,
+  "shrinker": "R8 release",
+  "consumerRulesSha256": "b711f512e0eea9cdb3c35693d180760e5a90c6e268b18a6058aa6a9c9b800cf8",
+  "installation": {
+    "method": "官方 adb；必要时按实际 UI 层级完成正常防护扫描",
+    "steps": []
+  },
+  "deviceModel": "LE2100",
+  "api": "34",
+  "packageName": "cn.rebu.resourceprobe",
+  "apkSha256": "de80fb559a8d04578d3dfda91ffd88c34affd1b99b5ff3a9b05674e9f0435505",
+  "passed": [
+    "Android Keystore AES-GCM 写入及解密、原生健康窗口、合成四类忙碌标记保护",
+    "实际 BC 验签、错误 JS 后下一冷启动在 WebView/JS 前恢复摘要核验的基线",
+    "实际 Android 拒绝错误基座、跨渠道、过期清单，保留基线",
+    "合成冷启动停发/离线准入拒绝保持当前基线",
+    "篡改暂存的原始签名归档后冷启动拒绝激活",
+    "四个真实目录事务检查点杀进程，下一启动先恢复旧健康资源再执行 JS",
+    "正确签名资源激活及后续冷启动保持；核心夹具健康确认不冒充正式 App 健康观察",
+    "正式包版本与更新时间未变；未清数据、未卸载、未清全局日志"
+  ],
+  "evidence": [
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790817231.1548383,
+      "elapsedMs": 172,
+      "logs": [
+        "         1790817231.427 30641 30641 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817231.458 30641 30641 I REBU_RESOURCE_PROBE: BASE_JOURNAL_SYNCED complete-base\r",
+        "         1790817231.461 30641 30641 I REBU_RESOURCE_PROBE: BASE_OLD_MOVED complete-base\r",
+        "         1790817231.462 30641 30641 I REBU_RESOURCE_PROBE: BASE_NEW_MOVED complete-base\r",
+        "         1790817231.464 30641 30641 I REBU_RESOURCE_PROBE: BASE_COMMITTED complete-base\r",
+        "         1790817231.464 30641 30641 I REBU_RESOURCE_PROBE: BASE_ARCHIVE kept=true,previous=false\r",
+        "         1790817231.464 30641 30641 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=40,nativeBuild=24\r",
+        "         1790817231.473 30641 30641 I REBU_RESOURCE_PROBE: NEW_SUITE 75\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817231.6692903,
+      "elapsedMs": 640,
+      "logs": [
+        "         1790817231.838 30745 30745 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817231.850 30745 30745 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=13,nativeBuild=24\r",
+        "         1790817232.101 30745 30884 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "keystore",
+      "cutoff": 1790817232.7005994,
+      "elapsedMs": 726,
+      "logs": [
+        "         1790817232.886 30943 30943 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817232.890 30943 30943 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=24\r",
+        "         1790817232.899 30943 30943 I REBU_RESOURCE_PROBE: NATIVE_REFLECTION entrypointsRetained=true\r",
+        "         1790817233.047 30943 30943 I REBU_RESOURCE_PROBE: NATIVE_BIND {\"ok\":true,\"value\":true}\r",
+        "         1790817233.120 30943 31033 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r",
+        "         1790817233.134 30943 30943 I REBU_RESOURCE_PROBE: ANDROID_KEYSTORE saved=true,encrypted=true,decrypted=true\r",
+        "         1790817233.137 30943 30943 I REBU_RESOURCE_PROBE: HEALTH_WINDOW earlyRejected=true\r",
+        "         1790817233.145 30943 30943 I REBU_RESOURCE_PROBE: BUSY_GUARD rejected=true\r"
+      ]
+    },
+    {
+      "scenario": "portable",
+      "cutoff": 1790817233.7539394,
+      "elapsedMs": 190,
+      "logs": [
+        "         1790817233.969 31061 31061 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817233.974 31061 31061 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=24\r",
+        "         1790817233.986 31061 31061 I REBU_RESOURCE_PROBE: PORTABLE_NEXT_BOOT bc\r"
+      ]
+    },
+    {
+      "scenario": "prepare-bad",
+      "cutoff": 1790817234.2867732,
+      "elapsedMs": 169,
+      "logs": [
+        "         1790817234.462 31165 31165 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817234.467 31165 31165 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=8,nativeBuild=24\r",
+        "         1790817234.497 31165 31165 I REBU_RESOURCE_PROBE: PREPARED bad\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817234.7487977,
+      "elapsedMs": 583,
+      "logs": [
+        "         1790817234.915 31265 31265 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817234.951 31265 31265 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=PENDING_HEALTH,version=1,ms=37,nativeBuild=24\r",
+        "         1790817235.168 31265 31265 I REBU_RESOURCE_PROBE: JS_ERROR bad-js\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817235.5840569,
+      "elapsedMs": 592,
+      "logs": [
+        "         1790817235.755 31386 31386 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817235.767 31386 31386 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup\r",
+        "         1790817235.767 31386 31386 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=13,nativeBuild=24\r",
+        "         1790817235.989 31386 31476 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790817236.4189324,
+      "elapsedMs": 191,
+      "logs": [
+        "         1790817236.642 31505 31505 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817236.646 31505 31505 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=24\r",
+        "         1790817236.658 31505 31505 I REBU_RESOURCE_PROBE: NEW_SUITE 76\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817237.1086063,
+      "elapsedMs": 600,
+      "logs": [
+        "         1790817237.336 31620 31620 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817237.351 31620 31620 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=15,nativeBuild=24\r",
+        "         1790817237.571 31620 31714 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "prepare-wrong-base",
+      "cutoff": 1790817238.0341136,
+      "elapsedMs": 160,
+      "logs": [
+        "         1790817238.234 31741 31741 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817238.238 31741 31741 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=24\r",
+        "         1790817238.264 31741 31741 I REBU_RESOURCE_PROBE: SCENARIO_REFUSED prepare-wrong-base SecurityException\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817238.4932554,
+      "elapsedMs": 593,
+      "logs": [
+        "         1790817238.717 31797 31797 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817238.722 31797 31797 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=7,nativeBuild=24\r",
+        "         1790817238.953 31797 31897 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790817239.3871841,
+      "elapsedMs": 126,
+      "logs": [
+        "         1790817239.568 31929 31929 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817239.572 31929 31929 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=24\r",
+        "         1790817239.582 31929 31929 I REBU_RESOURCE_PROBE: NEW_SUITE 77\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817239.7903986,
+      "elapsedMs": 601,
+      "logs": [
+        "         1790817239.974 32028 32028 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817239.988 32028 32028 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=16,nativeBuild=24\r",
+        "         1790817240.197 32028 32119 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "prepare-cross-channel",
+      "cutoff": 1790817240.6419897,
+      "elapsedMs": 150,
+      "logs": [
+        "         1790817240.826 32156 32156 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817240.834 32156 32156 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=9,nativeBuild=24\r",
+        "         1790817240.855 32156 32156 I REBU_RESOURCE_PROBE: SCENARIO_REFUSED prepare-cross-channel SecurityException\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817241.0509303,
+      "elapsedMs": 626,
+      "logs": [
+        "         1790817241.242 32211 32211 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817241.246 32211 32211 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=24\r",
+        "         1790817241.426 32211 32301 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790817241.9631152,
+      "elapsedMs": 171,
+      "logs": [
+        "         1790817242.143 32338 32338 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817242.150 32338 32338 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=9,nativeBuild=24\r",
+        "         1790817242.159 32338 32338 I REBU_RESOURCE_PROBE: NEW_SUITE 78\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817242.3973804,
+      "elapsedMs": 573,
+      "logs": [
+        "         1790817242.557 32440 32440 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817242.574 32440 32440 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=18,nativeBuild=24\r",
+        "         1790817242.789 32440 32539 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "prepare-expired",
+      "cutoff": 1790817243.2570605,
+      "elapsedMs": 115,
+      "logs": [
+        "         1790817243.418 32573 32573 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817243.423 32573 32573 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=24\r",
+        "         1790817243.444 32573 32573 I REBU_RESOURCE_PROBE: SCENARIO_REFUSED prepare-expired SecurityException\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817243.6353116,
+      "elapsedMs": 594,
+      "logs": [
+        "         1790817243.793 32656 32656 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817243.798 32656 32656 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=24\r",
+        "         1790817244.034 32656 32751 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790817244.484775,
+      "elapsedMs": 542,
+      "logs": [
+        "         1790817244.687   337   337 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817244.691   337   337 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=12,nativeBuild=24\r",
+        "         1790817244.701   337   337 I REBU_RESOURCE_PROBE: NEW_SUITE 79\r",
+        "         1790817244.910   337   651 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817245.2740896,
+      "elapsedMs": 578,
+      "logs": [
+        "         1790817245.450   691   691 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817245.466   691   691 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=18,nativeBuild=24\r",
+        "         1790817245.733   691   852 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790817246.1125197,
+      "elapsedMs": 566,
+      "logs": [
+        "         1790817246.310   881   881 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817246.315   881   881 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=7,nativeBuild=24\r",
+        "         1790817246.351   881   881 I REBU_RESOURCE_PROBE: PREPARED good\r",
+        "         1790817246.590   881  1059 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817246.9689176,
+      "elapsedMs": 583,
+      "logs": [
+        "         1790817247.136  1102  1102 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817247.156  1102  1102 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=21,nativeBuild=24\r",
+        "         1790817247.393  1102  1298 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790817247.8111806,
+      "elapsedMs": 132,
+      "logs": [
+        "         1790817247.993  1337  1337 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817247.997  1337  1337 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=7,nativeBuild=24\r",
+        "         1790817248.008  1337  1337 I REBU_RESOURCE_PROBE: NEW_SUITE 80\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817248.185406,
+      "elapsedMs": 583,
+      "logs": [
+        "         1790817248.368  1608  1608 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817248.383  1608  1608 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=18,nativeBuild=24\r",
+        "         1790817248.624  1608  1811 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790817249.014792,
+      "elapsedMs": 566,
+      "logs": [
+        "         1790817249.237  1850  1850 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817249.243  1850  1850 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=7,nativeBuild=24\r",
+        "         1790817249.287  1850  1850 I REBU_RESOURCE_PROBE: PREPARED good\r",
+        "         1790817249.521  1850  2047 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "tamper-archive",
+      "cutoff": 1790817249.723589,
+      "elapsedMs": 133,
+      "logs": [
+        "         1790817249.815  1850  1850 I REBU_RESOURCE_PROBE: TAMPERED staged-archive\r",
+        "         1790817249.842  1850  2047 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817250.1045055,
+      "elapsedMs": 549,
+      "logs": [
+        "         1790817250.266  2116  2116 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817250.293  2116  2116 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=31,nativeBuild=24\r",
+        "         1790817250.512  2116  2435 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790817250.9026148,
+      "elapsedMs": 127,
+      "logs": [
+        "         1790817251.088  2561  2561 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817251.093  2561  2561 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=24\r",
+        "         1790817251.104  2561  2561 I REBU_RESOURCE_PROBE: NEW_SUITE 81\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817251.3308477,
+      "elapsedMs": 587,
+      "logs": [
+        "         1790817251.539  2885  2885 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817251.555  2885  2885 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=24,nativeBuild=24\r",
+        "         1790817251.801  2885  3120 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790817252.1716135,
+      "elapsedMs": 178,
+      "logs": [
+        "         1790817252.379  3153  3153 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817252.387  3153  3153 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=9,nativeBuild=24\r",
+        "         1790817252.424  3153  3153 I REBU_RESOURCE_PROBE: PREPARED good\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817252.6326942,
+      "elapsedMs": 171,
+      "logs": [
+        "         1790817252.805  3285  3285 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817252.836  3285  3285 I REBU_RESOURCE_PROBE: KILL_AT JOURNAL_SYNCED\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817253.0448878,
+      "elapsedMs": 568,
+      "logs": [
+        "         1790817253.213  3390  3390 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817253.222  3390  3390 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup\r",
+        "         1790817253.222  3390  3390 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=11,nativeBuild=24\r",
+        "         1790817253.494  3390  3511 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "checkpoint": "JOURNAL_SYNCED",
+      "recoveryLogs": [
+        "         1790817252.805  3285  3285 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817252.836  3285  3285 I REBU_RESOURCE_PROBE: KILL_AT JOURNAL_SYNCED\r",
+        "         1790817253.213  3390  3390 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817253.222  3390  3390 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup\r",
+        "         1790817253.222  3390  3390 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=11,nativeBuild=24\r",
+        "         1790817253.494  3390  3511 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790817254.0252254,
+      "elapsedMs": 137,
+      "logs": [
+        "         1790817254.209  3541  3541 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817254.213  3541  3541 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=24\r",
+        "         1790817254.225  3541  3541 I REBU_RESOURCE_PROBE: NEW_SUITE 82\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817254.484647,
+      "elapsedMs": 615,
+      "logs": [
+        "         1790817254.671  3733  3733 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817254.685  3733  3733 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=15,nativeBuild=24\r",
+        "         1790817254.925  3733  3918 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790817255.4009752,
+      "elapsedMs": 143,
+      "logs": [
+        "         1790817255.568  4022  4022 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817255.573  4022  4022 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=7,nativeBuild=24\r",
+        "         1790817255.606  4022  4022 I REBU_RESOURCE_PROBE: PREPARED good\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817255.8063967,
+      "elapsedMs": 183,
+      "logs": [
+        "         1790817255.972  4240  4240 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817256.005  4240  4240 I REBU_RESOURCE_PROBE: KILL_AT OLD_MOVED\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817256.2877188,
+      "elapsedMs": 604,
+      "logs": [
+        "         1790817256.451  4353  4353 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817256.455  4353  4353 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=24\r",
+        "         1790817256.753  4353  4523 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "checkpoint": "OLD_MOVED",
+      "recoveryLogs": [
+        "         1790817255.972  4240  4240 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817256.005  4240  4240 I REBU_RESOURCE_PROBE: KILL_AT OLD_MOVED\r",
+        "         1790817256.106  4284  4284 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817256.115  4284  4284 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup\r",
+        "         1790817256.115  4284  4284 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=10,nativeBuild=24\r",
+        "         1790817256.451  4353  4353 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817256.455  4353  4353 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=24\r",
+        "         1790817256.753  4353  4523 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790817257.3409476,
+      "elapsedMs": 241,
+      "logs": [
+        "         1790817257.544  4676  4676 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817257.550  4676  4676 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=8,nativeBuild=24\r",
+        "         1790817257.561  4676  4676 I REBU_RESOURCE_PROBE: NEW_SUITE 83\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817257.870531,
+      "elapsedMs": 616,
+      "logs": [
+        "         1790817258.068  4975  4975 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817258.099  4975  4975 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=35,nativeBuild=24\r",
+        "         1790817258.312  4975  5126 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790817258.77664,
+      "elapsedMs": 142,
+      "logs": [
+        "         1790817258.946  5222  5222 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817258.951  5222  5222 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=24\r",
+        "         1790817258.988  5222  5222 I REBU_RESOURCE_PROBE: PREPARED good\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817259.1606023,
+      "elapsedMs": 169,
+      "logs": [
+        "         1790817259.315  5378  5378 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817259.348  5378  5378 I REBU_RESOURCE_PROBE: KILL_AT NEW_MOVED\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817259.609904,
+      "elapsedMs": 556,
+      "logs": [
+        "         1790817259.763  5528  5528 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817259.767  5528  5528 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=24\r",
+        "         1790817259.958  5528  5725 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "checkpoint": "NEW_MOVED",
+      "recoveryLogs": [
+        "         1790817259.315  5378  5378 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817259.348  5378  5378 I REBU_RESOURCE_PROBE: KILL_AT NEW_MOVED\r",
+        "         1790817259.447  5434  5434 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817259.456  5434  5434 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup\r",
+        "         1790817259.456  5434  5434 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=11,nativeBuild=24\r",
+        "         1790817259.763  5528  5528 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817259.767  5528  5528 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=24\r",
+        "         1790817259.958  5528  5725 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790817260.559639,
+      "elapsedMs": 141,
+      "logs": [
+        "         1790817260.758  5767  5767 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817260.763  5767  5767 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=7,nativeBuild=24\r",
+        "         1790817260.775  5767  5767 I REBU_RESOURCE_PROBE: NEW_SUITE 84\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817261.0308452,
+      "elapsedMs": 604,
+      "logs": [
+        "         1790817261.196  5897  5897 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817261.210  5897  5897 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=14,nativeBuild=24\r",
+        "         1790817261.450  5897  6036 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790817261.894736,
+      "elapsedMs": 565,
+      "logs": [
+        "         1790817262.071  6064  6064 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817262.075  6064  6064 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=7,nativeBuild=24\r",
+        "         1790817262.108  6064  6064 I REBU_RESOURCE_PROBE: PREPARED good\r",
+        "         1790817262.328  6064  6162 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817262.7302814,
+      "elapsedMs": 620,
+      "logs": [
+        "         1790817262.942  6191  6191 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817262.982  6191  6191 I REBU_RESOURCE_PROBE: KILL_AT PENDING_HEALTH\r",
+        "         1790817263.078  6219  6219 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817263.087  6219  6219 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup\r",
+        "         1790817263.087  6219  6219 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=11,nativeBuild=24\r",
+        "         1790817263.362  6219  6312 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817263.6092336,
+      "elapsedMs": 569,
+      "logs": [
+        "         1790817263.798  6354  6354 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817263.804  6354  6354 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=24\r",
+        "         1790817264.064  6354  6508 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "checkpoint": "PENDING_HEALTH",
+      "recoveryLogs": [
+        "         1790817262.942  6191  6191 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817262.982  6191  6191 I REBU_RESOURCE_PROBE: KILL_AT PENDING_HEALTH\r",
+        "         1790817263.078  6219  6219 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817263.087  6219  6219 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup\r",
+        "         1790817263.087  6219  6219 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=11,nativeBuild=24\r",
+        "         1790817263.362  6219  6312 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r",
+        "         1790817263.798  6354  6354 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817263.804  6354  6354 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=24\r",
+        "         1790817264.064  6354  6508 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790817264.5427177,
+      "elapsedMs": 155,
+      "logs": [
+        "         1790817264.709  6549  6549 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817264.713  6549  6549 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=24\r",
+        "         1790817264.724  6549  6549 I REBU_RESOURCE_PROBE: NEW_SUITE 85\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817265.0153768,
+      "elapsedMs": 550,
+      "logs": [
+        "         1790817265.194  6660  6660 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817265.208  6660  6660 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=15,nativeBuild=24\r",
+        "         1790817265.420  6660  6757 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790817265.825271,
+      "elapsedMs": 573,
+      "logs": [
+        "         1790817265.989  6797  6797 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817265.993  6797  6797 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=24\r",
+        "         1790817266.024  6797  6797 I REBU_RESOURCE_PROBE: PREPARED good\r",
+        "         1790817266.255  6797  6905 I REBU_RESOURCE_PROBE: JS_READY baseline-ready\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817266.631189,
+      "elapsedMs": 585,
+      "logs": [
+        "         1790817266.844  6934  6934 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817266.884  6934  6934 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=PENDING_HEALTH,version=2,ms=42,nativeBuild=24\r",
+        "         1790817267.164  6934  7040 I REBU_RESOURCE_PROBE: JS_READY good-ready\r",
+        "         1790817267.177  6934  7040 I REBU_RESOURCE_PROBE: FIXTURE_HEALTH core-acknowledged\r"
+      ]
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790817267.5081613,
+      "elapsedMs": 576,
+      "logs": [
+        "         1790817267.729  7068  7068 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc\r",
+        "         1790817267.739  7068  7068 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=2,ms=12,nativeBuild=24\r",
+        "         1790817267.996  7068  7174 I REBU_RESOURCE_PROBE: JS_READY good-ready\r",
+        "         1790817268.011  7068  7174 I REBU_RESOURCE_PROBE: FIXTURE_HEALTH core-acknowledged\r"
+      ]
+    }
+  ],
+  "limits": [
+    "独立 Application/WebView，非 DCloud 完整包",
+    "API 34 强制 BC，不能替代 API 26–32 实机覆盖",
+    "OfferCheck、忙碌标记及核心健康确认是明确的合成夹具",
+    "没有真实交易、TRTC、录音或上传业务实测"
+  ]
+}

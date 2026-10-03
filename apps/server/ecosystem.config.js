@@ -76,8 +76,8 @@ module.exports = {
       repo: "git@github.com:your-org/guoxue-platform.git",
       path: "/opt/guoxue",
       "pre-deploy": "git fetch --all",
-      "post-deploy":
-        "pnpm install --frozen-lockfile && cd apps/server && npx prisma generate && npx prisma migrate deploy && pnpm build && pm2 reload ecosystem.config.js --only guoxue-server",
+      // 数据库迁移必须独立备份、审查和授权，不能夹在 PM2 自动部署链中。
+      "post-deploy": "pnpm install --frozen-lockfile && cd apps/server && npx prisma generate && pnpm build && pm2 reload ecosystem.config.js --only guoxue-server",
     },
   },
 };

@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { TenantService } from "./tenant.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 
 describe("TenantService", () => {
@@ -34,6 +35,7 @@ describe("TenantService", () => {
       providers: [
         TenantService,
         { provide: PrismaService, useValue: prisma },
+        { provide: RedisService, useValue: { runExclusive: (_n: string, _t: number, fn: () => Promise<unknown>) => fn() } },
       ],
     }).compile();
     svc = mod.get(TenantService);

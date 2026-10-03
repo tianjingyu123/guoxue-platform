@@ -7,6 +7,7 @@
  */
 import { ref, onMounted } from 'vue'
 import type { Component } from 'vue'
+import type { ChartOption } from '@/utils/chart'
 import { ElMessage } from 'element-plus'
 import { dashboardApi } from '@/api'
 import ChartCard from '@/components/ChartCard.vue'
@@ -43,9 +44,8 @@ interface CardDef {
   hint?: string
 }
 const cards = ref<CardDef[]>([])
-// ECharts option 为复杂联合类型，保留 any
-const dauOption = ref<any>(null)
-const gmvOption = ref<any>(null)
+const dauOption = ref<ChartOption | null>(null)
+const gmvOption = ref<ChartOption | null>(null)
 
 function lineOption(dates: string[], name: string, values: Array<number | null>, color: string, isMoney = false) {
   return {

@@ -282,9 +282,20 @@ async function handleSave() {
   }
 }
 
+/**
+ * 删除影响预告：分类树端点不带商品数（后端 getTree 无 _count），无法在前端精确预告，
+ * 用通用警示 + 依赖后端硬拦截（adminDelete：分类下有商品时拒绝删除并报出数量）。
+ */
 async function handleDelete(row: CategoryRow) {
+  const hasChildren = !!row.children?.length;
   try {
-    await ElMessageBox.confirm(`确定删除分类「${row.name}」吗？`, "删除确认", { type: "warning" });
+    await ElMessageBox.confirm(
+      `确定删除分类「${row.name}」吗？\n` +
+      (hasChildren ? `该分类下有 ${row.children?.length} 个子分类，请先处理子分类。\n` : "") +
+      "删除后 C 端商城的该分类导航将立即消失；若分类下仍有商品，系统会拒绝删除并提示商品数量。",
+      "删除分类",
+      { type: "warning", confirmButtonText: "确认删除", confirmButtonClass: "el-button--danger" },
+    );
     if (deleting.value) return;
     deleting.value = true;
     await api.delete(`/shop/categories/${row.id}`);

@@ -1,6 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationService } from "../notification/notification.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import {
@@ -10,6 +11,11 @@ import {
   LEADERBOARD_TOP_N,
   computeLevel,
 } from "./growth.constants";
+import {
+  DEFAULT_GOVERNANCE_CONFIG,
+  RolePermissionOverrides,
+  resolvePermission,
+} from "../circle/governance/circle-governance.constants";
 
 /**
  * 圈子成长体系 service（签到 / 成长等级 / 徽章 / 入圈审批）。
@@ -22,7 +28,10 @@ import {
 export class GrowthService {
   private readonly logger = new Logger(GrowthService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly notification?: NotificationService,
+  ) {}
 
   // ── 工具 ──────────────────────────────────────────
 
@@ -39,14 +48,34 @@ export class GrowthService {
     return Number.isFinite(x) ? x : 0;
   }
 
-  /** 圈主/合伙人/管理员权限校验（同 article.service.ensureCircleAdmin） */
+  /** 今天或昨天有签到才算仍在连续签到；历史累计经验不因此清零。 */
+  private activeCheckinStreak(lastCheckin: string | null | undefined, streak: unknown): number {
+    const today = this.ymd(new Date());
+    const yesterday = this.ymd(new Date(Date.now() - 86_400_000));
+    return lastCheckin === today || lastCheckin === yesterday ? this.num(streak) : 0;
+  }
+
+  /**
+   * 入圈审批权限校验（治理权限矩阵 #8·2026-07-10 起接入）：
+   * 圈主恒通过；其余角色按 CircleGovernanceConfig.rolePermissions 的 member.approve
+   * 覆盖位判断，缺省回落默认矩阵（管理员✓ 合伙人✗ 嘉宾✗·可由圈主在矩阵中调整）。
+   */
   private async ensureCircleAdmin(circleId: string, userId: string) {
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
-    if (!member || !["OWNER", "PARTNER", "ADMIN"].includes(member.role)) {
-      throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主/合伙人/管理员可操作");
-    }
+    if (!member) throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主或被授权的管理角色可操作");
+    if (member.role === "OWNER") return;
+    const config = await this.prisma.circleGovernanceConfig.findUnique({
+      where: { circleId },
+      select: { rolePermissions: true },
+    });
+    const allowed = resolvePermission(
+      member.role,
+      "member.approve",
+      (config?.rolePermissions as RolePermissionOverrides | null) ?? null,
+    );
+    if (!allowed) throw new BusinessException(ErrorCode.FORBIDDEN, "无审批加入申请权限");
   }
 
   /** 统计某成员在圈内的发帖数与获赞总数（既有表，走 prisma） */
@@ -112,13 +141,30 @@ export class GrowthService {
     const bonus = CHECKIN_STREAK_BONUS[streak] ?? 0;
     const expGained = CHECKIN_BASE_EXP + bonus;
 
-    // 插入签到记录（唯一索引兜底幂等：并发下若已存在则 affected=0）
-    const inserted = await this.prisma.$executeRawUnsafe(
-      `INSERT INTO "CircleCheckin" ("id","circleId","userId","checkinDate","expGained","createdAt")
-       VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP)
-       ON CONFLICT ("circleId","userId","checkinDate") DO NOTHING`,
-      randomUUID(), circleId, userId, today, expGained,
-    );
+    // 签到记录和成长经验必须一起提交；成长写入失败时回滚唯一签到记录，允许安全重试。
+    // 唯一索引兜底幂等：并发下若已存在则 affected=0，不再次累加经验。
+    const inserted = await this.prisma.$transaction(async (tx) => {
+      const affected = await tx.$executeRawUnsafe(
+        `INSERT INTO "CircleCheckin" ("id","circleId","userId","checkinDate","expGained","createdAt")
+         VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP)
+         ON CONFLICT ("circleId","userId","checkinDate") DO NOTHING`,
+        randomUUID(), circleId, userId, today, expGained,
+      );
+      if (affected === 0) return 0;
+
+      await tx.$executeRawUnsafe(
+        `INSERT INTO "CircleMemberGrowth" ("id","circleId","userId","checkinExp","checkinStreak","lastCheckin","totalCheckins","updatedAt")
+         VALUES ($1,$2,$3,$4,$5,$6,1,CURRENT_TIMESTAMP)
+         ON CONFLICT ("circleId","userId") DO UPDATE SET
+           "checkinExp" = "CircleMemberGrowth"."checkinExp" + $4,
+           "checkinStreak" = $5,
+           "lastCheckin" = $6,
+           "totalCheckins" = "CircleMemberGrowth"."totalCheckins" + 1,
+           "updatedAt" = CURRENT_TIMESTAMP`,
+        randomUUID(), circleId, userId, expGained, streak, today,
+      );
+      return affected;
+    });
     if (inserted === 0) {
       const cur = await this.getGrowthRow(circleId, userId);
       return {
@@ -130,19 +176,6 @@ export class GrowthService {
         checkinExp: this.num(cur?.checkinExp),
       };
     }
-
-    // upsert 成长行：经验累加、连续天数置为计算值、记录今日、总签到 +1
-    await this.prisma.$executeRawUnsafe(
-      `INSERT INTO "CircleMemberGrowth" ("id","circleId","userId","checkinExp","checkinStreak","lastCheckin","totalCheckins","updatedAt")
-       VALUES ($1,$2,$3,$4,$5,$6,1,CURRENT_TIMESTAMP)
-       ON CONFLICT ("circleId","userId") DO UPDATE SET
-         "checkinExp" = "CircleMemberGrowth"."checkinExp" + $4,
-         "checkinStreak" = $5,
-         "lastCheckin" = $6,
-         "totalCheckins" = "CircleMemberGrowth"."totalCheckins" + 1,
-         "updatedAt" = CURRENT_TIMESTAMP`,
-      randomUUID(), circleId, userId, expGained, streak, today,
-    );
 
     const after = await this.getGrowthRow(circleId, userId);
     return {
@@ -170,7 +203,7 @@ export class GrowthService {
       month: m,
       today: this.ymd(new Date()),
       checkedToday: g?.lastCheckin === this.ymd(new Date()),
-      checkinStreak: this.num(g?.checkinStreak),
+      checkinStreak: this.activeCheckinStreak(g?.lastCheckin, g?.checkinStreak),
       totalCheckins: this.num(g?.totalCheckins),
       days: rows.map((r) => ({ date: r.checkinDate, expGained: this.num(r.expGained) })),
     };
@@ -178,7 +211,7 @@ export class GrowthService {
 
   // ── 成长 / 等级 ────────────────────────────────────
 
-  /** 我的成长（等级/总经验/进度/连续签到）+ 该圈等级排行榜 Top N */
+  /** 我的成长 + 该圈成长榜、有效连签榜各 Top N */
   async getGrowth(circleId: string, userId: string) {
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
@@ -192,6 +225,7 @@ export class GrowthService {
               u."avatar"   AS "avatar",
               COALESCE(g."checkinExp", 0)    AS "checkinExp",
               COALESCE(g."checkinStreak", 0) AS "checkinStreak",
+              g."lastCheckin" AS "lastCheckin",
               (SELECT COUNT(*) FROM "Post" p WHERE p."circleId"=cm."circleId" AND p."userId"=cm."userId") AS "posts",
               (SELECT COUNT(*) FROM "Like" l WHERE l."targetType"='POST'
                  AND l."targetId" IN (SELECT id FROM "Post" p2 WHERE p2."circleId"=cm."circleId" AND p2."userId"=cm."userId")) AS "likes"
@@ -214,7 +248,7 @@ export class GrowthService {
           nickname: r.nickname ?? "学员",
           avatar: r.avatar ?? "",
           checkinExp,
-          checkinStreak: this.num(r.checkinStreak),
+          checkinStreak: this.activeCheckinStreak(r.lastCheckin, r.checkinStreak),
           posts,
           likes,
           totalExp,
@@ -225,6 +259,11 @@ export class GrowthService {
       .sort((a, b) => b.totalExp - a.totalExp);
 
     const leaderboard = ranked.slice(0, LEADERBOARD_TOP_N).map((x, i) => ({ rank: i + 1, ...x }));
+    const checkinRanked = ranked
+      .filter((x) => x.checkinStreak > 0)
+      .sort((a, b) => b.checkinStreak - a.checkinStreak || b.checkinExp - a.checkinExp || a.userId.localeCompare(b.userId));
+    const checkinLeaderboard = checkinRanked.slice(0, LEADERBOARD_TOP_N).map((x, i) => ({ rank: i + 1, ...x }));
+    const myCheckinIndex = checkinRanked.findIndex((x) => x.userId === userId);
     const myIndex = ranked.findIndex((x) => x.userId === userId);
     const mine = ranked[myIndex];
     const lv = computeLevel(mine?.totalExp ?? 0);
@@ -250,6 +289,8 @@ export class GrowthService {
         ...lv, // level, levelName, totalExp, nextLevelMinExp, expIntoLevel, progressPercent, isMax ...
       },
       leaderboard,
+      checkinLeaderboard,
+      myCheckinRank: myCheckinIndex >= 0 ? myCheckinIndex + 1 : 0,
     };
   }
 
@@ -318,7 +359,7 @@ export class GrowthService {
     await this.ensureCircleAdmin(circleId, operatorId);
     return this.prisma.$queryRawUnsafe<any[]>(
       `SELECT r."id", r."circleId", r."userId", r."status", r."message",
-              r."reviewedBy", r."reviewedAt", r."createdAt",
+              r."reviewedBy", r."reviewedAt", r."rejectReason", r."createdAt",
               u."nickname" AS "userNickname", u."avatar" AS "userAvatar"
        FROM "CircleJoinRequest" r
        LEFT JOIN "User" u ON u.id = r."userId"
@@ -332,7 +373,7 @@ export class GrowthService {
    * 审批入圈申请（圈主权限，幂等防重复审）。
    * 通过则把申请人加入圈子成员（不存在才建，成员数 +1）。
    */
-  async reviewJoinRequest(circleId: string, reqId: string, operatorId: string, action: "approve" | "reject") {
+  async reviewJoinRequest(circleId: string, reqId: string, operatorId: string, action: "approve" | "reject", rejectReason?: string) {
     await this.ensureCircleAdmin(circleId, operatorId);
     if (action !== "approve" && action !== "reject") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "action 必须为 approve 或 reject");
@@ -348,13 +389,43 @@ export class GrowthService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该申请已处理，请勿重复审批");
     }
 
+    // 通过前置校验（治理·2026-07-11）：放在状态流转之前，校验不过时申请仍保持 PENDING 可再审
+    if (action === "approve") {
+      // ① 禁入拦截（#10 旁路补全）：被移出且禁入（REMOVE ACTIVE）者不能经审批绕回
+      const ban = await this.prisma.circleViolation.findFirst({
+        where: { circleId, userId: req.userId, type: "REMOVE", status: "ACTIVE" },
+        select: { id: true },
+      });
+      if (ban) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "该用户已被移出圈子且被限制重新加入，不能通过申请（可先在治理记录中解除禁入）");
+      }
+      // ② requireRuleAck 强制（TODO#5）：申请后圈主才开启确认/新增圈规的边缘情况——建成员前仍须已确认
+      const cfg = await this.prisma.circleGovernanceConfig.findUnique({
+        where: { circleId },
+        select: { requireRuleAck: true },
+      });
+      const requireAck = cfg ? cfg.requireRuleAck : DEFAULT_GOVERNANCE_CONFIG.requireRuleAck;
+      if (requireAck) {
+        const ruleCount = await this.prisma.circleRule.count({ where: { circleId } });
+        if (ruleCount > 0) {
+          const ack = await this.prisma.circleRuleAck.findUnique({
+            where: { circleId_userId: { circleId, userId: req.userId } },
+            select: { id: true },
+          });
+          if (!ack) {
+            throw new BusinessException(ErrorCode.CIRCLE_JOIN_DENIED, "RULE_ACK_REQUIRED：该成员尚未确认圈规，请其在圈规确认页确认后再审批");
+          }
+        }
+      }
+    }
+
     const newStatus = action === "approve" ? "APPROVED" : "REJECTED";
     // 状态流转加 PENDING 条件，防并发重复审批
     const updated = await this.prisma.$executeRawUnsafe(
       `UPDATE "CircleJoinRequest"
-       SET "status"=$3, "reviewedBy"=$4, "reviewedAt"=CURRENT_TIMESTAMP
+       SET "status"=$3, "reviewedBy"=$4, "reviewedAt"=CURRENT_TIMESTAMP, "rejectReason"=$5
        WHERE id=$1 AND "circleId"=$2 AND "status"='PENDING'`,
-      reqId, circleId, newStatus, operatorId,
+      reqId, circleId, newStatus, operatorId, action === "reject" ? (rejectReason?.trim() || null) : null,
     );
     if (updated === 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该申请已处理，请勿重复审批");
@@ -372,6 +443,24 @@ export class GrowthService {
         ]);
       }
     }
+
+    // 审批结果通知申请人（圈内通知中心·圈务 GOVERN·fire-and-forget 不阻断审批）
+    if (this.notification) {
+      const circle = await this.prisma.circle.findUnique({ where: { id: circleId }, select: { name: true } });
+      const circleName = circle?.name ?? "圈子";
+      this.notification.send(req.userId, {
+        type: "CIRCLE_JOIN_REVIEW",
+        title: action === "approve" ? "入圈申请已通过" : "入圈申请未通过",
+        content: action === "approve"
+          ? `你申请加入的「${circleName}」已通过审核，欢迎入圈`
+          : `你申请加入的「${circleName}」未通过审核${rejectReason?.trim() ? `：${rejectReason.trim()}` : ""}`,
+        targetType: "CIRCLE",
+        targetId: circleId,
+        category: "GOVERN",
+        circleId,
+      }).catch((err) => this.logger.warn(`入圈审批通知发送失败 req=${reqId}`, err));
+    }
+
     return { success: true, action, status: newStatus };
   }
 }

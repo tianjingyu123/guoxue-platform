@@ -1,0 +1,1335 @@
+{
+  "sourceCommit": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
+  "sourceSha256": "8f7e9e1e179faa2fca40c0122ebe1ba3d856bf3d00dac7a2a319c7ad919f9474",
+  "image": "rebu-linux-verify:ceca6455",
+  "postgresImage": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff",
+  "redisImage": "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2",
+  "scope": "isolated-empty-db-no-real-channels",
+  "checks": [
+    {
+      "name": "image-identity",
+      "passed": true,
+      "detail": "sha256:61d74a74bfa5fad7c521d9e57afd91ad02ec1fefdbed69249c4e14c22b3b20cd"
+    },
+    {
+      "name": "prisma-source-compile-runtime-binding",
+      "passed": true,
+      "detail": {
+        "schemaVersion": 1,
+        "kind": "prisma-build-binding",
+        "schemaHash": "4004f698511cae3b29ef3aef324bf00bab417160724de2938dd17ed0f06e67d5",
+        "clientVersion": "6.19.3"
+      }
+    },
+    {
+      "name": "grpc-security-version-in-runtime-image",
+      "passed": true,
+      "detail": {
+        "version": "1.14.5",
+        "actualSdkExporterResolution": true
+      }
+    },
+    {
+      "name": "admin-h5-base-and-public-config",
+      "passed": true,
+      "detail": [
+        {
+          "name": "admin",
+          "prefix": "/admin/",
+          "fileCount": 503
+        },
+        {
+          "name": "h5",
+          "prefix": "/h5/",
+          "fileCount": 1178
+        }
+      ]
+    },
+    {
+      "name": "postgres-major-match",
+      "passed": true,
+      "detail": {
+        "actual": "18.6 (Debian 18.6-1.pgdg13+2)",
+        "targetObserved": "18.4",
+        "patchMatchRequiredForFinalAcceptance": true
+      }
+    },
+    {
+      "name": "temporary-empty-db-final-schema",
+      "passed": true,
+      "detail": "仅创建临时空库结构，不验证生产迁移链"
+    },
+    {
+      "name": "production-entrypoint-health-public-http",
+      "passed": true,
+      "detail": [
+        {
+          "path": "/api/v1/health/live",
+          "status": 200,
+          "releaseId": "isolated-ceca6455"
+        },
+        {
+          "path": "/api/v1/health/ready",
+          "status": 200,
+          "releaseId": null
+        },
+        {
+          "path": "/api/v1/health",
+          "status": 200,
+          "releaseId": "isolated-ceca6455"
+        },
+        {
+          "path": "/api/v1/mini/home",
+          "status": 200,
+          "releaseId": null
+        },
+        {
+          "path": "/api/v1/contents?page=1&pageSize=1",
+          "status": 200,
+          "releaseId": null
+        }
+      ]
+    },
+    {
+      "name": "real-jwt-global-guards-cross-user-and-admin-roles",
+      "passed": true,
+      "detail": [
+        {
+          "name": "notification-anonymous",
+          "status": 401,
+          "expected": 401,
+          "passed": true
+        },
+        {
+          "name": "notification-owner",
+          "status": 200,
+          "expected": 200,
+          "passed": true
+        },
+        {
+          "name": "notification-cross-user",
+          "status": 404,
+          "expected": 404,
+          "passed": true
+        },
+        {
+          "name": "notification-target-cross-user",
+          "status": 403,
+          "expected": 403,
+          "passed": true
+        },
+        {
+          "name": "notification-target-owner",
+          "status": 200,
+          "expected": 200,
+          "passed": true
+        },
+        {
+          "name": "admin-history-super",
+          "status": 200,
+          "expected": 200,
+          "passed": true
+        },
+        {
+          "name": "admin-history-ops",
+          "status": 200,
+          "expected": 200,
+          "passed": true
+        },
+        {
+          "name": "admin-history-customer-denied",
+          "status": 403,
+          "expected": 403,
+          "passed": true
+        },
+        {
+          "name": "admin-history-finance-denied",
+          "status": 403,
+          "expected": 403,
+          "passed": true
+        },
+        {
+          "name": "feedback-list-customer",
+          "status": 200,
+          "expected": 200,
+          "passed": true
+        },
+        {
+          "name": "feedback-list-finance-denied",
+          "status": 403,
+          "expected": 403,
+          "passed": true
+        },
+        {
+          "name": "full-profile-super",
+          "status": 200,
+          "expected": 200,
+          "passed": true
+        },
+        {
+          "name": "full-profile-customer-denied",
+          "status": 403,
+          "expected": 403,
+          "passed": true
+        },
+        {
+          "name": "full-profile-finance-denied",
+          "status": 403,
+          "expected": 403,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "notification-expired-jwt",
+            "status": 401,
+            "expected": 401,
+            "passed": true
+          },
+          {
+            "name": "feedback-masked-linux-super",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "feedback-masked-linux-ops",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "feedback-masked-linux-customer",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-contact-linux-super",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-content-linux-super",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-images-linux-super",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-contact-linux-ops",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-content-linux-ops",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-images-linux-ops",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-contact-linux-customer",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-content-linux-customer",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-images-linux-customer",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-contact-linux-finance",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-content-linux-finance",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-images-linux-finance",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-contact-linux-user-a",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-content-linux-user-a",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-images-linux-user-a",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-invalid-status-query",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "feedback-invalid-page-query",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "feedback-invalid-status-body",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-4",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-5",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-6",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-7",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-8",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-9",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-10",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-whitelisted-eleventh-denied",
+            "status": 429,
+            "expected": 429,
+            "passed": true
+          },
+          {
+            "name": "feedback-audit-failure-withholds-contact",
+            "status": 503,
+            "expected": 503,
+            "passed": true
+          },
+          {
+            "name": "feedback-audit-failure-withholds-content",
+            "status": 503,
+            "expected": 503,
+            "passed": true
+          },
+          {
+            "name": "feedback-audit-failure-withholds-images",
+            "status": 503,
+            "expected": 503,
+            "passed": true
+          },
+          {
+            "name": "feedback-audit-recovery-contact",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-audit-recovery-content",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-audit-recovery-images",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          }
+        ],
+        "audits": 15,
+        "recoveredAudits": 3,
+        "sensitiveValuesInEvidence": false,
+        "invalidMutationUnchanged": true,
+        "ipScope": "loopback-only-not-real-proxy",
+        "auditFailureBehavior": "503-without-plaintext-and-three-recovery-audits"
+      }
+    },
+    {
+      "name": "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "manual-no-change-role-denied-linux-ops",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-role-denied-linux-customer",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-role-denied-linux-user-a",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-automation-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-missing-evidence",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-finance-single-operator",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-repeat-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-super-single-operator",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "payout-role-denied-linux-ops",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "payout-role-denied-linux-customer",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "payout-role-denied-linux-user-a",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "payout-automation-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "payout-approved-linux-super",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "payout-approved-linux-finance",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "payout-self-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "payout-pending-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "payout-audit-failure-denied",
+            "status": 500,
+            "expected": 500,
+            "passed": true
+          },
+          {
+            "name": "order-ship-role-denied-linux-customer",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "order-ship-role-denied-linux-finance",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "order-ship-role-denied-linux-user-a",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "order-ship-automation-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "order-refund-automation-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          }
+        ],
+        "noChangeFundsUntouched": true,
+        "normalPayoutAudits": 2,
+        "auditFailureWithheldAccount": true,
+        "realTransfers": 0,
+        "shippingExecuted": false,
+        "adjustDecisionNotCovered": true,
+        "sensitiveValuesInEvidence": false
+      }
+    },
+    {
+      "name": "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "pay-invalid-signature",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "pay-expired-signature",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "pay-mismatched-merchant",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "pay-mismatched-amount",
+            "status": 503,
+            "expected": 503,
+            "passed": true
+          },
+          {
+            "name": "pay-entitlement-transaction-failure",
+            "status": 500,
+            "expected": 500,
+            "passed": true
+          },
+          {
+            "name": "pay-after-rollback-retry",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "pay-duplicate-callback",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "pay-notification-failure-still-acknowledged",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "pay-notification-retry",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-invalid-signature",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "refund-mismatched-amount",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "refund-mismatched-transaction",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "refund-entitlement-transaction-failure",
+            "status": 500,
+            "expected": 500,
+            "passed": true
+          },
+          {
+            "name": "refund-after-rollback-retry",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-duplicate-callback",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-notification-failure-still-acknowledged",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-notification-retry",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "pay-before-refund-non-success-states",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-non-success-processing",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-non-success-fail",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-non-success-closed",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-non-success-abnormal",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          }
+        ],
+        "rawBodyWhitespaceVerified": true,
+        "rsaAndAesRealCrypto": true,
+        "dbConfigLoaderUsed": true,
+        "paymentRollbackNoSuccessNotification": true,
+        "refundRollbackNoSuccessNotification": true,
+        "notificationFailureDoesNotRollbackPaymentOrRefund": true,
+        "callbackRetriesRestoreOneNotification": true,
+        "paymentAndRefundDuplicateLedgerCounts": 1,
+        "nonSuccessRefundNeverClaimsSuccess": true,
+        "realProviderRequests": 0,
+        "scope": "synthetic-course-orders-not-real-provider-or-target-database"
+      }
+    },
+    {
+      "name": "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "adjust-reject-wrong-owner",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-missing-member",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-order-user",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-order-circle",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-order-type",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-revenue-circle",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-revenue-member",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-revenue-order",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-revenue-type",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-negative-revenue",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-invalid-owner-share",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-revenue-over-order-paid",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-revenue-over-discounted-paid",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-refund-over-paid",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-zero-refund",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-missing-revenue",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-uses-original-paid-amount",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-repeat",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-already-reversed-order",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-transaction-after-reversal-insert-fails",
+            "status": 500,
+            "expected": 500,
+            "passed": true
+          },
+          {
+            "name": "adjust-transaction-retry",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "adjust-concurrent-one-success-one-denied",
+            "statuses": [
+              201,
+              400
+            ],
+            "expected": [
+              201,
+              400
+            ],
+            "passed": true
+          }
+        ],
+        "originalOrderBasisNotRefundSnapshot": true,
+        "partialOwnerRecall": 24,
+        "originalOwnerShare": 60,
+        "bindingRejectionsPreservePending": true,
+        "repeatedOrderReversalRejected": true,
+        "transactionRollbackAfterActualInsert": true,
+        "concurrentOneReversal": true,
+        "walletRecordsUnchanged": true,
+        "realTransfers": 0,
+        "auditFailureNotCovered": true,
+        "scope": "synthetic-ledger-http-not-production-funds-or-settlement"
+      }
+    },
+    {
+      "name": "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "auto-over-share",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "auto-replay-over-share",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "auto-negative-share",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "auto-replay-negative-share",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "auto-amount-mismatch",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "auto-replay-amount-mismatch",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "auto-normal-partial",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "auto-replay-normal-partial",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "auto-zero-share",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "auto-replay-zero-share",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "auto-ordinary-user-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "auto-concurrent-single-credit",
+            "statuses": [
+              201,
+              400
+            ],
+            "expected": [
+              201,
+              400
+            ],
+            "passed": true
+          }
+        ],
+        "partialOwnerRecall": 24,
+        "refundEach": 40,
+        "anomalousSharePendingManualWithoutOwnerDeduction": true,
+        "zeroOwnerShareRefunded": true,
+        "oneWalletCreditPerRefund": true,
+        "scope": "synthetic-http-not-real-provider-or-settlement",
+        "realTransfers": 0,
+        "withdrawnBalanceRecoveryNotCovered": true
+      }
+    },
+    {
+      "name": "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "merchant-feature-disabled",
+            "status": 404,
+            "expected": 404,
+            "passed": true
+          },
+          {
+            "name": "merchant-nonmerchant-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "merchant-cross-shop-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "merchant-empty-tracking-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "merchant-ship",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "merchant-identical-replay",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "merchant-reship-different-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "merchant-update-shipment",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "merchant-get-shipment",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "merchant-cross-shop-query-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "merchant-cancelled-order-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "merchant-logistics-insert-failure",
+            "status": 500,
+            "expected": 500,
+            "passed": true
+          },
+          {
+            "name": "merchant-retry-after-rollback",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "merchant-concurrent-single-shipment",
+            "statuses": [
+              200,
+              400
+            ],
+            "passed": true
+          }
+        ],
+        "scope": "synthetic-http-no-carrier-or-wechat-delivery",
+        "realShipments": 0,
+        "carrierIntegrationNotCovered": true,
+        "virtualDeliveryNotCovered": true
+      }
+    },
+    {
+      "name": "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "im-capabilities-anonymous-denied",
+            "status": 401,
+            "passed": true
+          },
+          {
+            "name": "im-fallback-capabilities",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-history-anonymous-denied",
+            "status": 401,
+            "passed": true
+          },
+          {
+            "name": "im-self-send-denied",
+            "status": 403,
+            "passed": true
+          },
+          {
+            "name": "im-stranger-policy-denied",
+            "status": 403,
+            "passed": true
+          },
+          {
+            "name": "im-last-quota-two-http-requests-one-message",
+            "statuses": [
+              403,
+              201
+            ],
+            "passed": true
+          },
+          {
+            "name": "im-third-user-cannot-read-pair",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-recipient-history",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-recipient-unread",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-third-user-read-cannot-mark-recipient",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-recipient-mark-read",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-recipient-unread-zero",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-preference-mass-assignment-rejected-by-whitelist",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-preference-invalid-boolean",
+            "status": 400,
+            "passed": true
+          },
+          {
+            "name": "im-preference-valid-mute",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-reply-resets-peer-quota",
+            "status": 201,
+            "passed": true
+          },
+          {
+            "name": "im-send-again-after-reply",
+            "status": 201,
+            "passed": true
+          },
+          {
+            "name": "im-recipient-all-three-messages",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-clear-only-own-history",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-cleared-history-empty",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-peer-history-retained",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-insert-failure-rolls-back-quota",
+            "status": 500,
+            "passed": true
+          },
+          {
+            "name": "im-retry-after-insert-failure",
+            "status": 201,
+            "passed": true
+          },
+          {
+            "name": "im-either-side-blacklist-denied",
+            "status": 403,
+            "passed": true
+          },
+          {
+            "name": "im-third-user-conversations-isolated",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-opposite-direction-concurrency-no-deadlock",
+            "statuses": [
+              201,
+              201
+            ],
+            "passed": true
+          }
+        ],
+        "httpRequests": 28,
+        "scope": "synthetic-http-real-jwt-postgresql-transactions-no-external-im",
+        "realMessages": 0,
+        "socketDeliveryNotCovered": true,
+        "twoApplicationProcessesNotCovered": true
+      }
+    },
+    {
+      "name": "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "socket-anonymous-rejected",
+            "passed": true
+          },
+          {
+            "name": "socket-expired-token-rejected",
+            "passed": true
+          },
+          {
+            "name": "socket-banned-user-rejected",
+            "passed": true
+          },
+          {
+            "name": "two-app-processes-three-real-socket-connections",
+            "passed": true
+          },
+          {
+            "name": "two-app-processes-last-quota-one-commit",
+            "statuses": [
+              201,
+              403
+            ],
+            "passed": true
+          },
+          {
+            "name": "committed-message-delivered-once-to-both-users-not-third",
+            "passed": true
+          },
+          {
+            "name": "cross-process-reply-delivery-and-quota-reset",
+            "passed": true
+          },
+          {
+            "name": "database-insert-failure-no-message-event-and-no-quota",
+            "passed": true
+          },
+          {
+            "name": "rollback-retry-commits-and-delivers-once",
+            "passed": true
+          },
+          {
+            "name": "offline-recipient-does-not-block-commit",
+            "passed": true
+          },
+          {
+            "name": "reconnect-history-recovers-offline-message-without-fake-event-replay",
+            "passed": true
+          },
+          {
+            "name": "third-user-has-neither-events-nor-history",
+            "passed": true
+          }
+        ],
+        "httpRequests": 8,
+        "socketClientVersion": "socket.io-client@4.8.4",
+        "appProcesses": 2,
+        "realSocketConnections": true,
+        "sharedRedisAdapter": true,
+        "realMessages": 0,
+        "scope": "isolated-two-app-processes-synthetic-socket-http-no-tencent-no-production",
+        "productionNodesNotCovered": true
+      }
+    },
+    {
+      "name": "redis7-two-process-notification-idempotency",
+      "passed": true,
+      "detail": [
+        {
+          "created": false,
+          "sharedRedis": true
+        },
+        {
+          "created": true,
+          "sharedRedis": true
+        }
+      ]
+    },
+    {
+      "name": "database-unique-after-redis-key-loss",
+      "passed": true,
+      "detail": [
+        {
+          "created": false,
+          "sharedRedis": true
+        },
+        {
+          "created": false,
+          "sharedRedis": true
+        }
+      ]
+    },
+    {
+      "name": "notification-failure-release-and-two-process-retry",
+      "passed": true,
+      "detail": {
+        "failure": {
+          "failed": true,
+          "released": true
+        },
+        "retry": [
+          {
+            "created": false,
+            "sharedRedis": true
+          },
+          {
+            "created": true,
+            "sharedRedis": true
+          }
+        ]
+      }
+    }
+  ],
+  "passed": true
+}

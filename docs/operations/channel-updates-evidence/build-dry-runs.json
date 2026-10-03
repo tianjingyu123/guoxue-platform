@@ -1,0 +1,128 @@
+{
+  "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+  "syntheticOnly": true,
+  "compiled": false,
+  "nativePackageVerified": false,
+  "wgtEnabled": false,
+  "channels": [
+    {
+      "channelId": "huawei",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "huawei",
+      "platform": "harmony",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "xiaomi",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "oppo",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "oneplus",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "vivo",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "honor",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "realme",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "tencent",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "qihoo360",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "baidu",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "wandoujia",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "meizu",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "lenovo",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "samsung",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "google-play",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "app-store",
+      "platform": "ios",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    },
+    {
+      "channelId": "official",
+      "platform": "android",
+      "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+    }
+  ],
+  "nativeBoundary": {
+    "self": {
+      "compatible": true,
+      "changedNativeInputs": [],
+      "nativeFingerprint": "3fcd551a0d14f7a02e4b1319f26750b6cb0b9537d6f58b4b372d94ac69870293"
+    },
+    "initialFullPackageRequired": {
+      "compatible": false,
+      "changedNativeInputs": [
+        "apps/mobile/native/resource-updater/LICENSE.bouncycastle.txt",
+        "apps/mobile/native/resource-updater/README.md",
+        "apps/mobile/native/resource-updater/config.template.json",
+        "apps/mobile/native/resource-updater/dependencies.json",
+        "apps/mobile/native/resource-updater/src/cn/rebu/resource/CompleteBaseMigration.java",
+        "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceCrypto.java",
+        "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceRuntime.java",
+        "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceStore.java",
+        "apps/mobile/package.json",
+        "apps/mobile/src/lib/app-distribution.ts",
+        "apps/mobile/src/manifest.json",
+        "apps/mobile/src/uni_modules/rebu-resource-updater/package.json",
+        "apps/mobile/src/uni_modules/rebu-resource-updater/utssdk/app-android/index.uts",
+        "pnpm-lock.yaml",
+        "scripts/release/build-resource-native.mjs",
+        "scripts/release/native-dependencies.mjs"
+      ],
+      "nativeFingerprint": "3fcd551a0d14f7a02e4b1319f26750b6cb0b9537d6f58b4b372d94ac69870293"
+    }
+  }
+}

@@ -4,7 +4,6 @@ import { ErrorCode } from "../../../common/error-codes";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RecommendContext, RecommendScene } from "../recommend.dto";
 import { RecommendItem } from "../strategies/base.strategy";
-import { StationPickService } from "../../station-pick/station-pick.service";
 import { RecommendSelectService } from "./recommend-select.service";
 
 /**
@@ -17,7 +16,6 @@ import { RecommendSelectService } from "./recommend-select.service";
 export class RecommendInsertService {
   constructor(
     private prisma: PrismaService,
-    private stationPick: StationPickService,
     private selectSvc: RecommendSelectService,
   ) {}
 
@@ -98,42 +96,69 @@ export class RecommendInsertService {
 
     const station = await this.prisma.station.findUnique({
       where: { id: ctx.stationId },
-      select: { templateConfig: true },
+      select: { templateConfig: true, status: true },
     });
-    const config = (station?.templateConfig as Record<string, any>) ?? {};
-    if (config?.stationZoneEnabled === false) return items;
+    if (!station || station.status !== "ACTIVE") return items;
+    const config = (station.templateConfig as Record<string, unknown>) ?? {};
+    if (config.stationZoneEnabled === false) return items;
 
-    const positions: number[] = config?.stationPickPositions ?? [2, 5, 9];
-
-    const picks = await this.prisma.stationPick.findMany({
-      where: { stationId: ctx.stationId },
-      orderBy: { sortOrder: "asc" },
+    const board = this.stationBoardForScene(ctx.scene);
+    const positions = [0, 2, 4, 6, 8, 10];
+    const pinned = await this.prisma.stationPinnedContent.findMany({
+      where: { stationId: ctx.stationId, board, isActive: true },
+      orderBy: { slotIndex: "asc" },
       take: positions.length,
     });
-    if (picks.length === 0) return items;
+    if (!pinned.length) return items;
 
-    const pickItems = await this.stationPick.fetchContentItems(picks);
-    const validItems = pickItems.filter(Boolean);
-
-    const result = [...items];
-    for (let i = 0; i < Math.min(positions.length, validItems.length); i++) {
-      const pos = positions[i];
-      if (pos < result.length) {
-        result.splice(pos, 0, validItems[i] as any);
-      }
+    const existing = new Set(items.map((item) => `${item.type}:${item.id}`));
+    const selected: RecommendItem[] = [];
+    for (const record of pinned) {
+      const type = this.toRecommendType(record.contentType);
+      if (!type || existing.has(`${type}:${record.contentId}`)) continue;
+      const item = await this.fetchContentItemForInsert(type, record.contentId, true);
+      if (!item) continue;
+      item.reason = "站长主推";
+      item.strategies = ["station-pinned"];
+      selected.push(item);
+      existing.add(`${type}:${record.contentId}`);
     }
 
+    const result = [...items];
+    selected.forEach((item, index) => {
+      result.splice(Math.min(positions[index], result.length), 0, item);
+    });
     return result;
   }
 
+  private stationBoardForScene(scene: RecommendScene): string {
+    if (scene === RecommendScene.PRODUCT_DETAIL) return "mall";
+    if (scene === RecommendScene.COURSE_DETAIL || scene === RecommendScene.COURSE_LEARN) return "course";
+    if (scene === RecommendScene.ARTICLE_DETAIL) return "article";
+    return "home";
+  }
+
+  private toRecommendType(contentType: string): "ARTICLE" | "COURSE" | "PRODUCT" | "CIRCLE" | "VIDEO" | null {
+    const mapped: Record<string, "ARTICLE" | "COURSE" | "PRODUCT" | "CIRCLE" | "VIDEO"> = {
+      article: "ARTICLE",
+      course: "COURSE",
+      product: "PRODUCT",
+      circle: "CIRCLE",
+      video: "VIDEO",
+    };
+    return mapped[contentType.toLowerCase()] ?? null;
+  }
+
   /** 根据类型和ID查询内容，构造强插用的 RecommendItem */
-  private async fetchContentItemForInsert(contentType: string, contentId: string): Promise<RecommendItem | null> {
+  private async fetchContentItemForInsert(contentType: string, contentId: string, publicOnly = false): Promise<RecommendItem | null> {
     switch (contentType) {
       case "ARTICLE": {
-        const a = await this.prisma.article.findUnique({
-          where: { id: contentId },
-          select: this.selectSvc.articleSelect(),
-        });
+        const a = publicOnly
+          ? await this.prisma.article.findFirst({
+              where: { id: contentId, auditStatus: "APPROVED", deletedAt: null },
+              select: this.selectSvc.articleSelect(),
+            })
+          : await this.prisma.article.findUnique({ where: { id: contentId }, select: this.selectSvc.articleSelect() });
         if (!a) return null;
         return {
           id: a.id, type: "ARTICLE", title: a.title, cover: a.cover ?? undefined,
@@ -143,10 +168,12 @@ export class RecommendInsertService {
         };
       }
       case "COURSE": {
-        const c = await this.prisma.course.findUnique({
-          where: { id: contentId },
-          select: this.selectSvc.courseSelect(),
-        });
+        const c = publicOnly
+          ? await this.prisma.course.findFirst({
+              where: { id: contentId, auditStatus: "APPROVED", deletedAt: null },
+              select: this.selectSvc.courseSelect(),
+            })
+          : await this.prisma.course.findUnique({ where: { id: contentId }, select: this.selectSvc.courseSelect() });
         if (!c) return null;
         return {
           id: c.id, type: "COURSE", title: c.title, cover: c.cover ?? undefined,
@@ -156,10 +183,12 @@ export class RecommendInsertService {
         };
       }
       case "PRODUCT": {
-        const p = await this.prisma.product.findUnique({
-          where: { id: contentId },
-          select: this.selectSvc.productSelect(),
-        });
+        const p = publicOnly
+          ? await this.prisma.product.findFirst({
+              where: { id: contentId, status: "ON_SALE", deletedAt: null },
+              select: this.selectSvc.productSelect(),
+            })
+          : await this.prisma.product.findUnique({ where: { id: contentId }, select: this.selectSvc.productSelect() });
         if (!p) return null;
         return {
           id: p.id, type: "PRODUCT", title: p.title, cover: p.images?.[0],
@@ -169,10 +198,12 @@ export class RecommendInsertService {
         };
       }
       case "CIRCLE": {
-        const ci = await this.prisma.circle.findUnique({
-          where: { id: contentId },
-          select: this.selectSvc.circleSelect(),
-        });
+        const ci = publicOnly
+          ? await this.prisma.circle.findFirst({
+              where: { id: contentId, status: "ACTIVE", deletedAt: null },
+              select: this.selectSvc.circleSelect(),
+            })
+          : await this.prisma.circle.findUnique({ where: { id: contentId }, select: this.selectSvc.circleSelect() });
         if (!ci) return null;
         return {
           id: ci.id, type: "CIRCLE", title: ci.name, cover: ci.cover ?? undefined,
@@ -182,10 +213,12 @@ export class RecommendInsertService {
         };
       }
       case "VIDEO": {
-        const v = await this.prisma.video.findUnique({
-          where: { id: contentId },
-          select: this.selectSvc.videoSelect(),
-        });
+        const v = publicOnly
+          ? await this.prisma.video.findFirst({
+              where: { id: contentId, auditStatus: "APPROVED", status: "PUBLISHED", isPrivate: false },
+              select: this.selectSvc.videoSelect(),
+            })
+          : await this.prisma.video.findUnique({ where: { id: contentId }, select: this.selectSvc.videoSelect() });
         if (!v) return null;
         return {
           id: v.id, type: "VIDEO", title: v.title ?? "", cover: v.coverUrl ?? undefined,

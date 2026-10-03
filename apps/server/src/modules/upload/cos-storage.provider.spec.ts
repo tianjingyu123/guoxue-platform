@@ -1,4 +1,6 @@
 import { CosStorageProvider } from "./cos-storage.provider";
+import COS from "cos-nodejs-sdk-v5";
+import { TencentInstanceRoleCredentialProvider } from "../../common/tencent-instance-role-credentials";
 
 const mockPutObject = jest.fn();
 const mockDeleteObject = jest.fn();
@@ -12,6 +14,7 @@ jest.mock("cos-nodejs-sdk-v5", () => {
 
 describe("CosStorageProvider", () => {
   beforeEach(() => {
+    process.env.TENCENT_CREDENTIAL_MODE = "static";
     process.env.COS_SECRET_ID = "test-id";
     process.env.COS_SECRET_KEY = "test-key";
     process.env.COS_BUCKET = "test-bucket";
@@ -26,6 +29,8 @@ describe("CosStorageProvider", () => {
     delete process.env.COS_BUCKET;
     delete process.env.COS_REGION;
     delete process.env.COS_CDN_BASE;
+    delete process.env.TENCENT_CREDENTIAL_MODE;
+    delete process.env.TENCENT_CVM_ROLE_NAME;
   });
 
   it("使用 COS_CDN_BASE 构建 URL", async () => {
@@ -110,6 +115,35 @@ describe("CosStorageProvider", () => {
     delete process.env.COS_SECRET_KEY;
     const provider = new CosStorageProvider();
     expect(provider).toBeDefined();
+  });
+
+  it("实例角色模式通过动态回调向 COS SDK 提供临时凭据", async () => {
+    process.env.TENCENT_CREDENTIAL_MODE = "instance-role";
+    process.env.TENCENT_CVM_ROLE_NAME = "RebugxProductionCvmRole";
+    delete process.env.COS_SECRET_ID;
+    delete process.env.COS_SECRET_KEY;
+    const credentials = {
+      TmpSecretId: "temporary-id",
+      TmpSecretKey: "temporary-key",
+      SecurityToken: "temporary-token",
+      StartTime: Math.floor(Date.now() / 1000) - 60,
+      ExpiredTime: Math.floor(Date.now() / 1000) + 3600,
+    };
+    const roleProvider = {
+      getCredentials: jest.fn().mockResolvedValue(credentials),
+    } as unknown as TencentInstanceRoleCredentialProvider;
+
+    new CosStorageProvider(roleProvider);
+    const cosConstructor = COS as unknown as jest.Mock;
+    const config =
+      cosConstructor.mock.calls[cosConstructor.mock.calls.length - 1]?.[0];
+    const callback = jest.fn();
+    config.getAuthorization({}, callback);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(roleProvider.getCredentials).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledWith(credentials);
   });
 
   it("无法识别的 MIME 回退为安全的 .bin（不可执行，不用用户原始扩展名）", async () => {

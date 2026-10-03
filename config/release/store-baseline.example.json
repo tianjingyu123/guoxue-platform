@@ -1,0 +1,25 @@
+{
+  "android": {
+    "packageName": "请填写现有 Android 正式包名",
+    "versionName": "请填写各商店当前线上版本名",
+    "versionCode": 0,
+    "signatureSha256": "请填写现有正式签名证书 SHA-256 指纹"
+  },
+  "ios": {
+    "bundleId": "请填写现有 iOS Bundle ID",
+    "versionName": "请填写 App Store 当前线上版本",
+    "buildNumber": 0,
+    "teamId": "请填写 Apple Developer Team ID"
+  },
+  "harmony": {
+    "bundleName": "请填写现有鸿蒙 App Bundle Name",
+    "versionName": "请填写 AppGallery 当前线上版本",
+    "versionCode": 0,
+    "appGalleryUrl": "请填写 AppGallery 商店地址",
+    "signingProfileVerified": false
+  },
+  "dcloudAppId": "请填写受控 DCloud AppID",
+  "wechatMiniAppId": "wx06397e8ab26bed9e",
+  "verifiedAt": "YYYY-MM-DD",
+  "verifiedBy": "请填写核验人"
+}

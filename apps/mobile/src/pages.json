@@ -7,6 +7,7 @@
       "^app-empty$": "@/components/common/app-empty.vue",
       "^app-error$": "@/components/common/app-error.vue",
       "^app-nav-bar$": "@/components/common/app-nav-bar.vue",
+      "^app-safe-area-top$": "@/components/common/app-safe-area-top.vue",
       "^app-load-more$": "@/components/common/app-load-more.vue",
       "^app-network-bar$": "@/components/common/app-network-bar.vue",
       "^customer-service-fab$": "@/components/common/customer-service-fab.vue",
@@ -40,7 +41,8 @@
       "path": "pages/discover/index",
       "style": {
         "navigationBarTitleText": "发现",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
       }
     },
     {
@@ -57,6 +59,28 @@
         "navigationStyle": "custom"
       }
     }
+    // #ifdef APP-PLUS
+    ,{
+      "path": "pkg-live/host/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": true,
+        "app-plus": {
+          "bounce": "none"
+        }
+      }
+    },
+    {
+      "path": "pkg-live/watch/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": true,
+        "app-plus": {
+          "bounce": "none"
+        }
+      }
+    }
+    // #endif
   ],
   "subPackages": [
     {
@@ -70,19 +94,27 @@
         },
         {
           "path": "couple/invite",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "couple/accept",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "couple/result",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "couple/mine",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "bazi/result",
@@ -91,13 +123,13 @@
           }
         },
         {
-          "path": "bazi/history/index",
+          "path": "bazi/ai-report",
           "style": {
             "navigationStyle": "custom"
           }
         },
         {
-          "path": "bazi/history/celebrities",
+          "path": "bazi/history/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -161,6 +193,412 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "wannianli/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "qizheng/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "qizheng/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "hepan/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "hepan/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "meihua/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "meihua/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xiaoliuren/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ziwei/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ziwei/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "daliuren/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "daliuren/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "jinkoujue/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "jinkoujue/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xiaochengtu/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xiaochengtu/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "taiyi/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "taiyi/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "yinpan/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "yinpan/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "yinpan-mingli/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "yinpan-mingli/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "feigong/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "feigong/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "chuanren/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "chuanren/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "shanxiang/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "shanxiang/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "lijichi/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "lijichi/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xuankong/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xuankong/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "wuyunliuqi/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xuankong/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "yinpan/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "hepan/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "meihua/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "lijichi/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xiaoliuren/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ziwei/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "jieqi/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ai/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "cases/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "cases/detail",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "cases/submit",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pkg-paipan3",
+      "pages": [
+        {
+          "path": "jinqianke/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "kongming/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "bazhai/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "bazhai/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "bazhai/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "luopan/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pkg-paipan2",
+      "pages": [
+        {
+          "path": "zidian/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "liuyao/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "liuyao/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "qiming/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "qiming/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "qiming/detail",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xingming/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xingming/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "shuzi/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "zhuge/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "zhuge/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "liuyao/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "xingming/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "qiming/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },
@@ -174,19 +612,13 @@
           }
         },
         {
-          "path": "courses-list/index",
+          "path": "catalog/index",
           "style": {
             "navigationStyle": "custom"
           }
         },
         {
           "path": "detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "chapters/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -204,43 +636,13 @@
           }
         },
         {
-          "path": "flash-sale/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "purchase-confirm/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "certificate/index",
           "style": {
             "navigationStyle": "custom"
           }
         },
         {
-          "path": "study-plan/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "work-submit/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "work-review/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "work-result/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -258,13 +660,13 @@
           }
         },
         {
-          "path": "market/index",
+          "path": "reviews/index",
           "style": {
             "navigationStyle": "custom"
           }
         },
         {
-          "path": "complete/index",
+          "path": "qa/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -304,31 +706,7 @@
       "root": "pkg-shop",
       "pages": [
         {
-          "path": "home/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "store/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "product/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "categories/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "reviews/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -340,31 +718,7 @@
           }
         },
         {
-          "path": "compare/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "flash-sale/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "seckill/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "seckill/rules/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "payment-result/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -406,12 +760,6 @@
           }
         },
         {
-          "path": "cart/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "cart/sku",
           "style": {
             "navigationStyle": "custom"
@@ -424,17 +772,19 @@
           }
         },
         {
-          "path": "checkout/order",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "paying/index",
           "style": {
             "navigationStyle": "custom"
           }
         },
+        // #ifdef H5
+        {
+          "path": "huifu-paying/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        // #endif
         {
           "path": "pay-success/index",
           "style": {
@@ -452,12 +802,6 @@
           "style": {
             "navigationStyle": "custom"
           }
-        },
-        {
-          "path": "payment-methods/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
         }
       ]
     },
@@ -467,13 +811,8 @@
         {
           "path": "list/index",
           "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "center/index",
-          "style": {
-            "navigationStyle": "custom"
+            "navigationStyle": "custom",
+            "enablePullDownRefresh": true
           }
         },
         {
@@ -558,12 +897,6 @@
           "style": {
             "navigationStyle": "custom"
           }
-        },
-        {
-          "path": "address/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
         }
       ]
     },
@@ -578,19 +911,27 @@
         },
         {
           "path": "shared-reading/create",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "shared-reading/detail",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "shared-reading/invite",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "shared-reading/mine",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "category/index",
@@ -686,61 +1027,14 @@
       ]
     },
     {
-      "root": "pkg-ebook",
-      "pages": [
-        {
-          "path": "bookshelf/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "store/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "bookmarks/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "notes/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "checkout/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "checkout/success",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "reader/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
       "root": "pkg-circle",
       "pages": [
+        {
+          "path": "circles/me",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
         {
           "path": "user/profile",
           "style": {
@@ -761,6 +1055,18 @@
         },
         {
           "path": "circles/detail",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/knowledge-universe",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/members",
           "style": {
             "navigationStyle": "custom"
           }
@@ -808,12 +1114,6 @@
           }
         },
         {
-          "path": "circles/calendar",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "circles/badges",
           "style": {
             "navigationStyle": "custom"
@@ -826,25 +1126,19 @@
           }
         },
         {
-          "path": "circles/mine",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "circles/bots",
           "style": {
             "navigationStyle": "custom"
           }
         },
         {
-          "path": "circles/stats",
+          "path": "circles/knowledge",
           "style": {
             "navigationStyle": "custom"
           }
         },
         {
-          "path": "circles/knowledge",
+          "path": "circles/voice-agent",
           "style": {
             "navigationStyle": "custom"
           }
@@ -880,6 +1174,42 @@
           }
         },
         {
+          "path": "circles/my-audits",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/notifications",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/rules",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/roles",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/sanction-notice",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/renew",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/exit-requests",
           "style": {
             "navigationStyle": "custom"
@@ -898,12 +1228,6 @@
           }
         },
         {
-          "path": "circles/distribution",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "circles/earnings",
           "style": {
             "navigationStyle": "custom"
@@ -911,18 +1235,6 @@
         },
         {
           "path": "circles/level",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "circles/analytics",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "circles/settings-knowledge",
           "style": {
             "navigationStyle": "custom"
           }
@@ -940,6 +1252,12 @@
           }
         },
         {
+          "path": "circles/expert-config",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/consult-orders",
           "style": {
             "navigationStyle": "custom"
@@ -947,6 +1265,12 @@
         },
         {
           "path": "circles/my-calls",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/call-end",
           "style": {
             "navigationStyle": "custom"
           }
@@ -969,12 +1293,7 @@
             "navigationStyle": "custom"
           }
         },
-        {
-          "path": "circles/refund-review",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
+        
         {
           "path": "circles/my-refunds",
           "style": {
@@ -989,12 +1308,6 @@
         },
         {
           "path": "circles/checkin",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "circles/recommend-ebook",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1024,12 +1337,6 @@
           }
         },
         {
-          "path": "rankings/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "articles/index",
           "style": {
             "navigationStyle": "custom"
@@ -1053,6 +1360,43 @@
           }
         },
         {
+          "path": "agent/voice-call",
+          "style": {
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        },
+        {
+          "path": "agent/xiaobu-voice",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "agent/xiaobu-voice-history",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "agent/xiaobu-voice-topup",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "agent/xiaobu-member",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "agent/xiaobu-devices",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "agent/customer-service",
           "style": {
             "navigationStyle": "custom"
@@ -1066,12 +1410,6 @@
         },
         {
           "path": "agents/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "agents/history",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1159,24 +1497,14 @@
             "navigationStyle": "custom"
           }
         },
-        {
-          "path": "vertical/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "horizontal/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
+        // #ifndef APP-PLUS
         {
           "path": "watch/index",
           "style": {
             "navigationStyle": "custom"
           }
         },
+        // #endif
         {
           "path": "end/index",
           "style": {
@@ -1190,12 +1518,6 @@
           }
         },
         {
-          "path": "replay-comment/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "console/index",
           "style": {
             "navigationStyle": "custom"
@@ -1203,12 +1525,6 @@
         },
         {
           "path": "obs/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "theme/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1297,30 +1613,6 @@
           }
         },
         {
-          "path": "creator/analytics/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "creator/sales/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "creator/products-add/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "creator/withdraw/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "creator/earnings-history/index",
           "style": {
             "navigationStyle": "custom"
@@ -1337,16 +1629,78 @@
     {
       "root": "pkg-competition",
       "pages": [
-        { "path": "home/index", "style": { "navigationStyle": "custom" } },
-        { "path": "detail/index", "style": { "navigationStyle": "custom" } },
-        { "path": "register/index", "style": { "navigationStyle": "custom" } },
-        { "path": "quiz/index", "style": { "navigationStyle": "custom" } },
-        { "path": "result/index", "style": { "navigationStyle": "custom" } },
-        { "path": "score-detail/index", "style": { "navigationStyle": "custom" } },
-        { "path": "certificate/index", "style": { "navigationStyle": "custom" } },
-        { "path": "poster/index", "style": { "navigationStyle": "custom" } },
-        { "path": "archive/index", "style": { "navigationStyle": "custom" } },
-        { "path": "talents/index", "style": { "navigationStyle": "custom" } }
+        {
+          "path": "home/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "detail/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "register/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "quiz/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "result/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "score-detail/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "certificate/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "poster/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "talents/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "analyst-profile/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "rules/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "invite/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
       ]
     },
     {
@@ -1366,12 +1720,6 @@
         },
         {
           "path": "application-status/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "edit-application/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1407,6 +1755,12 @@
           }
         },
         {
+          "path": "inventory/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "product-edit/index",
           "style": {
             "navigationStyle": "custom"
@@ -1414,6 +1768,18 @@
         },
         {
           "path": "orders/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "batch-ship/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "after-sales/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1461,19 +1827,7 @@
           }
         },
         {
-          "path": "inquiries/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "content-stats/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "circle-bindding/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1483,12 +1837,36 @@
           "style": {
             "navigationStyle": "custom"
           }
+        },
+        {
+          "path": "operators/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "customers/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },
     {
       "root": "pkg-operator",
       "pages": [
+        {
+          "path": "station-workbench/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "pinned-manage/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
         {
           "path": "customers/index",
           "style": {
@@ -1580,25 +1958,14 @@
           }
         },
         {
-          "path": "station-detail/index",
+          "path": "station-paipan-auth/index",
           "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "station-teachers/index",
-          "style": {
-            "navigationStyle": "custom"
+            "navigationStyle": "default",
+            "navigationBarTitleText": "排盘授权"
           }
         },
         {
           "path": "station-poster/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "station-promote/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1634,25 +2001,7 @@
           }
         },
         {
-          "path": "station-live/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "station-assistant/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "become-partner/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "announcements/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1735,24 +2084,6 @@
           }
         },
         {
-          "path": "teacher-pool/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "teacher-demand/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "demand-create/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "members/index",
           "style": {
             "navigationStyle": "custom"
@@ -1760,12 +2091,6 @@
         },
         {
           "path": "member-apply/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "demands-create/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1788,13 +2113,13 @@
           }
         },
         {
-          "path": "station-detail/index",
+          "path": "teacher-booking/index",
           "style": {
             "navigationStyle": "custom"
           }
         },
         {
-          "path": "station-home/index",
+          "path": "station-detail/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1813,18 +2138,6 @@
         },
         {
           "path": "course-detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "teacher-booking/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "events/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1866,37 +2179,7 @@
           }
         },
         {
-          "path": "students/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "events/detail",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "manage-events/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "manage-calendar/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "onboarding/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "sop/index",
+          "path": "manage-settlement/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1907,6 +2190,18 @@
       "root": "pkg-mine",
       "pages": [
         {
+          "path": "role-apply/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "verification/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "settings/index",
           "style": {
             "navigationStyle": "custom"
@@ -1914,15 +2209,21 @@
         },
         {
           "path": "mentorship/index",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "mentorship/accept",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "mentorship/ranking",
-          "style": { "navigationStyle": "custom" }
+          "style": {
+            "navigationStyle": "custom"
+          }
         },
         {
           "path": "security/index",
@@ -2004,6 +2305,12 @@
         },
         {
           "path": "wallet/withdraw",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "wallet/withdraw-records",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2111,24 +2418,6 @@
           }
         },
         {
-          "path": "downloads/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "bookings/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "reservations/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "teen-mode-intro/index",
           "style": {
             "navigationStyle": "custom"
@@ -2153,18 +2442,6 @@
           }
         },
         {
-          "path": "applications/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "invite-records/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "submissions/index",
           "style": {
             "navigationStyle": "custom"
@@ -2178,6 +2455,12 @@
         },
         {
           "path": "favorites/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "notes/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2212,31 +2495,7 @@
       "root": "pkg-profile",
       "pages": [
         {
-          "path": "downloads/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "follows/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "learning/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "invite/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "invite/history/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2265,67 +2524,7 @@
       "root": "pkg-settings",
       "pages": [
         {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "notifications/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "privacy/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "phone/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "password/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "payment-password/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "payment-methods/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "blacklist/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "bindaccount/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "delete-account/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "verification/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2363,29 +2562,6 @@
       ]
     },
     {
-      "root": "pkg-wallet",
-      "pages": [
-        {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "bank-cards/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "bill/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
       "root": "pkg-auth",
       "pages": [
         {
@@ -2414,12 +2590,6 @@
         },
         {
           "path": "interests-guide/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "recover/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2484,12 +2654,6 @@
           }
         },
         {
-          "path": "im/invite/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "im/group-detail/index",
           "style": {
             "navigationStyle": "custom"
@@ -2508,56 +2672,6 @@
         },
         {
           "path": "search/result",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
-      "root": "pkg-poetry",
-      "pages": [
-        {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "solar-term/index",
-          "style": { "navigationStyle": "custom" }
-        },
-        {
-          "path": "categories/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "collections/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "poet/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
-      "root": "pkg-fortune",
-      "pages": [
-        {
-          "path": "index/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2611,68 +2725,10 @@
       ]
     },
     {
-      "root": "pkg-qa",
-      "pages": [
-        {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "ask/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "pending/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
       "root": "pkg-help",
       "pages": [
         {
           "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
-      "root": "pkg-expert",
-      "pages": [
-        {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "booking/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "call/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2709,29 +2765,6 @@
       ]
     },
     {
-      "root": "pkg-activity",
-      "pages": [
-        {
-          "path": "detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "calendar/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "landing/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
       "root": "pkg-notices",
       "pages": [
         {
@@ -2755,40 +2788,12 @@
       ]
     },
     {
-      "root": "pkg-ai",
-      "pages": [
-        {
-          "path": "cover-generate/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
-      "root": "pkg-author",
-      "pages": [
-        {
-          "path": "index/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
       "root": "pkg-common",
       "pages": [
         {
-          "path": "scan/index",
+          "path": "contents/detail",
           "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "image-viewer/index",
-          "style": {
-            "navigationStyle": "custom"
+            "navigationBarTitleText": "内容阅读"
           }
         },
         {
@@ -2804,21 +2809,23 @@
           }
         },
         {
-          "path": "poster/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "result/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "growth-card/index",
           "style": {
             "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "legacy-paipan/index",
+          "style": {
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        },
+        {
+          "path": "legacy-paipan-share/index",
+          "style": {
+            "navigationStyle": "custom",
+            "disableScroll": true
           }
         }
       ]
@@ -2857,19 +2864,119 @@
           }
         }
       ]
+    },
+    {
+      "root": "pkg-solar-term",
+      "pages": [
+        {
+          "path": "index/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pkg-workspace",
+      "pages": [
+        {
+          "path": "managed-store/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "index/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "report/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "report/preview",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "shared/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "pro/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ledger/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "cases/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "brand/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
+      ]
     }
   ],
   "preloadRule": {
-    "pages/index/index": { "network": "wifi", "packages": ["pkg-classics", "pkg-course"] },
-    "pages/circles/index": { "network": "wifi", "packages": ["pkg-circle"] },
-    "pages/paipan/index": { "network": "wifi", "packages": ["pkg-paipan"] },
-    "pages/discover/index": { "network": "wifi", "packages": ["pkg-discover"] },
-    "pages/profile/index": { "network": "wifi", "packages": ["pkg-mine"] }
+    "pages/index/index": {
+      "network": "wifi",
+      "packages": [
+        "pkg-classics",
+        "pkg-course"
+      ]
+    },
+    "pages/circles/index": {
+      "network": "wifi",
+      "packages": [
+        "pkg-circle"
+      ]
+    },
+    "pages/paipan/index": {
+      "network": "wifi",
+      "packages": [
+        "pkg-paipan"
+      ]
+    },
+    "pages/discover/index": {
+      "network": "wifi",
+      "packages": [
+        "pkg-discover"
+      ]
+    },
+    "pages/profile/index": {
+      "network": "wifi",
+      "packages": [
+        "pkg-mine"
+      ]
+    }
   },
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "热卜国学",
     "navigationBarBackgroundColor": "#FAF8F5",
-    "backgroundColor": "#FAF8F5"
+    "backgroundColor": "#FAF8F5",
+    "rpxCalcMaxDeviceWidth": 480,
+    "rpxCalcBaseDeviceWidth": 375,
+    "rpxCalcIncludeWidth": 750,
+    "app-plus": {
+      "popGesture": "close"
+    }
   }
 }

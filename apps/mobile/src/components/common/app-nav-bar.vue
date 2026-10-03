@@ -5,7 +5,15 @@
     <view class="nav-content" :style="{ height: barHeight + 'rpx' }">
       <!-- 左侧：返回 -->
       <view class="nav-side nav-left">
-        <view v-if="showBack" class="nav-back" @tap="onBack">
+        <view
+          v-if="showBack"
+          class="nav-back"
+          role="button"
+          aria-label="返回上一页"
+          tabindex="0"
+          @tap="onBack"
+          @keydown="onBackKeydown"
+        >
           <app-icon :name="backIcon" :size="backSize" :color="color" />
         </view>
         <slot name="left" />
@@ -15,7 +23,7 @@
         <text class="nav-title" :style="{ color, fontSize: titleSize + 'rpx', fontWeight: titleWeight, fontFamily: serifTitle ? 'var(--font-serif)' : '' }">{{ title }}</text>
       </slot>
       <!-- 右侧：操作插槽 -->
-      <view class="nav-side nav-right">
+      <view class="nav-side nav-right" :style="menuSafeRight ? { marginRight: menuSafeRight + 'px' } : undefined">
         <slot name="right" />
       </view>
     </view>
@@ -23,9 +31,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
 const props = withDefaults(
   defineProps<{
@@ -34,7 +43,7 @@ const props = withDefaults(
     color?: string
     /** 返回图标，原型各页不同：chevron-left(默认) 或 arrow-left */
     backIcon?: string
-    /** 返回图标尺寸(rpx)，chevron 默认 44(=22px)，arrow 建议 40(=20px) */
+    /** 返回图标尺寸(rpx)；AppIcon 会按全站规范保底到 44rpx。 */
     backSize?: number
     /** 标题字号(rpx)，默认 32(=16px text-base)，部分页用 36(=18px text-lg) */
     titleSize?: number
@@ -56,8 +65,8 @@ const props = withDefaults(
     title: '',
     showBack: true,
     color: '#2C2C2C',
-    backIcon: 'chevron-left',
-    backSize: 44,
+    backIcon: 'arrow-left',
+    backSize: 48,
     titleSize: 32,
     barHeight: 112,
     titleAlign: 'center',
@@ -71,11 +80,34 @@ const props = withDefaults(
 
 const emit = defineEmits<{ (e: 'back'): void }>()
 
-const barStyle = computed(() => ({ background: props.background }))
+const safeTop = ref(0)
+const menuSafeRight = getMiniProgramMenuSafeRight()
+try {
+  const systemInfo = uni.getSystemInfoSync()
+  safeTop.value = Math.max(
+    0,
+    systemInfo.statusBarHeight || 0,
+    systemInfo.safeAreaInsets?.top || 0,
+    systemInfo.safeArea?.top || 0,
+  )
+} catch {
+  safeTop.value = 0
+}
+
+const barStyle = computed<Record<string, string>>(() => ({
+  background: props.background,
+  '--app-nav-safe-top': `${safeTop.value}px`,
+}))
 
 function onBack() {
   emit('back')
   if (!props.customBack) goBack()
+}
+
+function onBackKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  onBack()
 }
 </script>
 
@@ -86,9 +118,12 @@ function onBack() {
   left: 0;
   right: 0;
   z-index: 100;
-  /* 顶部安全区：H5 下为 0，匹配原型；真机自动撑开状态栏 */
-  padding-top: constant(safe-area-inset-top);
-  padding-top: env(safe-area-inset-top);
+  /*
+   * App WebView 中 env(safe-area-inset-top) 可能错误返回 0；以系统状态栏高度兜底，
+   * 同时保留 iOS 浏览器的 CSS 安全区，取两者较大值避免刘海/灵动岛遮挡。
+   */
+  padding-top: var(--app-nav-safe-top, 0px);
+  padding-top: max(var(--app-nav-safe-top, 0px), env(safe-area-inset-top));
   border-bottom: 2rpx solid #e8e3db;
   backdrop-filter: blur(16rpx);
   -webkit-backdrop-filter: blur(16rpx);
@@ -123,9 +158,10 @@ function onBack() {
 }
 
 .nav-back {
-  width: 60rpx;
-  height: 60rpx;
-  margin-left: -12rpx; /* -ml-2，与原型一致 */
+  /* 触控热区标准 ≥88rpx（44pt）：icon 不变，容器扩大 + 负 margin 保持视觉位置不动 */
+  width: 88rpx;
+  height: 88rpx;
+  margin-left: -26rpx;
   display: flex;
   align-items: center;
   justify-content: center;

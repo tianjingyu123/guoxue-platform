@@ -202,8 +202,13 @@ const submitting = ref(false);
 function money(v: number | string | null | undefined) {
   return Number(v ?? 0).toFixed(2);
 }
+/** 本地时区格式化 YYYY-MM-DD HH:mm（原 slice(0,16) 直切 ISO 串显示的是 UTC，差 8 小时） */
 function fmtTime(t?: string) {
-  return t ? String(t).slice(0, 16).replace("T", " ") : "--";
+  if (!t) return "--";
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return "--";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 async function fetchList() {

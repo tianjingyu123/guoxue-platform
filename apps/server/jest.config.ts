@@ -5,9 +5,9 @@ const config: Config = {
   rootDir: ".",
   testRegex: ".*(\\.spec|e2e-spec)\\.ts$",
   transform: {
-    "^.+\\.(t|j)s$": ["ts-jest", { tsconfig: "tsconfig.json" }],
+    "^.+\\.(t|j)sx?$": ["ts-jest", { tsconfig: "tsconfig.jest.json" }],
   },
-  collectCoverageFrom: ["src/**/*.(t|j)s", "!src/**/*.spec.ts", "!src/**/.backup/**", "!src/.backup/**"],
+  collectCoverageFrom: ["src/**/*.ts", "!src/**/*.spec.ts", "!src/**/.backup/**", "!src/.backup/**"],
   coveragePathIgnorePatterns: [".backup"],
   coverageDirectory: "./coverage",
   coverageThreshold: {
@@ -19,6 +19,8 @@ const config: Config = {
     },
   },
   maxWorkers: "50%",
+  // 长流水线中每个套件结束后回收高内存 worker，避免测试桩累积撑满 Node 堆。
+  workerIdleMemoryLimit: "768MB",
   coverageProvider: "v8",
   testPathIgnorePatterns: ["<rootDir>/.backup/", ".backup/"],
   testEnvironment: "node",
@@ -34,6 +36,7 @@ const config: Config = {
     }],
   ],
   transformIgnorePatterns: [
+    "packages[\\\\/](?:shared|bazi-engine|ziwei-engine)[\\\\/]dist[\\\\/]",
     "node_modules/(?!.*(bullmq|msgpackr|@guoxue/shared)/)",
   ],
   moduleNameMapper: {

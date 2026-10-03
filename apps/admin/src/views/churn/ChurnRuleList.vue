@@ -49,22 +49,34 @@
       </el-table-column>
       <el-table-column
         prop="scoreThreshold"
-        label="评分阈值"
+        label="最高活跃分"
         width="110"
         sortable
       />
       <el-table-column
         prop="daysThreshold"
-        label="天数阈值"
+        label="最少沉默天数"
         width="110"
       />
       <el-table-column
         prop="actionType"
         label="动作类型"
-        width="120"
+        width="150"
       >
         <template #default="{ row }">
-          <el-tag>{{ row.actionType }}</el-tag>
+          <el-tag
+            v-if="ACTION_TYPE_MAP[row.actionType]"
+            :title="row.actionType"
+          >
+            {{ ACTION_TYPE_MAP[row.actionType] }}
+          </el-tag>
+          <el-tag
+            v-else
+            type="info"
+            :title="`动作类型 ${row.actionType} 暂无执行器支持，规则命中后不会真正执行`"
+          >
+            {{ row.actionType }}（暂不可用）
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column
@@ -101,14 +113,10 @@
       </el-table-column>
     </el-table>
 
-    <el-pagination
-      v-model:current-page="page"
-      v-model:page-size="pageSize"
-      :total="total"
-      layout="total, sizes, prev, pager, next"
-      @current-change="fetchList"
-      @size-change="fetchList"
-    />
+    <!-- 后端 listRules 返回全量（最多100条）无分页，此处只显示总数，不做假分页 -->
+    <div class="total-hint">
+      共 {{ total }} 条规则{{ total >= 100 ? '（最多显示 100 条）' : '' }}
+    </div>
 
     <el-dialog
       v-model="dialogVisible"
@@ -154,7 +162,7 @@
           </el-select>
         </el-form-item>
         <el-form-item
-          label="评分阈值"
+          label="最高活跃分"
           prop="scoreThreshold"
         >
           <el-input-number
@@ -165,7 +173,7 @@
           />
         </el-form-item>
         <el-form-item
-          label="天数阈值"
+          label="最少沉默天数"
           prop="daysThreshold"
         >
           <el-input-number
@@ -178,25 +186,19 @@
           label="动作类型"
           prop="actionType"
         >
+          <!-- 只保留后端执行器真实现的动作（churn.service 仅支持 SMS/COUPON），不上假选项 -->
           <el-select
             v-model="form.actionType"
             style="width:100%"
+            @change="handleActionTypeChange"
           >
             <el-option
-              label="发送通知"
-              value="NOTIFY"
+              label="短信触达"
+              value="SMS"
             />
             <el-option
               label="发送优惠券"
               value="COUPON"
-            />
-            <el-option
-              label="标记关注"
-              value="FLAG"
-            />
-            <el-option
-              label="客服介入"
-              value="SERVICE"
             />
           </el-select>
         </el-form-item>
@@ -204,12 +206,28 @@
           label="动作配置"
           prop="actionConfig"
         >
-          <el-input
-            v-model="form.actionConfig"
-            type="textarea"
-            :rows="3"
-            placeholder="JSON格式配置"
-          />
+          <div style="width:100%">
+            <el-input
+              v-model="form.actionConfig"
+              type="textarea"
+              :rows="3"
+              :placeholder="actionConfigPlaceholder"
+            />
+            <div class="config-hint">
+              {{ form.actionType === 'SMS'
+                ? '短信只发给已在 C 端主动开启“活动与福利短信”的用户；号码取用户主数据。需先配置审核通过的召回模板，默认 7 天冷却。'
+                : '填写商城优惠券 couponId 后自动发放并可在下单时真实核销；缺失或失效会诚实转人工/失败。' }}
+            </div>
+          </div>
+        </el-form-item>
+        <el-form-item label="启用状态">
+          <el-switch v-model="form.isActive" />
+          <span
+            class="config-hint"
+            style="margin-left:8px"
+          >
+            禁用后规则不参与评分后的自动挽回
+          </span>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -229,7 +247,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from "vue";
+import { ref, onMounted, reactive, computed } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { churnApi } from "@/api";
 
@@ -240,29 +258,40 @@ interface ChurnRule {
   scoreThreshold: number;
   daysThreshold: number;
   actionType: string;
-  actionConfig: string;
+  actionConfig: unknown;
   isActive: boolean;
 }
 
 const loading = ref(false);
 const error = ref(false);
 const list = ref<ChurnRule[]>([]);
-const page = ref(1);
-const pageSize = ref(20);
 const total = ref(0);
 const dialogVisible = ref(false);
 const isEdit = ref(false);
 const submitting = ref(false);
 const currentRow = ref<ChurnRule | null>(null);
 
+// 动作类型词表：仅 SMS/COUPON 有后端执行器（churn.service.ts 执行 switch 只实现这两类）
+const ACTION_TYPE_MAP: Record<string, string> = {
+  SMS: "短信触达",
+  COUPON: "发送优惠券",
+};
+
+const SMS_ACTION_CONFIG = '{\n  "cooldownDays": 7,\n  "templateParams": []\n}';
+const COUPON_ACTION_CONFIG = '{\n  "couponId": "",\n  "cooldownDays": 7\n}';
 const form = reactive({
   name: "",
-  riskLevel: "LOW",
-  scoreThreshold: 50,
-  daysThreshold: 30,
-  actionType: "NOTIFY",
-  actionConfig: "",
+  riskLevel: "HIGH",
+  scoreThreshold: 30,
+  daysThreshold: 14,
+  actionType: "SMS",
+  actionConfig: SMS_ACTION_CONFIG,
+  isActive: true,
 });
+const actionConfigPlaceholder = computed(() => form.actionType === "SMS"
+  ? '如 {"cooldownDays":7,"templateParams":[]}'
+  : '如 {"couponId":"商城优惠券ID","cooldownDays":7}',
+);
 
 const rules = {
   name: [{ required: true, message: "请输入规则名称", trigger: "blur" }],
@@ -282,8 +311,8 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const res = await churnApi.listRules({ page: page.value, pageSize: pageSize.value });
-    // 后端 listRules 返回裸数组（take:100，无分页包装）
+    // 后端 listRules 无分页（take:100 全量返回），不传假分页参数
+    const res = await churnApi.listRules();
     const rows = Array.isArray(res.data) ? res.data : (res.data.items ?? res.data.rules ?? []);
     list.value = rows;
     total.value = rows.length;
@@ -298,12 +327,17 @@ async function fetchList() {
 function openAddDialog() {
   isEdit.value = false;
   form.name = "";
-  form.riskLevel = "LOW";
-  form.scoreThreshold = 50;
-  form.daysThreshold = 30;
-  form.actionType = "NOTIFY";
-  form.actionConfig = "";
+  form.riskLevel = "HIGH";
+  form.scoreThreshold = 30;
+  form.daysThreshold = 14;
+  form.actionType = "SMS";
+  form.actionConfig = SMS_ACTION_CONFIG;
+  form.isActive = true;
   dialogVisible.value = true;
+}
+
+function handleActionTypeChange(actionType: string) {
+  form.actionConfig = actionType === "COUPON" ? COUPON_ACTION_CONFIG : SMS_ACTION_CONFIG;
 }
 
 function openEditDialog(row: ChurnRule) {
@@ -314,6 +348,7 @@ function openEditDialog(row: ChurnRule) {
   form.scoreThreshold = row.scoreThreshold;
   form.daysThreshold = row.daysThreshold;
   form.actionType = row.actionType;
+  form.isActive = row.isActive ?? true;
   // 后端 actionConfig 为对象，回填到 JSON 文本域
   form.actionConfig =
     row.actionConfig && typeof row.actionConfig === "object"
@@ -328,11 +363,18 @@ async function handleSubmit() {
   let actionConfig: Record<string, unknown> = {};
   if (form.actionConfig && form.actionConfig.trim()) {
     try {
-      actionConfig = JSON.parse(form.actionConfig);
+      const parsed: unknown = JSON.parse(form.actionConfig);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not-object");
+      actionConfig = parsed as Record<string, unknown>;
     } catch {
-      ElMessage.error("动作配置必须是合法 JSON");
+      ElMessage.error("动作配置必须是合法的 JSON 对象");
       return;
     }
+  }
+  if (form.actionType === "COUPON"
+    && (typeof actionConfig.couponId !== "string" || !actionConfig.couponId.trim())) {
+    ElMessage.error("发送优惠券必须填写有效的 couponId");
+    return;
   }
   const payload = { ...form, actionConfig };
   submitting.value = true;
@@ -371,4 +413,6 @@ onMounted(fetchList);
 .page { padding: 20px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .error-bar { margin-bottom: 12px; }
+.total-hint { margin-top: 12px; font-size: 13px; color: var(--color-text-secondary, #909399); text-align: right; }
+.config-hint { font-size: 12px; color: var(--color-text-secondary, #909399); margin-top: 4px; line-height: 1.5; }
 </style>

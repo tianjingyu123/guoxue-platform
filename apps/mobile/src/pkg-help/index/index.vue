@@ -85,10 +85,13 @@
               <view v-if="expandedId === item.id" class="q-body">
                 <view class="q-answer-wrap">
                   <text class="q-answer">{{ item.answer }}</text>
-                  <view class="q-feedback">
+                  <view v-if="feedbackMap[item.id]" class="q-feedback">
+                    <text class="q-feedback-done">感谢您的反馈</text>
+                  </view>
+                  <view v-else class="q-feedback">
                     <text class="q-feedback-q">这个回答有帮助吗？</text>
-                    <text class="q-feedback-yes">有帮助</text>
-                    <text class="q-feedback-no">没有帮助</text>
+                    <text class="q-feedback-yes" @click="submitFeedback(item.id, 'yes')">有帮助</text>
+                    <text class="q-feedback-no" @click="submitFeedback(item.id, 'no')">没有帮助</text>
                   </view>
                 </view>
               </view>
@@ -120,7 +123,10 @@
               </view>
               <app-icon name="chevron-right" :size="32" color="#9A9A9A" />
             </view>
-            <view class="more-card" @click="go('/about')">
+            <!-- 「使用教程」下架（2026-07-17）：原跳 /about 关于我们页，货不对板——
+                 全项目并无「图文视频新手指引」页（仅 pkg-live/obs-guide 主播推流指引、pkg-auth/interests-guide 注册引导，均非通用教程）。
+                 新手教程页上线后恢复此卡并改指真实目标。
+            <view class="more-card" @click="go('/tutorial')">
               <view class="more-left">
                 <view class="more-icon" style="background: rgba(168,85,247,0.1)">
                   <app-icon name="book-open" :size="40" color="#A855F7" />
@@ -132,6 +138,7 @@
               </view>
               <app-icon name="chevron-right" :size="32" color="#9A9A9A" />
             </view>
+            -->
           </view>
         </view>
       </view>
@@ -207,8 +214,16 @@ const listTitle = computed(() => {
 function onSearch(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   searchQuery.value = e.detail.value
 }
+// 客服页（自建 RAG 智能客服）暂不支持 query 预填输入框，故纯跳转，不携带搜索词
 function onAiSearch() {
-  uni.showToast({ title: 'AI 搜索', icon: 'none' })
+  navigateTo('/customer-service')
+}
+// 问答反馈：本地置态 + 轻提示（后端暂无 FAQ 反馈端点，先保证点了有回应不丢弃）
+const feedbackMap = ref<Record<number, 'yes' | 'no'>>({})
+function submitFeedback(id: number, val: 'yes' | 'no') {
+  if (feedbackMap.value[id]) return
+  feedbackMap.value[id] = val
+  uni.showToast({ title: '感谢反馈', icon: 'none' })
 }
 function toggleCategory(id: string) {
   selectedCategory.value = selectedCategory.value === id ? null : id
@@ -448,6 +463,10 @@ function go(url: string) {
 .q-feedback-no {
   font-size: 24rpx;
   color: #9A9A9A;
+}
+.q-feedback-done {
+  font-size: 24rpx;
+  color: var(--brand);
 }
 .empty {
   padding: 96rpx 0;

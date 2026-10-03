@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { FundApprovalService } from "./fund-approval.service";
@@ -6,10 +7,13 @@ import { InstituteService } from "../institute/institute.service";
 import { HuifuService } from "../huifu/huifu.service";
 import { CoinService } from "../coin/coin.service";
 import { CommissionService } from "../commission/commission.service";
+import { AdminReferralService } from "../station/admin-referral.service";
+import { SystemService } from "../system/system.service";
+import { SettlementRuleAdminService } from "../settlement/settlement-rule-admin.service";
 
 /**
  * 资金审批执行器：审批通过时按 type 调用对应模块的「真实执行方法」。
- * 通过 FundApprovalService.claim 的原子状态流转做防重；执行失败回滚为 PENDING。
+ * 通过 FundApprovalService.claimForReview 复核当前权限并原子认领；执行失败回滚为 PENDING。
  * 各执行方法本身已自带事务/幂等（recharge 交互式事务、reverseCommission 同事务等）。
  */
 @Injectable()
@@ -22,29 +26,58 @@ export class FundApprovalExecutor {
     private huifu: HuifuService,
     private coin: CoinService,
     private commission: CommissionService,
+    private referrals: AdminReferralService,
+    private system: SystemService,
+    private settlementRules: SettlementRuleAdminService,
   ) {}
 
   /** 审批：approve=true → 认领并执行；approve=false → 标记 REJECTED */
   async review(id: string, approve: boolean, note: string | undefined, reviewerId: string) {
-    const approval = await this.approvals.findById(id);
-    if (approval.status !== "PENDING") {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "该审批单已处理");
+    const snapshot = await this.approvals.findById(id);
+    if (approve && snapshot.type === "DIVIDEND") {
+      // 分配没有外部出款：认领与分配使用同一事务，待审占用不提前消失。
+      const result = await this.approvals.executeLocalReview(
+        id, reviewerId, note, snapshot, (approval, tx) => this.institute.createDividend(
+          approval.requestedBy, approval.payload as unknown as Parameters<InstituteService["createDividend"]>[1], tx,
+        ),
+      );
+      return { approved: true, status: "APPROVED", message: "已审批通过并执行", result };
     }
-
-    // 职责分离（防自审自批）：不得审批自己发起的资金操作，否则单人可发起+批准=凭空造币/套现
-    if (approval.requestedBy && approval.requestedBy === reviewerId) {
-      throw new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己发起的资金操作，请由其他审批人处理");
+    if (approve && snapshot.type === "RECHARGE") {
+      const result = await this.approvals.executeLocalReview(
+        id, reviewerId, note, snapshot, (approval, tx) => {
+          const p = approval.payload as { userId: string; amountCoin: number; description?: string };
+          return this.coin.recharge(p.userId, {
+            amountCoin: p.amountCoin, description: p.description, orderNo: `FUND_RECHARGE_${approval.id}`,
+          }, tx);
+        },
+      );
+      return { approved: true, status: "APPROVED", message: "已审批通过并执行", result };
     }
-
-    if (!approve) {
-      const ok = await this.approvals.claim(id, "REJECTED", reviewerId, note);
-      if (!ok) throw new BusinessException(ErrorCode.BAD_REQUEST, "该审批单已处理");
-      return { approved: false, status: "REJECTED", message: "已拒绝" };
+    if (approve && snapshot.type === "COIN_REFUND") {
+      const result = await this.approvals.executeLocalReview(
+        id, reviewerId, note, snapshot, (approval, tx) => {
+          const p = approval.payload as { userId: string; amountCoin: number; description?: string };
+          return this.coin.refund(p.userId, p.amountCoin, p.description || "客诉退款", tx, approval.id);
+        },
+      );
+      return { approved: true, status: "APPROVED", message: "已审批通过并执行", result };
     }
-
-    // 原子认领，确保同一审批单只被执行一次
-    const claimed = await this.approvals.claim(id, "APPROVED", reviewerId, note);
-    if (!claimed) throw new BusinessException(ErrorCode.BAD_REQUEST, "该审批单已处理");
+    if (approve && ["MEMBER_CONFIG", "COMMISSION_CONFIG"].includes(snapshot.type)) {
+      // 配置和版本记录写入完成前，审批行及当前审核权限锁保持在同一事务内。
+      const result = await this.approvals.executeLocalReview(
+        id, reviewerId, note, snapshot, async (approval, tx) => this.execute(approval, tx),
+      );
+      const method = (snapshot.payload as { method?: string } | null)?.method;
+      if (snapshot.type === "COMMISSION_CONFIG" && [undefined, "updateConfig", "updateCommissionConfig"].includes(method)) {
+        // 进程缓存失效发生在实际提交后；缓存故障不能将已提交审批恢复为待审。
+        try { this.commission.invalidateConfigCache(); }
+        catch { this.logger.warn("配置已提交，进程内缓存失效失败"); }
+      }
+      return { approved: true, status: "APPROVED", message: "已审批通过并执行", result };
+    }
+    const approval = await this.approvals.claimForReview(id, approve ? "APPROVED" : "REJECTED", reviewerId, note, snapshot);
+    if (!approve) return { approved: false, status: "REJECTED", message: "已拒绝" };
 
     try {
       const result = await this.execute(approval);
@@ -58,7 +91,9 @@ export class FundApprovalExecutor {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 动态审批载荷：按 type 分发(DIVIDEND/RECHARGE/REFUND/COMMISSION_CONFIG/COIN_REFUND)，各类型 payload 形态不同，此处为唯一收敛分发点
-  private execute(approval: { type: string; requestedBy: string; payload: any }) {
+  private execute(approval: { type: string; requestedBy: string; payload: any }, transaction?: Prisma.TransactionClient) {
+    if (transaction && !["MEMBER_CONFIG", "COMMISSION_CONFIG"].includes(approval.type))
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "此配置事务不能执行外部出款");
     const p = approval.payload || {};
     switch (approval.type) {
       case "DIVIDEND":
@@ -71,11 +106,43 @@ export class FundApprovalExecutor {
         });
       case "COMMISSION_CONFIG":
         if (p.method === "updateCommissionConfig") {
-          return this.commission.updateCommissionConfig(p.type, p.rate);
+          return this.commission.updateCommissionConfig(p.type, p.rate, transaction);
         }
-        return this.commission.updateConfig(p.key, p.dto ?? {});
+        if (p.method === "createTemporaryReferralConfig") {
+          return this.referrals.create(p.dto, approval.requestedBy, transaction);
+        }
+        if (p.method === "updateTemporaryReferralConfig") {
+          return this.referrals.update(p.id, p.dto ?? {}, transaction);
+        }
+        if (p.method === "deleteTemporaryReferralConfig") {
+          return this.referrals.delete(p.id, transaction);
+        }
+        if (p.method === "createSettlementRule") {
+          return this.settlementRules.createRule(p.dto, approval.requestedBy, transaction);
+        }
+        if (p.method === "updateSettlementRule") {
+          return this.settlementRules.updateRule(p.id, p.dto ?? {}, approval.requestedBy, transaction);
+        }
+        if (p.method === undefined || p.method === "updateConfig")
+          return this.commission.updateConfig(p.key, p.dto ?? {}, transaction);
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "未知分佣配置审批方法");
+      case "MEMBER_CONFIG":
+        if (p.method === "upsertMemberConfig") {
+          return this.system.upsertMemberConfig(p.dto, transaction);
+        }
+        if (p.method === "updateMemberConfig") {
+          return this.system.updateMemberConfig(p.id, p.dto ?? {}, transaction);
+        }
+        if (p.method === "deleteMemberConfig") {
+          return this.system.deleteMemberConfig(p.id, transaction);
+        }
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "未知会员配置审批方法");
       case "REFUND":
         return this.huifu.createRefund(p);
+      case "HUIFU_SPLIT":
+        // 汇付分账（真金出款）：审批通过后才真正向渠道发起。createSplit 自带
+        // 状态防重（PROCESSING/SUCCESS 拒绝）与总额≤已付校验，重复执行不会二次分账。
+        return this.huifu.createSplit(p);
       case "COIN_REFUND":
         // 虚拟币退款（客诉/协商）：财务审批通过后给用户退回国学币
         return this.coin.refund(p.userId, p.amountCoin, p.description || "客诉退款");

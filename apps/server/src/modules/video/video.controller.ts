@@ -1,5 +1,5 @@
 import { Request } from "express";
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, HttpCode } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { VideoService } from "./video.service";
@@ -15,6 +15,7 @@ import { Roles } from "../../common/roles.decorator";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
 import { StationId } from "../../common/station-id.decorator";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("视频")
 @Controller("videos")
@@ -28,14 +29,21 @@ export class VideoController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 401, description: "未认证" })
   create(@Req() req: Request, @Body() dto: CreateVideoDto) {
-    return this.svc.create(req.user.id, dto);
+    const roles = (req.user as { roles?: string[] }).roles || [];
+    const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
+    return this.svc.create(req.user.id, dto, isAdmin);
   }
 
   @Get()
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取视频列表" })
   @ApiResponse({ status: 200, description: "成功返回视频列表" })
-  list(@Query() q: VideoListQueryDto, @StationId() stationId?: string) {
-    return this.svc.list({ circleId: q.circleId, status: q.status, page: +(q.page || 1), pageSize: +(q.pageSize || 20), stationId });
+  list(@Req() req: Request, @Query() q: VideoListQueryDto, @StationId() stationId?: string) {
+    // scope=all（不限开放范围）仅管理员生效——防公共端点带参绕过圈内内容隔离
+    const roles = (req.user as { roles?: string[] } | undefined)?.roles || [];
+    const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN" || r === "CONTENT_AUDITOR");
+    const scope = q.scope === "all" && isAdmin ? "all" : undefined;
+    return this.svc.list({ circleId: q.circleId, status: q.status, page: +(q.page || 1), pageSize: +(q.pageSize || 20), stationId, scope }, req.user?.id);
   }
 
   // ───────── 瀑布流列表/搜索/商品库（公开，必须在 :id 之前）─────────
@@ -68,11 +76,12 @@ export class VideoController {
   }
 
   @Get(":id")
-  @ApiOperation({ summary: "获取视频详情" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "获取视频详情（SELF_ONLY/已下架内容仅作者本人可见）" })
   @ApiResponse({ status: 200, description: "成功返回视频详情" })
   @ApiResponse({ status: 404, description: "视频不存在" })
-  detail(@Param("id") id: string) {
-    return this.svc.getDetail(id);
+  detail(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.getDetail(id, req.user?.id);
   }
 
   @Put(":id")
@@ -87,6 +96,7 @@ export class VideoController {
   }
 
   @Put("admin/:id/audit")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "视频审核", targetType: "VIDEO" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
@@ -101,6 +111,7 @@ export class VideoController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除视频" })
   @ApiBearerAuth()
@@ -198,13 +209,19 @@ export class VideoController {
   // ───────── VOD 媒资信息 ─────────
 
   @Get("vod/media/:fileId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "获取VOD媒资信息" })
+  @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "返回媒资信息" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无媒资管理权限" })
   getMediaInfo(@Param("fileId") fileId: string) {
     return this.svc.getMediaInfo(fileId);
   }
 
   @Delete("vod/media/:fileId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除VOD媒资" })
@@ -218,10 +235,12 @@ export class VideoController {
   // ───────── VOD 搜索 ─────────
 
   @Get("vod/search")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "搜索VOD媒资库" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "返回搜索结果" })
+  @ApiResponse({ status: 403, description: "无媒资管理权限" })
   searchVodMedia(
     @Query("keyword") keyword?: string,
     @Query("offset") offset?: number,
@@ -233,11 +252,13 @@ export class VideoController {
   // ───────── VOD 播放统计 ─────────
 
   @Get("vod/playback-stats/:fileId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "获取视频播放统计（按天）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "返回播放统计数据" })
   @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无内容数据权限" })
   getPlaybackStats(
     @Param("fileId") fileId: string,
     @Query() q: PlaybackStatsQueryDto,
@@ -246,7 +267,8 @@ export class VideoController {
   }
 
   @Get("vod/playback-summary")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "获取播放统计概览（全站）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "返回播放统计概览" })
@@ -258,6 +280,7 @@ export class VideoController {
   // ───────── VOD 回调 ─────────
 
   @Post("vod/callback")
+  @HttpCode(200)
   @UseGuards(TencentCallbackGuard)
   @SkipFormat()
   @ApiOperation({ summary: "VOD事件回调（转码/截图/上传完成通知）" })
@@ -305,6 +328,7 @@ export class VideoController {
   // ───────── 商品关联 ─────────
 
   @Post(":id/products/:productId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "添加视频商品关联" })
   @ApiBearerAuth()
@@ -315,6 +339,7 @@ export class VideoController {
   }
 
   @Delete(":id/products/:productId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "移除视频商品关联" })
   @ApiBearerAuth()

@@ -132,21 +132,21 @@ export const refundApi = {
     }
   },
   /** 提交申诉退款申请 — POST /circle-refund/apply/:circleId */
-  apply: (circleId: string, reason?: string) =>
-    apiPost(`/circle-refund/apply/${circleId}`, { reason }),
+  apply: (circleId: string, reason?: string, expectedActualRefund?: number) =>
+    apiPost(`/circle-refund/apply/${circleId}`, { reason, expectedActualRefund }),
   /** 我的退款申请 — GET /circle-refund/my */
-  myRefunds: async (): Promise<RefundRequestItem[]> => {
-    try { return pickArray(await apiGet<RawRefundListResp>('/circle-refund/my')).map(adaptItem) } catch { return [] }
+  myRefunds: async (options: { throwOnError?: boolean } = {}): Promise<RefundRequestItem[]> => {
+    try { return pickArray(await apiGet<RawRefundListResp>('/circle-refund/my')).map(adaptItem) } catch (error) { if (options.throwOnError) throw error; return [] }
   },
   /** 圈主待审退款 — GET /circle-refund/owner-pending */
-  ownerPending: async (): Promise<RefundRequestItem[]> => {
-    try { return pickArray(await apiGet<RawRefundListResp>('/circle-refund/owner-pending')).map(adaptItem) } catch { return [] }
+  ownerPending: async (options: { throwOnError?: boolean } = {}): Promise<RefundRequestItem[]> => {
+    try { return pickArray(await apiGet<RawRefundListResp>('/circle-refund/owner-pending')).map(adaptItem) } catch (error) { if (options.throwOnError) throw error; return [] }
   },
   /** 圈主审核 — POST /circle-refund/:id/owner-review */
   ownerReview: (id: string, approve: boolean, rejectReason?: string) =>
     apiPost(`/circle-refund/${id}/owner-review`, { approve, rejectReason }),
   /** 我的余额钱包 — GET /circle-refund/wallet */
-  wallet: async (): Promise<WalletInfo> => {
+  wallet: async (options: { throwOnError?: boolean } = {}): Promise<WalletInfo> => {
     try {
       const r = await apiGet<RawWallet>('/circle-refund/wallet')
       const txns = Array.isArray(r?.transactions) ? r.transactions : []
@@ -157,7 +157,8 @@ export const refundApi = {
           remark: t.remark ?? '', createdAt: t.createdAt,
         })),
       }
-    } catch {
+    } catch (error) {
+      if (options.throwOnError) throw error
       return { balance: 0, transactions: [] }
     }
   },

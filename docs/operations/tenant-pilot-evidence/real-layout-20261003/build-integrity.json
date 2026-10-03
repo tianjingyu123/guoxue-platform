@@ -1,0 +1,51 @@
+{
+  "sourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+  "builds": [
+    {
+      "name": "independent-h5",
+      "head": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "sourceFiles": 11,
+      "outputFiles": 6,
+      "receiptSha256": "627e8f1dd77120ad86cb19aec59878432120f571d5a869c5fa341118b743c2fc",
+      "production": false
+    },
+    {
+      "name": "independent-weixin",
+      "head": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "sourceFiles": 11,
+      "outputFiles": 12,
+      "receiptSha256": "dbb284e9e0b62831b8e421e02b9fc41a94026fe8106d3232c4439fea3ab36993",
+      "production": false
+    },
+    {
+      "name": "independent-app-resources",
+      "head": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "sourceFiles": 11,
+      "outputFiles": 18,
+      "receiptSha256": "9391530ec379590c67b8ddfb77f06486ba9137182c8d8a45440cf7ef34ae552b",
+      "production": false
+    },
+    {
+      "name": "brand-h5",
+      "head": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "sourceFiles": 1201,
+      "outputFiles": 1182,
+      "receiptSha256": "7b41926e0774fb526a7b5d145343ee13bd29d451fa6eef7d5a66a1fe8a695a41",
+      "production": false
+    },
+    {
+      "name": "brand-weixin",
+      "head": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "sourceFiles": 1201,
+      "outputFiles": 2656,
+      "receiptSha256": "2634d626fa11bb5c1e1d0228adf58f3ad1a772ae70cb4aacb57b1b2823e8bdeb",
+      "miniProgram": {
+        "appid": "touristappid",
+        "brandPageCompiled": true,
+        "formalRegistration": false
+      },
+      "production": false
+    }
+  ],
+  "production": false
+}

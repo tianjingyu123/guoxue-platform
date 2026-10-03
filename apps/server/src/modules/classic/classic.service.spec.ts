@@ -4,14 +4,16 @@ import { ClassicService } from "./classic.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { TextDerivedAssetService } from "./text-derived-asset.service";
 
 const mockRedis = { getJson: jest.fn().mockResolvedValue(null), setJson: jest.fn(), del: jest.fn().mockResolvedValue(1), delByPattern: jest.fn() };
 
 const mockPrisma = {
-  classicBook: { findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn(), delete: jest.fn(), groupBy: jest.fn() },
-  classicChapter: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
+  classicBook: { findMany: jest.fn(), count: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn(), delete: jest.fn(), groupBy: jest.fn() },
+  classicChapter: { findMany: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
   readingProgress: { findUnique: jest.fn(), upsert: jest.fn(), findMany: jest.fn(), count: jest.fn() },
   bookmark: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), count: jest.fn(), findFirst: jest.fn() },
+  classicReadingNote: { findMany: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
   classicAnnotation: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
   $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
 };
@@ -19,6 +21,14 @@ const mockPrisma = {
 const mockJwt = { sign: jest.fn().mockReturnValue("mock-token") };
 
 const mockGateway = { chat: jest.fn() };
+
+// 文本派生资产：透传到处理函数（翻译缓存行为由 text-derived-asset.service.spec 覆盖）
+const mockTextAsset = {
+  getOrCreateTextAsset: jest.fn(async (_req: unknown, fn: () => Promise<{ result: string; model: string }>) => {
+    const out = await fn();
+    return { result: out.result, cached: false, model: out.model, assetId: "t1" };
+  }),
+};
 
 describe("ClassicService", () => {
   let svc: ClassicService;
@@ -31,12 +41,26 @@ describe("ClassicService", () => {
         { provide: JwtService, useValue: mockJwt },
         { provide: RedisService, useValue: mockRedis },
         { provide: AiGatewayService, useValue: mockGateway },
+        { provide: TextDerivedAssetService, useValue: mockTextAsset },
       ],
     }).compile();
     svc = mod.get(ClassicService);
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  describe("askClassic", () => {
+    it("按问题难度控制篇幅，并要求不确定出处不编造", async () => {
+      mockGateway.chat.mockResolvedValue({ content: "仁，就是能体谅并善待他人。" });
+      const result = await svc.askClassic("仁是什么意思？");
+      expect(result.answer).toBe("仁，就是能体谅并善待他人。");
+      const systemPrompt = mockGateway.chat.mock.calls[0][0].messages[0].content as string;
+      expect(systemPrompt).toContain("寒暄、确认、简单事实");
+      expect(systemPrompt).toContain("单句古文先给一句白话解释");
+      expect(systemPrompt).toContain("出处不确定就明确说不确定");
+      expect(systemPrompt).not.toContain("控制在 500 字以内");
+    });
+  });
 
   describe("listBooks", () => {
     it("返回分页书籍列表", async () => {
@@ -57,7 +81,7 @@ describe("ClassicService", () => {
 
   describe("getBook", () => {
     it("返回书籍详情并增加浏览量", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue({ id: "b1", title: "论语", chapters: [] });
+      mockPrisma.classicBook.findFirst.mockResolvedValue({ id: "b1", title: "论语", chapters: [], copyrights: [] });
       mockPrisma.classicBook.update.mockResolvedValue({});
       const result = await svc.getBook("b1");
       expect(result!.title).toBe("论语");
@@ -66,7 +90,7 @@ describe("ClassicService", () => {
       );
     });
     it("书籍不存在抛出异常", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue(null);
+      mockPrisma.classicBook.findFirst.mockResolvedValue(null);
       await expect(svc.getBook("invalid")).rejects.toThrow("书籍不存在");
     });
   });
@@ -99,12 +123,12 @@ describe("ClassicService", () => {
 
   describe("getChapter", () => {
     it("返回章节详情（含所属书籍信息）", async () => {
-      mockPrisma.classicChapter.findUnique.mockResolvedValue({ id: "ch-1", title: "学而篇", book: { id: "b1", title: "论语" } });
+      mockPrisma.classicChapter.findFirst.mockResolvedValue({ id: "ch-1", title: "学而篇", book: { id: "b1", title: "论语", copyrights: [] } });
       const result = await svc.getChapter("ch-1");
       expect(result!.book.title).toBe("论语");
     });
     it("章节不存在抛出异常", async () => {
-      mockPrisma.classicChapter.findUnique.mockResolvedValue(null);
+      mockPrisma.classicChapter.findFirst.mockResolvedValue(null);
       await expect(svc.getChapter("invalid")).rejects.toThrow("章节不存在");
     });
   });
@@ -211,6 +235,32 @@ describe("ClassicService", () => {
     });
   });
 
+  describe("createNote", () => {
+    it("保存原句与段落锚点", async () => {
+      mockPrisma.classicReadingNote.create.mockResolvedValue({
+        id: "n-1",
+        userId: "u1",
+        bookId: "b1",
+        chapterId: "ch-1",
+        content: "这里值得反复读。",
+        position: 3,
+        originalText: "学而时习之，不亦说乎？",
+      });
+      await svc.createNote("u1", "b1", {
+        chapterId: "ch-1",
+        content: "这里值得反复读。",
+        position: 3,
+        originalText: "学而时习之，不亦说乎？",
+      });
+      expect(mockPrisma.classicReadingNote.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          position: 3,
+          originalText: "学而时习之，不亦说乎？",
+        }),
+      });
+    });
+  });
+
   describe("dictionaryLookup", () => {
     it("返回AI字典查询结果", async () => {
       mockGateway.chat.mockResolvedValue({
@@ -236,6 +286,12 @@ describe("ClassicService", () => {
       const result = await svc.translateClassical({ text: "学而时习之" });
       expect(result.translation).toBeTruthy();
       expect(result.notes).toHaveLength(1);
+      expect(mockTextAsset.getOrCreateTextAsset).toHaveBeenCalledWith(
+        expect.objectContaining({ promptVersion: "translate-v2" }), expect.any(Function), expect.any(Function),
+      );
+      const prompt = mockGateway.chat.mock.calls[0][0].messages[0].content as string;
+      expect(prompt).toContain("单句先用一句白话说清");
+      expect(prompt).toContain("单句最多 2 条");
     });
     it("带上下文翻译", async () => {
       mockGateway.chat.mockResolvedValue({
@@ -327,7 +383,7 @@ describe("ClassicService", () => {
   // ── 版本管理 ──
   describe("getBookVersions", () => {
     it("返回同书其他版本", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue({
+      mockPrisma.classicBook.findFirst.mockResolvedValue({
         title: "论语", author: "孔子", dynasty: "春秋",
       });
       mockPrisma.classicBook.findMany.mockResolvedValue([
@@ -343,7 +399,7 @@ describe("ClassicService", () => {
   // ── 引用生成 ──
   describe("generateCitation", () => {
     it("生成 GB/T 7714 格式引用", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue({
+      mockPrisma.classicBook.findFirst.mockResolvedValue({
         id: "b1", title: "论语", author: "孔子", dynasty: "春秋", source: "宋刻本",
       });
       const result = await svc.generateCitation("b1", "gbt7714");
@@ -353,7 +409,7 @@ describe("ClassicService", () => {
     });
 
     it("生成所有格式引用", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue({
+      mockPrisma.classicBook.findFirst.mockResolvedValue({
         id: "b1", title: "论语", author: "孔子", dynasty: "春秋", source: "宋刻本",
       });
       const result = await svc.generateCitation("b1", "all");
@@ -364,7 +420,7 @@ describe("ClassicService", () => {
     });
 
     it("含章节摘录的引用", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue({
+      mockPrisma.classicBook.findFirst.mockResolvedValue({
         id: "b1", title: "论语", author: "孔子", dynasty: "春秋", source: "宋刻本",
       });
       mockPrisma.classicChapter.findUnique
@@ -376,7 +432,7 @@ describe("ClassicService", () => {
     });
 
     it("书籍不存在抛出异常", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue(null);
+      mockPrisma.classicBook.findFirst.mockResolvedValue(null);
       await expect(svc.generateCitation("invalid")).rejects.toThrow("书籍不存在");
     });
   });

@@ -45,12 +45,6 @@ export interface UserPostItem {
   createdAt: string
 }
 
-interface ApiResult<T> {
-  code: number
-  message: string
-  data: T
-}
-
 // 内容类型名
 export function getContentTypeName(type: UserContentType): string {
   switch (type) {

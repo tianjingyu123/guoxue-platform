@@ -39,7 +39,7 @@ export class CircleAssistantController {
   @ApiBearerAuth()
   async ask(
     @Param("circleId") circleId: string,
-    @Body() body: { question: string; history?: Array<{ role: "system" | "user" | "assistant"; content: string }> },
+    @Body() body: { question: string; history?: Array<{ role: "user" | "assistant"; content: string }> },
     @Req() req: Request,
   ) {
     const userId = req.user?.id;
@@ -57,7 +57,7 @@ export class CircleAssistantController {
   @ApiBearerAuth()
   async askStream(
     @Param("circleId") circleId: string,
-    @Body() body: { question: string; history?: Array<{ role: "system" | "user" | "assistant"; content: string }> },
+    @Body() body: { question: string; history?: Array<{ role: "user" | "assistant"; content: string }> },
     @Req() req: Request,
     @Res() res: Response,
   ) {
@@ -70,7 +70,11 @@ export class CircleAssistantController {
     res.flushHeaders();
 
     try {
-      for await (const chunk of this.assistant.askStream(body.question, circleId, userId, body.history)) {
+      for await (const chunk of this.assistant.askStream(body.question, circleId, userId, body.history, (knowledgeMatches) => {
+        res.write(this.sse.encode({ type: "meta", knowledgeMatches }));
+      }, (recommendation) => {
+        res.write(this.sse.encode({ type: "meta", recommendation }));
+      })) {
         res.write(this.sse.encode({ type: "chunk", content: chunk }));
       }
       res.write(this.sse.encode({ type: "done" }));

@@ -1,0 +1,790 @@
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { PrismaService } from "../../prisma/prisma.service";
+import { randomBytes } from "node:crypto";
+import { safePagination } from "../../common/pagination";
+import { XiaobuCommerceService } from "../voice/xiaobu-commerce.service";
+import { Prisma } from "@prisma/client";
+
+/**
+ * 从业者工作台（V0「从业者工作台」的真后端）
+ *
+ * 数据边界（很重要，别再开第二张表）：
+ *  · 客户档案  → 复用 CRM 的 ClientBook（已有 ownerId 隔离 / 生辰加密 / RFM），本模块不碰。
+ *  · 平台收入  → revenue 模块（课程/商品/咨询分成），只读；本模块只管**线下手记**。
+ *  · 命理字段（日主/五行/喜忌）→ 前端由生辰用已交叉验证的排盘引擎现算，不落库。
+ *
+ * 权益分级（董事长 2026-07-14 拍板：入口对所有登录用户开放，功能分级）：
+ *  · 免费：排盘中心、客户档案、账本手记、案例库、报告草稿（上限 FREE_REPORT_QUOTA 份）
+ *  · 从业者会员 ¥98/月：报告不限份数 + 只读链接交付客户 + 自定义品牌落款
+ *  会员与书院会员（user.memberLevel）完全独立，互不影响。
+ */
+@Injectable()
+export class PractitionerService {
+  private readonly logger = new Logger(PractitionerService.name);
+  /** 免费用户可保留的报告份数（超出需开通会员） */
+  static readonly FREE_REPORT_QUOTA = 3;
+
+  constructor(private prisma: PrismaService, private commerce: XiaobuCommerceService) {}
+
+  // ───────────────────────── 会员与档案 ─────────────────────────
+
+  /** 是否为有效期内的从业者会员 */
+  async isPro(userId: string): Promise<boolean> {
+    const p = await this.prisma.practitionerProfile.findUnique({
+      where: { userId },
+      select: { proExpireAt: true },
+    });
+    return !!p?.proExpireAt && p.proExpireAt > new Date();
+  }
+
+  /** 会员专属动作的闸门 */
+  private async requirePro(userId: string, action: string) {
+    if (!(await this.isPro(userId))) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, `${action}是从业者会员专属功能，请先开通`);
+    }
+  }
+
+  /** 会员状态 + 价格（价格真源 CommissionConfig，不硬编码 98） */
+  async getProStatus(userId: string) {
+    const [profile, cfg] = await Promise.all([
+      this.prisma.practitionerProfile.findUnique({ where: { userId } }),
+      this.prisma.commissionConfig.findUnique({ where: { configKey: "practitioner_pro_monthly" } }),
+    ]);
+    const now = new Date();
+    const active = !!profile?.proExpireAt && profile.proExpireAt > now;
+    return {
+      isPro: active,
+      expireAt: profile?.proExpireAt ?? null,
+      firstPaidAt: profile?.proFirstAt ?? null,
+      /** 剩余天数（非会员为 0） */
+      daysLeft: active ? Math.ceil((profile!.proExpireAt!.getTime() - now.getTime()) / 86400000) : 0,
+      price: Number(cfg?.rateA ?? 0),
+      period: "月",
+      freeReportQuota: PractitionerService.FREE_REPORT_QUOTA,
+    };
+  }
+
+  /** 从业者档案（品牌落款 + 会员 + 执业统计） */
+  async getProfile(userId: string) {
+    const [profile, pro, user, reportCount, caseCount, clientCount] = await Promise.all([
+      this.prisma.practitionerProfile.findUnique({ where: { userId } }),
+      this.getProStatus(userId),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { nickname: true, avatar: true, createdAt: true } }),
+      this.prisma.practitionerReport.count({ where: { ownerId: userId } }),
+      this.prisma.practitionerCase.count({ where: { ownerId: userId } }),
+      this.prisma.clientBook.count({ where: { ownerId: userId } }),
+    ]);
+    const joinDays = user?.createdAt
+      ? Math.max(1, Math.floor((Date.now() - user.createdAt.getTime()) / 86400000))
+      : 0;
+    return {
+      pro,
+      brand: {
+        brandName: profile?.brandName ?? "",
+        title: profile?.title ?? "",
+        avatarText: profile?.avatarText ?? (user?.nickname ?? "").slice(0, 1),
+        logoUrl: profile?.logoUrl ?? "",
+        sealText: profile?.sealText ?? "",
+        slogan: profile?.slogan ?? "",
+        contact: profile?.contact ?? "",
+        disclaimer: profile?.disclaimer ?? "",
+      },
+      name: user?.nickname ?? "",
+      avatar: user?.avatar ?? "",
+      stats: { joinDays, reportCount, caseCount, clientCount },
+    };
+  }
+
+  /** 品牌落款设置（会员专属：报告上的署名/印章是交付物的一部分） */
+  async updateBrand(userId: string, dto: Record<string, string | undefined>) {
+    await this.requirePro(userId, "自定义品牌落款");
+    const data = {
+      brandName: dto.brandName,
+      title: dto.title,
+      avatarText: dto.avatarText,
+      logoUrl: dto.logoUrl,
+      sealText: dto.sealText,
+      slogan: dto.slogan,
+      contact: dto.contact,
+      disclaimer: dto.disclaimer,
+    };
+    await this.prisma.practitionerProfile.upsert({
+      where: { userId },
+      create: { userId, ...data },
+      update: data,
+    });
+    return this.getProfile(userId);
+  }
+
+  // ───────────────────────── 报告工坊 ─────────────────────────
+
+  async listReports(userId: string, query: { status?: string; keyword?: string; page?: string | number }) {
+    const where: any = { ownerId: userId };
+    if (query.status) where.status = query.status;
+    if (query.keyword) {
+      where.OR = [
+        { title: { contains: query.keyword } },
+        { clientName: { contains: query.keyword } },
+      ];
+    }
+    const { page, pageSize, skip } = safePagination(query.page, 20, 20);
+    const [list, total, quota] = await Promise.all([
+      this.prisma.practitionerReport.findMany({
+        where,
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.practitionerReport.count({ where }),
+      this.reportQuota(userId),
+    ]);
+    // 不平铺 page/pageSize：统一响应拦截器会把它识别为通用分页响应并丢弃 quota。
+    return { list, total, pagination: { page, pageSize, total }, quota };
+  }
+
+  /** 报告配额：会员不限，免费用户 FREE_REPORT_QUOTA 份 */
+  private async reportQuota(userId: string, db: Prisma.TransactionClient = this.prisma) {
+    const [profile, used] = await Promise.all([
+      db.practitionerProfile.findUnique({ where: { userId }, select: { proExpireAt: true } }),
+      db.practitionerReport.count({ where: { ownerId: userId } }),
+    ]);
+    const pro = !!profile?.proExpireAt && profile.proExpireAt > new Date();
+    return { used, limit: pro ? null : PractitionerService.FREE_REPORT_QUOTA, unlimited: pro };
+  }
+
+  /** 同一老师的手建与导入共用锁，避免并发重复导入或越过免费配额。 */
+  private withReportWriteLock<T>(userId: string, action: (db: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    return this.prisma.$transaction(async (db) => {
+      // 事务级咨询锁在提交后自动释放；哈希碰撞只会导致额外串行，不会串错数据。
+      // 锁函数返回 void，查询只返回可解析的整数，避免 Prisma 反序列化失败。
+      await db.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${`practitioner-report:${userId}`}))`;
+      return action(db);
+    });
+  }
+
+  async getReport(userId: string, id: string) {
+    const r = await this.prisma.practitionerReport.findFirst({ where: { id, ownerId: userId } });
+    if (!r) throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在");
+    return r;
+  }
+
+  async createReport(userId: string, dto: any) {
+    return this.withReportWriteLock(userId, async (db) => {
+      const q = await this.reportQuota(userId, db);
+      if (!q.unlimited && q.used >= (q.limit ?? 0)) {
+        throw new BusinessException(
+          ErrorCode.FORBIDDEN,
+          `免费版最多保存 ${q.limit} 份报告（已用 ${q.used} 份），开通从业者会员可不限份数`,
+        );
+      }
+      return db.practitionerReport.create({
+        data: {
+          ownerId: userId,
+          clientId: dto.clientId ?? null,
+          toolKey: dto.toolKey ?? null,
+          type: dto.type,
+          typeLabel: dto.typeLabel,
+          title: dto.title,
+          clientName: dto.clientName,
+          clientBirth: dto.clientBirth ?? null,
+          status: dto.status ?? "draft",
+          style: dto.style ?? "classic",
+          paipan: dto.paipan ?? undefined,
+          chapters: dto.chapters ?? undefined,
+        },
+      });
+    });
+  }
+
+
+  /**
+   * 从小卜报告导入为工作台草稿（2026-09-18）
+   *
+   * 定位：小卜报告是「平台口径」的有依据解读；导入后是**老师自己的稿子**，
+   * 章节正文可随意增删改，最终以老师的名义与品牌落款交付客户。
+   * 平台不在交付页留自己的品牌——从业者会员买的就是「以自己的名义交付」。
+   *
+   * 盘面快照与章节正文都原样带过来，老师不必从白纸开始写；
+   * 依据（典籍出处）随章节一并带入，老师可自行保留或删除。
+   */
+  async importFromXiaobuReport(
+    userId: string,
+    input: { reportId: string; clientId?: string; clientName?: string; title?: string },
+  ) {
+    const rec = await this.prisma.aiAnalysisRecord.findUnique({ where: { id: input.reportId } });
+    if (!rec || rec.scene !== "paipan_report") {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "小卜报告不存在");
+    }
+    if (rec.userId !== userId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只能导入自己的报告");
+    }
+
+    let content: any = null;
+    try {
+      content = JSON.parse(rec.analysisContent);
+    } catch {
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
+    }
+
+    // 与报告阅读共用权益口径；关联缺失时不能凭旧报告 ID 绕过当前权益。
+    const reportType = String(content?.metadata?.reportType ||
+      (rec.analyzeType?.startsWith("REPORT_") ? rec.analyzeType.slice(7).toLowerCase() : ""));
+    if (!rec.paipanRecordId || !reportType) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "报告缺少权益关联，暂无法导入工作台");
+    }
+    const sourceChart = await this.prisma.paipanRecord.findUnique({
+      where: { id: rec.paipanRecordId },
+      select: { userId: true, clientName: true },
+    });
+    if (!sourceChart || sourceChart.userId !== userId) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "原排盘记录不存在");
+    }
+    await this.commerce.assertReportAccess(userId, rec.paipanRecordId, reportType);
+
+    const paipanType = String(content?.metadata?.paipanType || "bazi");
+    const TYPE_LABEL: Record<string, string> = {
+      bazi: "八字命书",
+      ziwei: "紫微命书",
+      liuyao: "六爻卦书",
+      meihua: "梅花卦书",
+      qimen: "奇门局书",
+      daliuren: "六壬课书",
+    };
+
+    // 小卜的小节 → 工作台章节；带上依据出处，老师可自行保留或删除
+    const sections: any[] = Array.isArray(content?.sections) ? content.sections : [];
+    const chapters = sections
+      .filter((x) => x?.title && x?.content)
+      /**
+       * 「这一盘我们怎么看」不进交付稿。
+       *
+       * 它是平台在各派分歧上的取舍，写法是平台口吻（「本报告按这个讲」），还列着各家讲法——
+       * 交付给 C 端客户有两处不对：一是暴露平台痕迹，与「让客户觉得是老师写的」直接冲突；
+       * 二是客户要的是结论，把门派分歧摆给他看只是噪音。
+       * 这部分是给老师自己看的（平台报告里有），他认同哪一条，自然会写进自己的解读里。
+       */
+      .filter((x) => x.id !== "sDebate")
+      .map((x, i) => {
+        const refs: any[] = Array.isArray(x.references) ? x.references : [];
+        const evidence = refs
+          .map((r) => `${r.source ?? ""}${r.chapter ? `·${r.chapter}` : ""}：${String(r.content ?? "").slice(0, 200)}`)
+          .filter(Boolean);
+        // 字段名必须与工作台既有结构一致（key/title/body/ai），否则编辑页与交付页都读不出正文
+        return {
+          key: `c${i + 1}`,
+          title: String(x.title).slice(0, 60),
+          body: String(x.content),
+          /** 依据原样带入，交付前老师自行决定是否展示 */
+          evidence,
+          /**
+           * 引擎算定的章节（盘面事实）。交付稿改写据此跳过：
+           * 老师往往会把标题改成自己的叫法，靠标题识别会把盘面数据当文案重写。
+           */
+          deterministic: !!x.deterministic,
+          fromXiaobu: true,
+          // 客户预览与公开页读 ai 字段；盘面事实不标 AI，模型解读初稿须披露。
+          ai: !x.deterministic && (x.type === "analysis" || x.type === "interpretation"),
+        };
+      });
+
+    return this.withReportWriteLock(userId, async (db) => {
+      // 拿到锁后再查已有件：两台设备同时首次导入时，后到者直接回到先建的稿。
+      const imported = await db.practitionerReport.findFirst({
+        where: { ownerId: userId, paipan: { path: ["sourceReportId"], equals: rec.id } },
+      });
+      if (imported) return imported;
+
+      const q = await this.reportQuota(userId, db);
+      if (!q.unlimited && q.used >= (q.limit ?? 0)) {
+        throw new BusinessException(
+          ErrorCode.FORBIDDEN,
+          `免费版最多保存 ${q.limit} 份报告（已用 ${q.used} 份），开通从业者会员可不限份数`,
+        );
+      }
+
+      return db.practitionerReport.create({
+        data: {
+          ownerId: userId,
+          clientId: input.clientId ?? null,
+          toolKey: paipanType,
+          type: paipanType,
+          typeLabel: TYPE_LABEL[paipanType] ?? "命理报告",
+          title: input.title?.trim() || String(content?.title || TYPE_LABEL[paipanType] || "命理报告"),
+          clientName: input.clientName?.trim() || sourceChart.clientName?.trim() || "未命名客户",
+          status: "draft",
+          style: "classic",
+          // 盘面快照：图形数据与事实原样带入，交付页可复用同一套图
+          // 字段名对齐工作台既有结构（toolKey/toolLabel/data/summary），否则页面会显示「来自 undefined」
+          paipan: {
+            toolKey: paipanType,
+            toolLabel: TYPE_LABEL[paipanType] ?? "命理报告",
+            // 这行是交付页「盘面」卡的正文，必须是引擎算定的盘面本身（四柱/卦象/局式），
+            // 不能用模型写的那句概述：它没经过客户口径改写，措辞也不是这位老师的。
+            summary: rec.inputSummary || "",
+            data: {
+              facts: content?.facts ?? null,
+              chartView: content?.chartView ?? null,
+            },
+            sourceReportId: rec.id,
+          } as any,
+          chapters: chapters as any,
+        },
+      });
+    });
+  }
+
+  async updateReport(userId: string, id: string, dto: any) {
+    await this.getReport(userId, id); // 归属校验（他人的 id 与不存在同样 404）
+    const expectedUpdatedAt = dto.updatedAt === undefined ? undefined : new Date(dto.updatedAt);
+    if (expectedUpdatedAt && Number.isNaN(expectedUpdatedAt.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告版本无效，请重新加载后再保存");
+    }
+    // 客户链接读取当前正文；交付后只能先撤回，避免编辑中的内容即时暴露给客户。
+    const updated = await this.prisma.practitionerReport.updateMany({
+      where: { id, ownerId: userId, shareToken: null, updatedAt: expectedUpdatedAt },
+      data: {
+        title: dto.title,
+        type: dto.type,
+        typeLabel: dto.typeLabel,
+        clientId: dto.clientId,
+        clientName: dto.clientName,
+        clientBirth: dto.clientBirth,
+        status: dto.status,
+        style: dto.style,
+        paipan: dto.paipan ?? undefined,
+        chapters: dto.chapters ?? undefined,
+      },
+    });
+    if (!updated.count) {
+      const current = await this.getReport(userId, id);
+      if (current.shareToken) throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已交付，请先撤回交付链接再修改");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已在其他设备修改，请保留本页内容并重新加载后再保存");
+    }
+    return this.getReport(userId, id);
+  }
+
+  async deleteReport(userId: string, id: string, expectedVersion?: string) {
+    await this.getReport(userId, id);
+    const expectedUpdatedAt = expectedVersion === undefined ? undefined : new Date(expectedVersion);
+    if (expectedUpdatedAt && Number.isNaN(expectedUpdatedAt.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告版本无效，请刷新列表后再删除");
+    }
+    const deleted = await this.prisma.practitionerReport.deleteMany({
+      where: { id, ownerId: userId, updatedAt: expectedUpdatedAt },
+    });
+    if (!deleted.count) throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请刷新列表后确认再删除");
+    return { success: true };
+  }
+
+  /**
+   * 交付客户：生成只读分享令牌（会员专属）
+   * 令牌即凭证 —— 拿到链接的人（客户，通常没有本平台账号）无需登录即可查看这一份报告。
+   * 因此令牌必须是高熵随机（非自增/非可猜），且只暴露这一份报告的内容。
+   */
+  async shareReport(userId: string, id: string, expectedVersion?: string) {
+    await this.requirePro(userId, "交付报告给客户");
+    const expectedUpdatedAt = expectedVersion === undefined ? undefined : new Date(expectedVersion);
+    if (expectedUpdatedAt && Number.isNaN(expectedUpdatedAt.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告版本无效，请重新加载后再交付");
+    }
+    const r = await this.getReport(userId, id);
+    if (expectedUpdatedAt && r.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请重新加载并预览后再交付");
+    }
+    if (r.shareToken) return { shareToken: r.shareToken, sharedAt: r.sharedAt };
+
+    const token = randomBytes(16).toString("hex");
+    const sharedAt = new Date();
+    const updated = await this.prisma.practitionerReport.updateMany({
+      where: { id, ownerId: userId, shareToken: null, updatedAt: expectedUpdatedAt },
+      data: { shareToken: token, sharedAt, status: "delivered" },
+    });
+    if (updated.count) return { shareToken: token, sharedAt };
+
+    // 另一请求已先完成交付时，返回同一有效链接，避免双击得到作废令牌。
+    const current = await this.getReport(userId, id);
+    if (expectedUpdatedAt && current.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请重新加载并预览后再交付");
+    }
+    if (current.shareToken) return { shareToken: current.shareToken, sharedAt: current.sharedAt };
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请刷新后重试交付");
+  }
+
+  /** 撤回交付链接 */
+  async unshareReport(userId: string, id: string, expectedToken?: string) {
+    const current = await this.getReport(userId, id);
+    if (expectedToken && current.shareToken !== expectedToken) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "交付链接已更新，请重新加载后再撤回");
+    }
+    if (!current.shareToken) {
+      return { success: true, updatedAt: current.updatedAt, shareToken: null, sharedAt: null, status: current.status };
+    }
+    const updated = await this.prisma.practitionerReport.updateMany({
+      where: { id, ownerId: userId, shareToken: current.shareToken },
+      data: { shareToken: null, sharedAt: null, status: "final" },
+    });
+    if (!updated.count) throw new BusinessException(ErrorCode.BAD_REQUEST, "交付链接已更新，请重新加载后再撤回");
+    const latest = await this.getReport(userId, id);
+    return { success: true, updatedAt: latest.updatedAt, shareToken: latest.shareToken, sharedAt: latest.sharedAt, status: latest.status };
+  }
+
+  /** 公开：按令牌读一份报告（无需登录 · 只读 · 不返回 ownerId 等内部字段） */
+  async getSharedReport(token: string) {
+    const r = await this.prisma.practitionerReport.findUnique({ where: { shareToken: token } });
+    if (!r) throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在或已被撤回");
+    const profile = await this.prisma.practitionerProfile.findUnique({ where: { userId: r.ownerId } });
+    const author = await this.prisma.user.findUnique({
+      where: { id: r.ownerId },
+      select: { nickname: true, avatar: true },
+    });
+    const stillShared = await this.prisma.practitionerReport.findUnique({
+      where: { shareToken: token },
+      select: { id: true },
+    });
+    if (stillShared?.id !== r.id) throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在或已被撤回");
+    return {
+      title: r.title,
+      typeLabel: r.typeLabel,
+      clientName: r.clientName,
+      clientBirth: r.clientBirth,
+      style: r.style,
+      paipan: r.paipan,
+      chapters: r.chapters,
+      sharedAt: r.sharedAt,
+      brand: {
+        brandName: profile?.brandName?.trim() || author?.nickname?.trim() || "",
+        title: profile?.title ?? "",
+        sealText: profile?.sealText ?? "",
+        slogan: profile?.slogan ?? "",
+        contact: profile?.contact ?? "",
+        disclaimer: profile?.disclaimer ?? "",
+        logoUrl: profile?.logoUrl ?? "",
+        avatar: author?.avatar ?? "",
+      },
+    };
+  }
+
+  // ───────────────────────── 案例库 ─────────────────────────
+
+  async listCases(userId: string, query: { category?: string; keyword?: string }) {
+    const where: any = { ownerId: userId };
+    if (query.category && query.category !== "all") where.category = query.category;
+    if (query.keyword) {
+      where.OR = [
+        { title: { contains: query.keyword } },
+        { clientName: { contains: query.keyword } },
+        { tags: { has: query.keyword } },
+      ];
+    }
+    const list = await this.prisma.practitionerCase.findMany({
+      where,
+      orderBy: { occurredAt: "desc" },
+      take: 200,
+    });
+    return { list, total: list.length };
+  }
+
+  async createCase(userId: string, dto: any) {
+    if (dto.reportId) {
+      const source = await this.prisma.practitionerReport.findFirst({
+        where: { id: dto.reportId, ownerId: userId },
+        select: { id: true },
+      });
+      if (!source) throw new BusinessException(ErrorCode.NOT_FOUND, "来源报告不存在");
+    }
+    return this.prisma.practitionerCase.create({
+      data: {
+        ownerId: userId,
+        reportId: dto.reportId ?? null,
+        title: dto.title,
+        clientName: dto.clientName ?? null,
+        category: dto.category ?? "bazi",
+        summary: dto.summary ?? null,
+        tags: dto.tags ?? [],
+        fee: dto.fee ?? 0,
+        occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : new Date(),
+      },
+    });
+  }
+
+  async updateCase(userId: string, id: string, dto: any) {
+    const c = await this.prisma.practitionerCase.findFirst({ where: { id, ownerId: userId } });
+    if (!c) throw new BusinessException(ErrorCode.NOT_FOUND, "案例不存在");
+    return this.prisma.practitionerCase.update({
+      where: { id },
+      data: {
+        title: dto.title,
+        clientName: dto.clientName,
+        category: dto.category,
+        summary: dto.summary,
+        tags: dto.tags,
+        fee: dto.fee,
+        occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : undefined,
+      },
+    });
+  }
+
+  async deleteCase(userId: string, id: string) {
+    const c = await this.prisma.practitionerCase.findFirst({ where: { id, ownerId: userId } });
+    if (!c) throw new BusinessException(ErrorCode.NOT_FOUND, "案例不存在");
+    await this.prisma.practitionerCase.delete({ where: { id } });
+    return { success: true };
+  }
+
+  // ───────────────────────── 执业日程 ─────────────────────────
+
+  async listAppointments(userId: string, query: { from?: string; to?: string; status?: string }) {
+    const where: any = { ownerId: userId };
+    if (query.status) where.status = query.status;
+    if (query.from || query.to) {
+      where.startAt = {};
+      if (query.from) where.startAt.gte = new Date(query.from);
+      if (query.to) where.startAt.lte = new Date(query.to);
+    }
+    const list = await this.prisma.practitionerAppointment.findMany({
+      where,
+      orderBy: { startAt: "asc" },
+      take: 200,
+    });
+    return { list, total: list.length };
+  }
+
+  async createAppointment(userId: string, dto: any) {
+    if (!dto.startAt) throw new BusinessException(ErrorCode.BAD_REQUEST, "请填写预约时间");
+    const startAt = new Date(dto.startAt);
+    if (Number.isNaN(startAt.getTime())) throw new BusinessException(ErrorCode.BAD_REQUEST, "预约时间无效，请重新选择");
+    return this.prisma.practitionerAppointment.create({
+      data: {
+        ownerId: userId,
+        clientId: dto.clientId ?? null,
+        clientName: dto.clientName,
+        startAt,
+        service: dto.service,
+        channel: dto.channel ?? "到店",
+        status: dto.status ?? "pending",
+        note: dto.note ?? null,
+        fee: dto.fee ?? null,
+      },
+    });
+  }
+
+  async updateAppointment(userId: string, id: string, dto: any) {
+    const a = await this.prisma.practitionerAppointment.findFirst({ where: { id, ownerId: userId } });
+    if (!a) throw new BusinessException(ErrorCode.NOT_FOUND, "预约不存在");
+    const startAt = dto.startAt ? new Date(dto.startAt) : undefined;
+    if (startAt && Number.isNaN(startAt.getTime())) throw new BusinessException(ErrorCode.BAD_REQUEST, "预约时间无效，请重新选择");
+    return this.prisma.practitionerAppointment.update({
+      where: { id },
+      data: {
+        clientId: dto.clientId,
+        clientName: dto.clientName,
+        startAt,
+        service: dto.service,
+        channel: dto.channel,
+        status: dto.status,
+        note: dto.note,
+        fee: dto.fee,
+      },
+    });
+  }
+
+  async deleteAppointment(userId: string, id: string) {
+    const a = await this.prisma.practitionerAppointment.findFirst({ where: { id, ownerId: userId } });
+    if (!a) throw new BusinessException(ErrorCode.NOT_FOUND, "预约不存在");
+    await this.prisma.practitionerAppointment.delete({ where: { id } });
+    return { success: true };
+  }
+
+  // ───────────────────────── 收入账本 ─────────────────────────
+
+  /**
+   * 账本 = 线下手记 + 平台内已结算收入（CommissionRecord）。
+   * 平台侧只读——那部分钱是平台算的，从业者不能改，只能看；能改的只有自己手记的线下单。
+   */
+  async getLedger(userId: string, query: { month?: string }) {
+    // month = YYYY-MM，缺省取当月（按北京时间的自然月）
+    const now = new Date();
+    const [y, m] = (query.month ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`)
+      .split("-")
+      .map(Number);
+    const start = new Date(y, m - 1, 1);
+    const end = new Date(y, m, 1);
+
+    const [manual, commissions] = await Promise.all([
+      this.prisma.practitionerLedger.findMany({
+        where: { ownerId: userId, occurredAt: { gte: start, lt: end } },
+        orderBy: { occurredAt: "desc" },
+      }),
+      this.prisma.userEarning.findMany({
+        where: { userId, createdAt: { gte: start, lt: end } },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        select: { id: true, amountRmb: true, scene: true, createdAt: true },
+      }),
+    ]);
+
+    const entries = [
+      ...manual.map((e) => ({
+        id: e.id,
+        source: "manual" as const,
+        clientName: e.clientName ?? "",
+        service: e.service,
+        amount: Number(e.amount),
+        payMethod: e.payMethod,
+        note: e.note ?? "",
+        occurredAt: e.occurredAt,
+        editable: true,
+      })),
+      ...commissions.map((c) => ({
+        id: c.id,
+        source: "platform" as const,
+        clientName: "",
+        service: this.sceneLabel(c.scene),
+        amount: Number(c.amountRmb),
+        payMethod: "平台结算",
+        note: "平台内成交",
+        occurredAt: c.createdAt,
+        editable: false,
+      })),
+    ].sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+
+    const total = entries.reduce((s, e) => s + e.amount, 0);
+    const manualTotal = entries.filter((e) => e.source === "manual").reduce((s, e) => s + e.amount, 0);
+    const byService = new Map<string, { count: number; amount: number }>();
+    for (const e of entries) {
+      const cur = byService.get(e.service) ?? { count: 0, amount: 0 };
+      byService.set(e.service, { count: cur.count + 1, amount: cur.amount + e.amount });
+    }
+
+    return {
+      month: `${y}-${String(m).padStart(2, "0")}`,
+      entries,
+      stats: {
+        total: Math.round(total * 100) / 100,
+        manualTotal: Math.round(manualTotal * 100) / 100,
+        platformTotal: Math.round((total - manualTotal) * 100) / 100,
+        count: entries.length,
+        avg: entries.length ? Math.round((total / entries.length) * 100) / 100 : 0,
+      },
+      byService: [...byService.entries()]
+        .map(([service, v]) => ({ service, ...v, amount: Math.round(v.amount * 100) / 100 }))
+        .sort((a, b) => b.amount - a.amount),
+    };
+  }
+
+  /** 平台内收益场景 → 账本上的服务名（对齐 enum EarningScene） */
+  private sceneLabel(scene: string): string {
+    const MAP: Record<string, string> = {
+      QUESTION: "付费提问",
+      PEEK: "围观分成",
+      PEEK_ASKER: "围观分成(提问者)",
+      AUDIO_CALL: "语音连麦",
+      LIVE_GIFT: "直播打赏",
+    };
+    return MAP[scene] ?? "平台收入";
+  }
+
+  async createLedgerEntry(userId: string, dto: any) {
+    const amount = Number(dto.amount);
+    if (!(amount > 0)) throw new BusinessException(ErrorCode.BAD_REQUEST, "金额必须大于 0");
+    return this.prisma.practitionerLedger.create({
+      data: {
+        ownerId: userId,
+        clientName: dto.clientName ?? null,
+        service: dto.service,
+        amount,
+        payMethod: dto.payMethod ?? "现金",
+        note: dto.note ?? null,
+        occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : new Date(),
+      },
+    });
+  }
+
+  async deleteLedgerEntry(userId: string, id: string) {
+    const e = await this.prisma.practitionerLedger.findFirst({ where: { id, ownerId: userId } });
+    if (!e) throw new BusinessException(ErrorCode.NOT_FOUND, "记录不存在");
+    await this.prisma.practitionerLedger.delete({ where: { id } });
+    return { success: true };
+  }
+
+  // ───────────────────────── 工作台首页聚合 ─────────────────────────
+
+  /** 今日概览：日程、待办提醒、本月收入、客户数 —— 一次拿全，首页不打散请求 */
+  async getHome(userId: string, period?: { dayStart?: string; dayEnd?: string; monthStart?: string }) {
+    const now = new Date();
+    let dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    let monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (period?.dayStart || period?.dayEnd || period?.monthStart) {
+      if (!period.dayStart || !period.dayEnd || !period.monthStart) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "工作台日期范围不完整，请刷新重试");
+      }
+      const start = new Date(period.dayStart);
+      const end = new Date(period.dayEnd);
+      const month = new Date(period.monthStart);
+      const dayLength = end.getTime() - start.getTime();
+      if ([start, end, month].some((d) => Number.isNaN(d.getTime())) ||
+          dayLength < 23 * 3600_000 || dayLength > 25 * 3600_000 ||
+          month.getTime() > start.getTime() || start.getTime() - month.getTime() > 31 * 86400_000) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "工作台日期范围无效，请刷新重试");
+      }
+      dayStart = start;
+      dayEnd = end;
+      monthStart = month;
+    }
+
+    const [appointments, reminders, clientCount, monthCommission, monthManual, pendingQuestions, reports] =
+      await Promise.all([
+        this.prisma.practitionerAppointment.findMany({
+          where: { ownerId: userId, startAt: { gte: dayStart, lt: dayEnd } },
+          orderBy: { startAt: "asc" },
+        }),
+        // 客户回访提醒（CRM 已有 ClientReminder：生日/回访/事件）
+        this.prisma.clientReminder.findMany({
+          where: { ownerId: userId, status: "PENDING", dueAt: { lt: dayEnd } },
+          orderBy: { dueAt: "asc" },
+          take: 10,
+          include: { client: { select: { name: true } } },
+        }),
+        this.prisma.clientBook.count({ where: { ownerId: userId } }),
+        this.prisma.userEarning.aggregate({
+          where: { userId, createdAt: { gte: monthStart } },
+          _sum: { amountRmb: true },
+        }),
+        this.prisma.practitionerLedger.aggregate({
+          where: { ownerId: userId, occurredAt: { gte: monthStart } },
+          _sum: { amount: true },
+        }),
+        // 平台内待回答的付费提问（老师的另一条真实待办）
+        this.prisma.paidQuestion.count({ where: { answererId: userId, status: "PENDING" } }),
+        this.prisma.practitionerReport.findMany({
+          where: { ownerId: userId, status: { in: ["draft", "final"] } },
+          orderBy: { updatedAt: "desc" },
+          take: 5,
+          select: { id: true, title: true, typeLabel: true, clientName: true, status: true, updatedAt: true },
+        }),
+      ]);
+
+    const monthIncome =
+      Number(monthCommission._sum.amountRmb ?? 0) + Number(monthManual._sum.amount ?? 0);
+    const draftCount = await this.prisma.practitionerReport.count({
+      where: { ownerId: userId, status: "draft" },
+    });
+
+    return {
+      stats: [
+        { key: "appointments", label: "今日预约", value: String(appointments.length), hint: "件" },
+        { key: "pending", label: "待回答", value: String(pendingQuestions), hint: "条" },
+        { key: "income", label: "本月收入", value: `¥${Math.round(monthIncome * 100) / 100}`, hint: "含线下手记" },
+        { key: "clients", label: "客户档案", value: String(clientCount), hint: "人" },
+      ],
+      appointments,
+      reminders,
+      recentReports: reports,
+      draftCount,
+      pro: await this.getProStatus(userId),
+    };
+  }
+}

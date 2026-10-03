@@ -1,0 +1,238 @@
+{
+  "recordedAt": "2026-10-01T01:50:41.8985856Z",
+  "originalCandidate": "b38048fdb25ea30bff9cf19c3c56d30cd0036de8",
+  "actualReceive": "650abfc5eff5a423d8189cce4f0289173c6a11c2",
+  "receiveParent": "f4a70171dface60d4091b9130c975a8cea9cca61",
+  "conflicts": false,
+  "result": {
+    "sourceCommit": "b38048fdb",
+    "passed": true,
+    "scope": "official-development-simulator-navigation-with-synthetic-503-not-phone-or-payment",
+    "requestRestored": true,
+    "cases": [
+      {
+        "name": "没有历史时回首页",
+        "passed": true
+      },
+      {
+        "name": "返回真实上一页",
+        "passed": true
+      }
+    ]
+  },
+  "officialPreview": {
+    "size": {
+      "total": 12721624,
+      "packages": [
+        {
+          "name": "TOTAL",
+          "size": 12721624
+        },
+        {
+          "name": "main",
+          "size": 1950575
+        },
+        {
+          "name": "/pkg-account/",
+          "size": 120557
+        },
+        {
+          "name": "/pkg-agent/",
+          "size": 294302
+        },
+        {
+          "name": "/pkg-auth/",
+          "size": 84094
+        },
+        {
+          "name": "/pkg-bounty/",
+          "size": 92733
+        },
+        {
+          "name": "/pkg-circle/",
+          "size": 1339571
+        },
+        {
+          "name": "/pkg-classics/",
+          "size": 472190
+        },
+        {
+          "name": "/pkg-common/",
+          "size": 47356
+        },
+        {
+          "name": "/pkg-competition/",
+          "size": 261116
+        },
+        {
+          "name": "/pkg-course/",
+          "size": 316627
+        },
+        {
+          "name": "/pkg-creator/",
+          "size": 96195
+        },
+        {
+          "name": "/pkg-discover/",
+          "size": 8633
+        },
+        {
+          "name": "/pkg-help/",
+          "size": 16829
+        },
+        {
+          "name": "/pkg-im/",
+          "size": 197766
+        },
+        {
+          "name": "/pkg-institute/",
+          "size": 319039
+        },
+        {
+          "name": "/pkg-live/",
+          "size": 668097
+        },
+        {
+          "name": "/pkg-mall/",
+          "size": 132687
+        },
+        {
+          "name": "/pkg-merchant/",
+          "size": 624960
+        },
+        {
+          "name": "/pkg-mine/",
+          "size": 767700
+        },
+        {
+          "name": "/pkg-notices/",
+          "size": 39319
+        },
+        {
+          "name": "/pkg-offline/",
+          "size": 323126
+        },
+        {
+          "name": "/pkg-operator/",
+          "size": 589816
+        },
+        {
+          "name": "/pkg-order/",
+          "size": 168461
+        },
+        {
+          "name": "/pkg-paipan/",
+          "size": 1959687
+        },
+        {
+          "name": "/pkg-paipan2/",
+          "size": 634410
+        },
+        {
+          "name": "/pkg-paipan3/",
+          "size": 191767
+        },
+        {
+          "name": "/pkg-profile/",
+          "size": 53503
+        },
+        {
+          "name": "/pkg-report/",
+          "size": 62202
+        },
+        {
+          "name": "/pkg-search/",
+          "size": 64246
+        },
+        {
+          "name": "/pkg-settings/",
+          "size": 80050
+        },
+        {
+          "name": "/pkg-shop/",
+          "size": 250940
+        },
+        {
+          "name": "/pkg-solar-term/",
+          "size": 22440
+        },
+        {
+          "name": "/pkg-video/",
+          "size": 222261
+        },
+        {
+          "name": "/pkg-workspace/",
+          "size": 248369
+        }
+      ]
+    }
+  },
+  "backendSchemaAndBuildInputsEquivalentToF4": true,
+  "evidence": [
+    {
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\video-return-typecheck.log",
+      "sha256": "9594850de1ee801c3ffe87758a209b3815868da49d6f7a55f819534e36022c07",
+      "bytes": 145
+    },
+    {
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\video-return-eslint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\video-return-build-h5.log",
+      "sha256": "d9288aceac26df47ae9739aabad399295480a61b25cf7d6832dc3a28ab45eb6d",
+      "bytes": 68245
+    },
+    {
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\video-return-build-mp-weixin.log",
+      "sha256": "0cb0d4fedc5c9d066fbb77fc34984b1c746a1917d881febf6c5e3035ef1a9ef8",
+      "bytes": 69046
+    },
+    {
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\video-return-build-app.log",
+      "sha256": "26327d3c6f7db3b3eb973c26950e70a29c343582a1f46a03ceb7fa0d191a3ae5",
+      "bytes": 68023
+    },
+    {
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\video-return-build-app-harmony.log",
+      "sha256": "b0d6dca317b7f706760596d6167168565c983a19303c137c10547445d37345d8",
+      "bytes": 67883
+    },
+    {
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\video-return-wechat.json",
+      "sha256": "f05cef5d465aebd84dd421d05c011354b58806669fd014868947898fbfc21463",
+      "bytes": 340
+    },
+    {
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\video-return-wechat.log",
+      "sha256": "ee6e3e384dad9b634fdfa29b957ee8afcdcb7f2d135b26610dfbda0abe910e40",
+      "bytes": 147
+    },
+    {
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\video-return-fallback.png",
+      "sha256": "a0a37091b70cadb33533a669ac5ed25c2f1c48ffa59566c6e3888282eea00671",
+      "bytes": 44746
+    },
+    {
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\video-return-history.png",
+      "sha256": "fe39aa29cb056a8180a722e63e741727af9b28c4de5574f38c0fc06959fa9ce5",
+      "bytes": 44629
+    },
+    {
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\video-preview-info.json",
+      "sha256": "7a9c76adcb3ba48a6497d69c8291af139440aca4afe0917f83303d8b6075fe5a",
+      "bytes": 2575
+    },
+    {
+      "path": "C:\\Users\\Administrator\\.codex\\worktrees\\circle-reward-atomic\\gx-deploy-91\\artifacts\\competition-disclosure-ui-20260930\\video-preview.log",
+      "sha256": "1b66d2e86fcded93e2520132a923024bbeaa5883c34dc8bd75fdcc0b860ebca0",
+      "bytes": 2934
+    }
+  ],
+  "realPhoneValidated": false,
+  "nativeSignedPackageValidated": false,
+  "deployed": false,
+  "releaseDecision": "NO-GO",
+  "rollback": "先撤回650短视频返回，再f4赛事公示，再5b权限与原批次，三个业务回退点分别保留"
+}

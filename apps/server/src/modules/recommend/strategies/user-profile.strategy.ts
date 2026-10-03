@@ -47,7 +47,7 @@ export class UserProfileStrategy extends BaseRecommendStrategy {
     // 按兴趣标签并行查询各类型内容
     const [courses, products, circles, articles] = await Promise.all([
       this.prisma.course.findMany({
-        where: { tags: { hasSome: topTags }, auditStatus: "APPROVED" },
+        where: { tags: { hasSome: topTags }, auditStatus: "APPROVED", visibility: "PLATFORM" },
         select: { id: true, title: true, cover: true, intro: true, tags: true, price: true, studentCount: true },
         take: 6,
         orderBy: { studentCount: "desc" },
@@ -65,7 +65,7 @@ export class UserProfileStrategy extends BaseRecommendStrategy {
         orderBy: { memberCount: "desc" },
       }),
       this.prisma.article.findMany({
-        where: { tags: { hasSome: topTags }, auditStatus: "APPROVED" },
+        where: { tags: { hasSome: topTags }, auditStatus: "APPROVED", visibility: "PLATFORM" },
         select: { id: true, title: true, cover: true, excerpt: true, tags: true, viewCount: true, likeCount: true },
         take: 4,
         orderBy: { viewCount: "desc" },

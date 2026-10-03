@@ -5,6 +5,8 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { botApi, botTypeLabel, type BotItem } from '@/lib/bot-data'
 
@@ -28,13 +30,6 @@ function isNew(createdAt: string): boolean {
   return !Number.isNaN(t) && Date.now() - t < 7 * 24 * 3600 * 1000
 }
 
-const palette = ['#C41E3A', '#C9A96E', '#2E7D5B', '#1F6FB2', '#8B5A2B', '#9A3B5C']
-function avatarColor(name: string) {
-  let sum = 0
-  for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i)
-  return palette[sum % palette.length]
-}
-
 async function load() {
   loading.value = true
   error.value = ''
@@ -49,7 +44,9 @@ async function load() {
 }
 
 function doSearch() { keyword.value = inputVal.value }
-function openBot(bot: BotItem) { navigateTo(`/pkg-agent/bots/chat?id=${bot.id}`) }
+// 走 ROUTE_MAP 别名（/bots/chat → /pkg-agent/bots/chat/index）。此前直写 /pkg-agent/bots/chat
+// 缺 /index 段，uni.navigateTo 找不到页面 → 恒弹「功能开发中」，广场所有卡片全是死链。
+function openBot(bot: BotItem) { navigateTo(`/bots/chat?id=${bot.id}`) }
 
 onMounted(load)
 </script>
@@ -59,7 +56,7 @@ onMounted(load)
     <!-- 红色渐变头 -->
     <view class="cb-top">
       <view class="cb-top-nav" :style="{ paddingTop: 'calc(24rpx + var(--status-bar-height, 0px))' }">
-        <view class="cb-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#ffffff" /></view>
+        <view class="cb-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <text class="cb-top-title">智能体广场</text>
         <view class="cb-nav-btn" />
       </view>
@@ -67,7 +64,7 @@ onMounted(load)
         <view class="cb-summary-icon"><app-icon name="sparkles" :size="40" color="#ffffff" /></view>
         <view class="cb-summary-main">
           <text class="cb-summary-name">国学智能体</text>
-          <text class="cb-summary-desc">命理 · 国学 · 客服，AI 助你随时随地求解</text>
+          <text class="cb-summary-desc">命理文化 · 国学 · 客服，AI 助你随时随地求解</text>
         </view>
         <view class="cb-summary-total">
           <text class="cb-summary-total-n">{{ bots.length }}</text>
@@ -90,8 +87,7 @@ onMounted(load)
 
       <!-- loading -->
       <view v-if="loading" class="cb-state">
-        <app-icon name="loader-2" :size="40" color="#C41E3A" class="spin" />
-        <text class="cb-state-t">加载中...</text>
+        <AppLoading />
       </view>
       <!-- error -->
       <view v-else-if="error" class="cb-state">
@@ -110,10 +106,8 @@ onMounted(load)
         <view v-for="bot in filtered" :key="bot.id" class="cb-card" @tap="openBot(bot)">
           <view class="cb-card-head">
             <view v-if="isNew(bot.createdAt)" class="cb-tag-badge green"><text class="cb-tag-badge-t">NEW</text></view>
-            <image lazy-load v-if="bot.avatar" :src="bot.avatar" class="cb-card-avatar" mode="aspectFill" />
-            <view v-else class="cb-card-avatar cb-card-avatar-ph" :style="{ background: avatarColor(bot.name) }">
-              <text class="cb-card-avatar-t">{{ bot.name.slice(0, 1) }}</text>
-            </view>
+            <!-- 智能体图标：有图显图，无图/坏图翻字母色块兜底（不再露米色空框） -->
+            <smart-avatar class="cb-card-avatar" :src="bot.avatar" :name="bot.name" />
             <text class="cb-card-name">{{ bot.name }}</text>
           </view>
           <text class="cb-card-desc">{{ bot.intro || '暂无简介' }}</text>
@@ -161,8 +155,6 @@ onMounted(load)
 .cb-state-t { font-size: 26rpx; color: #999; }
 .cb-retry { margin-top: 8rpx; padding: 16rpx 56rpx; background: var(--brand); border-radius: 999rpx; }
 .cb-retry-t { font-size: 26rpx; color: #fff; }
-.spin { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 /* 网格 */
 .cb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; padding: 24rpx 32rpx 48rpx; }
 .cb-card { background: #fff; border-radius: 24rpx; border: 2rpx solid #E8E4DE; overflow: hidden; }

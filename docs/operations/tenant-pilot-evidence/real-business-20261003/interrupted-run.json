@@ -1,0 +1,13 @@
+{
+  "head": "73772132e4450855fb033e9d5f86c06300427662",
+  "production": false,
+  "status": "INTERRUPTED",
+  "completedSuites": 15,
+  "failedSuite": "cutover",
+  "timeoutMs": 180000,
+  "recovery": "interrupted-cutover-recovery.json",
+  "retryResult": "cutover-20261003.json",
+  "limits": [
+    "第一次全量运行中断，不计为通过；查询审计和目标状态后恢复原合成绑定，数据与恢复库均保留"
+  ]
+}

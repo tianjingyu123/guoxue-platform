@@ -96,6 +96,10 @@ export class CourseLearningService {
     });
     if (!chapter) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "章节不存在");
 
+    // 进度属于课程权益的一部分；退款或有效期结束后不能继续写入。
+    const hasAccess = await this.purchaseSvc.checkAccess(userId, chapter.courseId);
+    if (!hasAccess) throw new BusinessException(ErrorCode.FORBIDDEN, "当前无课程学习权限");
+
     const completed = dto.progress >= 100;
 
     if (dto.progress >= 50) {
@@ -223,9 +227,12 @@ export class CourseLearningService {
     const hasAccess = await this.purchaseSvc.checkAccess(userId, courseId);
     if (!hasAccess) throw new BusinessException(ErrorCode.FORBIDDEN, "请先购买课程");
 
-    const chapters = await this.prisma.courseChapter.count({ where: { courseId } });
-    const completed = await this.prisma.courseProgress.count({ where: { userId, courseId, completed: true } });
-    if (chapters > 0 && completed < chapters) throw new BusinessException(ErrorCode.BAD_REQUEST, `还有 ${chapters - completed} 个章节未完成`);
+    const chapters = await this.prisma.courseChapter.findMany({ where: { courseId }, select: { id: true } });
+    if (chapters.length === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "课程尚无章节，无法标记完成");
+    const completed = await this.prisma.courseProgress.count({
+      where: { userId, courseId, chapterId: { in: chapters.map((chapter) => chapter.id) }, completed: true },
+    });
+    if (completed < chapters.length) throw new BusinessException(ErrorCode.BAD_REQUEST, `还有 ${chapters.length - completed} 个章节未完成`);
 
     return { courseId, userId, title: course.title, completedAt: new Date(), completed: true };
   }
@@ -233,17 +240,18 @@ export class CourseLearningService {
   async getCertificate(userId: string, courseId: string) {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
-      select: { title: true, user: { select: { nickname: true } }, chapters: { select: { duration: true } } },
+      select: { title: true, user: { select: { nickname: true } }, chapters: { select: { id: true, duration: true } } },
     });
     if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
 
     const chapters = course.chapters.length;
+    if (chapters === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "课程尚无章节，无法生成结课证书");
     const completedRows = await this.prisma.courseProgress.findMany({
-      where: { userId, courseId, completed: true },
+      where: { userId, courseId, chapterId: { in: course.chapters.map((chapter) => chapter.id) }, completed: true },
       select: { updatedAt: true },
       orderBy: { updatedAt: "desc" },
     });
-    if (chapters > 0 && completedRows.length < chapters) throw new BusinessException(ErrorCode.BAD_REQUEST, "尚未完成全部章节");
+    if (completedRows.length < chapters) throw new BusinessException(ErrorCode.BAD_REQUEST, "尚未完成全部章节");
 
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { nickname: true } });
     const completedAt = completedRows[0]?.updatedAt ?? new Date();
@@ -270,6 +278,12 @@ export class CourseLearningService {
   private async ensureOwner(courseId: string, userId: string) {
     const course = await this.prisma.course.findUnique({ where: { id: courseId } });
     if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-    if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的课程");
+    if (course.userId === userId) return;
+    // 平台运营可管理任意课程章节（后台课程编辑器·与 course.service.update 同口径）
+    const admin = await this.prisma.userRole.findFirst({
+      where: { userId, roleType: { in: ["SUPER_ADMIN", "OPERATION_ADMIN"] } },
+      select: { id: true },
+    });
+    if (!admin) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的课程");
   }
 }

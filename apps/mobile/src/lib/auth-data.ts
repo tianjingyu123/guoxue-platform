@@ -2,8 +2,17 @@
  * 认证数据层 - 登录/注册/找回密码
  * 负责前端 UI 的数据格式与后端 API 响应的适配
  */
-import { apiPost, useMock } from '@/utils/request'
+import { apiPost } from '@/utils/request'
+// #ifdef H5
+import { apiGet } from '@/utils/request'
+// #endif
 import { getTempReferrer } from '@/utils/referral'
+
+// #ifdef APP-PLUS
+declare const uniCloud: {
+  callFunction(input: { name: string; data: Record<string, unknown> }): Promise<{ result?: { code?: number | string; message?: string; data?: RawAuthData } }>
+}
+// #endif
 
 export interface UserInfo {
   id: string
@@ -11,6 +20,8 @@ export interface UserInfo {
   avatar: string
   phone: string
   token: string
+  interestCategories?: string[]
+  interestGuideCompleted?: boolean
 }
 
 export interface AuthResponse {
@@ -18,22 +29,16 @@ export interface AuthResponse {
   message: string
   data?: {
     token: string
+    refreshToken?: string
     user: UserInfo
   }
-}
-
-const mockUser: UserInfo = {
-  id: '1',
-  nickname: '国学爱好者',
-  avatar: 'https://api.rebugx.cn/assets/images/default-avatar.webp',
-  phone: '138****8888',
-  token: 'mock-token-xxx',
 }
 
 /* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
 /** 后端 login/register 原始响应 */
 interface RawAuthData {
   accessToken?: string
+  refreshToken?: string
   token?: string
   user?: Partial<UserInfo> & Record<string, unknown>
 }
@@ -47,13 +52,68 @@ function adaptAuthResult(data?: RawAuthData | null): AuthResponse {
     message: 'ok',
     data: {
       token,
+      refreshToken: data.refreshToken || '',
       // 后端返回完整 user 对象，运行时字段齐全；类型层用 as UserInfo 收口宽松 Raw
       user: { ...data.user, token } as UserInfo,
     },
   }
 }
 
+/** 多小程序构建优先读取显式 clientKey；未配置时直接上送当前公开 appId 供后端注册表匹配。 */
+function getWechatClientKey(): string | undefined {
+  const configured = ((import.meta as any).env?.VITE_WECHAT_CLIENT_KEY || '').trim()
+  if (configured) return configured
+  // #ifdef MP-WEIXIN
+  try {
+    return uni.getAccountInfoSync().miniProgram.appId || undefined
+  } catch { return undefined }
+  // #endif
+  // #ifndef MP-WEIXIN
+  return undefined
+  // #endif
+}
+
 export const authApi = {
+  // #ifdef APP-PLUS
+  /** 运营商凭据只交给绑定的 uniCloud 云函数，客户端不读取或提交明文手机号。 */
+  async appPhoneLogin(openid: string, accessToken: string): Promise<AuthResponse> {
+    try {
+      if (typeof uniCloud === 'undefined' || !uniCloud.callFunction) throw new Error('快捷登录服务尚未就绪')
+      const response = await uniCloud.callFunction({
+        name: 'rebu-univerify-login',
+        data: { openid, access_token: accessToken, referrerCode: getTempReferrer() },
+      })
+      const result = response?.result
+      if (result?.code !== 0) return { success: false, message: result?.message || '手机号快捷登录失败' }
+      return adaptAuthResult(result.data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || '手机号快捷登录失败' }
+    }
+  },
+  // #endif
+
+  // #ifdef H5
+  /** 获取公众号网页授权地址。redirectUri/state 由登录页生成，服务端仍会校验回调域名。 */
+  async getWechatOAuthUrl(redirectUri: string, state: string): Promise<string> {
+    const clientKey = getWechatClientKey()
+    const query = [
+      `redirectUri=${encodeURIComponent(redirectUri)}`,
+      'scope=snsapi_userinfo',
+      `state=${encodeURIComponent(state)}`,
+      ...(clientKey ? [`clientKey=${encodeURIComponent(clientKey)}`] : []),
+    ].join('&')
+    // 微信 WebView 曾将同一授权地址请求命中为 304，造成前端拿到空响应；每次登录都携带
+    // 一次性标记并禁止缓存，保证获取到完整 OAuth 地址。
+    const cacheKey = Date.now().toString(36)
+    const data = await apiGet<{ url: string }>(
+      `/auth/wechat/oauth-url?${query}&_=${cacheKey}`,
+      { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    )
+    if (!data?.url) throw new Error('微信登录配置暂不可用')
+    return data.url
+  },
+  // #endif
+
   /** 发送短信验证码 — POST /auth/sms/send */
   async sendCode(phone: string, scene: 'login' | 'register' | 'reset'): Promise<{ success: boolean; message: string }> {
     try {
@@ -86,11 +146,77 @@ export const authApi = {
     }
   },
 
+  /** 微信登录（小程序/APP/H5）— 同一接口按端类型解析 code，并落到同一个内部 userId。 */
+  async wechatLogin(
+    code: string,
+    loginType: 'miniprogram' | 'app' | 'h5' = 'miniprogram',
+    options: { createIfMissing?: boolean } = {},
+  ): Promise<AuthResponse> {
+    try {
+      const data = await apiPost<RawAuthData>('/auth/login/wechat', {
+        code,
+        loginType,
+        clientKey: getWechatClientKey(),
+        createIfMissing: options.createIfMissing,
+        // 新用户自动注册时绑定最近分享者作为归属
+        referrerCode: getTempReferrer(),
+      })
+      return adaptAuthResult(data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || '微信登录失败' }
+    }
+  },
+
+  /** 小程序手机号一键登录：必须由用户点击原生 getPhoneNumber 按钮触发。 */
+  async miniPhoneLogin(wxCode: string, phoneCode: string): Promise<AuthResponse> {
+    try {
+      const data = await apiPost<RawAuthData>('/auth/login/mini-phone', {
+        wxCode,
+        phoneCode,
+        clientKey: getWechatClientKey(),
+        referrerCode: getTempReferrer(),
+      })
+      return adaptAuthResult(data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || '手机号快捷登录失败' }
+    }
+  },
+
+  /** 将当前已登录手机号账号与微信身份绑定，后续可一键进入排盘。 */
+  async bindWechat(code: string, loginType: 'miniprogram' | 'app' | 'h5' = 'miniprogram', expectedUserId?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await apiPost('/auth/bind/wechat', { code, loginType, clientKey: getWechatClientKey(), expectedUserId })
+      return { success: true, message: '微信账号已关联' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '微信账号关联失败' }
+    }
+  },
+
+  // #ifdef APP-PLUS
+  /** Apple 原生登录 — identityToken 只发送给服务端验签，不在客户端持久化。 */
+  async appleLogin(params: {
+    identityToken: string
+    familyName?: string
+    givenName?: string
+  }): Promise<AuthResponse> {
+    try {
+      const data = await apiPost<RawAuthData>('/auth/login/apple', {
+        ...params,
+        referrerCode: getTempReferrer(),
+      })
+      return adaptAuthResult(data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || 'Apple 登录失败' }
+    }
+  },
+  // #endif
+
   /** 手机号注册 — POST /auth/register/phone */
   async register(params: { phone: string; code: string; password: string; nickname: string }): Promise<AuthResponse> {
     try {
       const data = await apiPost<RawAuthData>('/auth/register/phone', {
         phone: params.phone,
+        code: params.code,
         password: params.password,
         nickname: params.nickname,
         // 推荐归因：注册时绑定永久归属分站（值=分享者用户ID或分站推广码，后端解析）

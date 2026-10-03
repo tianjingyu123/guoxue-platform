@@ -1,0 +1,1303 @@
+{
+"source": "《太乙金镜式经》四库全书本（维基文库，公有领域）·阳局/阴局天目地目计神主客大小将立成；由 artifacts/paipan-compare-20260919/taiyi-src/parse-licheng.py 抽取，神名已转简体",
+"yang": [
+{
+"ju": 1,
+"taiyi": 1,
+"tianmu": "武德",
+"zhu": 7,
+"kemu": "大武",
+"ke": 13,
+"jishen": "寅"
+},
+{
+"ju": 2,
+"taiyi": 1,
+"tianmu": "太簇",
+"zhu": 6,
+"kemu": "阴主",
+"ke": 1,
+"jishen": "丑"
+},
+{
+"ju": 3,
+"taiyi": 1,
+"tianmu": "阴主",
+"zhu": 1,
+"kemu": "大义",
+"ke": 40,
+"jishen": "子"
+},
+{
+"ju": 4,
+"taiyi": 2,
+"tianmu": "阴德",
+"zhu": 25,
+"kemu": "阳德",
+"ke": 17,
+"jishen": "亥"
+},
+{
+"ju": 5,
+"taiyi": 2,
+"tianmu": "阴德",
+"zhu": 25,
+"kemu": "吕申",
+"ke": 14,
+"jishen": "戌"
+},
+{
+"ju": 6,
+"taiyi": 2,
+"tianmu": "大义",
+"zhu": 25,
+"kemu": "太阳",
+"ke": 10,
+"jishen": "酉"
+},
+{
+"ju": 7,
+"taiyi": 3,
+"tianmu": "地主",
+"zhu": 8,
+"kemu": "大神",
+"ke": 25,
+"jishen": "申"
+},
+{
+"ju": 8,
+"taiyi": 3,
+"tianmu": "阳德",
+"zhu": 1,
+"kemu": "大武",
+"ke": 22,
+"jishen": "未"
+},
+{
+"ju": 9,
+"taiyi": 3,
+"tianmu": "和德",
+"zhu": 3,
+"kemu": "太簇",
+"ke": 15,
+"jishen": "午"
+},
+{
+"ju": 10,
+"taiyi": 4,
+"tianmu": "吕申",
+"zhu": 1,
+"kemu": "阴德",
+"ke": 12,
+"jishen": "巳"
+},
+{
+"ju": 11,
+"taiyi": 4,
+"tianmu": "高丛",
+"zhu": 4,
+"kemu": "阳德",
+"ke": 4,
+"jishen": "辰"
+},
+{
+"ju": 12,
+"taiyi": 4,
+"tianmu": "太阳",
+"zhu": 37,
+"kemu": "吕申",
+"ke": 1,
+"jishen": "卯"
+},
+{
+"ju": 13,
+"taiyi": 6,
+"tianmu": "大炅",
+"zhu": 18,
+"kemu": "太阳",
+"ke": 19,
+"jishen": "寅"
+},
+{
+"ju": 14,
+"taiyi": 6,
+"tianmu": "大神",
+"zhu": 10,
+"kemu": "大威",
+"ke": 9,
+"jishen": "丑"
+},
+{
+"ju": 15,
+"taiyi": 6,
+"tianmu": "大威",
+"zhu": 9,
+"kemu": "大武",
+"ke": 7,
+"jishen": "子"
+},
+{
+"ju": 16,
+"taiyi": 7,
+"tianmu": "天道",
+"zhu": 1,
+"kemu": "太簇",
+"ke": 33,
+"jishen": "亥"
+},
+{
+"ju": 17,
+"taiyi": 7,
+"tianmu": "大武",
+"zhu": 7,
+"kemu": "大义",
+"ke": 27,
+"jishen": "戌"
+},
+{
+"ju": 18,
+"taiyi": 7,
+"tianmu": "大武",
+"zhu": 7,
+"kemu": "地主",
+"ke": 26,
+"jishen": "酉"
+},
+{
+"ju": 19,
+"taiyi": 8,
+"tianmu": "武德",
+"zhu": 8,
+"kemu": "和德",
+"ke": 32,
+"jishen": "申"
+},
+{
+"ju": 20,
+"taiyi": 8,
+"tianmu": "太簇",
+"zhu": 7,
+"kemu": "太阳",
+"ke": 26,
+"jishen": "未"
+},
+{
+"ju": 21,
+"taiyi": 8,
+"tianmu": "阴主",
+"zhu": 2,
+"kemu": "大神",
+"ke": 17,
+"jishen": "午"
+},
+{
+"ju": 22,
+"taiyi": 9,
+"tianmu": "阴德",
+"zhu": 16,
+"kemu": "天道",
+"ke": 30,
+"jishen": "巳"
+},
+{
+"ju": 23,
+"taiyi": 9,
+"tianmu": "阴德",
+"zhu": 16,
+"kemu": "武德",
+"ke": 23,
+"jishen": "辰"
+},
+{
+"ju": 24,
+"taiyi": 9,
+"tianmu": "大义",
+"zhu": 16,
+"kemu": "阴主",
+"ke": 17,
+"jishen": "卯"
+},
+{
+"ju": 25,
+"taiyi": 1,
+"tianmu": "地主",
+"zhu": 39,
+"kemu": "大义",
+"ke": 40,
+"jishen": "寅"
+},
+{
+"ju": 26,
+"taiyi": 1,
+"tianmu": "阳德",
+"zhu": 32,
+"kemu": "和德",
+"ke": 31,
+"jishen": "丑"
+},
+{
+"ju": 27,
+"taiyi": 1,
+"tianmu": "和德",
+"zhu": 31,
+"kemu": "高丛",
+"ke": 28,
+"jishen": "子"
+},
+{
+"ju": 28,
+"taiyi": 2,
+"tianmu": "吕申",
+"zhu": 14,
+"kemu": "大炅",
+"ke": 9,
+"jishen": "亥"
+},
+{
+"ju": 29,
+"taiyi": 2,
+"tianmu": "高丛",
+"zhu": 13,
+"kemu": "天道",
+"ke": 39,
+"jishen": "戌"
+},
+{
+"ju": 30,
+"taiyi": 2,
+"tianmu": "太阳",
+"zhu": 10,
+"kemu": "武德",
+"ke": 32,
+"jishen": "酉"
+},
+{
+"ju": 31,
+"taiyi": 3,
+"tianmu": "大炅",
+"zhu": 33,
+"kemu": "阴主",
+"ke": 10,
+"jishen": "申"
+},
+{
+"ju": 32,
+"taiyi": 3,
+"tianmu": "大神",
+"zhu": 25,
+"kemu": "地主",
+"ke": 8,
+"jishen": "未"
+},
+{
+"ju": 33,
+"taiyi": 3,
+"tianmu": "大威",
+"zhu": 24,
+"kemu": "和德",
+"ke": 3,
+"jishen": "午"
+},
+{
+"ju": 34,
+"taiyi": 4,
+"tianmu": "天道",
+"zhu": 26,
+"kemu": "高丛",
+"ke": 4,
+"jishen": "巳"
+},
+{
+"ju": 35,
+"taiyi": 4,
+"tianmu": "大武",
+"zhu": 25,
+"kemu": "大神",
+"ke": 28,
+"jishen": "辰"
+},
+{
+"ju": 36,
+"taiyi": 4,
+"tianmu": "大武",
+"zhu": 25,
+"kemu": "大威",
+"ke": 27,
+"jishen": "卯"
+},
+{
+"ju": 37,
+"taiyi": 6,
+"tianmu": "武德",
+"zhu": 1,
+"kemu": "大武",
+"ke": 7,
+"jishen": "寅"
+},
+{
+"ju": 38,
+"taiyi": 6,
+"tianmu": "太簇",
+"zhu": 6,
+"kemu": "阴主",
+"ke": 35,
+"jishen": "丑"
+},
+{
+"ju": 39,
+"taiyi": 6,
+"tianmu": "阴主",
+"zhu": 25,
+"kemu": "大义",
+"ke": 34,
+"jishen": "子"
+},
+{
+"ju": 40,
+"taiyi": 7,
+"tianmu": "阴德",
+"zhu": 27,
+"kemu": "阳德",
+"ke": 19,
+"jishen": "亥"
+},
+{
+"ju": 41,
+"taiyi": 7,
+"tianmu": "阴德",
+"zhu": 27,
+"kemu": "吕申",
+"ke": 16,
+"jishen": "戌"
+},
+{
+"ju": 42,
+"taiyi": 7,
+"tianmu": "大义",
+"zhu": 27,
+"kemu": "太阳",
+"ke": 12,
+"jishen": "酉"
+},
+{
+"ju": 43,
+"taiyi": 8,
+"tianmu": "地主",
+"zhu": 8,
+"kemu": "大神",
+"ke": 17,
+"jishen": "申"
+},
+{
+"ju": 44,
+"taiyi": 8,
+"tianmu": "阳德",
+"zhu": 33,
+"kemu": "大武",
+"ke": 14,
+"jishen": "未"
+},
+{
+"ju": 45,
+"taiyi": 8,
+"tianmu": "和德",
+"zhu": 32,
+"kemu": "太簇",
+"ke": 7,
+"jishen": "午"
+},
+{
+"ju": 46,
+"taiyi": 9,
+"tianmu": "吕申",
+"zhu": 5,
+"kemu": "阴德",
+"ke": 16,
+"jishen": "巳"
+},
+{
+"ju": 47,
+"taiyi": 9,
+"tianmu": "高丛",
+"zhu": 4,
+"kemu": "阳德",
+"ke": 8,
+"jishen": "辰"
+},
+{
+"ju": 48,
+"taiyi": 9,
+"tianmu": "太阳",
+"zhu": 1,
+"kemu": "吕申",
+"ke": 5,
+"jishen": "卯"
+},
+{
+"ju": 49,
+"taiyi": 1,
+"tianmu": "大炅",
+"zhu": 24,
+"kemu": "太阳",
+"ke": 25,
+"jishen": "寅"
+},
+{
+"ju": 50,
+"taiyi": 1,
+"tianmu": "大神",
+"zhu": 6,
+"kemu": "大威",
+"ke": 15,
+"jishen": "丑"
+},
+{
+"ju": 51,
+"taiyi": 1,
+"tianmu": "大威",
+"zhu": 15,
+"kemu": "大武",
+"ke": 13,
+"jishen": "子"
+},
+{
+"ju": 52,
+"taiyi": 2,
+"tianmu": "天道",
+"zhu": 39,
+"kemu": "太簇",
+"ke": 31,
+"jishen": "亥"
+},
+{
+"ju": 53,
+"taiyi": 2,
+"tianmu": "大武",
+"zhu": 38,
+"kemu": "大义",
+"ke": 25,
+"jishen": "戌"
+},
+{
+"ju": 54,
+"taiyi": 2,
+"tianmu": "大武",
+"zhu": 38,
+"kemu": "地主",
+"ke": 24,
+"jishen": "酉"
+},
+{
+"ju": 55,
+"taiyi": 3,
+"tianmu": "武德",
+"zhu": 16,
+"kemu": "和德",
+"ke": 3,
+"jishen": "申"
+},
+{
+"ju": 56,
+"taiyi": 3,
+"tianmu": "太簇",
+"zhu": 15,
+"kemu": "太阳",
+"ke": 34,
+"jishen": "未"
+},
+{
+"ju": 57,
+"taiyi": 3,
+"tianmu": "阴主",
+"zhu": 10,
+"kemu": "大神",
+"ke": 25,
+"jishen": "午"
+},
+{
+"ju": 58,
+"taiyi": 4,
+"tianmu": "阴德",
+"zhu": 12,
+"kemu": "天道",
+"ke": 26,
+"jishen": "巳"
+},
+{
+"ju": 59,
+"taiyi": 4,
+"tianmu": "阴德",
+"zhu": 12,
+"kemu": "武德",
+"ke": 19,
+"jishen": "辰"
+},
+{
+"ju": 60,
+"taiyi": 4,
+"tianmu": "大义",
+"zhu": 12,
+"kemu": "阴主",
+"ke": 13,
+"jishen": "卯"
+},
+{
+"ju": 61,
+"taiyi": 6,
+"tianmu": "地主",
+"zhu": 33,
+"kemu": "大义",
+"ke": 34,
+"jishen": "寅"
+},
+{
+"ju": 62,
+"taiyi": 6,
+"tianmu": "阳德",
+"zhu": 26,
+"kemu": "和德",
+"ke": 25,
+"jishen": "丑"
+},
+{
+"ju": 63,
+"taiyi": 6,
+"tianmu": "和德",
+"zhu": 25,
+"kemu": "高丛",
+"ke": 22,
+"jishen": "子"
+},
+{
+"ju": 64,
+"taiyi": 7,
+"tianmu": "吕申",
+"zhu": 16,
+"kemu": "大炅",
+"ke": 11,
+"jishen": "亥"
+},
+{
+"ju": 65,
+"taiyi": 7,
+"tianmu": "高丛",
+"zhu": 15,
+"kemu": "天道",
+"ke": 1,
+"jishen": "戌"
+},
+{
+"ju": 66,
+"taiyi": 7,
+"tianmu": "太阳",
+"zhu": 12,
+"kemu": "武德",
+"ke": 34,
+"jishen": "酉"
+},
+{
+"ju": 67,
+"taiyi": 8,
+"tianmu": "大炅",
+"zhu": 25,
+"kemu": "阴主",
+"ke": 2,
+"jishen": "申"
+},
+{
+"ju": 68,
+"taiyi": 8,
+"tianmu": "大神",
+"zhu": 17,
+"kemu": "地主",
+"ke": 8,
+"jishen": "未"
+},
+{
+"ju": 69,
+"taiyi": 8,
+"tianmu": "大威",
+"zhu": 16,
+"kemu": "和德",
+"ke": 32,
+"jishen": "午"
+},
+{
+"ju": 70,
+"taiyi": 9,
+"tianmu": "天道",
+"zhu": 30,
+"kemu": "高丛",
+"ke": 4,
+"jishen": "巳"
+},
+{
+"ju": 71,
+"taiyi": 9,
+"tianmu": "大武",
+"zhu": 29,
+"kemu": "大神",
+"ke": 32,
+"jishen": "辰"
+},
+{
+"ju": 72,
+"taiyi": 9,
+"tianmu": "大武",
+"zhu": 29,
+"kemu": "大威",
+"ke": 31,
+"jishen": "卯"
+}
+],
+"yin": [
+{
+"ju": 1,
+"taiyi": 9,
+"tianmu": "吕申",
+"zhu": 5,
+"kemu": "大武",
+"ke": 29,
+"jishen": "申"
+},
+{
+"ju": 2,
+"taiyi": 9,
+"tianmu": "高丛",
+"zhu": 4,
+"kemu": "阴主",
+"ke": 17,
+"jishen": "未"
+},
+{
+"ju": 3,
+"taiyi": 9,
+"tianmu": "太阳",
+"zhu": 1,
+"kemu": "大义",
+"ke": 16,
+"jishen": "午"
+},
+{
+"ju": 4,
+"taiyi": 8,
+"tianmu": "大炅",
+"zhu": 25,
+"kemu": "阳德",
+"ke": 33,
+"jishen": "巳"
+},
+{
+"ju": 5,
+"taiyi": 8,
+"tianmu": "大炅",
+"zhu": 25,
+"kemu": "吕申",
+"ke": 30,
+"jishen": "辰"
+},
+{
+"ju": 6,
+"taiyi": 8,
+"tianmu": "大神",
+"zhu": 17,
+"kemu": "太阳",
+"ke": 26,
+"jishen": "卯"
+},
+{
+"ju": 7,
+"taiyi": 7,
+"tianmu": "大威",
+"zhu": 2,
+"kemu": "大神",
+"ke": 3,
+"jishen": "寅"
+},
+{
+"ju": 8,
+"taiyi": 7,
+"tianmu": "天道",
+"zhu": 1,
+"kemu": "大武",
+"ke": 7,
+"jishen": "丑"
+},
+{
+"ju": 9,
+"taiyi": 7,
+"tianmu": "大武",
+"zhu": 7,
+"kemu": "太簇",
+"ke": 33,
+"jishen": "子"
+},
+{
+"ju": 10,
+"taiyi": 6,
+"tianmu": "武德",
+"zhu": 1,
+"kemu": "阴德",
+"ke": 34,
+"jishen": "亥"
+},
+{
+"ju": 11,
+"taiyi": 6,
+"tianmu": "太簇",
+"zhu": 6,
+"kemu": "阳德",
+"ke": 36,
+"jishen": "戌"
+},
+{
+"ju": 12,
+"taiyi": 6,
+"tianmu": "阴主",
+"zhu": 35,
+"kemu": "吕申",
+"ke": 23,
+"jishen": "酉"
+},
+{
+"ju": 13,
+"taiyi": 4,
+"tianmu": "阴德",
+"zhu": 12,
+"kemu": "太阳",
+"ke": 37,
+"jishen": "申"
+},
+{
+"ju": 14,
+"taiyi": 4,
+"tianmu": "大义",
+"zhu": 12,
+"kemu": "大威",
+"ke": 27,
+"jishen": "未"
+},
+{
+"ju": 15,
+"taiyi": 4,
+"tianmu": "地主",
+"zhu": 11,
+"kemu": "大武",
+"ke": 29,
+"jishen": "午"
+},
+{
+"ju": 16,
+"taiyi": 3,
+"tianmu": "阳德",
+"zhu": 1,
+"kemu": "太簇",
+"ke": 15,
+"jishen": "巳"
+},
+{
+"ju": 17,
+"taiyi": 3,
+"tianmu": "和德",
+"zhu": 3,
+"kemu": "大义",
+"ke": 9,
+"jishen": "辰"
+},
+{
+"ju": 18,
+"taiyi": 3,
+"tianmu": "和德",
+"zhu": 3,
+"kemu": "地主",
+"ke": 8,
+"jishen": "卯"
+},
+{
+"ju": 19,
+"taiyi": 2,
+"tianmu": "吕申",
+"zhu": 14,
+"kemu": "和德",
+"ke": 16,
+"jishen": "寅"
+},
+{
+"ju": 20,
+"taiyi": 2,
+"tianmu": "高丛",
+"zhu": 13,
+"kemu": "太阳",
+"ke": 10,
+"jishen": "丑"
+},
+{
+"ju": 21,
+"taiyi": 2,
+"tianmu": "太阳",
+"zhu": 10,
+"kemu": "大神",
+"ke": 1,
+"jishen": "子"
+},
+{
+"ju": 22,
+"taiyi": 1,
+"tianmu": "大炅",
+"zhu": 24,
+"kemu": "天道",
+"ke": 14,
+"jishen": "亥"
+},
+{
+"ju": 23,
+"taiyi": 1,
+"tianmu": "大炅",
+"zhu": 24,
+"kemu": "武德",
+"ke": 7,
+"jishen": "戌"
+},
+{
+"ju": 24,
+"taiyi": 1,
+"tianmu": "大神",
+"zhu": 16,
+"kemu": "阴主",
+"ke": 1,
+"jishen": "酉"
+},
+{
+"ju": 25,
+"taiyi": 9,
+"tianmu": "大威",
+"zhu": 21,
+"kemu": "大义",
+"ke": 16,
+"jishen": "申"
+},
+{
+"ju": 26,
+"taiyi": 9,
+"tianmu": "天道",
+"zhu": 31,
+"kemu": "和德",
+"ke": 7,
+"jishen": "未"
+},
+{
+"ju": 27,
+"taiyi": 9,
+"tianmu": "大武",
+"zhu": 39,
+"kemu": "高丛",
+"ke": 4,
+"jishen": "午"
+},
+{
+"ju": 28,
+"taiyi": 8,
+"tianmu": "武德",
+"zhu": 8,
+"kemu": "大炅",
+"ke": 25,
+"jishen": "巳"
+},
+{
+"ju": 29,
+"taiyi": 8,
+"tianmu": "太簇",
+"zhu": 7,
+"kemu": "天道",
+"ke": 15,
+"jishen": "辰"
+},
+{
+"ju": 30,
+"taiyi": 8,
+"tianmu": "阴主",
+"zhu": 2,
+"kemu": "武德",
+"ke": 8,
+"jishen": "卯"
+},
+{
+"ju": 31,
+"taiyi": 7,
+"tianmu": "阴德",
+"zhu": 27,
+"kemu": "阴主",
+"ke": 28,
+"jishen": "寅"
+},
+{
+"ju": 32,
+"taiyi": 7,
+"tianmu": "大义",
+"zhu": 27,
+"kemu": "地主",
+"ke": 26,
+"jishen": "丑"
+},
+{
+"ju": 33,
+"taiyi": 7,
+"tianmu": "地主",
+"zhu": 26,
+"kemu": "和德",
+"ke": 18,
+"jishen": "子"
+},
+{
+"ju": 34,
+"taiyi": 6,
+"tianmu": "阳德",
+"zhu": 26,
+"kemu": "高丛",
+"ke": 22,
+"jishen": "亥"
+},
+{
+"ju": 35,
+"taiyi": 6,
+"tianmu": "和德",
+"zhu": 25,
+"kemu": "大神",
+"ke": 10,
+"jishen": "戌"
+},
+{
+"ju": 36,
+"taiyi": 6,
+"tianmu": "和德",
+"zhu": 25,
+"kemu": "大威",
+"ke": 9,
+"jishen": "酉"
+},
+{
+"ju": 37,
+"taiyi": 4,
+"tianmu": "吕申",
+"zhu": 1,
+"kemu": "大威",
+"ke": 25,
+"jishen": "申"
+},
+{
+"ju": 38,
+"taiyi": 4,
+"tianmu": "高丛",
+"zhu": 4,
+"kemu": "阴主",
+"ke": 13,
+"jishen": "未"
+},
+{
+"ju": 39,
+"taiyi": 4,
+"tianmu": "太阳",
+"zhu": 37,
+"kemu": "大义",
+"ke": 12,
+"jishen": "午"
+},
+{
+"ju": 40,
+"taiyi": 3,
+"tianmu": "大炅",
+"zhu": 33,
+"kemu": "阳德",
+"ke": 1,
+"jishen": "巳"
+},
+{
+"ju": 41,
+"taiyi": 3,
+"tianmu": "大炅",
+"zhu": 33,
+"kemu": "吕申",
+"ke": 38,
+"jishen": "辰"
+},
+{
+"ju": 42,
+"taiyi": 3,
+"tianmu": "大神",
+"zhu": 25,
+"kemu": "太阳",
+"ke": 34,
+"jishen": "卯"
+},
+{
+"ju": 43,
+"taiyi": 2,
+"tianmu": "大威",
+"zhu": 2,
+"kemu": "大武",
+"ke": 38,
+"jishen": "寅"
+},
+{
+"ju": 44,
+"taiyi": 2,
+"tianmu": "天道",
+"zhu": 39,
+"kemu": "太簇",
+"ke": 31,
+"jishen": "丑"
+},
+{
+"ju": 45,
+"taiyi": 2,
+"tianmu": "大武",
+"zhu": 38,
+"kemu": "太簇",
+"ke": 31,
+"jishen": "子"
+},
+{
+"ju": 46,
+"taiyi": 1,
+"tianmu": "武德",
+"zhu": 7,
+"kemu": "阴德",
+"ke": 2,
+"jishen": "亥"
+},
+{
+"ju": 47,
+"taiyi": 1,
+"tianmu": "太簇",
+"zhu": 6,
+"kemu": "阳德",
+"ke": 32,
+"jishen": "戌"
+},
+{
+"ju": 48,
+"taiyi": 1,
+"tianmu": "阴主",
+"zhu": 1,
+"kemu": "吕申",
+"ke": 29,
+"jishen": "酉"
+},
+{
+"ju": 49,
+"taiyi": 9,
+"tianmu": "阴德",
+"zhu": 16,
+"kemu": "太阳",
+"ke": 1,
+"jishen": "申"
+},
+{
+"ju": 50,
+"taiyi": 9,
+"tianmu": "大义",
+"zhu": 16,
+"kemu": "大威",
+"ke": 31,
+"jishen": "未"
+},
+{
+"ju": 51,
+"taiyi": 9,
+"tianmu": "地主",
+"zhu": 15,
+"kemu": "大武",
+"ke": 29,
+"jishen": "午"
+},
+{
+"ju": 52,
+"taiyi": 8,
+"tianmu": "阳德",
+"zhu": 33,
+"kemu": "太簇",
+"ke": 7,
+"jishen": "巳"
+},
+{
+"ju": 53,
+"taiyi": 8,
+"tianmu": "和德",
+"zhu": 32,
+"kemu": "大义",
+"ke": 1,
+"jishen": "辰"
+},
+{
+"ju": 54,
+"taiyi": 8,
+"tianmu": "和德",
+"zhu": 32,
+"kemu": "地主",
+"ke": 8,
+"jishen": "卯"
+},
+{
+"ju": 55,
+"taiyi": 7,
+"tianmu": "吕申",
+"zhu": 16,
+"kemu": "和德",
+"ke": 18,
+"jishen": "寅"
+},
+{
+"ju": 56,
+"taiyi": 7,
+"tianmu": "高丛",
+"zhu": 15,
+"kemu": "太阳",
+"ke": 12,
+"jishen": "丑"
+},
+{
+"ju": 57,
+"taiyi": 7,
+"tianmu": "太阳",
+"zhu": 12,
+"kemu": "大神",
+"ke": 3,
+"jishen": "子"
+},
+{
+"ju": 58,
+"taiyi": 6,
+"tianmu": "大炅",
+"zhu": 18,
+"kemu": "天道",
+"ke": 8,
+"jishen": "亥"
+},
+{
+"ju": 59,
+"taiyi": 6,
+"tianmu": "大炅",
+"zhu": 18,
+"kemu": "武德",
+"ke": 1,
+"jishen": "戌"
+},
+{
+"ju": 60,
+"taiyi": 6,
+"tianmu": "大神",
+"zhu": 10,
+"kemu": "阴主",
+"ke": 35,
+"jishen": "酉"
+},
+{
+"ju": 61,
+"taiyi": 4,
+"tianmu": "大威",
+"zhu": 27,
+"kemu": "大义",
+"ke": 12,
+"jishen": "申"
+},
+{
+"ju": 62,
+"taiyi": 4,
+"tianmu": "天道",
+"zhu": 26,
+"kemu": "和德",
+"ke": 3,
+"jishen": "未"
+},
+{
+"ju": 63,
+"taiyi": 4,
+"tianmu": "大武",
+"zhu": 25,
+"kemu": "高丛",
+"ke": 4,
+"jishen": "午"
+},
+{
+"ju": 64,
+"taiyi": 3,
+"tianmu": "武德",
+"zhu": 16,
+"kemu": "大炅",
+"ke": 33,
+"jishen": "巳"
+},
+{
+"ju": 65,
+"taiyi": 3,
+"tianmu": "太簇",
+"zhu": 15,
+"kemu": "天道",
+"ke": 23,
+"jishen": "辰"
+},
+{
+"ju": 66,
+"taiyi": 3,
+"tianmu": "阴主",
+"zhu": 10,
+"kemu": "武德",
+"ke": 16,
+"jishen": "卯"
+},
+{
+"ju": 67,
+"taiyi": 2,
+"tianmu": "阴德",
+"zhu": 25,
+"kemu": "阴主",
+"ke": 26,
+"jishen": "寅"
+},
+{
+"ju": 68,
+"taiyi": 2,
+"tianmu": "大义",
+"zhu": 25,
+"kemu": "地主",
+"ke": 24,
+"jishen": "丑"
+},
+{
+"ju": 69,
+"taiyi": 2,
+"tianmu": "地主",
+"zhu": 24,
+"kemu": "和德",
+"ke": 16,
+"jishen": "子"
+},
+{
+"ju": 70,
+"taiyi": 1,
+"tianmu": "阳德",
+"zhu": 22,
+"kemu": "高丛",
+"ke": 28,
+"jishen": "亥"
+},
+{
+"ju": 71,
+"taiyi": 1,
+"tianmu": "和德",
+"zhu": 31,
+"kemu": "大神",
+"ke": 16,
+"jishen": "戌"
+},
+{
+"ju": 72,
+"taiyi": 1,
+"tianmu": "和德",
+"zhu": 31,
+"kemu": "大威",
+"ke": 15,
+"jishen": "酉"
+}
+]
+}

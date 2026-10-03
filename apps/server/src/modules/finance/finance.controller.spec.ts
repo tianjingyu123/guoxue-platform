@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { FinanceController } from "./finance.controller";
 import { FinanceService } from "./finance.service";
 import { RolesGuard } from "../../common/roles.guard";
+import { ROLES_KEY } from "../../common/roles.decorator";
 
 const mockSvc = {
   triggerReconciliation: jest.fn().mockResolvedValue({ id: "r1", source: "WECHAT", status: "MATCHED" }),
@@ -22,6 +23,7 @@ const mockSvc = {
   approveWithdrawal: jest.fn().mockResolvedValue({ id: "w1", status: "APPROVED" }),
   rejectWithdrawal: jest.fn().mockResolvedValue({ id: "w1", status: "REJECTED" }),
   confirmWithdrawalPay: jest.fn().mockResolvedValue({ id: "w1", status: "PAID" }),
+  revealWithdrawalPayoutAccount: jest.fn().mockResolvedValue({ id: "w1", accountInfo: { bankNo: "6222000011112222" } }),
 
   freezeAmount: jest.fn().mockResolvedValue({ success: true, orderId: "o1", frozenAmount: 99 }),
   unfreezeAmount: jest.fn().mockResolvedValue({ success: true, orderId: "o1" }),
@@ -102,13 +104,14 @@ describe("FinanceController", () => {
   });
 
   it("PUT /finance/settlements/:id/approve — 审批结算", async () => {
-    const result = await ctrl.approveSettlement("s1", mockReq());
+    const result: any = await ctrl.approveSettlement("s1", mockReq());
     expect(result.status).toBe("APPROVED");
   });
 
-  it("PUT /finance/settlements/:id/pay — 打款结算", async () => {
-    const result = await ctrl.paySettlement("s1", mockReq());
+  it("PUT /finance/settlements/:id/pay — 打款结算（payoutRef 必填透传）", async () => {
+    const result: any = await ctrl.paySettlement("s1", { payoutRef: "BANK20260717001" } as any, mockReq());
     expect(result.status).toBe("PAID");
+    expect(mockSvc.paySettlement).toHaveBeenCalledWith("s1", "admin1", "BANK20260717001");
   });
 
   // ─── 提现 ───
@@ -128,21 +131,39 @@ describe("FinanceController", () => {
     expect(result!.status).toBe("REJECTED");
   });
 
-  it("POST /finance/withdrawals/:id/pay — 确认打款", async () => {
-    const result: any = await ctrl.confirmWithdrawalPay("w1", mockReq());
+  it("POST /finance/withdrawals/:id/pay — 确认打款（payoutRef 必填透传）", async () => {
+    const result: any = await ctrl.confirmWithdrawalPay("w1", { payoutRef: "WX20260717001" } as any, mockReq());
     expect(result!.status).toBe("PAID");
+    expect(mockSvc.confirmWithdrawalPay).toHaveBeenCalledWith("w1", "admin1", "WX20260717001");
+  });
+
+  it("真实出款端点仅允许财务管理员或超级管理员", () => {
+    expect(Reflect.getMetadata(ROLES_KEY, FinanceController.prototype.paySettlement)).toEqual([
+      "SUPER_ADMIN", "FINANCE_ADMIN",
+    ]);
+    expect(Reflect.getMetadata(ROLES_KEY, FinanceController.prototype.confirmWithdrawalPay)).toEqual([
+      "SUPER_ADMIN", "FINANCE_ADMIN",
+    ]);
+  });
+
+  it("GET /finance/withdrawals/:id/payout-account — 打款用明文收款账户（审计留痕后返回）", async () => {
+    const result: any = await ctrl.revealWithdrawalPayoutAccount("w1", mockReq());
+    expect(result.accountInfo).toBeDefined();
+    expect(mockSvc.revealWithdrawalPayoutAccount).toHaveBeenCalledWith("w1", "admin1", undefined);
   });
 
   // ─── 冻结/解冻 ───
 
-  it("POST /finance/freeze — 冻结资金", async () => {
-    const result = await ctrl.freezeAmount({ orderId: "o1", amount: 99 });
+  it("POST /finance/freeze — 冻结资金（操作人入审计）", async () => {
+    const result = await ctrl.freezeAmount({ orderId: "o1", amount: 99 }, mockReq());
     expect(result.frozenAmount).toBe(99);
+    expect(mockSvc.freezeAmount).toHaveBeenCalledWith({ orderId: "o1", amount: 99 }, "admin1");
   });
 
-  it("POST /finance/unfreeze — 解冻资金", async () => {
-    const result = await ctrl.unfreezeAmount({ orderId: "o1" });
+  it("POST /finance/unfreeze — 解冻资金（操作人入审计）", async () => {
+    const result = await ctrl.unfreezeAmount({ orderId: "o1" }, mockReq());
     expect(result.success).toBe(true);
+    expect(mockSvc.unfreezeAmount).toHaveBeenCalledWith({ orderId: "o1" }, "admin1");
   });
 
   it("GET /finance/freeze-records — 冻结记录", async () => {

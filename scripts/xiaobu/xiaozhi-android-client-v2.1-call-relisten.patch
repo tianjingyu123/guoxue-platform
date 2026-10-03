@@ -1,0 +1,722 @@
+diff --git a/android/app/build.gradle.kts b/android/app/build.gradle.kts
+index 9f61f7d..aba32b9 100644
+--- a/android/app/build.gradle.kts
++++ b/android/app/build.gradle.kts
+@@ -22,6 +22,8 @@ android {
+     defaultConfig {
+         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+         applicationId = "com.lhht.ai_assistant"
++        // [rebu] 测试包与原版并存安装
++        applicationIdSuffix = ".rebutest"
+         // You can update the following values to match your application needs.
+         // For more information, see: https://flutter.dev/to/review-gradle-config.
+         minSdk = 24
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index 441e419..6efe186 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -12,7 +12,7 @@
+     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+     
+     <application
+-        android:label="AI-LHHT"
++        android:label="小智通话修复测试"
+         android:name="${applicationName}"
+         android:icon="@mipmap/ic_launcher"
+         android:largeHeap="true"
+diff --git a/android/build.gradle.kts b/android/build.gradle.kts
+index 89176ef..4929724 100644
+--- a/android/build.gradle.kts
++++ b/android/build.gradle.kts
+@@ -12,6 +12,17 @@ subprojects {
+     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+     project.layout.buildDirectory.value(newSubprojectBuildDir)
+ }
++// [rebu] 旧版插件（如 flutter_pcm_player 0.0.1）未声明 AGP 8 必需的 namespace：按其 AndroidManifest 包名补齐
++subprojects {
++    plugins.withId("com.android.library") {
++        val androidExt = extensions.getByType(com.android.build.gradle.LibraryExtension::class.java)
++        if (androidExt.namespace == null) {
++            val manifest = file("src/main/AndroidManifest.xml")
++            val pkg = if (manifest.exists()) Regex("package=\"([^\"]+)\"").find(manifest.readText())?.groupValues?.get(1) else null
++            androidExt.namespace = pkg ?: project.group.toString()
++        }
++    }
++}
+ subprojects {
+     project.evaluationDependsOn(":app")
+ }
+diff --git a/android/gradle/wrapper/gradle-wrapper.properties b/android/gradle/wrapper/gradle-wrapper.properties
+index afa1e8e..806012e 100644
+--- a/android/gradle/wrapper/gradle-wrapper.properties
++++ b/android/gradle/wrapper/gradle-wrapper.properties
+@@ -2,4 +2,4 @@ distributionBase=GRADLE_USER_HOME
+ distributionPath=wrapper/dists
+ zipStoreBase=GRADLE_USER_HOME
+ zipStorePath=wrapper/dists
+-distributionUrl=https\://services.gradle.org/distributions/gradle-8.10.2-all.zip
++distributionUrl=file:///D:/Tools/xiaozhi-build/gradle-8.10.2-all.zip
+diff --git a/lib/screens/voice_call_screen.dart b/lib/screens/voice_call_screen.dart
+index bc94fd4..48558dc 100644
+--- a/lib/screens/voice_call_screen.dart
++++ b/lib/screens/voice_call_screen.dart
+@@ -259,6 +259,36 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
+     }
+   }
+ 
++  // [rebu] 通话阶段文字
++  String _phaseLabel(String phase) {
++    switch (phase) {
++      case 'listening':
++        return '请说话';
++      case 'replying':
++        return '回答中';
++      case 'muted':
++        return '已静音';
++      case 'reconnecting':
++        return '重连中';
++      default:
++        return _statusText;
++    }
++  }
++
++  // [rebu] 静音切换
++  void _toggleMute() async {
++    final next = !_xiaozhiService.isCallMuted;
++    await _xiaozhiService.setCallMuted(next);
++    if (mounted) {
++      setState(() {});
++      _showCustomSnackbar(
++        message: next ? '已静音，点击再次恢复' : '已恢复收音',
++        icon: next ? Icons.mic_off : Icons.mic,
++        iconColor: next ? Colors.orangeAccent : Colors.greenAccent,
++      );
++    }
++  }
++
+   // 发送打断消息
+   void _sendAbortMessage() {
+     // 发送打断消息
+@@ -436,12 +466,15 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
+                         size: 16,
+                       ),
+                       const SizedBox(width: 8),
+-                      Text(
+-                        _isSpeaking ? '$_statusText (正在录音)' : _statusText,
+-                        style: TextStyle(
+-                          color: _isConnected ? Colors.green : Colors.red,
+-                          fontSize: 16,
+-                          fontWeight: FontWeight.w500,
++                      ValueListenableBuilder<String>(
++                        valueListenable: _xiaozhiService.callPhase,
++                        builder: (context, phase, _) => Text(
++                          _phaseLabel(phase),
++                          style: TextStyle(
++                            color: _isConnected ? Colors.green : Colors.red,
++                            fontSize: 16,
++                            fontWeight: FontWeight.w500,
++                          ),
+                         ),
+                       ),
+                     ],
+@@ -471,8 +504,19 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
+                   child: Row(
+                     mainAxisAlignment: MainAxisAlignment.center,
+                     children: [
++                      _buildControlButton(
++                        icon: _xiaozhiService.isCallMuted
++                            ? Icons.mic_off
++                            : Icons.mic,
++                        color: Colors.white,
++                        backgroundColor: _xiaozhiService.isCallMuted
++                            ? Colors.grey
++                            : Colors.blueGrey,
++                        onPressed: _toggleMute,
++                      ),
++                      const SizedBox(width: 32),
+                       _buildEndCallButton(),
+-                      const SizedBox(width: 40),
++                      const SizedBox(width: 32),
+                       _buildControlButton(
+                         icon: Icons.pan_tool, // 改为手掌图标表示打断
+                         color: Colors.white,
+@@ -584,8 +628,12 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
+   Widget _buildEndCallButton() {
+     return GestureDetector(
+       onTap: () async {
++        // [rebu] 先停止聆听并退出通话状态，再发送打断，避免打断逻辑重新开启聆听
++        await _xiaozhiService.switchToChatMode();
++        await _xiaozhiService.stopPlayback();
+         // 先发送打断消息
+         await _xiaozhiService.sendAbortMessage();
++        if (!mounted) return;
+         // 然后返回上一级页面
+         Navigator.pop(context);
+       },
+diff --git a/lib/services/xiaozhi_service.dart b/lib/services/xiaozhi_service.dart
+index b3df091..5c6860e 100644
+--- a/lib/services/xiaozhi_service.dart
++++ b/lib/services/xiaozhi_service.dart
+@@ -1,3 +1,4 @@
++import 'package:flutter/foundation.dart';
+ import 'dart:async';
+ import 'dart:convert';
+ import 'dart:typed_data';
+@@ -59,6 +60,117 @@ class XiaozhiService {
+   bool _hasStartedCall = false;
+   MessageListener? _messageListener;
+ 
++  // ===== [rebu] 电话模式（auto 监听）轮次状态 =====
++  // 官方固件在 auto 模式下：服务端 tts stop 且本地播放结束后重新发送 listen start；
++  // 回复播放期间不上传麦克风音频（半双工，避免回声被识别）。原客户端只发一次 listen start，
++  // 服务端第二轮起不再识别，这是“电话模式只能回复一次”的直接原因（2026-09-17 协议探针实测）。
++  bool _callTtsActive = false; // 服务端正在下发/本地正在播放回复
++  bool _callMuted = false; // 用户主动静音
++  bool _callListenSentSinceTts = false; // 自上次 tts start 以来是否已发送 listen start
++  bool _callDiscardAudio = false; // 打断后丢弃尚未到达的旧回复音频
++  int _callGeneration = 0; // 失效旧的延时任务
++  Timer? _callRelistenTimer;
++  Timer? _callNoReplyTimer;
++  int _callTurn = 0;
++  int _callFramesSent = 0;
++  DateTime? _callSttAt;
++  DateTime? _callTtsStartAt;
++  bool _callFirstAudioLogged = false;
++
++  /// [rebu] 通话阶段：idle / listening / replying / muted / reconnecting
++  final ValueNotifier<String> callPhase = ValueNotifier<String>('idle');
++
++  void _callLog(String event) {
++    print('XZCALL ts=${DateTime.now().millisecondsSinceEpoch} turn=$_callTurn '
++        'phase=${callPhase.value} $event');
++  }
++
++  bool get _callModeOn => _isVoiceCallActive && _audioStreamSubscription != null;
++
++  void _setCallPhase(String phase) {
++    if (callPhase.value != phase) {
++      callPhase.value = phase;
++    }
++  }
++
++  /// [rebu] 发送 auto 模式 listen start（电话模式每轮开始调用）
++  void _sendCallListenStart(String reason) {
++    if (_webSocketManager == null || !_webSocketManager!.isConnected) {
++      _callLog('listen_start_skipped reason=$reason ws=disconnected');
++      _setCallPhase('reconnecting');
++      return;
++    }
++    final message = {
++      'session_id': _sessionId,
++      'type': 'listen',
++      'state': 'start',
++      'mode': 'auto',
++    };
++    _webSocketManager!.sendMessage(jsonEncode(message));
++    _callListenSentSinceTts = true;
++    _callTtsActive = false;
++    _callFramesSent = 0;
++    _callTurn++;
++    _setCallPhase(_callMuted ? 'muted' : 'listening');
++    _callLog('listen_start_sent reason=$reason');
++  }
++
++  /// [rebu] 等本地播放缓冲播完再恢复聆听
++  void _scheduleCallRelisten(String reason) {
++    _callRelistenTimer?.cancel();
++    final gen = ++_callGeneration;
++    final wait = AudioUtil.playbackRemaining + const Duration(milliseconds: 350);
++    _callLog('relisten_scheduled reason=$reason wait_ms=${wait.inMilliseconds}');
++    _callRelistenTimer = Timer(wait, () {
++      if (gen != _callGeneration || !_callModeOn) return;
++      if (_callMuted) {
++        _callTtsActive = false;
++        _setCallPhase('muted');
++        _callLog('relisten_deferred_muted');
++        return;
++      }
++      _sendCallListenStart(reason);
++    });
++  }
++
++  /// [rebu] 电话模式静音/取消静音。静音只停止上传并通知服务端停止聆听，不代表结束计费会话。
++  Future<void> setCallMuted(bool muted) async {
++    if (_callMuted == muted) return;
++    _callMuted = muted;
++    _callLog('mute_changed muted=$muted');
++    if (!_callModeOn) return;
++    if (muted) {
++      _callRelistenTimer?.cancel();
++      _callGeneration++;
++      if (_sessionId != null && _webSocketManager != null) {
++        _webSocketManager!.sendMessage(jsonEncode({
++          'session_id': _sessionId,
++          'type': 'listen',
++          'state': 'stop',
++        }));
++      }
++      _callListenSentSinceTts = false;
++      _setCallPhase('muted');
++    } else if (!_callTtsActive) {
++      _sendCallListenStart('unmute');
++    } else {
++      _setCallPhase('replying');
++    }
++  }
++
++  bool get isCallMuted => _callMuted;
++
++  void _resetCallState() {
++    _callRelistenTimer?.cancel();
++    _callNoReplyTimer?.cancel();
++    _callGeneration++;
++    _callTtsActive = false;
++    _callMuted = false;
++    _callListenSentSinceTts = false;
++    _callDiscardAudio = false;
++    _setCallPhase('idle');
++  }
++
+   /// 工厂构造函数，实现单例模式
+   factory XiaozhiService({
+     required String websocketUrl,
+@@ -125,6 +237,7 @@ class XiaozhiService {
+       await AudioUtil.stopPlaying();
+ 
+       _isVoiceCallActive = false;
++      _resetCallState();
+       print('$TAG: 已切换到普通聊天模式');
+     } catch (e) {
+       print('$TAG: 切换到普通聊天模式失败: $e');
+@@ -135,7 +248,7 @@ class XiaozhiService {
+   /// 初始化
+   Future<void> _init() async {
+     // 使用配置中的MAC地址作为设备ID
+-    print('$TAG: 初始化完成，使用MAC地址作为设备ID: $macAddress');
++    print('$TAG: 初始化完成，使用配置中的设备ID(已隐藏)');
+ 
+     // 初始化WebSocket管理器，启用 token
+     _webSocketManager = XiaozhiWebSocketManager(
+@@ -314,9 +427,7 @@ class XiaozhiService {
+       await AudioUtil.initPlayer();
+ 
+       print('$TAG: 正在连接 $websocketUrl');
+-      print('$TAG: 设备ID: $macAddress');
+-      print('$TAG: Token启用: true');
+-      print('$TAG: 使用Token: $token');
++      // [rebu] 不在日志中输出设备ID与Token
+ 
+       // 使用 WebSocketManager 连接
+       _webSocketManager = XiaozhiWebSocketManager(
+@@ -448,20 +559,34 @@ class XiaozhiService {
+       // 开始录音
+       await AudioUtil.startRecording();
+ 
++      // [rebu] 防止重复订阅导致同一帧被上传多次
++      await _audioStreamSubscription?.cancel();
++
+       // 设置音频流订阅
+       _audioStreamSubscription = AudioUtil.audioStream.listen((opusData) {
++        // [rebu] 回复播放期间与静音时不上传（与官方固件 auto 模式一致的半双工）
++        if (_isVoiceCallActive && (_callTtsActive || _callMuted)) return;
++        _callFramesSent++;
+         // 发送音频数据
+         _webSocketManager?.sendBinaryMessage(opusData);
+       });
+ 
+-      // 发送开始监听命令
+-      final message = {
+-        'session_id': _sessionId,
+-        'type': 'listen',
+-        'state': 'start',
+-        'mode': 'auto',
+-      };
+-      _webSocketManager?.sendMessage(jsonEncode(message));
++      _callRelistenTimer?.cancel();
++      _callNoReplyTimer?.cancel();
++      _callGeneration++;
++      _callDiscardAudio = false;
++      if (_isVoiceCallActive) {
++        _callMuted = false;
++        _sendCallListenStart('call_start');
++      } else {
++        final message = {
++          'session_id': _sessionId,
++          'type': 'listen',
++          'state': 'start',
++          'mode': 'auto',
++        };
++        _webSocketManager?.sendMessage(jsonEncode(message));
++      }
+       print('$TAG: 已发送开始监听消息 (语音通话模式)');
+     } catch (e) {
+       print('$TAG: 开始监听失败: $e');
+@@ -472,6 +597,9 @@ class XiaozhiService {
+   /// 停止听说（语音通话模式）
+   Future<void> stopListeningCall() async {
+     try {
++      _callRelistenTimer?.cancel();
++      _callNoReplyTimer?.cancel();
++      _callGeneration++;
+       // 取消音频流订阅
+       await _audioStreamSubscription?.cancel();
+       _audioStreamSubscription = null;
+@@ -555,6 +683,14 @@ class XiaozhiService {
+       case XiaozhiEventType.binaryMessage:
+         // 处理二进制音频数据 - 简化直接播放
+         final audioData = event.data as List<int>;
++        if (_callModeOn) {
++          if (_callDiscardAudio) break; // [rebu] 打断后丢弃旧回复剩余音频
++          if (!_callFirstAudioLogged) {
++            _callFirstAudioLogged = true;
++            _callLog('first_audio_frame since_stt_ms='
++                '${_callSttAt == null ? -1 : DateTime.now().difference(_callSttAt!).inMilliseconds}');
++          }
++        }
+         AudioUtil.playOpusData(Uint8List.fromList(audioData));
+         break;
+ 
+@@ -600,11 +736,12 @@ class XiaozhiService {
+       // 根据消息类型分发事件
+       switch (type) {
+         case 'hello':
+-          // 处理服务器的hello响应
+-          if (_isVoiceCallActive && !_hasStartedCall) {
+-            _hasStartedCall = true;
+-            // 发送自动说话模式消息
+-            startSpeaking();
++          // [rebu] 通话中断线重连后，新会话需要重新发送 listen start，否则服务端不再识别
++          if (_callModeOn) {
++            _callLog('hello_during_call');
++            _callTtsActive = false;
++            _callDiscardAudio = false;
++            _scheduleCallRelisten('reconnected');
+           }
+           break;
+ 
+@@ -620,6 +757,29 @@ class XiaozhiService {
+           final String state = jsonData['state'] ?? '';
+           final String text = jsonData['text'] ?? '';
+ 
++          // [rebu] 电话模式轮次控制
++          if (_callModeOn) {
++            if (state == 'start') {
++              _callNoReplyTimer?.cancel();
++              _callRelistenTimer?.cancel();
++              _callGeneration++;
++              _callTtsActive = true;
++              _callListenSentSinceTts = false;
++              _callDiscardAudio = false;
++              _callTtsStartAt = DateTime.now();
++              _callFirstAudioLogged = false;
++              if (!_callMuted) _setCallPhase('replying');
++              _callLog('tts_start frames_sent=$_callFramesSent '
++                  'since_stt_ms=${_callSttAt == null ? -1 : _callTtsStartAt!.difference(_callSttAt!).inMilliseconds}');
++            } else if (state == 'stop') {
++              _callLog('tts_stop listen_already_sent=$_callListenSentSinceTts '
++                  'playback_remaining_ms=${AudioUtil.playbackRemaining.inMilliseconds}');
++              if (!_callListenSentSinceTts) {
++                _scheduleCallRelisten('tts_stop');
++              }
++            }
++          }
++
+           if (state == 'sentence_start' && text.isNotEmpty) {
+             print('$TAG: 收到TTS句子: $text');
+             _dispatchEvent(
+@@ -631,6 +791,18 @@ class XiaozhiService {
+         case 'stt':
+           // 处理语音识别结果
+           final String text = jsonData['text'] ?? '';
++          if (_callModeOn) {
++            _callSttAt = DateTime.now();
++            _callLog('stt_received len=${text.length} frames_sent=$_callFramesSent');
++            // [rebu] 识别后长时间无回复时恢复聆听，避免卡死在等待状态
++            _callNoReplyTimer?.cancel();
++            _callNoReplyTimer = Timer(const Duration(seconds: 20), () {
++              if (_callModeOn && !_callTtsActive) {
++                _callLog('no_reply_timeout');
++                _sendCallListenStart('no_reply_timeout');
++              }
++            });
++          }
+           if (text.isNotEmpty) {
+             print('$TAG: 收到语音识别结果: $text');
+             // 先分发用户消息事件
+@@ -792,6 +964,23 @@ class XiaozhiService {
+         _webSocketManager?.sendMessage(jsonEncode(abortMessage));
+         print('$TAG: 发送中断消息: $abortMessage');
+ 
++        // [rebu] 电话模式：丢弃旧回复、清空本地播放并立即恢复聆听，不重建录音订阅
++        if (_callModeOn) {
++          _callLog('abort_sent was_replying=$_callTtsActive');
++          _callDiscardAudio = true;
++          _callRelistenTimer?.cancel();
++          _callNoReplyTimer?.cancel();
++          _callGeneration++;
++          await AudioUtil.stopPlaying();
++          if (!_callMuted) {
++            _sendCallListenStart('abort');
++          } else {
++            _callTtsActive = false;
++            _setCallPhase('muted');
++          }
++          return;
++        }
++
+         // 如果当前正在录音，短暂停顿后继续
+         if (_isSpeaking) {
+           await stopListeningCall();
+diff --git a/lib/services/xiaozhi_websocket_manager.dart b/lib/services/xiaozhi_websocket_manager.dart
+index 35b760a..80e15b0 100644
+--- a/lib/services/xiaozhi_websocket_manager.dart
++++ b/lib/services/xiaozhi_websocket_manager.dart
+@@ -83,12 +83,10 @@ class XiaozhiWebSocketManager {
+       Uri uri = Uri.parse(url);
+ 
+       print('$TAG: 正在连接 $url');
+-      print('$TAG: 设备ID: $_deviceId');
++      print('$TAG: 设备ID: (已隐藏)');
+       print('$TAG: Token启用: $_enableToken');
+ 
+-      if (_enableToken) {
+-        print('$TAG: 使用Token: $token');
+-      }
++      // [rebu] 不在日志中输出 Token
+ 
+       // 尝试使用headers (这在非Web平台上有效)
+       try {
+@@ -102,7 +100,7 @@ class XiaozhiWebSocketManager {
+         // 添加Authorization头，参考Java实现
+         if (_enableToken && token.isNotEmpty) {
+           headers['Authorization'] = 'Bearer $token';
+-          print('$TAG: 添加Authorization头: Bearer $token');
++          print('$TAG: 已添加Authorization头(内容已隐藏)');
+         } else {
+           headers['Authorization'] = 'Bearer test-token';
+           print('$TAG: 添加默认Authorization头: Bearer test-token');
+diff --git a/lib/utils/audio_util.dart b/lib/utils/audio_util.dart
+index 88320d2..cd58371 100644
+--- a/lib/utils/audio_util.dart
++++ b/lib/utils/audio_util.dart
+@@ -43,6 +43,18 @@ class AudioUtil {
+   // FlutterPcmPlayer实例
+   static FlutterPcmPlayer? _pcmPlayer;
+ 
++  // [rebu] 录音 PCM 累积缓冲：record 流返回的块长度不固定，按 60ms 精确切帧，避免丢采样
++  static final BytesBuilder _pcmRemainder = BytesBuilder(copy: true);
++
++  // [rebu] 估算本地播放缓冲的结束时刻，用于在回复真正播完后再恢复聆听，避免把自身回声当成用户说话
++  static DateTime _playbackEndsAt = DateTime.fromMillisecondsSinceEpoch(0);
++
++  /// [rebu] 本地仍待播放的音频时长（估算）
++  static Duration get playbackRemaining {
++    final d = _playbackEndsAt.difference(DateTime.now());
++    return d.isNegative ? Duration.zero : d;
++  }
++
+   /// 获取音频流
+   static Stream<Uint8List> get audioStream => _audioStreamController.stream;
+ 
+@@ -128,72 +140,110 @@ class AudioUtil {
+     print('$TAG: 录音器初始化成功');
+   }
+ 
+-  /// 初始化音频播放器
+-  static Future<void> initPlayer() async {
+-    // 确保任何旧播放器被释放
+-    await stopPlaying();
++  // [rebu] 播放器操作串行队列：初始化/送帧/停止都在同一条链上执行。
++  // 原实现中每个到达的音频帧都会不等待地调用 playOpusData，播放器被停止后多帧并发 initPlayer，
++  // 互相 stop/替换对方刚创建的实例（底层插件只有一个 AudioTrack），出现 “Player is not initialized”，
++  // 表现为打断后若干轮回复没有声音（2026-09-17 真机日志复现）。
++  static Future<void> _playerChain = Future.value();
++  // 播放代次：stopPlaying 时自增，丢弃停止前已排队的旧音频帧
++  static int _playGeneration = 0;
++
++  static Future<T> _serial<T>(Future<T> Function() op) {
++    final completer = Completer<T>();
++    _playerChain = _playerChain.then((_) async {
++      try {
++        completer.complete(await op());
++      } catch (e, st) {
++        completer.completeError(e, st);
++      }
++    });
++    return completer.future;
++  }
+ 
++  /// 在队列内确保播放器可用（已可用则不重建）
++  static Future<void> _ensurePlayerLocked() async {
++    if (_isPlayerInitialized && _pcmPlayer != null) return;
+     try {
+       print('$TAG: 使用简单方式初始化PCM播放器');
+-
+-      // 创建新的播放器实例 - 完全按照官方示例的简单方式
+-      _pcmPlayer = FlutterPcmPlayer();
+-      await _pcmPlayer!.initialize();
+-      await _pcmPlayer!.play();
+-
++      final player = FlutterPcmPlayer();
++      await player.initialize();
++      await player.play();
++      _pcmPlayer = player;
+       _isPlayerInitialized = true;
+       print('$TAG: PCM播放器初始化成功');
+     } catch (e) {
+       print('$TAG: PCM播放器初始化失败: $e');
++      _pcmPlayer = null;
+       _isPlayerInitialized = false;
+     }
+   }
+ 
+-  /// 播放Opus音频数据
+-  static Future<void> playOpusData(Uint8List opusData) async {
++  /// 在队列内停止并释放底层 AudioTrack（原实现只 stop 不 release，会泄漏）
++  static Future<void> _stopPlayerLocked() async {
++    final player = _pcmPlayer;
++    _pcmPlayer = null;
++    _isPlayerInitialized = false;
++    if (player == null) return;
+     try {
+-      // 如果播放器未初始化，先初始化
+-      if (!_isPlayerInitialized || _pcmPlayer == null) {
+-        await initPlayer();
+-      }
+-
+-      // 解码Opus数据
+-      final Int16List pcmData = _decoder.decode(input: opusData);
++      await player.release();
++      print('$TAG: 播放器已停止');
++    } catch (e) {
++      print('$TAG: 停止播放失败: $e');
++    }
++  }
+ 
+-      // 准备PCM数据（按照示例直接方式）
+-      final Uint8List pcmBytes = Uint8List(pcmData.length * 2);
+-      ByteData bytes = ByteData.view(pcmBytes.buffer);
++  /// 初始化音频播放器（重建一个干净的播放器）
++  static Future<void> initPlayer() {
++    _playGeneration++;
++    _playbackEndsAt = DateTime.fromMillisecondsSinceEpoch(0);
++    return _serial(() async {
++      await _stopPlayerLocked();
++      await _ensurePlayerLocked();
++    });
++  }
+ 
+-      // 使用小端字节序
+-      for (int i = 0; i < pcmData.length; i++) {
++  /// 播放Opus音频数据：同步解码保证帧序，送帧在串行队列中执行
++  static Future<void> playOpusData(Uint8List opusData) {
++    final gen = _playGeneration;
++    final Uint8List pcmBytes;
++    final int samples;
++    try {
++      final Int16List pcmData = _decoder.decode(input: opusData);
++      samples = pcmData.length;
++      pcmBytes = Uint8List(samples * 2);
++      final bytes = ByteData.view(pcmBytes.buffer);
++      for (int i = 0; i < samples; i++) {
+         bytes.setInt16(i * 2, pcmData[i], Endian.little);
+       }
+-
+-      // 直接发送到播放器
+-      if (_pcmPlayer != null) {
+-        await _pcmPlayer!.feed(pcmBytes);
+-      }
+     } catch (e) {
+-      print('$TAG: 播放失败: $e');
+-
+-      // 简单重置并重新初始化
+-      await stopPlaying();
+-      await initPlayer();
++      print('$TAG: 解码失败: $e');
++      return Future.value();
+     }
+-  }
+ 
+-  /// 停止播放
+-  static Future<void> stopPlaying() async {
+-    if (_pcmPlayer != null) {
++    return _serial(() async {
++      if (gen != _playGeneration) return; // 打断/停止前排队的旧帧
++      await _ensurePlayerLocked();
++      final player = _pcmPlayer;
++      if (player == null) return;
+       try {
+-        await _pcmPlayer!.stop();
+-        print('$TAG: 播放器已停止');
++        final now = DateTime.now();
++        final base = _playbackEndsAt.isAfter(now) ? _playbackEndsAt : now;
++        _playbackEndsAt = base.add(Duration(microseconds: samples * 1000000 ~/ SAMPLE_RATE));
++        await player.feed(pcmBytes);
+       } catch (e) {
+-        print('$TAG: 停止播放失败: $e');
++        // 不在这里递归 stop/init：标记失效，由下一帧在队列中重建一次
++        print('$TAG: 播放失败: $e');
++        _pcmPlayer = null;
++        _isPlayerInitialized = false;
+       }
+-      _pcmPlayer = null;
+-      _isPlayerInitialized = false;
+-    }
++    });
++  }
++
++  /// 停止播放：丢弃已排队的旧帧并释放播放器；下一帧到达时会在队列中重建
++  static Future<void> stopPlaying() {
++    _playGeneration++;
++    _playbackEndsAt = DateTime.fromMillisecondsSinceEpoch(0);
++    return _serial(_stopPlayerLocked);
+   }
+ 
+   /// 释放资源
+@@ -238,17 +288,30 @@ class AudioUtil {
+         );
+ 
+         _isRecording = true;
++        _pcmRemainder.clear();
+         print('$TAG: 流式录音启动成功');
+ 
+-        // 直接从流中处理数据
++        // [rebu] 累积后按 960 采样（1920 字节）精确切帧再编码
++        final int frameBytes = (SAMPLE_RATE * FRAME_DURATION ~/ 1000) * 2;
+         stream.listen(
+           (data) async {
+-            if (data.isNotEmpty && data.length % 2 == 0) {
+-              final opusData = await encodeToOpus(data);
++            if (data.isEmpty) return;
++            _pcmRemainder.add(data);
++            if (_pcmRemainder.length < frameBytes) return;
++            final all = _pcmRemainder.takeBytes();
++            int offset = 0;
++            while (all.length - offset >= frameBytes) {
++              final opusData = await encodeToOpus(
++                Uint8List.sublistView(all, offset, offset + frameBytes),
++              );
++              offset += frameBytes;
+               if (opusData != null) {
+                 _audioStreamController.add(opusData);
+               }
+             }
++            if (offset < all.length) {
++              _pcmRemainder.add(Uint8List.sublistView(all, offset));
++            }
+           },
+           onError: (error) {
+             print('$TAG: 音频流错误: $error');
+diff --git a/pubspec.yaml b/pubspec.yaml
+index a94a92f..41a0fcd 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+ # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+ # In Windows, build-name is used as the major, minor, and patch parts
+ # of the product and file versions while build-number is used as the build suffix.
+-version: 2.0.0+2
++version: 2.0.1-rebu.2+4
+ 
+ environment:
+   sdk: ^3.7.0

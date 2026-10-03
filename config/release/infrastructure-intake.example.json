@@ -1,0 +1,299 @@
+{
+  "schemaVersion": 2,
+  "kind": "guoxue-new-infrastructure-intake",
+  "deployTarget": "tencent",
+  "server": {
+    "provider": "腾讯云",
+    "region": "ap-beijing",
+    "osFamily": "linux",
+    "osDistribution": "ubuntu",
+    "osVersion": "24.04",
+    "architecture": "x86_64",
+    "cpuCores": 4,
+    "memoryMb": 8192,
+    "diskGb": 100,
+    "ingressMode": "clb",
+    "clbId": "pending",
+    "sshUser": "deploy",
+    "sshHostFingerprint": "pending",
+    "securityGroupReviewed": false
+  },
+  "database": {
+    "provider": "腾讯云 PostgreSQL",
+    "engine": "postgresql",
+    "endpointHost": "pending",
+    "versionMajor": 16,
+    "topology": "managed",
+    "privateNetwork": true,
+    "tls": true,
+    "backupEnabled": true,
+    "pitrEnabled": true,
+    "retentionDays": 14
+  },
+  "cache": {
+    "provider": "腾讯云 Redis",
+    "engine": "redis",
+    "endpointHost": "pending",
+    "versionMajor": 7,
+    "topology": "managed",
+    "privateNetwork": true,
+    "tls": true,
+    "persistenceEnabled": true
+  },
+  "domains": {
+    "publicDomain": "api.example.com",
+    "apiUrl": "https://api.example.com",
+    "h5Url": "https://api.example.com/h5/",
+    "adminUrl": "https://api.example.com/admin/",
+    "assetOrigin": "https://static.example.com",
+    "dnsProvider": "DNSPod",
+    "ttlSeconds": 300,
+    "authoritativeNameServers": ["pending-ns1.example.com", "pending-ns2.example.com"],
+    "certificateProvider": "pending",
+    "certificateType": "pending",
+    "certificateValidationMode": "pending",
+    "certificateDeploymentMode": "pending",
+    "certificateStatus": "pending",
+    "certificateDeploymentVerified": false,
+    "certificateRenewalOwner": "待填写",
+    "certificateFallbackOwner": "待填写",
+    "certificateRenewalProcedureVerified": false,
+    "certificatePublicHandshakeVerified": false
+  },
+  "appDeepLinks": {
+    "host": "api.example.com",
+    "pathPatterns": ["/h5/*"],
+    "owner": "待填写",
+    "evidenceReference": "pending-change-ticket",
+    "ios": {
+      "teamId": "PENDING123",
+      "bundleId": "com.rebu.iosapprebu",
+      "associatedDomainsEnabled": false,
+      "provisioningProfileRegenerated": false,
+      "associationFileDeployed": false,
+      "deviceVerificationPassed": false
+    },
+    "android": {
+      "packageName": "com.rebu.apprebu",
+      "sha256CertFingerprints": ["pending"],
+      "autoVerifyIntentFilterConfigured": false,
+      "associationFileDeployed": false,
+      "deviceVerificationPassed": false
+    }
+  },
+  "storage": {
+    "provider": "cos",
+    "bucket": "pending",
+    "region": "pending",
+    "privateRead": true,
+    "corsConfigured": false,
+    "corsAllowedOrigins": [],
+    "lifecycleConfigured": false,
+    "signedUrlVerified": false,
+    "objectMigration": {
+      "mode": "copy",
+      "owner": "待填写",
+      "manifestAlgorithm": "sha256-content-v1",
+      "sourceInventory": {
+        "generatedAtUtc": "pending",
+        "objectCount": 0,
+        "totalBytes": 0,
+        "manifestSha256": "pending"
+      },
+      "targetInventory": {
+        "generatedAtUtc": "pending",
+        "objectCount": 0,
+        "totalBytes": 0,
+        "manifestSha256": "pending"
+      },
+      "comparisonVerified": false,
+      "evidenceReference": "pending-change-ticket",
+      "oldBucketRetentionHours": 168,
+      "oldBucketRetentionConfirmed": false
+    }
+  },
+  "migration": {
+    "sourceDatabaseAccessVerified": false,
+    "targetDatabaseAccessVerified": false,
+    "dnsChangeAccessVerified": false,
+    "rehearsalCompleted": false,
+    "writeFreezeOwner": "待填写",
+    "maintenanceWindowUtc": "pending",
+    "rollbackRetentionHours": 168,
+    "oldEnvironmentRetentionConfirmed": false,
+    "publicCompliance": {
+      "owner": "待填写",
+      "evidenceReference": "pending-change-ticket",
+      "legacyOriginMode": "none",
+      "legacyOrigins": [],
+      "legacyOriginHandlingVerified": false,
+      "agreementConsentFlowVerified": false,
+      "privacyConsentFlowVerified": false,
+      "childPrivacyGateVerified": false,
+      "feedbackFlowVerified": false,
+      "reportFlowVerified": false,
+      "accountDeletionFlowVerified": false
+    }
+  },
+  "externalEndpoints": {
+    "owner": "待填写",
+    "clientDomainAllowlistOwner": "待填写",
+    "outboundAccessOwner": "待填写",
+    "expectedEgressIpv4": [],
+    "outboundDependencies": [],
+    "outboundEvidenceReference": "pending-change-ticket",
+    "authenticationDelivery": {
+      "owner": "待填写",
+      "evidenceReference": "pending-change-ticket",
+      "migratedAccountPasswordLoginVerified": false,
+      "smsLoginVerified": false,
+      "miniProgramWechatLoginVerified": false,
+      "officialAccountWechatLoginVerified": false,
+      "passwordResetVerified": false,
+      "sessionRefreshVerified": false,
+      "logoutRevocationVerified": false,
+      "crossClientSessionVerified": false
+    },
+    "emailDelivery": {
+      "owner": "待填写",
+      "sendingDomain": "pending",
+      "returnPathDomain": "pending",
+      "evidenceReference": "pending-change-ticket",
+      "spfVerified": false,
+      "dkimVerified": false,
+      "dmarcVerified": false,
+      "bounceHandlingVerified": false,
+      "complaintHandlingVerified": false,
+      "unsubscribeVerified": false,
+      "deliverySmokeTestPassed": false
+    },
+    "smsDelivery": {
+      "owner": "待填写",
+      "appId": "pending",
+      "signName": "pending",
+      "verificationTemplateId": "pending",
+      "retentionTemplateId": "",
+      "evidenceReference": "pending-change-ticket",
+      "signApproved": false,
+      "verificationTemplateApproved": false,
+      "retentionTemplateApproved": false,
+      "deliveryReceiptVerified": false,
+      "realNumberSmokeTestPassed": false,
+      "alternateLoginVerified": false,
+      "retentionConsentAndOptOutVerified": false
+    },
+    "paymentDelivery": {
+      "owner": "待填写",
+      "channelId": "pending",
+      "merchantReference": "pending",
+      "evidenceReference": "pending-change-ticket",
+      "productionAccountVerified": false,
+      "smallAmountPaymentPassed": false,
+      "paymentCallbackVerified": false,
+      "orderLedgerVerified": false,
+      "refundSmokeTestPassed": false,
+      "refundCallbackVerified": false,
+      "reconciliationVerified": false,
+      "duplicateCallbackReplayVerified": false
+    },
+    "logisticsDelivery": {
+      "owner": "待填写",
+      "providerId": "pending",
+      "accountReference": "pending",
+      "evidenceReference": "pending-change-ticket",
+      "productionAccountVerified": false,
+      "controlledWaybillVerified": false,
+      "trackingSubscriptionVerified": false,
+      "trackingCallbackAuthenticated": false,
+      "trackingStatePersisted": false,
+      "deliveryExceptionVerified": false,
+      "returnRefundLinkageVerified": false,
+      "duplicateCallbackReplayVerified": false
+    },
+    "mediaDelivery": {
+      "owner": "待填写",
+      "evidenceReference": "pending-change-ticket",
+      "livePushDomain": "",
+      "livePlayDomain": "",
+      "vodSubAppId": "",
+      "trtcSdkAppId": "",
+      "liveProductionAccountVerified": false,
+      "livePushVerified": false,
+      "livePlaybackVerified": false,
+      "liveCallbackVerified": false,
+      "liveAuditCallbackVerified": false,
+      "vodProductionAccountVerified": false,
+      "vodUploadVerified": false,
+      "vodTranscodeVerified": false,
+      "vodPlaybackVerified": false,
+      "vodCallbackVerified": false,
+      "voiceProductionAccountVerified": false,
+      "voiceWebVerified": false,
+      "voiceMiniProgramVerified": false,
+      "voiceAppVerified": false,
+      "voicePermissionRecoveryVerified": false,
+      "voiceWeakNetworkRecoveryVerified": false
+    },
+    "wechatClientDelivery": {
+      "owner": "待填写",
+      "evidenceReference": "pending-change-ticket",
+      "miniProgramAppId": "",
+      "officialAccountAppId": "",
+      "miniProgramRequestVerified": false,
+      "miniProgramUploadVerified": false,
+      "miniProgramDownloadVerified": false,
+      "miniProgramSocketVerified": false,
+      "miniProgramBusinessWebViewVerified": false,
+      "officialAccountControlPlaneVerified": false,
+      "officialAccountOauthSmokeTestPassed": false,
+      "officialAccountJsSdkConfigVerified": false,
+      "officialAccountShareCardVerified": false
+    },
+    "callbackUrls": [],
+    "controlPlaneCallbacks": [],
+    "clientDomainAllowlistEntries": [
+      {
+        "surfaceId": "wechat-mini-request-api",
+        "origin": "https://api.example.com"
+      },
+      {
+        "surfaceId": "wechat-mini-upload-api",
+        "origin": "https://api.example.com"
+      },
+      {
+        "surfaceId": "wechat-mini-download-api",
+        "origin": "https://api.example.com"
+      },
+      {
+        "surfaceId": "wechat-mini-download-assets",
+        "origin": "https://static.example.com"
+      },
+      {
+        "surfaceId": "wechat-mini-socket-api",
+        "origin": "wss://api.example.com"
+      },
+      {
+        "surfaceId": "wechat-mini-business-h5",
+        "origin": "https://api.example.com"
+      }
+    ],
+    "controlPlaneInventoryVerified": false,
+    "callbackReachabilityVerified": false,
+    "callbackAuthenticationVerified": false,
+    "callbackRetryIdempotencyVerified": false,
+    "clientDomainAllowlistVerified": false,
+    "egressIdentityVerified": false,
+    "outboundDependencySmokeTestsPassed": false,
+    "evidenceReference": "pending-change-ticket"
+  },
+  "operations": {
+    "backupOwner": "待填写",
+    "cutoverOwner": "待填写",
+    "rollbackOwner": "待填写",
+    "technicalApprover": "待填写",
+    "businessApprover": "待填写",
+    "monitoringConfigured": false,
+    "alertTested": false,
+    "restoreDrillCompleted": false
+  }
+}

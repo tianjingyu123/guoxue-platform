@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ModelRouterService, AiProvider } from "./model-router.service";
 import { AiLoggerService } from "./ai-logger.service";
+import { AiUsageRecordService } from "./ai-usage-record.service";
 import { SemanticCacheService } from "./semantic-cache.service";
 import { DeepSeekAdapter } from "./adapters/deepseek.adapter";
 import { ClaudeAdapter } from "./adapters/claude.adapter";
@@ -20,6 +21,14 @@ export interface GatewayChatRequest {
   options?: AiChatOptions;
   /** 跳过语义缓存（创作型场景用：营销文案等要求每次生成都是新内容，且固定指令占比大易误命中） */
   skipCache?: boolean;
+  /** 跳过网关通用审计落库。
+   *  仅供会自行写入业务记录的上层服务使用，避免同一次 AI 调用产生两条 AiAnalysisRecord。 */
+  skipAuditLog?: boolean;
+  /** 缓存作用域键（数据隔离修复P1）：按实体隔离的场景传入(如圈主助理传 circleId)，
+   *  使语义缓存按实体分区、杜绝跨圈串答；不参与模型选路。 */
+  cacheScopeKey?: string;
+  /** 业务结果校验：不复用或保存不合格缓存。 */
+  validateContent?: (content: string) => boolean;
 }
 
 @Injectable()
@@ -30,6 +39,7 @@ export class AiGatewayService {
   constructor(
     private readonly router: ModelRouterService,
     private readonly aiLogger: AiLoggerService,
+    private readonly usageRecord: AiUsageRecordService,
     private readonly semCache: SemanticCacheService,
     private readonly deepseek: DeepSeekAdapter,
     private readonly claude: ClaudeAdapter,
@@ -71,8 +81,8 @@ export class AiGatewayService {
 
     // 1. 语义缓存查找（创作型场景可通过 skipCache 跳过）
     if (userQuery.length > 0 && !req.skipCache) {
-      const cached = await this.semCache.lookup(req.scene, userQuery);
-      if (cached) {
+      const cached = await this.semCache.lookup(req.scene, userQuery, req.cacheScopeKey);
+      if (cached && (!req.validateContent || req.validateContent(cached))) {
         this.logger.debug(`语义缓存命中: scene=${req.scene}`);
         this.metrics.recordSemanticCacheHit(req.scene);
         this.metrics.recordAiCall(req.scene, "semantic-cache", true, 0);
@@ -114,7 +124,7 @@ export class AiGatewayService {
     const latency = Date.now() - startedAt;
     const inputText = req.messages.map((m) => m.content).join(" ");
 
-    this.aiLogger
+    if (!req.skipAuditLog) this.aiLogger
       .log({
         userId: req.userId,
         scene: req.scene,
@@ -132,8 +142,24 @@ export class AiGatewayService {
       })
       .catch((err) => this.logger.warn("AI分析记录写入失败", err));
 
-    if (userQuery.length > 0 && result.content && !req.skipCache) {
-      this.semCache.store(req.scene, userQuery, result.content, actualModel).catch((err) => this.logger.warn("语义缓存存储失败", err));
+    // AI 用量计量：与审计日志不同，任何实际发生的模型调用都必须记账（不受 skipAuditLog 影响）。
+    // 2026-09-17 本机全链路联调发现：非流式调用此前从不写 AiUsageRecord，平台大部分调用处于账外。
+    this.usageRecord
+      .record({
+        userId: req.userId,
+        scene: req.scene,
+        provider: actualProvider,
+        model: actualModel,
+        promptTokens: result.usage?.promptTokens,
+        completionTokens: result.usage?.completionTokens,
+        totalTokens: result.usage?.totalTokens,
+        durationMs: latency,
+        isStreaming: false,
+      })
+      .catch((err) => this.logger.warn("AI用量记录写入失败", err));
+
+    if (userQuery.length > 0 && result.content && !req.skipCache && (!req.validateContent || req.validateContent(result.content))) {
+      this.semCache.store(req.scene, userQuery, result.content, actualModel, undefined, req.cacheScopeKey).catch((err) => this.logger.warn("语义缓存存储失败", err));
     }
 
     this.metrics.recordAiCall(req.scene, actualModel, true, latency);
@@ -148,9 +174,9 @@ export class AiGatewayService {
       .map((m) => m.content)
       .join(" ");
 
-    if (userQuery.length > 0) {
-      const cached = await this.semCache.lookup(req.scene, userQuery);
-      if (cached) {
+    if (userQuery.length > 0 && !req.skipCache) {
+      const cached = await this.semCache.lookup(req.scene, userQuery, req.cacheScopeKey);
+      if (cached && (!req.validateContent || req.validateContent(cached))) {
         this.logger.debug(`流式语义缓存命中: scene=${req.scene}`);
         this.metrics.recordSemanticCacheHit(req.scene);
         this.metrics.recordAiCall(req.scene, "semantic-cache", true, 0);
@@ -176,6 +202,8 @@ export class AiGatewayService {
         yield chunk;
       }
     } catch (err) {
+      // 用户主动离开页面时不切换备用模型，避免后台继续产生无用请求。
+      if (req.options?.signal?.aborted) throw err;
       const reason = err instanceof AiTimeoutError ? "超时" : "失败";
       this.metrics.recordAiCall(req.scene, actualModel, false, Date.now() - startedAt);
       if (fallbackModel && fallbackModel !== model) {
@@ -201,24 +229,42 @@ export class AiGatewayService {
     const latency = Date.now() - startedAt;
     const inputText = req.messages.map((m) => m.content).join(" ");
 
-    this.aiLogger
-      .log({
+    if (!req.skipAuditLog) {
+      // 传统审计日志
+      this.aiLogger
+        .log({
+          userId: req.userId,
+          scene: req.scene,
+          model: actualModel,
+          provider: actualProvider,
+          fallbackUsed,
+          fallbackModel: fallbackUsed ? fallbackModel : undefined,
+          grayReleaseModel,
+          costCapped,
+          latency,
+          inputSummary: inputText,
+          outputSummary: fullContent,
+        })
+        .catch((err) => this.logger.warn("AI分析记录写入失败", err));
+    }
+
+    // 用量计量不受 skipAuditLog 影响
+    // 新增：AI 用量计量表（修复交接书指出的"流式 chatStream 完全不记 token"问题）
+    // 注意：流式响应通常不返回 token 统计，这里记录 isStreaming=true 标记
+    this.usageRecord
+      .record({
         userId: req.userId,
         scene: req.scene,
-        model: actualModel,
         provider: actualProvider,
-        fallbackUsed,
-        fallbackModel: fallbackUsed ? fallbackModel : undefined,
-        grayReleaseModel,
-        costCapped,
-        latency,
-        inputSummary: inputText,
-        outputSummary: fullContent,
+        model: actualModel,
+        durationMs: latency,
+        isStreaming: true,
+        // TODO: 如果适配器支持流式 token 统计，在此填充 promptTokens/completionTokens
       })
-      .catch((err) => this.logger.warn("AI分析记录写入失败", err));
+      .catch((err) => this.logger.warn("AI用量记录写入失败", err));
 
-    if (userQuery.length > 0 && fullContent) {
-      this.semCache.store(req.scene, userQuery, fullContent, actualModel).catch((err) => this.logger.warn("语义缓存存储失败", err));
+    if (userQuery.length > 0 && fullContent && !req.skipCache) {
+      this.semCache.store(req.scene, userQuery, fullContent, actualModel, undefined, req.cacheScopeKey).catch((err) => this.logger.warn("语义缓存存储失败", err));
     }
 
     this.metrics.recordAiCall(req.scene, actualModel, true, latency);

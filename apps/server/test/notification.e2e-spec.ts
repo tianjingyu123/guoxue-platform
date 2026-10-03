@@ -72,6 +72,40 @@ describe("Notification E2E", () => {
     })
   })
 
+  // ═══════════════════ 通知详情归属校验 ═══════════════════
+
+  describe("GET /api/v1/notifications/:id", () => {
+    it("跨用户请求返回 404，且不会标记他人的通知已读", async () => {
+      prisma.notification.findFirst.mockImplementation(async ({ where }: any) =>
+        where.id === "notice-owned" && where.userId === "owner"
+          ? { id: "notice-owned", userId: "owner", type: "SYSTEM", title: "测试通知", content: "仅供测试", isRead: true }
+          : null,
+      )
+
+      stubUser("other")
+      await request(app.getHttpServer())
+        .get("/api/v1/notifications/notice-owned")
+        .set("Authorization", `Bearer ${authAs("other")}`)
+        .expect(404)
+
+      expect(prisma.notification.findFirst).toHaveBeenCalledWith({
+        where: { id: "notice-owned", userId: "other" },
+      })
+      expect(prisma.notification.update).not.toHaveBeenCalled()
+
+      stubUser("owner")
+      const res = await request(app.getHttpServer())
+        .get("/api/v1/notifications/notice-owned")
+        .set("Authorization", `Bearer ${authAs("owner")}`)
+        .expect(200)
+
+      expect(res.body.id).toBe("notice-owned")
+      expect(prisma.notification.findFirst).toHaveBeenCalledWith({
+        where: { id: "notice-owned", userId: "owner" },
+      })
+    })
+  })
+
   // ═══════════════════ 标记已读 ═══════════════════
 
   describe("PUT /api/v1/notifications/:id/read", () => {

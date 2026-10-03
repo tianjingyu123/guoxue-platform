@@ -13,8 +13,84 @@ import { ErrorCode } from "../../common/error-codes";
 const FEE_RATE = 0.2; // 20% 手续费
 const DEFAULT_TOTAL_DAYS = 365; // 年费默认服务天数
 
+/**
+ * **推断匹配是否允许自动冲正圈主分成**（决策项 N9，未获业务批准前一律 false）。
+ *
+ * 只有 `exact`（按 `(type, orderId)` 唯一键命中，且归属与金额都核对通过）是**事实**。
+ * `single`（该成员只有一条候选）与 `amount`（金额唯一对上）都建立在假设之上：
+ *   · `single` 假设「只有一笔收益行 ⇒ 就是被退的那笔」。若某笔收益因记账旁路失败从未写入，
+ *     剩下的唯一一条恰恰**不是**被退的那笔；
+ *   · `amount` 假设「金额相等 ⇒ 同一笔」。入圈与续费同价很常见，其中一条缺失时会误认。
+ * 这两档的适用场景正是「历史数据不完整」，而不完整正是推断会出错的条件。
+ * 推断错的后果是**按错误金额追回圈主分成，且账面自洽、无从发现**。
+ *
+ * 因此未获批准前，这两档与 `ambiguous` 同样处理：**保留异常、转人工**，不替任何人决定钱该扣谁。
+ * 财务评估后若认为某一档误判概率可接受，改这里一个布尔值即可放开，判定逻辑不必改动。
+ * 放开前应先用 `docs` 中的只读 SQL 统计各原因码的真实发生量。
+ */
+const ALLOW_INFERRED_OWNER_RECALL: { single: boolean; amount: boolean } = {
+  single: false,
+  amount: false,
+};
+
+/**
+ * 待人工核对追回的**处理时限**（自然日）。
+ *
+ * 取值依据：2026-09-19 由用户指定「7 天内」。按**自然日**计 —— 用户原话是「7 天」，
+ * 不是「7 个工作日」；若应按工作日计，改这里并同步交付说明。
+ * 负责人记录在 `docs/operations/圈子履约收益退款收口-20260919/候选交付说明-20260919.md` §4.4，
+ * 不写进代码：人会变，配置不该靠改代码。
+ *
+ * 这个值**只用于把超期的待办标出来**，不触发任何自动动作：不告警、不自动冲抵、不改任何状态。
+ * 超期意味着需要人去看，不意味着系统可以替人决定钱该扣谁。
+ */
+export const MANUAL_RECALL_SLA_DAYS = 7;
+
+/** 转人工的原因码，写入 `CommissionRecall.reason`，供人工核对与发生量统计使用 */
+export const RECALL_MANUAL_REASONS = {
+  /** 多条候选且金额区分不开 */
+  AMBIGUOUS_CANDIDATES: "ambiguous_candidates",
+  /** 能推断出一条，但推断匹配尚未获业务批准（N9） */
+  INFERRED_NOT_APPROVED: "inferred_match_not_approved",
+  /** 按 orderId 命中了收益行，但它不属于本圈子/本成员 */
+  OWNERSHIP_MISMATCH: "revenue_ownership_mismatch",
+  /** 按 orderId 命中了收益行，但其金额与本次退款的已付金额对不上 */
+  AMOUNT_MISMATCH: "revenue_amount_mismatch",
+  /** 收益行的圈主分成不是有限非负数，或超过该行收益 */
+  SHARE_INVALID: "revenue_share_invalid",
+} as const;
+export type RecallManualReason = (typeof RECALL_MANUAL_REASONS)[keyof typeof RECALL_MANUAL_REASONS];
+
+/**
+ * 人工核对后的两种结论。**没有第三种** —— 系统不提供「先放着」这个选项，
+ * 待办要么被认定无需调整，要么按人工指定的那一笔冲正，两者都算结案。
+ */
+export const MANUAL_RESOLUTIONS = {
+  /** 核实后确认**无需调整**：不写任何冲正行，只留结案记录与依据 */
+  NO_CHANGE: "no_change",
+  /** 核实后**确需调整**：按人工指定的那一条收益行冲正 */
+  ADJUST: "adjust",
+} as const;
+export type ManualResolution = (typeof MANUAL_RESOLUTIONS)[keyof typeof MANUAL_RESOLUTIONS];
+
+/** 结案后的台账状态。与自动冲正的 `completed` 区分开，报表能分辨人工与自动 */
+const RESOLVED_STATUS: Record<ManualResolution, string> = {
+  no_change: "manual_no_change",
+  adjust: "manual_adjusted",
+};
+
+/** 结案依据的最小长度。空白依据等于没有核对过，留下来也没有复核价值 */
+const MIN_RESOLUTION_NOTE_LENGTH = 10;
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/** 一条可能对应本次退款的圈子入圈/续费收益行 */
+interface RevenueCandidate {
+  id: string;
+  amount: number;
+  ownerShare: number;
 }
 
 interface RefundCalc {
@@ -37,14 +113,17 @@ export class CircleRefundService {
   ) {}
 
   /** 计算退款金额（不落库）：应退 = 已付 − 日费×已用天数；手续费 = 应退×20%；实退 = 应退 − 手续费 */
-  private async calcRefund(circleId: string, userId: string): Promise<RefundCalc> {
-    const member = await this.prisma.circleMember.findUnique({
+  private async calcRefund(
+    circleId: string, userId: string,
+    db: Pick<PrismaService, "circleMember" | "order"> = this.prisma,
+  ): Promise<RefundCalc> {
+    const member = await db.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
     if (!member) throw new BusinessException(ErrorCode.BAD_REQUEST, "你不是该圈子成员");
 
     // 入圈订单 → 已付费用
-    const order = await this.prisma.order.findFirst({
+    const order = await db.order.findFirst({
       where: { userId, type: "CIRCLE_JOIN", targetId: circleId, status: "PAID" },
       orderBy: { createdAt: "desc" },
     });
@@ -78,29 +157,43 @@ export class CircleRefundService {
   }
 
   /** 提交退款申请（normal 走流程；full 全额退款引导客服） */
-  async applyRefund(circleId: string, userId: string, reason?: string, refundType: "normal" | "full" = "normal") {
+  async applyRefund(circleId: string, userId: string, reason?: string, refundType: "normal" | "full" = "normal", expectedActualRefund?: number) {
     if (refundType === "full") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "全额退款请联系平台客服处理");
     }
 
-    // 防重复：唯一索引兜底，先查友好提示
-    const existing = await this.prisma.$queryRawUnsafe<any[]>(
-      `SELECT id FROM "CircleRefundRequest" WHERE "circleId"=$1 AND "userId"=$2 AND "refundStatus"='pending' LIMIT 1`,
-      circleId, userId,
-    );
-    if (existing.length) throw new BusinessException(ErrorCode.BAD_REQUEST, "你有一笔待处理的退款申请，请勿重复提交");
+    // 锁定此圈的成员行，使两节点并发申请也按同一成员串行检查和建单。
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRawUnsafe(
+        `SELECT id FROM "CircleMember" WHERE "circleId"=$1 AND "userId"=$2 FOR UPDATE`,
+        circleId, userId,
+      );
+      // 审核中及已进入退款执行的申请均不可重复提交；驳回/失败后仍可重申。
+      const existing = await tx.$queryRawUnsafe<any[]>(
+        `SELECT id FROM "CircleRefundRequest" WHERE "circleId"=$1 AND "userId"=$2 AND "refundStatus" IN ('pending','refunding') LIMIT 1`,
+        circleId, userId,
+      );
+      if (existing.length) throw new BusinessException(ErrorCode.BAD_REQUEST, "你有一笔待处理的退款申请，请勿重复提交");
 
-    const calc = await this.calcRefund(circleId, userId);
-    const id = randomUUID();
-    await this.prisma.$executeRawUnsafe(
-      `INSERT INTO "CircleRefundRequest"
-        ("id","circleId","userId","orderId","paidAmount","dailyCost","usedDays","refundBase","feeRate","feeAmount","actualRefund","reason","refundType","updatedAt")
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'normal',CURRENT_TIMESTAMP)`,
-      id, circleId, userId, calc.orderId,
-      calc.paidAmount, calc.dailyCost, calc.usedDays, calc.refundBase, FEE_RATE, calc.feeAmount, calc.actualRefund,
-      reason ?? null,
-    );
-    return { id, ...calc, feeRate: FEE_RATE };
+      const calc = await this.calcRefund(circleId, userId, tx);
+      // 新客户端用预览金额作提交前置条件；旧客户端不传时沿用服务端现有计价规则。
+      if (expectedActualRefund !== undefined && (
+        typeof expectedActualRefund !== "number" || !Number.isFinite(expectedActualRefund)
+        || Math.round(expectedActualRefund * 100) !== Math.round(calc.actualRefund * 100)
+      )) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "退款金额已变化，请重新确认");
+      }
+      const id = randomUUID();
+      await tx.$executeRawUnsafe(
+        `INSERT INTO "CircleRefundRequest"
+          ("id","circleId","userId","orderId","paidAmount","dailyCost","usedDays","refundBase","feeRate","feeAmount","actualRefund","reason","refundType","updatedAt")
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'normal',CURRENT_TIMESTAMP)`,
+        id, circleId, userId, calc.orderId,
+        calc.paidAmount, calc.dailyCost, calc.usedDays, calc.refundBase, FEE_RATE, calc.feeAmount, calc.actualRefund,
+        reason ?? null,
+      );
+      return { id, ...calc, feeRate: FEE_RATE };
+    });
   }
 
   /** 圈主审核（通过则流转平台审核；驳回则结束，用户可重新申请） */
@@ -180,6 +273,21 @@ export class CircleRefundService {
     );
   }
 
+  /** 只返回当前圈主已审核的申请；历史可追溯，不借用当前会话中的乐观状态。 */
+  async getOwnerReviewed(ownerId: string, limit = 20, offset = 0) {
+    const take = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit) || 20, 1), 50) : 20;
+    const skip = Number.isFinite(offset) ? Math.max(Math.trunc(offset), 0) : 0;
+    return this.prisma.$queryRawUnsafe<any[]>(
+      `SELECT r.*, u."nickname" AS "userNickname", u."avatar" AS "userAvatar", c."name" AS "circleName"
+       FROM "CircleRefundRequest" r
+       JOIN "Circle" c ON r."circleId"=c.id
+       LEFT JOIN "User" u ON r."userId"=u.id
+       WHERE c."ownerId"=$1 AND r."ownerStatus" IN ('approved','rejected')
+       ORDER BY r."ownerReviewedAt" DESC NULLS LAST, r."createdAt" DESC, r.id DESC
+       LIMIT $2 OFFSET $3`, ownerId, take, skip,
+    );
+  }
+
   /** 平台待审列表（圈主已通过、平台待审，带申请人昵称、圈子名） */
   async getAdminPending() {
     return this.prisma.$queryRawUnsafe<any[]>(
@@ -192,7 +300,7 @@ export class CircleRefundService {
   }
 
   /**
-   * 执行退款（平台审核通过后）。事务原子：退款入账用户余额钱包 + 圈主分成全额追回 + 成员身份失效 + 状态 refunded。
+   * 执行退款（平台审核通过后）。事务原子：退款入账用户余额钱包 + 圈主分成按退款比例追回 + 成员身份失效 + 状态 refunded。
    * 站长佣金追回复用 commission.reverseCommission（事务外，自带事务避免嵌套；失败异步补偿不阻断主退款）。
    * ⚠️ 高风险资金代码：上线前须人工 review + 真实付费数据 e2e 验证。
    */
@@ -206,6 +314,22 @@ export class CircleRefundService {
     let ownerRecalled = 0;
 
     await this.prisma.$transaction(async (tx) => {
+      // 0) 退款单级串行化：锁住申请行，一切判断以**锁内事实**为准。
+      //    `adminReview` 的 CAS 挡住的是「两次审核」；这里挡的是「同一次审核被重放/重试」——
+      //    钱包入账是累加、成员删除与 memberCount 递减都不是天然幂等的，重入一次就是多退一笔。
+      //    状态不是 refunding 说明本单已被处理过或尚未进入执行态，直接返回，不做任何写入。
+      const lockedRows = await tx.$queryRawUnsafe<any[]>(
+        `SELECT "refundStatus" FROM "CircleRefundRequest" WHERE id=$1 FOR UPDATE`,
+        refundId,
+      );
+      const lockedStatus = lockedRows[0]?.refundStatus as string | undefined;
+      if (lockedStatus !== "refunding") {
+        this.logger.warn(
+          `退款执行跳过（锁内状态=${lockedStatus ?? "申请不存在"}）refund=${refundId}，未做任何写入`,
+        );
+        return;
+      }
+
       // 1) 退款入账到用户余额钱包（upsert 累加 + 流水）
       await tx.$executeRawUnsafe(
         `INSERT INTO "UserWallet" ("id","userId","balance","updatedAt")
@@ -221,23 +345,74 @@ export class CircleRefundService {
         randomUUID(), userId, actualRefund, balanceAfter, refundId,
       );
 
-      // 2) 圈主分成全额追回（查入圈分成 ownerShare，记负数冲正 + 追回记录）
+      // 2) 圈主分成按退款比例追回（查入圈分成 ownerShare，记负数冲正 + 追回记录）
       const member = await tx.circleMember.findUnique({ where: { circleId_userId: { circleId, userId } } });
       if (member) {
-        const revRows = await tx.$queryRawUnsafe<any[]>(
-          `SELECT "ownerShare" FROM "CircleRevenueRecord" WHERE "sourceId"=$1 AND "type"='circle_join' ORDER BY "createdAt" DESC LIMIT 1`,
-          member.id,
-        );
-        if (revRows.length) {
-          ownerRecalled = Number(revRows[0].ownerShare);
-          await tx.circleRevenueRecord.create({
-            data: { circleId, type: "circle_join_refund", sourceId: member.id, amount: -paidAmount, platformFee: 0, ownerShare: -ownerRecalled, splitRate: 0 },
-          });
-          const circle = await tx.circle.findUnique({ where: { id: circleId }, select: { ownerId: true } });
+        // 圈主分成取值见 resolveOwnerShare()：精确（含归属与金额核验）→ 推断 → 转人工。
+        const resolved = await this.resolveOwnerShare(tx, {
+          orderId, circleId, memberId: member.id, paidAmount,
+        });
+        const circle = await tx.circle.findUnique({ where: { id: circleId }, select: { ownerId: true } });
+
+        // 只有 exact 是事实；single / amount 是推断，受 ALLOW_INFERRED_OWNER_RECALL 门控（N9）。
+        const autoRecall =
+          resolved.kind === "exact" ||
+          ((resolved.kind === "single" || resolved.kind === "amount") &&
+            ALLOW_INFERRED_OWNER_RECALL[resolved.kind]);
+
+        if (resolved.kind !== "none" && !autoRecall) {
+          // **不猜**。用户的退款照退（那是用户的钱，已在第 1 步入账），但圈主分成追回多少
+          // 在事实层面未确定，猜错的两个方向都是真实损失：猜大了多扣圈主，猜小了平台自己吃差额。
+          // 这里只留一条**待人工核对**的追回台账，金额记 0，由财务按订单核对后补处理。
+          // 不写 circle_join_refund 冲正行：写了就等于用一个推断出来的数字改了账。
+          const reason: RecallManualReason =
+            resolved.kind === "ambiguous"
+              ? RECALL_MANUAL_REASONS.AMBIGUOUS_CANDIDATES
+              : resolved.kind === "mismatch"
+                ? resolved.reason
+                : RECALL_MANUAL_REASONS.INFERRED_NOT_APPROVED;
           await tx.$executeRawUnsafe(
-            `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","createdAt")
-             VALUES ($1,$2,$3,'owner',$4,0,'completed',CURRENT_TIMESTAMP)`,
-            randomUUID(), refundId, circle?.ownerId ?? "", -ownerRecalled,
+            `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","reason","sourceId","createdAt")
+             VALUES ($1,$2,$3,'owner',0,0,'pending_manual',$4,$5,CURRENT_TIMESTAMP)`,
+            randomUUID(), refundId, circle?.ownerId ?? "", reason, member.id,
+          );
+          this.logger.warn(
+            `圈主分成追回转人工：refund=${refundId} circle=${circleId} member=${member.id} ` +
+              `原因=${reason} 候选=${resolved.candidates.length} 笔` +
+              `（金额 ${resolved.candidates.map((c) => c.amount).join("/") || "无"}）` +
+              `，退款已付金额=${paidAmount}。查询：SELECT * FROM "CommissionRecall" WHERE status='pending_manual'`,
+          );
+        } else if (autoRecall) {
+          if (
+            !Number.isFinite(actualRefund) || actualRefund <= 0 ||
+            !Number.isFinite(paidAmount) || paidAmount <= 0 ||
+            actualRefund > paidAmount
+          ) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "实际退款额或原订单实付额异常，禁止自动冲正");
+          }
+          const refundRatio = actualRefund / paidAmount;
+          ownerRecalled = round2((resolved.ownerShare as number) * refundRatio);
+          const revenueAmountRecalled = round2((resolved.revenueAmount as number) * refundRatio);
+          if (
+            !Number.isFinite(ownerRecalled) || ownerRecalled < 0 ||
+            !Number.isFinite(revenueAmountRecalled) || revenueAmountRecalled <= 0 ||
+            ownerRecalled > revenueAmountRecalled
+          ) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "按实际退款比例计算的自动冲正金额异常，禁止自动冲正");
+          }
+          // 冲正行带上 orderId：`CircleRevenueRecord` 的 `(type, orderId)` 唯一约束因此也覆盖
+          // `circle_join_refund`，同一笔订单的冲正在**数据库层**只可能有一条。
+          // orderId 为空的历史退款拿不到这层保护，由上面的退款单级行锁兜底。
+          await tx.circleRevenueRecord.create({
+            data: {
+              circleId, type: "circle_join_refund", sourceId: member.id, orderId,
+              amount: -revenueAmountRecalled, platformFee: 0, ownerShare: -ownerRecalled, splitRate: 0,
+            },
+          });
+          await tx.$executeRawUnsafe(
+            `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","reason","sourceId","createdAt")
+             VALUES ($1,$2,$3,'owner',$4,0,'completed',$5,$6,CURRENT_TIMESTAMP)`,
+            randomUUID(), refundId, circle?.ownerId ?? "", -ownerRecalled, resolved.kind, member.id,
           );
         }
         // 3) 成员身份失效 + 圈子成员数减一
@@ -258,6 +433,425 @@ export class CircleRefundService {
         (e) => this.logger.warn(`站长佣金追回失败 refund=${refundId} order=${orderId}`, e),
       );
     }
+  }
+
+  /**
+   * 确定本次退款应追回的圈主分成，按可信度降序，**拿不准就不猜**。
+   *
+   * | 档 | 判据 | 性质 | 结果 |
+   * |---|---|---|---|
+   * | `exact`     | 退款带 `orderId`，命中 `(type, orderId)` 唯一键，且**圈子、成员、金额三项核验全过** | 事实 | 用它 |
+   * | `mismatch`  | 按 `orderId` 命中了行，但归属或金额核验不通过 | 异常 | 转人工，附原因码 |
+   * | `single`    | 该成员名下只有一条金额为正的 `circle_join` 收益行 | **推断** | 受 N9 门控，默认转人工 |
+   * | `amount`    | 多条候选，但只有一条金额与本次退款的已付金额相等 | **推断** | 受 N9 门控，默认转人工 |
+   * | `ambiguous` | 多条候选且金额区分不开 | 未知 | 转人工 |
+   * | `none`      | 一条候选都没有（收益从未记上） | 事实 | 不冲正，与改动前一致 |
+   *
+   * 本方法**只读、不写**：是否真的冲正由调用方按 `ALLOW_INFERRED_OWNER_RECALL` 决定。
+   * 判定与策略分开，是为了在业务放开某一档时不必改动判定逻辑。
+   *
+   * 为什么不能沿用「取最新一条」：一个成员会有多笔 `circle_join` 收益（入圈一笔、每次续费
+   * 各一笔）。`orderId` 是后加的字段，**历史行全是 NULL**，这些行只能靠推断去配对。
+   * 「最新一条」这个推断在续费之后必然取错——而且错得没有痕迹：账面自洽，只是数字不对。
+   *
+   * `amount > 0` 的过滤不能省：金额为 0 的行不是真实收益，被选中就会把分成读成 0，
+   * 圈主一分不追回而用户已全额退款。
+   *
+   * ── 为什么 `exact` 也要核验 ──────────────────────────────────────────────
+   * `(type, orderId)` 唯一键保证「这一行属于这个订单」，但不保证「这个订单属于本次退款」。
+   * 退款申请的 `orderId` 由 `calcRefund` 按 `userId + type + targetId` 取得，正常情况下归属成立；
+   * 数据订正、跨圈误标或历史脏数据都可能打破它。命中即用等于把唯一键当成了归属证明。
+   * 金额核验同理：收益行金额与本次退款的已付金额对不上，说明两者记的不是同一件事
+   * （例如促销单由旧 `confirmJoin` 路径按 `circle.price` 记账，而订单实付是折后价）。
+   * 这种情况下**任何取值都是猜**，因此一律转人工，由人核对后手工冲正。
+   * 注意：核验失败只影响「圈主分成追回」，**用户的退款照退、余额照到账、成员身份照常失效**。
+   */
+  private async resolveOwnerShare(
+    tx: any,
+    params: { orderId: string | null; circleId: string; memberId: string; paidAmount: number },
+  ): Promise<
+    | { kind: "exact" | "single" | "amount"; ownerShare: number; revenueAmount: number; candidates: RevenueCandidate[] }
+    | { kind: "mismatch"; ownerShare: null; candidates: RevenueCandidate[]; reason: RecallManualReason }
+    | { kind: "ambiguous" | "none"; ownerShare: null; candidates: RevenueCandidate[] }
+  > {
+    const { orderId, circleId, memberId, paidAmount } = params;
+
+    if (orderId) {
+      // 不在 SQL 里带上归属条件：带了的话「归属不符」会退化成「查不到」，
+      // 进而落到推断分支或 none，异常就被无声吞掉了。先取出来，再逐项核验。
+      const exact: any[] = await tx.$queryRawUnsafe(
+        `SELECT "id","ownerShare","amount","circleId","sourceId" FROM "CircleRevenueRecord"
+         WHERE "orderId"=$1 AND "type"='circle_join' LIMIT 1`,
+        orderId,
+      );
+      if (exact.length) {
+        const row = exact[0];
+        const hit: RevenueCandidate = {
+          id: String(row.id), amount: Number(row.amount), ownerShare: Number(row.ownerShare),
+        };
+        if (row.circleId !== circleId || row.sourceId !== memberId) {
+          return {
+            kind: "mismatch", ownerShare: null, candidates: [hit],
+            reason: RECALL_MANUAL_REASONS.OWNERSHIP_MISMATCH,
+          };
+        }
+        if (
+          !Number.isFinite(paidAmount) || paidAmount <= 0 ||
+          !Number.isFinite(hit.amount) || hit.amount <= 0 ||
+          Math.abs(hit.amount - paidAmount) >= 0.01
+        ) {
+          return {
+            kind: "mismatch", ownerShare: null, candidates: [hit],
+            reason: RECALL_MANUAL_REASONS.AMOUNT_MISMATCH,
+          };
+        }
+        if (!Number.isFinite(hit.ownerShare) || hit.ownerShare < 0 || hit.ownerShare > hit.amount) {
+          return {
+            kind: "mismatch", ownerShare: null, candidates: [hit],
+            reason: RECALL_MANUAL_REASONS.SHARE_INVALID,
+          };
+        }
+        return { kind: "exact", ownerShare: hit.ownerShare, revenueAmount: hit.amount, candidates: [hit] };
+      }
+    }
+
+    // 没有精确匹配：列出全部候选，由候选数量决定能不能**推断**出一条
+    const candidates: RevenueCandidate[] = (
+      (await tx.$queryRawUnsafe(
+        `SELECT "id","ownerShare","amount" FROM "CircleRevenueRecord"
+         WHERE "sourceId"=$1 AND "type"='circle_join' AND "amount" > 0
+         ORDER BY "createdAt" DESC`,
+        memberId,
+      )) as any[]
+    ).map((r) => ({ id: r.id as string, amount: Number(r.amount), ownerShare: Number(r.ownerShare) }));
+
+    if (candidates.length === 0) return { kind: "none", ownerShare: null, candidates: [] };
+    if (candidates.length === 1) {
+      return {
+        kind: "single", ownerShare: candidates[0].ownerShare,
+        revenueAmount: candidates[0].amount, candidates,
+      };
+    }
+
+    // 多条候选：只有当金额能唯一对上本次退款的已付金额时才**推断**得出一条
+    const byAmount = candidates.filter((c) => Math.abs(c.amount - Number(paidAmount)) < 0.01);
+    if (byAmount.length === 1) {
+      return {
+        kind: "amount", ownerShare: byAmount[0].ownerShare,
+        revenueAmount: byAmount[0].amount, candidates,
+      };
+    }
+    return { kind: "ambiguous", ownerShare: null, candidates };
+  }
+
+  /**
+   * 待人工核对的圈主分成追回列表。
+   *
+   * 复用既有的平台退款审核入口与角色，不新建后台：`CircleRefundAudit` 用的
+   * `admin-pending` 在同一个控制器上，权限与审计范式一致。
+   *
+   * 列表查询本身只读；人工结案由独立接口完成，并要求提供核对依据。
+   * 涉及资金的结论还必须绑定本笔退款对应的真实订单和收益行。
+   *
+   * 每行附带 `candidates`：该成员名下金额为正的 `circle_join` 收益行。
+   * 这是核对所需的全部事实 —— 人按退款申请的订单与金额挑出被退的那一笔。
+   *
+   * `summary` 给出各原因码的条数。这是决策项 N9（推断匹配是否放开）唯一的量化依据：
+   * `inferred_match_not_approved` 的占比说明放开后会自动处理多少、风险敞口有多大。
+   *
+   * `overdue` / `slaDays` 把超出处理时限（`MANUAL_RECALL_SLA_DAYS`）的待办标出来。
+   * **只标不做**：不告警、不自动冲抵、不改任何状态。
+   */
+  async getManualRecalls(params: { limit?: number; offset?: number; state?: "pending" | "resolved" } = {}) {
+    const limit = Math.min(Math.max(1, Math.floor(Number(params.limit ?? 50))), 200);
+    const offset = Math.max(0, Math.floor(Number(params.offset ?? 0)));
+    // `resolved` 用于复核与对账：结案记录必须查得回来，否则「有凭据」只是说法。
+    const resolved = params.state === "resolved";
+    const statuses = resolved
+      ? [RESOLVED_STATUS.no_change, RESOLVED_STATUS.adjust]
+      : ["pending_manual"];
+
+    const slaDays = MANUAL_RECALL_SLA_DAYS;
+    const slaMs = slaDays * 24 * 60 * 60 * 1000;
+
+    const [summary, totalRows, overdueRows, rows] = await Promise.all([
+      this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT coalesce("reason", 'unknown') AS "reason", count(*)::int AS "count"
+         FROM "CommissionRecall" WHERE "status" = ANY($1::text[])
+         GROUP BY 1 ORDER BY 2 DESC`,
+        statuses,
+      ),
+      this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT count(*)::int AS "n" FROM "CommissionRecall" WHERE "status" = ANY($1::text[])`,
+        statuses,
+      ),
+      this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT count(*)::int AS "n" FROM "CommissionRecall"
+         WHERE "status" = 'pending_manual'
+           AND "createdAt" < CURRENT_TIMESTAMP - make_interval(days => $1::int)`,
+        slaDays,
+      ),
+      this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT r."id", r."refundId", r."userId" AS "ownerId", r."reason", r."status",
+                r."sourceId" AS "memberId", r."createdAt", r."amount" AS "recalledAmount",
+                r."resolvedAt", r."resolvedBy", r."resolutionNote", r."resolvedRevenueId",
+                q."circleId", q."userId" AS "memberUserId", q."orderId",
+                q."paidAmount", q."actualRefund", q."refundedAt",
+                c."name" AS "circleName", u."nickname" AS "ownerNickname",
+                w."nickname" AS "resolvedByNickname"
+         FROM "CommissionRecall" r
+         LEFT JOIN "CircleRefundRequest" q ON q."id" = r."refundId"
+         LEFT JOIN "Circle" c ON c."id" = q."circleId"
+         LEFT JOIN "User" u ON u."id" = r."userId"
+         LEFT JOIN "User" w ON w."id" = r."resolvedBy"
+         WHERE r."status" = ANY($3::text[])
+         ORDER BY r."createdAt" ASC
+         LIMIT $1 OFFSET $2`,
+        limit, offset, statuses,
+      ),
+    ]);
+
+    const memberIds = [...new Set(rows.map((r) => r.memberId).filter(Boolean))];
+    const candidates = memberIds.length
+      ? await this.prisma.$queryRawUnsafe<any[]>(
+          `SELECT "id", "sourceId", "orderId", "amount", "ownerShare", "createdAt"
+           FROM "CircleRevenueRecord"
+           WHERE "type" = 'circle_join' AND "amount" > 0 AND "sourceId" = ANY($1::text[])
+           ORDER BY "createdAt" DESC`,
+          memberIds,
+        )
+      : [];
+
+    const now = Date.now();
+    return {
+      state: resolved ? "resolved" : "pending",
+      total: Number(totalRows[0]?.n ?? 0),
+      /** 超出处理时限、仍未处理的条数。只标不做 */
+      overdue: Number(overdueRows[0]?.n ?? 0),
+      slaDays,
+      limit,
+      offset,
+      summary,
+      items: rows.map((r) => {
+        const ageMs = now - new Date(r.createdAt).getTime();
+        return {
+          ...r,
+          ageDays: Math.floor(ageMs / (24 * 60 * 60 * 1000)),
+          overdue: !resolved && ageMs > slaMs,
+          // memberId 为空说明该行由旧版本写入（`sourceId` 是本次新增列），只能人工按订单反查
+          candidates: r.memberId ? candidates.filter((c) => c.sourceId === r.memberId) : [],
+        };
+      }),
+    };
+  }
+
+  /**
+   * **人工结案**一条 `pending_manual` 追回待办。
+   *
+   * 这是「转人工」这条路的终点。只能看、不能结案的待办不是闭环：待办会一直堆着，
+   * 超期标记也只是把堆积显示出来而已。
+   *
+   * ── 两种结论，没有第三种 ────────────────────────────────────────────────
+   * | 结论 | 写什么 | 不写什么 |
+   * |---|---|---|
+   * | `no_change` 核实后无需调整 | 结案记录 + 依据 | **不写任何冲正行**，不动资金 |
+   * | `adjust`   核实后确需调整 | 按**人工指定**的那条收益行冲正 + 结案记录 + 依据 | 不自行挑选收益行 |
+   *
+   * ── 系统在这里做什么、不做什么 ──────────────────────────────────────────
+   * **不做**：不推断、不挑选、不批量处理。哪一笔该冲正由人给出，系统一条都不猜 ——
+   * 这条待办之所以存在，正是因为系统判定不出来。
+   * **做**：校验人工指定的那一行**确属本笔退款**（同圈子、同成员、类型与金额为正），
+   * 对不上就拒绝。人可以判断，但不能指向一条毫无关系的收益行。
+   *
+   * ── 凭据 ───────────────────────────────────────────────────────────────
+   * `resolutionNote` 强制必填且有最小长度：空白依据等于没有核对过，留下来也没有复核价值。
+   * `resolvedBy` / `resolvedAt` 记业务结论，控制器上的 `@Auditable` 记访问轨迹，两者互为佐证。
+   *
+   * ── 幂等 ───────────────────────────────────────────────────────────────
+   * 入口对台账行 `FOR UPDATE`，锁内状态非 `pending_manual` 直接拒绝。
+   * 重复提交不会写出第二条冲正行，也不会把已结案的待办改成另一个结论。
+   */
+  async resolveManualRecall(
+    recallId: string,
+    operatorId: string,
+    body: { decision?: string; revenueRecordId?: string; note?: string },
+  ) {
+    const decision = body?.decision as ManualResolution | undefined;
+    if (decision !== MANUAL_RESOLUTIONS.NO_CHANGE && decision !== MANUAL_RESOLUTIONS.ADJUST) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `结论必须是 ${MANUAL_RESOLUTIONS.NO_CHANGE}（无需调整）或 ${MANUAL_RESOLUTIONS.ADJUST}（确需调整）`,
+      );
+    }
+    const note = (body?.note ?? "").trim();
+    if (note.length < MIN_RESOLUTION_NOTE_LENGTH) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `请填写核对依据，不少于 ${MIN_RESOLUTION_NOTE_LENGTH} 个字（写明依据哪笔订单、哪条收益行做出判断）`,
+      );
+    }
+    if (decision === MANUAL_RESOLUTIONS.ADJUST && !body?.revenueRecordId) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "确需调整时必须指定要冲正的那一条收益行（revenueRecordId）；系统不会替你挑",
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // ① 台账行级串行化：锁内状态为准，重复提交在这里被拒
+      const locked = (
+        await tx.$queryRawUnsafe<any[]>(
+          `SELECT "id","refundId","userId","userType","status","sourceId" FROM "CommissionRecall"
+           WHERE "id" = $1 FOR UPDATE`,
+          recallId,
+        )
+      )[0];
+      if (!locked) throw new BusinessException(ErrorCode.BAD_REQUEST, "待办不存在");
+      if (locked.status !== "pending_manual") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, `该待办已结案（当前状态 ${locked.status}），不可重复处理`);
+      }
+
+      const refund = (
+        await tx.$queryRawUnsafe<any[]>(
+          `SELECT q."id",q."circleId",q."userId",q."orderId",q."paidAmount",q."actualRefund",
+                  c."ownerId",o."userId" AS "orderUserId",o."targetId" AS "orderTargetId",
+                  o."type"::text AS "orderType",COALESCE(o."payAmount",o."amount") AS "orderPaidAmount"
+           FROM "CircleRefundRequest" q
+           JOIN "Circle" c ON c."id" = q."circleId"
+           LEFT JOIN "Order" o ON o."id" = q."orderId"
+           WHERE q."id" = $1`,
+          locked.refundId,
+        )
+      )[0];
+      if (!refund) throw new BusinessException(ErrorCode.BAD_REQUEST, "待办对应的退款申请不存在，无法核对");
+      if (locked.userType !== "owner" || locked.userId !== refund.ownerId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "待办的收益主体与圈主不一致，禁止在线结案");
+      }
+
+      // ② 无需调整：只留结案记录，一分钱不动
+      if (decision === MANUAL_RESOLUTIONS.NO_CHANGE) {
+        await tx.$executeRawUnsafe(
+          `UPDATE "CommissionRecall"
+           SET "status" = $2, "resolvedAt" = CURRENT_TIMESTAMP, "resolvedBy" = $3, "resolutionNote" = $4
+           WHERE "id" = $1`,
+          recallId, RESOLVED_STATUS.no_change, operatorId, note,
+        );
+        this.logger.log(`追回待办结案（无需调整）recall=${recallId} refund=${refund.id} by=${operatorId}`);
+        return { id: recallId, status: RESOLVED_STATUS.no_change, ownerRecalled: 0, revenueRecordId: null };
+      }
+
+      // ③ 确需调整：校验人工指定的那一行确属本笔退款
+      if (!locked.sourceId) {
+        throw new BusinessException(
+          ErrorCode.BAD_REQUEST,
+          "该待办没有记录成员 id（历史数据），无法校验收益行归属；请走线下财务流程处理，不要在此冲正",
+        );
+      }
+      if (
+        !refund.orderId ||
+        !refund.orderUserId ||
+        refund.orderUserId !== refund.userId ||
+        refund.orderTargetId !== refund.circleId ||
+        !["CIRCLE_JOIN", "CIRCLE_RENEW"].includes(refund.orderType)
+      ) {
+        throw new BusinessException(
+          ErrorCode.BAD_REQUEST,
+          "该待办缺少可核验的原订单，或订单与退款用户/圈子不一致；请走线下财务流程处理，不要在此冲正",
+        );
+      }
+      const revenue = (
+        await tx.$queryRawUnsafe<any[]>(
+          `SELECT "id","circleId","sourceId","orderId","type","amount","ownerShare" FROM "CircleRevenueRecord"
+           WHERE "id" = $1 FOR UPDATE`,
+          body.revenueRecordId,
+        )
+      )[0];
+      if (!revenue) throw new BusinessException(ErrorCode.BAD_REQUEST, "指定的收益行不存在");
+      if (
+        revenue.type !== "circle_join" ||
+        revenue.circleId !== refund.circleId ||
+        revenue.sourceId !== locked.sourceId ||
+        revenue.orderId !== refund.orderId ||
+        Number(revenue.amount) <= 0
+      ) {
+        throw new BusinessException(
+          ErrorCode.BAD_REQUEST,
+          "指定的收益行不属于本笔退款（需同订单、同圈子、同成员、类型 circle_join 且金额为正），已拒绝冲正",
+        );
+      }
+
+      // ④ 部分退款按「实际退款额 / 原订单实付额」同比例冲正。
+      //    订单实付额来自已核验的原订单，不采用可能正处于金额异常待核对状态的申请快照。
+      const originalOwnerShare = Number(revenue.ownerShare);
+      const originalRevenueAmount = Number(revenue.amount);
+      const actualRefund = Number(refund.actualRefund);
+      const orderPaidAmount = Number(refund.orderPaidAmount);
+      if (
+        !Number.isFinite(originalOwnerShare) || originalOwnerShare <= 0 ||
+        !Number.isFinite(originalRevenueAmount) || originalRevenueAmount <= 0 ||
+        originalOwnerShare > originalRevenueAmount
+      ) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "指定收益行的圈主分成金额异常，禁止在线冲正");
+      }
+      if (
+        !Number.isFinite(actualRefund) || actualRefund <= 0 ||
+        !Number.isFinite(orderPaidAmount) || orderPaidAmount <= 0 ||
+        actualRefund > orderPaidAmount
+      ) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "实际退款额或原订单实付额异常，禁止在线冲正");
+      }
+      // 收益来自原订单实付，异常台账不能被人工指定后放大本次退款的追回金额。
+      if (originalRevenueAmount > orderPaidAmount) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "指定收益行金额超过原订单实付额，禁止在线冲正，请先核对异常台账");
+      }
+      const refundRatio = actualRefund / orderPaidAmount;
+      const ownerRecalled = round2(originalOwnerShare * refundRatio);
+      const revenueAmountRecalled = round2(originalRevenueAmount * refundRatio);
+      if (ownerRecalled <= 0 || revenueAmountRecalled <= 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "按实际退款比例计算的冲正金额为零，禁止在线冲正");
+      }
+      const previousReversals = await tx.circleRevenueRecord.count({
+        where: { type: "circle_join_refund", orderId: refund.orderId },
+      });
+      if (previousReversals > 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已存在圈主收益冲正，不可重复追回");
+      }
+      await tx.circleRevenueRecord.create({
+        data: {
+          circleId: refund.circleId,
+          type: "circle_join_refund",
+          sourceId: locked.sourceId,
+          orderId: refund.orderId ?? null,
+          amount: -revenueAmountRecalled,
+          platformFee: 0,
+          ownerShare: -ownerRecalled,
+          splitRate: 0,
+        },
+      });
+      await tx.$executeRawUnsafe(
+        `UPDATE "CircleRefundRequest" SET "ownerRecalled" = $2, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = $1`,
+        refund.id, ownerRecalled,
+      );
+      await tx.$executeRawUnsafe(
+        `UPDATE "CommissionRecall"
+         SET "status" = $2, "amount" = $3, "resolvedAt" = CURRENT_TIMESTAMP,
+             "resolvedBy" = $4, "resolutionNote" = $5, "resolvedRevenueId" = $6
+         WHERE "id" = $1`,
+        recallId, RESOLVED_STATUS.adjust, -ownerRecalled, operatorId, note, revenue.id,
+      );
+      this.logger.log(
+        `追回待办结案（已冲正）recall=${recallId} refund=${refund.id} 收益行=${revenue.id} ` +
+          `退款比例=${refundRatio.toFixed(6)} 圈主分成追回=${ownerRecalled} by=${operatorId}`,
+      );
+      return {
+        id: recallId,
+        status: RESOLVED_STATUS.adjust,
+        ownerRecalled,
+        refundRatio,
+        revenueAmountRecalled,
+        revenueRecordId: revenue.id,
+      };
+    });
   }
 
   private async getById(id: string) {

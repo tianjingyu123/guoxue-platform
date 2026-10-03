@@ -1,0 +1,417 @@
+{
+  "recordedAtUtc": "2026-10-01T00:21:03.8021949Z",
+  "businessSource": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+  "isolatedAcceptance": {
+    "sourceFiles": 8,
+    "method": "fast-forward",
+    "conflicts": 0,
+    "parentDocumentHead": "3a1542fa1e6dcaf7a38c62db4233cc6cc1eb03d3",
+    "commits": [
+      "9d9e4f3c8db1ab2cb433cc9171e255c0b0a828f2",
+      "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b"
+    ],
+    "baseline": "c1b54ff0b23f21f43dd0045f30e8133a1dc9546c"
+  },
+  "defaultLine": {
+    "productionOperations": 0,
+    "defaultHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "defaultBranch": "master",
+    "checkedAt": "2026-09-30T23:50:07.3504313Z",
+    "pr": {
+      "merged": false,
+      "head": "c1b54ff0b23f21f43dd0045f30e8133a1dc9546c",
+      "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+      "base": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+      "number": 1,
+      "draft": true
+    },
+    "repository": "tianjingyu123/guoxue-platform",
+    "candidateHead": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b"
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-09-30T23:53:53.517Z",
+    "archive": "gx-deploy-91-launch-20260930-b6d1f59c.tar.gz",
+    "sha256": "c666741a8da449ea610af565954d03979f8829f69986904a4911bf81e55ce047",
+    "releaseId": "launch-20260930-b6d1f59c",
+    "commit": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+    "expectedCommit": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+    "fileCount": 4369,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "draftAsset": {
+    "digest": "sha256:c666741a8da449ea610af565954d03979f8829f69986904a4911bf81e55ce047",
+    "draft": true,
+    "assetName": "gx-deploy-91-launch-20260930-b6d1f59c.tar.gz",
+    "sourceCommit": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+    "archiveSha256": "c666741a8da449ea610af565954d03979f8829f69986904a4911bf81e55ce047",
+    "size": 15599779,
+    "releaseId": 400058667,
+    "assetId": 602036145
+  },
+  "localRegression": {
+    "suites": 11,
+    "evidenceSha256": "b077c1998f1374637c270da1a88178a7b5fa5fead69b1f2311bd986048a06fcd",
+    "targetedEslint": true,
+    "failed": 0,
+    "passed": 287,
+    "targetedTypecheck": true
+  },
+  "officialLinux": {
+    "cleanup": {
+      "databaseAbsent": true,
+      "redisAbsent": true,
+      "networkAbsent": true,
+      "verificationImageAbsent": true
+    },
+    "verificationCommit": "2db81d5a979538a70f277f72e4e321fde7f79d89",
+    "artifactSha256": "635a3dea3611d8c1241204e28c1d462aee96c83cfd808c1c1c783403da85b001",
+    "redis": "redis_version:7.4.10",
+    "runtimeChecks": [
+      {
+        "name": "committed-reward-linked-ledgers-and-real-sendOnce",
+        "passed": true
+      },
+      {
+        "name": "credit-ledger-failure-rolls-back-payer-and-first-author-account",
+        "passed": true
+      },
+      {
+        "name": "database-failure-before-commit-no-funds-or-success-notification",
+        "passed": true
+      },
+      {
+        "name": "insufficient-balance-no-credit-or-notification",
+        "passed": true
+      },
+      {
+        "name": "sequential-replay-at-zero-remaining-balance-one-payment",
+        "passed": true
+      },
+      {
+        "name": "independent-process-identities",
+        "passed": true,
+        "pids": [
+          24,
+          25
+        ],
+        "postgresLockWaitObserved": true
+      },
+      {
+        "name": "two-independent-processes-same-request-at-zero-balance-one-payment",
+        "passed": true
+      },
+      {
+        "name": "two-independent-processes-conflicting-amount-only-first-commits",
+        "passed": true
+      },
+      {
+        "name": "request-cannot-switch-post-or-author-credit",
+        "passed": true
+      },
+      {
+        "name": "missing-credit-receipt-fails-closed-without-compensation",
+        "passed": true
+      },
+      {
+        "name": "notification-failure-release-and-retry-keeps-one-payment",
+        "passed": true
+      },
+      {
+        "name": "database-notification-unique-key-survives-redis-key-loss",
+        "passed": true
+      },
+      {
+        "name": "zero-author-share-and-odd-amount-preserve-existing-policy",
+        "passed": true
+      },
+      {
+        "name": "actual-membership-and-cross-user-notification-access",
+        "passed": true
+      }
+    ],
+    "compiledFiles": {
+      "apps/server/dist/modules/circle/services/circle-post.service.js": "fca73a66ac2db71e9fb972da8c706591254bbcc901a1b0149de88b5dc5b38213",
+      "apps/server/dist/modules/coin/coin.service.js": "75c36e6a73bedf02cf6b179ed037141fa9a2cb27ff9576a1ab485ab8a891787d"
+    },
+    "sourceBlobHashesMatched": true,
+    "independentProcesses": true,
+    "postgresLockWaitObserved": true,
+    "postgres": "18.6 (Debian 18.6-1.pgdg13+2)",
+    "sourceFiles": {
+      "apps/server/src/modules/circle/services/circle-post.service.ts": "b7afccb1d235c939e3d3fcece67fb43bb86ce9aee30843515335901afcab95b5",
+      "apps/server/src/modules/coin/coin.service.ts": "aec1adbb3cda67662835bf129078aaa1c9e54e79c24212246b46302227ea8dc2",
+      "apps/server/prisma/schema.prisma": "6fa476e4ffc7936bce113cd31bb8d6aff4bf2823624171fabce7277280378d8b",
+      "pnpm-lock.yaml": "0b8820e247ce1b055f276c4ef72b22269b15af7d7dc916f39e59aa5e688c7d69"
+    },
+    "runConclusion": "success",
+    "unitPassed": 287,
+    "artifactBytes": 15557,
+    "runId": 36792917678,
+    "artifactId": 11133315605
+  },
+  "formalImage": {
+    "runId": 36793553471,
+    "previous48acImageIsCurrentEvidence": false,
+    "verificationCommit": "67102aa6cd686d2b8ff89f2e42960b7e88bac96f",
+    "passed": true,
+    "status": "completed",
+    "conclusion": "success",
+    "imageId": "sha256:8b15f4629d50b79c6ce06c4794a55120e51e293460a792304dd520c1b6815e94",
+    "bindingChecks": 3,
+    "transactionChecks": 10,
+    "notificationScope": "synthetic-notification-sink",
+    "artifactId": 11132383894,
+    "artifactBytes": 30647,
+    "artifactSha256": "2beaa98744065ac427c67272d89870e67422ba9142bc0a5529ef0b76553d8aa5",
+    "cleanup": {
+      "databaseAbsent": true,
+      "networkAbsent": true
+    }
+  },
+  "equalScopes": [
+    "apps/server/prisma",
+    "apps/mobile",
+    "apps/admin",
+    "packages",
+    "package.json",
+    "pnpm-lock.yaml",
+    "docker"
+  ],
+  "rollbackOrder": [
+    "b6d1f59cf",
+    "9d9e4f3c8"
+  ],
+  "unresolved": [
+    "圈帖及其他未验通知目标页面权限（订单目标已验）",
+    "正式master接收与目标两节点",
+    "最终原生签名渠道和真实业务旅程",
+    "历史异常人工审计与补偿决策",
+    "提交后进程崩溃的持久化通知队列"
+  ],
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（本轮范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "productionDeployment": false,
+  "productionMigration": false,
+  "realMoneyOperations": 0,
+  "realNotifications": 0,
+  "historicalCompensation": false,
+  "cloudPackagingCosts": 0,
+  "verificationOnlyCommit": {
+    "failedJob": 110152707537,
+    "sourceRuntimeEqualTo": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+    "failedCiRun": 36793764613,
+    "localHttpTests": 10,
+    "original": "ad85abdeef796705a59cf1fb1b9712dbeb1b665b",
+    "actualReceived": "573472715959484280efd10dbaf5af7044883bbd",
+    "reason": "旧送礼HTTP事务桩缺少upsert；补齐方法不改业务源码与原断言"
+  },
+  "officialFullCi": {
+    "checksPassed": 8,
+    "checksTotal": 8,
+    "suitesPassed": 657,
+    "unitPassed": 8863,
+    "suitesSkipped": 26,
+    "head": "573472715959484280efd10dbaf5af7044883bbd",
+    "conclusion": "success",
+    "readbackSha256": "1138d86e938b9ab7357f13c9d0f07bca1364d382856b9238fdcdbfbaa44d06a2",
+    "skippedTestsCountedAsPassed": false,
+    "runId": 36794515577,
+    "unitSkipped": 133,
+    "productionAcceptance": false,
+    "status": "completed",
+    "countsEvidence": [
+      {
+        "jobId": 110155285693,
+        "name": "单元测试 (3/3)",
+        "conclusion": "success",
+        "logSha256": "6bebcebd2cdb609cd3c0148dc502b02d47b35a67befbfb25e920aca7f2ccde93",
+        "summaries": [
+          "2026-10-01T00:11:55.3663743Z Test Suites: 10 skipped, 217 passed, 217 of 227 total",
+          "2026-10-01T00:11:55.3664276Z Tests:       39 skipped, 3034 passed, 3073 total",
+          "2026-10-01T00:11:55.3664961Z Time:        105.473 s"
+        ]
+      },
+      {
+        "jobId": 110155285714,
+        "name": "单元测试 (1/3)",
+        "conclusion": "success",
+        "logSha256": "498035a0584a186cec8f6852ce47896e4fcffbe7accbddb8f924298cdb8e6a89",
+        "summaries": [
+          "2026-10-01T00:17:36.8976363Z Test Suites: 8 skipped, 220 passed, 220 of 228 total",
+          "2026-10-01T00:17:36.8976738Z Tests:       44 skipped, 2800 passed, 2844 total",
+          "2026-10-01T00:17:36.8977232Z Time:        448.842 s"
+        ]
+      },
+      {
+        "jobId": 110155285731,
+        "name": "单元测试 (2/3)",
+        "conclusion": "success",
+        "logSha256": "3759bf3f207334f126be63ee68c5a64322a27c82e38589a812b6ac89162076c0",
+        "summaries": [
+          "2026-10-01T00:12:02.5958601Z Test Suites: 8 skipped, 220 passed, 220 of 228 total",
+          "2026-10-01T00:12:02.5959412Z Tests:       50 skipped, 3029 passed, 3079 total",
+          "2026-10-01T00:12:02.5960317Z Time:        115.019 s"
+        ]
+      }
+    ],
+    "scopes": [
+      "ESLint与Prettier",
+      "类型检查",
+      "迁移与上线代码门禁",
+      "三组测试",
+      "测试结果汇总",
+      "构建产物"
+    ],
+    "buildArtifact": {
+      "id": 11133309894,
+      "sha256": "3531293cc6a1f60049ee5959e36638ac09358c5e034c12b22a3816d334f3b961",
+      "bytes": 7401028,
+      "verified": true
+    }
+  },
+  "defaultLineReadbackBeforeDocumentCommit": {
+    "checkedAt": "2026-10-01T00:19:26.4150097Z",
+    "repository": "tianjingyu123/guoxue-platform",
+    "pr": {
+      "base": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+      "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+      "number": 1,
+      "merged": false,
+      "head": "573472715959484280efd10dbaf5af7044883bbd",
+      "draft": true
+    },
+    "productionOperations": 0,
+    "defaultHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "candidateHead": "3a1542fa1e6dcaf7a38c62db4233cc6cc1eb03d3",
+    "defaultBranch": "master"
+  },
+  "fullHttpRuntime": {
+    "artifactSha256": "cd1d623cbf40f2e4b3dab93f40342a861baa2567e6ce56a8d8c1a44bcd804f95",
+    "scope": "isolated-empty-db-no-real-channels",
+    "artifactId": 11133914509,
+    "artifactBytes": 50635,
+    "verificationCommit": "e43b1818564b75a248f30528a461066d26ad8a7c",
+    "checks": 20,
+    "checkedAtUtc": "2026-10-01T00:46:12.6371565Z",
+    "rewardHttpCases": 19,
+    "targetNodesVerified": false,
+    "sourceSha256": "c666741a8da449ea610af565954d03979f8829f69986904a4911bf81e55ce047",
+    "realChannelsVerified": false,
+    "paymentRefundHttpCases": 22,
+    "checksDetail": [
+      {
+        "name": "image-identity",
+        "passed": true
+      },
+      {
+        "name": "prisma-source-compile-runtime-binding",
+        "passed": true
+      },
+      {
+        "name": "grpc-security-version-in-runtime-image",
+        "passed": true
+      },
+      {
+        "name": "admin-h5-base-and-public-config",
+        "passed": true
+      },
+      {
+        "name": "postgres-major-match",
+        "passed": true
+      },
+      {
+        "name": "temporary-empty-db-final-schema",
+        "passed": true
+      },
+      {
+        "name": "production-entrypoint-health-public-http",
+        "passed": true
+      },
+      {
+        "name": "real-jwt-global-guards-cross-user-and-admin-roles",
+        "passed": true
+      },
+      {
+        "name": "sensitive-feedback-roles-mask-audit-limit-and-validation",
+        "passed": true
+      },
+      {
+        "name": "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+        "passed": true
+      },
+      {
+        "name": "signed-encrypted-http-payment-refund-rollback-notification-retry",
+        "passed": true
+      },
+      {
+        "name": "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+        "passed": true
+      },
+      {
+        "name": "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+        "passed": true
+      },
+      {
+        "name": "merchant-shipping-ownership-replay-rollback-and-concurrency",
+        "passed": true
+      },
+      {
+        "name": "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+        "passed": true
+      },
+      {
+        "name": "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+        "passed": true
+      },
+      {
+        "name": "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+        "passed": true
+      },
+      {
+        "name": "redis7-two-process-notification-idempotency",
+        "passed": true
+      },
+      {
+        "name": "database-unique-after-redis-key-loss",
+        "passed": true
+      },
+      {
+        "name": "notification-failure-release-and-two-process-retry",
+        "passed": true
+      }
+    ],
+    "runId": 36797126981,
+    "sourceCommit": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+    "passed": true,
+    "imageId": "sha256:368c3893277cdd4bc4a6e778fc3facfdd24db2b1ed69783b3c1d99b4f89ae887",
+    "cleanup": {
+      "rebu-app-second-41eaabf87f": true,
+      "rebu-app-41eaabf87f": true,
+      "rebu-db-41eaabf87f": true,
+      "rebu-redis-41eaabf87f": true,
+      "networkAbsent": true
+    },
+    "notificationTargetScopes": {
+      "post": false,
+      "order": true,
+      "allTargets": false
+    },
+    "allNotificationTriggersCompleted": false,
+    "productionDeployment": false,
+    "productionMigration": false,
+    "realMoneyOperations": 0,
+    "realNotifications": 0,
+    "releaseDecision": "NO-GO"
+  }
+}

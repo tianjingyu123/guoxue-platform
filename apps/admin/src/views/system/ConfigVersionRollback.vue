@@ -9,9 +9,12 @@ interface ConfigVersionRow {
   configKey?: string
   version?: number | string
   configValue?: string | object
+  value?: string | object
   updatedAt?: string
   createdAt?: string
   updatedBy?: string
+  changedBy?: string
+  comment?: string
 }
 
 const loading = ref(false)
@@ -63,11 +66,12 @@ async function viewDetail(row: ConfigVersionRow) {
   detailRow.value = row
   try {
     const { data } = await api.get(`${BASE}/${row.id || row.versionId}`)
-    const configValue = data?.configValue || data?.value || data
+    const configValue = data?.configValue ?? data?.value ?? data
     detailValue.value = typeof configValue === 'string' ? configValue : JSON.stringify(configValue, null, 2)
   } catch {
-    detailValue.value = row.configValue
-      ? (typeof row.configValue === 'string' ? row.configValue : JSON.stringify(row.configValue, null, 2))
+    const fallbackValue = row.configValue ?? row.value
+    detailValue.value = fallbackValue
+      ? (typeof fallbackValue === 'string' ? fallbackValue : JSON.stringify(fallbackValue, null, 2))
       : '无法获取配置详情'
   }
   detailVis.value = true
@@ -172,7 +176,7 @@ async function rollback(row: ConfigVersionRow) {
         min-width="240"
       >
         <template #default="{ row }">
-          <span style="font-family:monospace;font-size:12px">{{ truncate(row.configValue) }}</span>
+          <span style="font-family:monospace;font-size:12px">{{ truncate(row.configValue ?? row.value) }}</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -184,10 +188,14 @@ async function rollback(row: ConfigVersionRow) {
         </template>
       </el-table-column>
       <el-table-column
-        prop="updatedBy"
+        prop="changedBy"
         label="操作人"
         width="120"
-      />
+      >
+        <template #default="{ row }">
+          {{ row.changedBy || row.updatedBy || '-' }}
+        </template>
+      </el-table-column>
       <el-table-column
         label="操作"
         width="180"
@@ -247,7 +255,10 @@ async function rollback(row: ConfigVersionRow) {
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="操作人">
-          {{ detailRow.updatedBy || '-' }}
+          {{ detailRow.changedBy || detailRow.updatedBy || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="变更说明">
+          {{ detailRow.comment || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="更新时间">
           {{ formatDate(detailRow.updatedAt || detailRow.createdAt) }}

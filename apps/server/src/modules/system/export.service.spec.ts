@@ -80,6 +80,17 @@ describe("ExportService", () => {
       const csv = svc.csvStringify(cols, rows)
       expect(csv).toContain('"第一行\r\n第二行"')
     })
+
+    it("疑似表格公式按文本导出，防止 Excel / WPS 执行", () => {
+      const cols = [{ key: "nickname", label: "昵称" }]
+      const rows = [
+        { nickname: '=HYPERLINK("https://evil.example")' },
+        { nickname: "\t+cmd|' /C calc'!A0" },
+      ]
+      const csv = svc.csvStringify(cols, rows)
+      expect(csv).toContain("'=HYPERLINK")
+      expect(csv).toContain("'\t+cmd")
+    })
   })
 
   // ─── exportUsers ───

@@ -1,0 +1,18 @@
+{
+  "sourceHead": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+  "migrationCount": 143,
+  "archiveBytes": 228673,
+  "archiveSha256": "cd1e6c33159f4eaef116bd6dec47c3678e1cdc79c5a5c081d58a70073e059b33",
+  "inventorySha256": "b3a22e7030210974f615a6ff7304c31890029f8277aa44236fea341a12dd4bde",
+  "restoredRawFiles": 145,
+  "restoredBytesMatch": true,
+  "sourceSqlHasCrLf": false,
+  "archiveFile": "C:\\Users\\Administrator\\.codex\\worktrees\\tenant-isolation-pilot-20261002\\gx-deploy-91\\pilots\\managed-tenancy\\.runtime\\migration-source-4717b6ec10e8-raw.zip",
+  "archiveMethod": "Python312标准库zipfile原字节打包及路径校验后解包",
+  "initialPackagingFailure": "PATH内GNU tar将Windows盘符解析为远程主机，系统tar不存在；源清单和原字节未改，改用现有Python标准库ZIP并实际解包核验",
+  "production": false,
+  "migrationsExecuted": false,
+  "formalReleasePackage": false,
+  "schemaGitBlobSha256": "3019e944000e944e15667cd9f22ee43ce7daba9a2ee8db4a4e533ab6f22875e8",
+  "schemaHashScope": "冻结提交中LF原字节Git对象，不同于Windows工作树CRLF磁盘摘要"
+}

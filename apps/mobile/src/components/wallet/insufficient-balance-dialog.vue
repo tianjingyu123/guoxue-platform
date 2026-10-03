@@ -1,6 +1,6 @@
 <template>
-  <view v-if="open" class="ibd-mask" @tap="onClose">
-    <view class="ibd-card" @tap.stop>
+  <view v-if="open" class="ibd-mask" role="dialog" aria-modal="true" aria-label="余额不足" @tap="onClose" @touchmove.self.prevent>
+    <view class="ibd-card" tabindex="-1" @tap.stop @touchmove.stop>
       <view class="ibd-inner">
         <view class="ibd-icon">
           <AppIcon name="coins" :size="28" color="var(--gold, #C9A96E)" />
@@ -19,11 +19,25 @@
           <text class="ibd-shortfall-num">{{ shortfall }} 国学币</text>
         </view>
 
-        <view class="ibd-recharge" @tap="goRecharge">
+        <view
+          class="ibd-recharge"
+          role="button"
+          aria-label="去充值"
+          tabindex="0"
+          @tap="goRecharge"
+          @keydown="activateOnKeyboard($event, goRecharge)"
+        >
           <AppIcon name="wallet" :size="20" color="#fff" />
           <text class="ibd-recharge-txt">去充值</text>
         </view>
-        <view class="ibd-cancel" @tap="onClose">
+        <view
+          class="ibd-cancel"
+          role="button"
+          aria-label="稍后再说"
+          tabindex="0"
+          @tap="onClose"
+          @keydown="activateOnKeyboard($event, onClose)"
+        >
           <text class="ibd-cancel-txt">稍后再说</text>
         </view>
       </view>
@@ -35,6 +49,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { navigateTo } from '@/utils/router'
 
 const props = defineProps<{
@@ -44,10 +59,27 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
 
+useOverlayScrollLock(
+  () => props.open,
+  {
+    onEscape: onClose,
+    focusContainerSelector: '.ibd-card',
+    initialFocusSelector: '.ibd-recharge',
+  },
+)
+
 const shortfall = computed(() => Math.max(props.required - props.balance, 0))
 
 function onClose() { emit('close') }
-function goRecharge() { navigateTo('/wallet/recharge') }
+function goRecharge() {
+  onClose()
+  navigateTo('/wallet/recharge')
+}
+function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
+}
 </script>
 
 <style scoped>

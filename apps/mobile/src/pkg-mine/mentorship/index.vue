@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
@@ -195,6 +196,7 @@ import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, reLaunch, navigateTo } from '@/utils/router'
 import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { useShare } from '@/composables/useShare'
 import { BRAND } from '@/lib/brand'
 import {
@@ -318,7 +320,7 @@ onShareAppMessage(() =>
 
 /** H5/App：复制带 token + ref 的招徒链接 */
 function copyInviteLink() {
-  const link = withRef(`https://api.rebugx.cn/h5/#${acceptPath()}`)
+  const link = withRef(buildH5Url(acceptPath()))
   const text = `拜我为师，一同修习国学之道！点击链接拜入师门：${link}`
   uni.setClipboardData({
     data: text,
@@ -337,7 +339,7 @@ function copyInviteLink() {
 /* 导航 */
 .nav {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 10;
   display: flex;
   align-items: center;

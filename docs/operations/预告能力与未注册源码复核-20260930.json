@@ -1,0 +1,173 @@
+{
+  "sourceCommit": "f4a70171dface60d4091b9130c975a8cea9cca61",
+  "scannedP2Files": 10,
+  "disclaimer": "P2按文件聚合，不是10项功能，更不是完整版本只剩10项；未注册源码与用户可点入口分别记录",
+  "inactiveRoutes": [
+    {
+      "route": "pkg-competition/invite-rewards/index",
+      "sourceExists": true,
+      "registered": false,
+      "status": "源码存在但未注册，不是已上线能力"
+    },
+    {
+      "route": "pkg-competition/live-arena/index",
+      "sourceExists": true,
+      "registered": false,
+      "status": "源码存在但未注册，不是已上线能力"
+    },
+    {
+      "route": "pkg-competition/offline-checkin/index",
+      "sourceExists": true,
+      "registered": false,
+      "status": "源码存在但未注册，不是已上线能力"
+    },
+    {
+      "route": "pkg-competition/offline-detail/index",
+      "sourceExists": true,
+      "registered": false,
+      "status": "源码存在但未注册，不是已上线能力"
+    },
+    {
+      "route": "pkg-profile/invite/history/index",
+      "sourceExists": true,
+      "registered": false,
+      "status": "源码存在但未注册，不是已上线能力"
+    },
+    {
+      "route": "pkg-profile/invite/index",
+      "sourceExists": true,
+      "registered": false,
+      "status": "源码存在但未注册，不是已上线能力"
+    }
+  ],
+  "tools": [
+    {
+      "id": "direction-map",
+      "name": "山向地图",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "char-filter",
+      "name": "汉字筛选",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "partner",
+      "name": "合伙人",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "mini-program",
+      "name": "小程序开发",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "vip-service",
+      "name": "会员服务",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "customer-service",
+      "name": "在线客服",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "tongue",
+      "name": "舌诊分析",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "face",
+      "name": "面诊分析",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "pulse",
+      "name": "脉象查询",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "constitution",
+      "name": "体质辨识",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "acupoint",
+      "name": "穴位查询",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "meridian",
+      "name": "经络图解",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "herb",
+      "name": "中药查询",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "prescription",
+      "name": "方剂大全",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "syndrome",
+      "name": "证候分析",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "health-calendar",
+      "name": "养生日历",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "five-elements",
+      "name": "五行体质",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "food-therapy",
+      "name": "食疗方案",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "ziwu",
+      "name": "子午流注",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "lingguibafa",
+      "name": "灵龟八法",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    },
+    {
+      "id": "health-ai",
+      "name": "健康顾问",
+      "status": "预告配置，不是完成证据，不能据此认定用户批准暂缓"
+    }
+  ],
+  "activeGaps": [
+    {
+      "path": "components/bazi/date-picker-modal.vue",
+      "capability": "四柱反查日期",
+      "evidence": "确认时仍拦截，禁止用默认日期出错盘"
+    },
+    {
+      "path": "lib/mine-data.ts",
+      "capability": "设置页新增第三方绑定",
+      "evidence": "toggleBind(true)仍报预告；auth/bind/wechat及登录后关联已经存在，不能声称整个绑定或快捷登录未实现"
+    },
+    {
+      "path": "pages/index/index.vue",
+      "capability": "首页同城页签",
+      "evidence": "switchTab(local)仍只toast；不等同于已注册发现页same-city/feed"
+    },
+    {
+      "path": "pages/paipan/index.vue",
+      "capability": "工具中心研发预告",
+      "evidence": "实际存在comingSoon配置21项；公开显示不等于已实现，不是纯注释误报"
+    }
+  ],
+  "approval": "未找到本轮对这些事项的逐项延期批准；旧工程文档只能作为历史实现状态，不能替代用户决策"
+}

@@ -1,0 +1,40 @@
+{
+  "head": "a1d37c4a2cfd0167a4474798a47a4cb6706e6c69",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-write-fence.ts": "3c4611649df1a4d59739d15f573e37c88d51b85365661416a476688c04340e62",
+    "apps/server/src/modules/managed-tenancy/managed-lease-maintenance.service.ts": "8ee30677bb8b54f496a7144fb6541da54473626a82e237e3c9b171ecafdaa748",
+    "apps/server/src/modules/managed-tenancy/managed-tenancy.controller.ts": "71b20363280ce3d524570223d1a0aa9a345bbb8b46e9ebb82767cf405d72860b",
+    "pilots/managed-tenancy/verify-cutover-postgres.mjs": "c4c5eaae29dfe4fde117ddd98f4b694093e85c3d6d1e9f7e81f5579256b64841"
+  },
+  "checks": [
+    {
+      "name": "冻结原库、pg_dump并恢复全部业务表到新库，最低权限与新密钥核验后乐观切换；旧实例和旧令牌立即失效",
+      "status": "PASS"
+    },
+    {
+      "name": "新实例使用恢复后的客户账号重新登录并创建真实商品；源库不接收新写，旧数据库账号不能连接恢复目标",
+      "status": "PASS"
+    },
+    {
+      "name": "回退先冻结目标并携带目标新增数据恢复到第三个新库；旧源和前目标继续拒写，回退实例保留切换后的商品与账号",
+      "status": "PASS"
+    },
+    {
+      "name": "切换与回退均登记维护审计；未重放支付、队列或供应商请求，全部源库和备份保留",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 5,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "只在本任务集群演练新库切换和带新增数据的回退，不接触生产或DNS",
+    "回退源库全部保留；收尾恢复合成原绑定仅为测试隔离，演练新增数据完整保留在冻结回退库",
+    "切换接口核验身份、权限、围栏与修订；数据核对和备份摘要由维护者负责，不承诺线上RPO/RTO"
+  ]
+}

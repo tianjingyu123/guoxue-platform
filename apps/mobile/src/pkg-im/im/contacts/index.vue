@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view v-if="error" class="load-state">
     <text class="load-state-text">{{ error }}</text>
     <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
@@ -295,7 +296,7 @@ function friendAction(action: 'chat' | 'profile') {
 /* 导航栏 */
 .navbar {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 20;
   display: flex;
   align-items: center;

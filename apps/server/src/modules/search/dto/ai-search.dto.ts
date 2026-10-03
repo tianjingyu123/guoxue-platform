@@ -1,4 +1,4 @@
-import { IsString, IsArray } from "class-validator";
+import { IsString, IsArray, IsNotEmpty, MaxLength, Matches } from "class-validator";
 
 export class AiSearchDto {
   @IsString()
@@ -10,5 +10,8 @@ export class AiSearchDto {
 
 export class AiQueryDto {
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  @Matches(/\S/u)
   query!: string;
 }

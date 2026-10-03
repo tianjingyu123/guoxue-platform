@@ -28,8 +28,7 @@
 
             <!-- 用户信息（真实登录用户·未登录回退通用署名） -->
             <view class="poster-user">
-              <image v-if="userAvatar" class="user-avatar user-avatar-img" :src="userAvatar" mode="aspectFill" />
-              <view v-else class="user-avatar">{{ userInitial }}</view>
+              <smart-avatar class="user-avatar" :src="userAvatar" :name="userName" />
               <view class="user-info">
                 <text class="user-name">{{ userName }}</text>
                 <text class="user-desc">邀请你一起探索国学</text>
@@ -129,6 +128,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { BRAND } from '@/lib/brand'
 import { mineApi } from '@/lib/mine-data'
 
@@ -167,7 +167,6 @@ const logoColor = computed(() => (selectedTemplate.value === 'modern' ? '#fff' :
 // 海报署名用真实登录用户（原硬编码演示用户"李易安"违反数据流铁律）；未登录/失败回退通用署名
 const userName = ref('国学同道')
 const userAvatar = ref('')
-const userInitial = computed(() => (userName.value || '友').slice(0, 1))
 
 onLoad((options?: Record<string, string>) => {
   const s = options?.scene as SceneKey

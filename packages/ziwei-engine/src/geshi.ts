@@ -30,12 +30,7 @@ function getGongIdx(gongWei: GongWei[], name: string): number {
 
 /** 获取三方四正中某宫的所有星曜名称 */
 function getSanFangStarNames(gongWei: GongWei[], centerIdx: number): string[] {
-  const idx1 = (centerIdx + 4) % 12   // 对宫
-  const idx2 = (centerIdx + 8) % 12   // 三合1
-  const idx3 = centerIdx               // 本位
-  const idx4 = (centerIdx + 12 - 8) % 12  // 三合2...
-
-  // Actually, standard 三方四正: 本位 + 对宫(centerIdx+6) + 左三合(centerIdx+4) + 右三合(centerIdx-4)
+  // 标准三方四正：本位 + 对宫(centerIdx+6) + 左三合(centerIdx+4) + 右三合(centerIdx-4)
   const sanFang = [
     centerIdx,
     (centerIdx + 6) % 12,

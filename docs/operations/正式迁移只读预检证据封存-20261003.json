@@ -1,0 +1,64 @@
+{
+  "checkedAt": "2026-10-03T05:38:18.077Z",
+  "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+  "localPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-intake-review-20260930\\gx-deploy-91\\artifacts\\channel-intake-20260930\\two-node-readonly-20261002\\migration-readonly-evidence-20261003.tar.gz",
+  "sha256": "7d61574d86fc1c4075c1d2e2de1ed7deb10432ca07527b505a6179351f8ba1e6",
+  "bytes": 79406,
+  "files": [
+    {
+      "name": "migration-checksum-comparison.json",
+      "sha256": "97ca1b592ab214b7cdae5719f7e46c427e7152f50b8d5d9f617241f09eb44c71",
+      "bytes": 99975
+    },
+    {
+      "name": "migration-checksum-preflight-verified.json",
+      "sha256": "a3a07d13e085ba1dc4d4ae2cf43c0aeb211bb577e8364ca7e5e782e046c5a455",
+      "bytes": 94248
+    },
+    {
+      "name": "migration-checksum-readonly.sh",
+      "sha256": "161cf55c99af4c43ae7a91b375010afb0e1c63559d468550d4ba5e9c2efa0c69",
+      "bytes": 1251
+    },
+    {
+      "name": "pending-catalog-readonly.sh",
+      "sha256": "9da5356d7382d8ccbbd678ce0e7d7e270014bc70936bf9ab3092f64126a2cc19",
+      "bytes": 36391
+    },
+    {
+      "name": "pending-catalog-targets.json",
+      "sha256": "ed9260d985ad0bf75a8e122c7d0dc6bbca0db01a9817db5315fa18714658c6da",
+      "bytes": 44777
+    },
+    {
+      "name": "pending-catalog-verified.json",
+      "sha256": "17e9bac4f93e541e2e868b3c88cc2d67a73ee323fdfa3d4a396cacd6d18823b5",
+      "bytes": 115488
+    },
+    {
+      "name": "prepare-pending-catalog.cjs",
+      "sha256": "57d79ccc2723e5bec2f66a53cfa82f5f464cd71f205a64ff2b59fd5a387dd9e8",
+      "bytes": 5482
+    },
+    {
+      "name": "record-checksum-preflight.cjs",
+      "sha256": "db496656612ed543bc7404769d020b0c2412753ec12dc3877277b53eda8f404f",
+      "bytes": 7695
+    },
+    {
+      "name": "verify-migration-checksums.cjs",
+      "sha256": "8b6099fc2e52669b7a6e3799dbf9c37e6ef9b6fb862bd234560f92115ed2d35b",
+      "bytes": 4556
+    },
+    {
+      "name": "verify-pending-catalog.cjs",
+      "sha256": "def530125d65b303ce82e1c71cb859f7c3039d720c3aaae7441a0e402010e92f",
+      "bytes": 6759
+    }
+  ],
+  "uploaded": false,
+  "containsCredentials": false,
+  "productionMutation": false,
+  "productionDdl": false,
+  "releaseReady": false
+}

@@ -1,0 +1,46 @@
+{
+  "dependencyLockSha256": "994f2584f94434c5b5594b54c92186dd87df13e5d47563c196b2af85f37687db",
+  "version": 1,
+  "head": "73772132e4450855fb033e9d5f86c06300427662",
+  "workingTreeDirty": false,
+  "applicationId": "synthetic-real-lease-app-a",
+  "platform": "app",
+  "channel": "local-candidate",
+  "sources": {
+    "apps/mobile/managed/App.vue": "4b288a7bafea440f296c4b7cd1a6364c92c23054f0ce72d94ed697431c67af86",
+    "apps/mobile/managed/client.ts": "e39b620705a7426028a660cf4f79d9caa879e00f7f72f992a222d93cd96a8a60",
+    "apps/mobile/managed/files.ts": "6f7dccaa5fe783664ae3bc38223f39bba1ca95f19a722eb5b03219bcfd1f2dd0",
+    "apps/mobile/managed/main.ts": "506cb8900ef1ef03c89e182f5143f8b388449f326a8bbd695eb6fac3fb5a7085",
+    "apps/mobile/managed/manifest.json": "493c6a2c27d46effb63a04344b0a176fcb3df58219fe10685363d6969c4ead52",
+    "apps/mobile/managed/pages/index.vue": "a634d63cfec587de15d2ee442a7a7ab9658b9efb9adb865d4aee2a36c47351f2",
+    "apps/mobile/managed/pages.json": "c0cfc0638b691af7869dd563147b814deec2f551d1850b27ee61a6f346434a37",
+    "apps/mobile/vite.managed.config.ts": "a30a5b6c081cd1b6e101060da987f3b3e583c27f998af134d81470a5e2641e79",
+    "scripts/ops/managed-client-build.mjs": "adb86beda68774f270f1b7f2e3b52d440b08666ab5bf0124bbb820dcd2568513"
+  },
+  "files": {
+    "app-config-service.js": "1320aa8739aaf7200dc45506b450ee9a9912f472455a350feab00239498c70b4",
+    "app-config.js": "0df9a681956d3517ba546fb467fb16450db50fbe22a87f318e12789161f3b78f",
+    "app-service.js": "a23dc52d32be6c8abf9b6f62201f50d60cbcdc4538c1804d43d450b5aae902c3",
+    "app.css": "ae652adb74488c98a00ed18c82f09c40ebd99a4ed5930f82e1ea9a15ce96a3d1",
+    "manifest.json": "ac6a8270ab604cce81d5080073e2beb4f4816d4c50a3bb9dee4c16da2b94f11f",
+    "pages/index.css": "be7c5dba6592cc2846f7bf228a21e4c508cffabf0bf1a67b71ad21d69196b0fc",
+    "uni-app-view.umd.js": "6ea5df5bab5fba09f4335b70f3dfac29746d092e54ce529075c012259c4f0abb",
+    "__uniappautomator.js": "89f2f105bc96bc2c1db1c73a98bb5cdba5b4c387f698a92fd8ebe9613ccdefc8",
+    "__uniappchooselocation.js": "1fe3f6de4940638148eced7cd011f6a66cc51ce004168418a83d6013702dcf88",
+    "__uniapperror.png": "7f8be3263ad01b19844b6a5e6609ac81e2c3c1370c4abd6b7c6083645a038e19",
+    "__uniappopenlocation.js": "ab1d65abbb467814a21b060446873a05c3488a4d3a3aa4c3c7db81f6f004d849",
+    "__uniapppicker.js": "0225bf57d33dd83703ef357c998be1e4d29b9cb210bfc15b09aea227939afc27",
+    "__uniappquill.js": "b2b5a0dad8c86305b22721b61817ad46a03cdb4f3cc1f1b57d4dbac12b3461cd",
+    "__uniappquillhighlight.js": "0d94ca02f4c7cd2187c18cb435d66ccf69c859f6084a6c5a1c54b6f9f7b35777",
+    "__uniappquillimageresize.js": "0ced3f913300f4c8177e1953dbf78c740d29b6bfb6ef2094ae1d881855d84ebf",
+    "__uniappscan.js": "68ecdd7a6289f286f84f864047096d427ec844c0edb7738a6ea4934bd20104f9",
+    "__uniappsuccess.png": "fbb49724e75bed2bf0ecbf45f01dbd093ee80bcff204826de3861fe52a727092",
+    "__uniappview.html": "8eca0c42adc22eebad3dcffb01bce0b92ad08ffbb0267577b32647fb9b205178"
+  },
+  "production": false,
+  "limits": [
+    "共享客户源码的渠道资源编译，不代表真实登记、证书签名、真机安装或商店上架",
+    "本构建不包含平台登录、支付、埋点、热更新或供应商SDK",
+    "本地候选使用合成AppID；正式配置仍须已有登记证据和发布授权"
+  ]
+}

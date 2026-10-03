@@ -1,5 +1,12 @@
 // 商家端后端端点端到端验证（只读+一次发货写）。运行：node scripts/verify-merchant.mjs
 const BASE = 'http://localhost:3000/api/v1'
+const PHONE = '13912340099'
+const PASSWORD = process.env.TEST_ACCOUNT_PASSWORD
+
+if (!PASSWORD) {
+  console.error('缺少 TEST_ACCOUNT_PASSWORD，拒绝使用仓库内固定口令执行验证')
+  process.exit(2)
+}
 
 async function call(method, path, token, body) {
   const res = await fetch(`${BASE}${path}`, {
@@ -21,7 +28,7 @@ function brief(v) {
 
 const main = async () => {
   // 登录
-  const login = await call('POST', '/auth/login/phone', null, { phone: '13912340099', password: 'Test1234' })
+  const login = await call('POST', '/auth/login/phone', null, { phone: PHONE, password: PASSWORD })
   const token = login.body?.data?.accessToken || login.body?.data?.token
   console.log('login:', login.status, 'token?', !!token)
   if (!token) { console.log(JSON.stringify(login.body)); process.exit(1) }

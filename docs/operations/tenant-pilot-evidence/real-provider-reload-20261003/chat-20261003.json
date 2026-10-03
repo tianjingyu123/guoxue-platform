@@ -1,0 +1,56 @@
+{
+  "head": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-lease-chat.ts": "4e47ba11ab835f4f81cd669311ae8461cad3822ebfed87d9ed94271c4f703711",
+    "apps/server/src/modules/managed-tenancy/managed-chat-provider.ts": "d0fd78bc59295d19937d09bedaf2f220e8b70fde0143e0aeae31df15168f5d9f",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "a9e710554d6613ecf5b3308d654290bd20214c8540d0506f32e8cc510b7403a3",
+    "apps/server/src/modules/managed-tenancy/managed-lease.module.ts": "cacb3b367e6c8d087a3e16519ca733e504ff970c462597ca5b45af2eac86d0c4",
+    "apps/server/src/modules/ai-gateway/adapters/qwen.adapter.ts": "ccd96ccdad5cc26cce9f39a573ff4f1aecbc6256d333f372f521a0c572cff3c6",
+    "pilots/managed-tenancy/verify-chat-postgres.mjs": "2a6307cfdb9b12aa7a307fa07db68ee33ebc47a6168914a7ce9f107136ecf758",
+    "pilots/managed-tenancy/lease-process.mjs": "d778948f660cd3e0390b77158d133c5e3f22b014d2781f582a623e90275b249d",
+    "pilots/managed-tenancy/postgres-harness.mjs": "096b032599e3fc523ca45a1768665665bfad6e6c6e4e40c2f94504b643abcbba"
+  },
+  "checks": [
+    {
+      "name": "会话绑定客户、应用和用户，圈子角色只有有效成员能调用；客户端不能注入模型、URL或消息角色，跨用户/应用/客户历史拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "四次跨进程同键请求仅调用一次合成HTTP供应商、保存一次消息；完成重放不再调用，历史顺序固定，提示词只含本圈有效资料",
+      "status": "PASS"
+    },
+    {
+      "name": "上游已收到但返回失败时保留结果未知；跨进程重放只读已有记录，换键也不能盲目重发未确认会话",
+      "status": "PASS"
+    },
+    {
+      "name": "实际供应商等待期间撤销圈子成员，完成时拒绝下发与保存助手正文，状态ABORTED，知识检索即时拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "真实杀停本任务一个调用进程后，另一进程读取持久请求并标记未知，不重新调用供应商；仅在合成库推进等待时间避免空等",
+      "status": "PASS"
+    },
+    {
+      "name": "未配置本客户核验与调用授权的实例保持503，没有保存伪助手答案或发送供应商请求",
+      "status": "PASS"
+    },
+    {
+      "name": "合同到期仍保留本人已有会话记录，新模型调用禁止；未继承全局角色或知识",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 8,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "仅本机合成HTTP供应商、三个Nest进程和真实PostgreSQL；未完成真实模型账号鉴权、计费或答案质量验收",
+    "未知请求禁止自动重试；无供应商结果查询权限时只能保留未知并由维护人员处理，不承诺自动对账",
+    "知识范围为本圈有效文本，未验证pgvector、COS媒体、真实语音或完整RAG质量"
+  ]
+}

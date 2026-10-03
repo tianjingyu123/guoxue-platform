@@ -51,6 +51,10 @@ export interface AiChatOptions {
   topP?: number;
   /** 请求超时时间(ms)，超时后适配器抛出 AiTimeoutError */
   timeout?: number;
+  /** 古籍等完整性敏感场景须确认模型正常结束，截断不得计为成功。 */
+  requireCompleteStream?: boolean;
+  /** 调用方退出流式会话时取消上游请求；不得用于自动重试。 */
+  signal?: AbortSignal;
 }
 
 export interface AiChatResponse {
@@ -62,6 +66,8 @@ export interface AiChatResponse {
     totalTokens: number;
   };
   finishReason?: string;
+  /** 已完整解析的供应商响应编号；不得用本地重试键代替。 */
+  requestId?: string;
 }
 
 /** 超时专用错误，网关捕获后触发 fallback */

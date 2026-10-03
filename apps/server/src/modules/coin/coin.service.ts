@@ -9,15 +9,37 @@ import { CommissionService } from "../commission/commission.service";
 import { SystemService } from "../system/system.service";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { randomUUID } from "crypto";
+import { ImService } from "../im/im.service";
 
-/** 默认充值档位（ConfigSystem 未配置时的兜底） */
+/** 默认充值档位（ConfigSystem 未配置时的兜底）——董事长拍板 2026-07-10：100元/200元/500元 三档 + 自定义 */
 const DEFAULT_RECHARGE_TIERS = [
-  { amountRmb: 6, amountCoin: 60, bonus: 0 },
-  { amountRmb: 18, amountCoin: 180, bonus: 0 },
-  { amountRmb: 68, amountCoin: 680, bonus: 0 },
-  { amountRmb: 198, amountCoin: 1980, bonus: 0 },
-  { amountRmb: 648, amountCoin: 6480, bonus: 0 },
+  { amountRmb: 100, amountCoin: 1000, bonus: 0 },
+  { amountRmb: 200, amountCoin: 2000, bonus: 0 },
+  { amountRmb: 500, amountCoin: 5000, bonus: 0 },
 ];
+
+const LIVE_GIFT_SINGLE_MAX_COIN = 10_000;
+const LIVE_GIFT_DAILY_MAX_COIN = 30_000;
+
+function chinaDayRange(now = new Date()) {
+  const chinaNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const start = new Date(Date.UTC(
+    chinaNow.getUTCFullYear(),
+    chinaNow.getUTCMonth(),
+    chinaNow.getUTCDate(),
+  ) - 8 * 60 * 60 * 1000);
+  return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000) };
+}
+
+function ageAt(birthday: Date, now = new Date()) {
+  let age = now.getUTCFullYear() - birthday.getUTCFullYear();
+  const beforeBirthday = now.getUTCMonth() < birthday.getUTCMonth()
+    || (now.getUTCMonth() === birthday.getUTCMonth() && now.getUTCDate() < birthday.getUTCDate());
+  if (beforeBirthday) age -= 1;
+  return age;
+}
 
 @Injectable()
 export class CoinService {
@@ -29,6 +51,7 @@ export class CoinService {
     @Optional() private commission?: CommissionService,
     @Optional() private systemService?: SystemService,
     @Optional() private fundApproval?: FundApprovalService,
+    @Optional() private im?: ImService,
   ) {}
 
   /**
@@ -67,12 +90,137 @@ export class CoinService {
   }
 
   /** 获取或创建虚拟币账户 */
-  async getOrCreateAccount(userId: string) {
+  async getOrCreateAccount(userId: string, prismaTx?: Prisma.TransactionClient) {
+    // 外层资金事务中的开户也必须参与回滚，不能通过根客户端提前提交。
+    if (prismaTx) {
+      return prismaTx.virtualCoinAccount.upsert({
+        where: { userId },
+        create: { userId },
+        update: {},
+      });
+    }
     let account = await this.prisma.virtualCoinAccount.findUnique({ where: { userId } });
     if (!account) {
       account = await this.prisma.virtualCoinAccount.create({ data: { userId } });
     }
     return account;
+  }
+
+  /** 查询当前用户的直播送礼消费保护状态，不返回身份证明或出生日期原文。 */
+  async getLiveGiftSpendingPreference(userId: string) {
+    const { start, end } = chinaDayRange();
+    const [user, preference, spent] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { identityVerified: true, birthday: true },
+      }),
+      this.prisma.liveGiftSpendingPreference.findUnique({ where: { userId } }),
+      this.prisma.giftRecord.aggregate({
+        where: { userId, createdAt: { gte: start, lt: end } },
+        _sum: { totalCoin: true },
+      }),
+    ]);
+    if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+
+    const identityVerified = Boolean(user.identityVerified);
+    const ageVerified = Boolean(user.birthday) && ageAt(user.birthday as Date) >= 18;
+    const reason = !identityVerified
+      ? "IDENTITY_REQUIRED"
+      : !user.birthday
+        ? "AGE_REQUIRED"
+        : !ageVerified
+          ? "MINOR_NOT_ALLOWED"
+          : null;
+
+    return {
+      configured: Boolean(preference),
+      eligible: identityVerified && ageVerified,
+      ineligibleReason: reason,
+      singleLimitCoin: preference?.singleLimitCoin ?? null,
+      dailyLimitCoin: preference?.dailyLimitCoin ?? null,
+      reminderEnabled: preference?.reminderEnabled ?? true,
+      spentTodayCoin: Number(spent._sum.totalCoin || 0),
+      platformSingleMaxCoin: LIVE_GIFT_SINGLE_MAX_COIN,
+      platformDailyMaxCoin: LIVE_GIFT_DAILY_MAX_COIN,
+    };
+  }
+
+  /** 用户主动设置送礼限额；提醒默认开启但允许用户后续调整。 */
+  async updateLiveGiftSpendingPreference(
+    userId: string,
+    input: { singleLimitCoin: number; dailyLimitCoin: number; reminderEnabled?: boolean },
+  ) {
+    const singleLimitCoin = Number(input.singleLimitCoin);
+    const dailyLimitCoin = Number(input.dailyLimitCoin);
+    if (!Number.isInteger(singleLimitCoin) || singleLimitCoin < 1 || singleLimitCoin > LIVE_GIFT_SINGLE_MAX_COIN) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `单次限额须为 1-${LIVE_GIFT_SINGLE_MAX_COIN} 国学币`);
+    }
+    if (!Number.isInteger(dailyLimitCoin) || dailyLimitCoin < singleLimitCoin || dailyLimitCoin > LIVE_GIFT_DAILY_MAX_COIN) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `日累计限额须不低于单次限额且不超过 ${LIVE_GIFT_DAILY_MAX_COIN} 国学币`,
+      );
+    }
+
+    await this.prisma.liveGiftSpendingPreference.upsert({
+      where: { userId },
+      create: {
+        userId,
+        singleLimitCoin,
+        dailyLimitCoin,
+        reminderEnabled: input.reminderEnabled ?? true,
+      },
+      update: {
+        singleLimitCoin,
+        dailyLimitCoin,
+        reminderEnabled: input.reminderEnabled ?? true,
+      },
+    });
+    return this.getLiveGiftSpendingPreference(userId);
+  }
+
+  /**
+   * 在扣币事务内执行年龄、实名与限额校验。
+   * 锁定用户偏好行，使同一用户的并发送礼请求依次核对当日最终消费，防止绕过日限额。
+   */
+  async assertLiveGiftSpendAllowed(
+    userId: string,
+    amountCoin: number,
+    db: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    await db.$executeRawUnsafe(
+      'SELECT 1 FROM "LiveGiftSpendingPreference" WHERE "userId" = $1 FOR UPDATE',
+      userId,
+    );
+    const { start, end } = chinaDayRange();
+    const [user, preference, spent] = await Promise.all([
+      db.user.findUnique({
+        where: { id: userId },
+        select: { identityVerified: true, birthday: true },
+      }),
+      db.liveGiftSpendingPreference.findUnique({ where: { userId } }),
+      db.giftRecord.aggregate({
+        where: { userId, createdAt: { gte: start, lt: end } },
+        _sum: { totalCoin: true },
+      }),
+    ]);
+    if (!user?.identityVerified || !user.birthday) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "完成实名认证与年龄核验后才能赠送礼物");
+    }
+    if (ageAt(user.birthday) < 18) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "未成年人禁止直播打赏");
+    }
+    if (!preference) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请先设置直播送礼的单次与日累计限额");
+    }
+    if (amountCoin > preference.singleLimitCoin) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `本次金额超过你设置的 ${preference.singleLimitCoin} 国学币单次限额`);
+    }
+    const spentTodayCoin = Number(spent._sum.totalCoin || 0);
+    if (spentTodayCoin + amountCoin > preference.dailyLimitCoin) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "本次送礼将超过你设置的日累计限额");
+    }
+    return { spentTodayCoin, reminderEnabled: preference.reminderEnabled };
   }
 
   /** 获取账户余额 */
@@ -82,15 +230,16 @@ export class CoinService {
   }
 
   /** 充值（管理员手动充值 或 支付回调触发） */
-  async recharge(userId: string, dto: { amountCoin: number; payMethod?: string; orderNo?: string; description?: string }) {
+  async recharge(userId: string, dto: { amountCoin: number; amountRmb?: number; payMethod?: string; orderNo?: string; description?: string }, prismaTx?: Prisma.TransactionClient) {
     if (dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "充值币数必须大于0");
 
-    await this.getOrCreateAccount(userId);
+    await this.getOrCreateAccount(userId, prismaTx);
 
-    const coinRate = await this.getCoinRate();
+    // 微信回调已携带下单时的实付金额快照，不应再依赖可能已变化或暂时不可用的实时汇率。
+    const coinRate = dto.amountRmb === undefined ? await this.getCoinRate() : null;
 
     // 交互式事务：余额用 atomic increment，避免读-写竞态
-    const [updatedAccount, recharge, transaction] = await this.prisma.$transaction(async (tx) => {
+    const run = async (tx: Prisma.TransactionClient) => {
       const acc = await tx.virtualCoinAccount.update({
         where: { userId },
         data: {
@@ -101,7 +250,7 @@ export class CoinService {
       const rec = await tx.virtualCoinRecharge.create({
         data: {
           userId,
-          amountRmb: dto.amountCoin / coinRate,
+          amountRmb: dto.amountRmb ?? dto.amountCoin / (coinRate as number),
           amountCoin: dto.amountCoin,
           payMethod: dto.payMethod || "ADMIN",
           orderNo: dto.orderNo || `ADMIN_${Date.now()}`,
@@ -119,8 +268,9 @@ export class CoinService {
           description: dto.description || "充值",
         },
       });
-      return [acc, rec, txn];
-    });
+      return [acc, rec, txn] as const;
+    };
+    const [updatedAccount, recharge, transaction] = prismaTx ? await run(prismaTx) : await this.prisma.$transaction(run);
 
     return { account: updatedAccount, recharge, transaction };
   }
@@ -133,10 +283,11 @@ export class CoinService {
     userId: string,
     dto: { amountCoin: number; scene: string; refId?: string; description?: string },
     prismaTx?: Prisma.TransactionClient,
+    transactionId?: string,
   ) {
     if (dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "消费币数必须大于0");
 
-    await this.getOrCreateAccount(userId);
+    await this.getOrCreateAccount(userId, prismaTx);
 
     const run = async (tx: Prisma.TransactionClient) => {
       const result = await tx.virtualCoinAccount.updateMany({
@@ -151,6 +302,7 @@ export class CoinService {
       const acc = await tx.virtualCoinAccount.findUnique({ where: { userId } });
       const txn = await tx.virtualCoinTransaction.create({
         data: {
+          ...(transactionId ? { id: transactionId } : {}),
           userId,
           type: "SPEND",
           amountCoin: -dto.amountCoin,
@@ -168,6 +320,43 @@ export class CoinService {
   }
 
   /**
+   * 收入入账（打赏分成等业务收入直接进金币余额，可用于全平台虚拟币消费）。
+   * 董事长拍板 2026-07-10：打赏金币与平台虚拟币消费产品通用。
+   * 调用方可传入 prismaTx 以合并到外层事务（如送礼：扣赠礼者币 + 主播入账原子化）。
+   */
+  async income(
+    userId: string,
+    dto: { amountCoin: number; scene: string; refId?: string; description?: string },
+    prismaTx?: Prisma.TransactionClient,
+  ) {
+    if (dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "收入币数必须大于0");
+
+    await this.getOrCreateAccount(userId);
+
+    const run = async (tx: Prisma.TransactionClient) => {
+      const acc = await tx.virtualCoinAccount.update({
+        where: { userId },
+        data: { balance: { increment: dto.amountCoin } },
+      });
+      const txn = await tx.virtualCoinTransaction.create({
+        data: {
+          userId,
+          type: "INCOME",
+          amountCoin: dto.amountCoin,
+          balanceAfter: acc.balance,
+          scene: dto.scene as Prisma.VirtualCoinTransactionCreateInput["scene"],
+          refId: dto.refId,
+          description: dto.description,
+        },
+      });
+      return { account: acc, transaction: txn };
+    };
+
+    if (prismaTx) return run(prismaTx);
+    return this.prisma.$transaction(run);
+  }
+
+  /**
    * 退款（平台赠送等，交互式事务 + 原子增量）。
    * 调用方可传入 prismaTx 以合并到外层事务。
    */
@@ -176,10 +365,11 @@ export class CoinService {
     amountCoin: number,
     description: string,
     prismaTx?: Prisma.TransactionClient,
+    refId?: string,
   ) {
     if (amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "退款币数必须大于0");
 
-    await this.getOrCreateAccount(userId);
+    await this.getOrCreateAccount(userId, prismaTx);
 
     const run = async (tx: Prisma.TransactionClient) => {
       const acc = await tx.virtualCoinAccount.update({
@@ -193,6 +383,7 @@ export class CoinService {
           amountCoin,
           balanceAfter: acc.balance,
           scene: "REFUND",
+          ...(refId ? { refId } : {}),
           description,
         },
       });
@@ -276,6 +467,25 @@ export class CoinService {
     return DEFAULT_RECHARGE_TIERS;
   }
 
+  /**
+   * 按「基础充值币数」解析对应档位的赠币。
+   * 🔴 赠币是营销（充得多送得多），只加币、绝不加价 —— 实付永远按基础币数收，
+   *    赠币由服务端按档位权威计算，绝不能相信前端把 (基础+赠) 当作要付款的币数传上来
+   *    （那会让用户为赠币多付钱）。基础币数精确匹配某档位才送；自定义金额不匹配→不送。
+   */
+  private async resolveRechargeBonus(baseCoin: number): Promise<number> {
+    try {
+      const tiers = await this.getRechargeTiers();
+      const tier = (tiers as Array<{ amountCoin?: number; bonus?: number }>).find(
+        (t) => Number(t.amountCoin) === baseCoin,
+      );
+      const bonus = tier ? Number(tier.bonus ?? 0) : 0;
+      return bonus > 0 ? bonus : 0;
+    } catch {
+      return 0; // 档位不可用时不影响到账，只是不送赠币
+    }
+  }
+
   /** 获取当前汇率（国学币:人民币），优先从 ConfigSystem 读取 */
   async getCoinRate(): Promise<number> {
     if (this.systemService) {
@@ -339,35 +549,94 @@ export class CoinService {
   }
 
   /** 打赏（扣币与记录在同一事务，防丢币） */
-  async sendGift(userId: string, liveRoomId: string, toUserId: string, giftId: string, quantity = 1) {
+  async sendGift(
+    userId: string,
+    liveRoomId: string,
+    toUserId: string,
+    giftId: string,
+    quantity: number,
+    idempotencyKey?: string,
+  ) {
+    // 旧客户端没有幂等键时只保证兼容可用；新版客户端的显式键才具备跨重试幂等语义。
+    const normalizedKey = String(
+      idempotencyKey || `legacy-coin-gift:${userId}:${liveRoomId}:${randomUUID()}`,
+    ).trim();
+    if (normalizedKey.length < 16 || normalizedKey.length > 128) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "送礼幂等键格式错误");
+    }
+    const existing = await this.prisma.giftRecord.findUnique({ where: { idempotencyKey: normalizedKey } });
+    if (existing) {
+      if (
+        existing.userId !== userId || existing.liveRoomId !== liveRoomId ||
+        existing.toUserId !== toUserId || existing.giftId !== giftId || existing.quantity !== quantity
+      ) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "送礼幂等键已被其他请求使用");
+      }
+      return existing;
+    }
+
     const gift = await this.prisma.gift.findUnique({ where: { id: giftId } });
     if (!gift) throw new BusinessException(ErrorCode.NOT_FOUND, "礼物不存在");
 
     const totalCoin = gift.priceCoin * quantity;
 
     // 扣币与打赏记录在同一事务
-    const record = await this.prisma.$transaction(async (tx) => {
-      await this.spend(userId, {
-        amountCoin: totalCoin,
-        scene: "LIVE_GIFT",
-        refId: liveRoomId,
-        description: `赠送 ${gift.name} x${quantity}`,
-      }, tx);
+    let created = false;
+    let record;
+    try {
+      record = await this.prisma.$transaction(async (tx) => {
+        await this.assertLiveGiftSpendAllowed(userId, totalCoin, tx);
+        await this.spend(userId, {
+          amountCoin: totalCoin,
+          scene: "LIVE_GIFT",
+          refId: normalizedKey,
+          description: `赠送 ${gift.name} x${quantity}`,
+        }, tx);
 
-      return tx.giftRecord.create({
-        data: { userId, liveRoomId, toUserId, giftId, quantity, totalCoin },
+        return tx.giftRecord.create({
+          data: { idempotencyKey: normalizedKey, userId, liveRoomId, toUserId, giftId, quantity, totalCoin },
+        });
       });
-    });
+      created = true;
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+      const concurrent = await this.prisma.giftRecord.findUnique({ where: { idempotencyKey: normalizedKey } });
+      if (!concurrent) throw error;
+      if (
+        concurrent.userId !== userId || concurrent.liveRoomId !== liveRoomId ||
+        concurrent.toUserId !== toUserId || concurrent.giftId !== giftId || concurrent.quantity !== quantity
+      ) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "送礼幂等键已被其他请求使用");
+      }
+      record = concurrent;
+    }
 
     // 平台抽成 + 圈主收益（fire-and-forget）
     // 换算：CircleRevenue 以「元」为口径（circle_join 传的是 priceYuan），礼物按币值除以币率转元。
     // 曾误用乘法致收益放大 coinRate(=10) 倍，污染圈主分成账目与研究院「创收」准入门槛，已修。
-    if (this.commission) {
+    if (created && this.commission) {
       const coinRate = await this.getCoinRate();
       const giftAmountYuan = coinRate > 0 ? (gift.priceCoin * quantity) / coinRate : 0;
       this.recordGiftCommission(liveRoomId, record.id, giftAmountYuan).catch(
         (err) => this.logger.warn("礼物抽成记录失败", err),
       );
+    }
+
+    if (created && this.im && liveRoomId !== "admin") {
+      void this.prisma.liveRoom.findUnique({
+        where: { id: liveRoomId },
+        select: { imGroupId: true },
+      }).then((room) => {
+        if (!room?.imGroupId) return;
+        return this.im?.relayLiveGift(room.imGroupId, {
+          recordId: record.id,
+          giftId: gift.id,
+          giftName: gift.name,
+          quantity,
+        }, userId);
+      }).catch((error) => {
+        this.logger.warn(`直播礼物 IM 实时中继失败 room=${liveRoomId}`, error);
+      });
     }
 
     return record;
@@ -407,32 +676,42 @@ export class CoinService {
   // 充值支付由商城模块统一处理，支付回调通过 ShopService.handlePaymentNotify → CoinService.handleRechargeCallback
 
   /** 处理充值支付回调（由支付通知中心调用） */
-  async handleRechargeCallback(body: Record<string, unknown>) {
-    if (body.trade_state !== "SUCCESS") return;
+  async handleRechargeCallback(body: Record<string, unknown>): Promise<boolean> {
+    if (body.trade_state !== "SUCCESS") return true;
 
     let attach: Record<string, unknown> = {};
     try {
       attach = typeof body.attach === "string" ? JSON.parse(body.attach) : (body.attach as Record<string, unknown>) || {};
-    } catch (err) { this.logger.warn("解析充值回调attach失败", err); }
-
-    if (attach.type !== "COIN_RECHARGE") return;
-
-    const userId = attach.userId as string;
-    const amountCoin = attach.amountCoin as number;
-
-    if (!userId || !amountCoin) {
-      this.logger.error("充值回调参数缺失", attach);
-      return;
+    } catch (err) {
+      this.logger.warn("解析充值回调attach失败", err);
+      return false;
     }
 
+    if (attach.type !== "COIN_RECHARGE") return false;
+
+    const userId = attach.userId as string;
+    // 🔴 attach.amountCoin 是用户实付对应的「基础币数」，不含赠币。
+    //    赠币由服务端按档位算并只在到账时加，绝不参与实付金额核对（防「为赠币多付钱」）。
+    const baseCoin = Number(attach.amountCoin);
     const orderNo = body.out_trade_no as string;
+
+    if (
+      typeof userId !== "string" || !userId
+      || !Number.isInteger(baseCoin) || baseCoin <= 0 || baseCoin > 500_000
+      || typeof orderNo !== "string" || !/^RC[A-Za-z0-9_-]{8,40}$/.test(orderNo)
+    ) {
+      this.logger.error("充值回调参数缺失", attach);
+      return false;
+    }
+
     const lockKey = `recharge:lock:${orderNo}`;
 
     // 分布式锁防并发重复处理
     const locked = await this.redis.setNX(lockKey, "1", 30);
     if (!locked) {
       this.logger.warn(`充值回调重复处理被拦截: ${orderNo}`);
-      return;
+      // 不能向微信确认成功：持锁的首轮处理仍可能失败，必须让渠道稍后重投。
+      return false;
     }
 
     try {
@@ -440,33 +719,45 @@ export class CoinService {
       const existing = await this.prisma.virtualCoinRecharge.findUnique({
         where: { orderNo },
       });
-      if (existing?.status === "PAID") return;
+      if (existing?.status === "PAID") {
+        await this.redis.del(`recharge:intent:${orderNo}`);
+        return true;
+      }
 
-      const amountRmb = amountCoin / (await this.getCoinRate());
+      // 新单在下单时把应付「分」快照写进微信 attach，避免支付过程中后台改汇率导致已付款却拒绝入账。
+      // 兼容旧单：没有 amountFen 时仍按当前服务端汇率计算。
+      const attachFen = Number(attach.amountFen);
+      const expectedFen = Number.isInteger(attachFen) && attachFen > 0
+        ? attachFen
+        : Math.round((baseCoin / (await this.getCoinRate())) * 100);
+      const amountRmb = expectedFen / 100;
 
       // M2 金额比对：attach 是我方下单侧写入的期望值，入账前必须与微信实付金额(amount.total·分)核对
       const wxTotal = (body.amount as Record<string, unknown> | undefined)?.total;
-      if (typeof wxTotal === "number" && Math.abs(wxTotal / 100 - amountRmb) >= 0.01) {
+      if (!Number.isInteger(wxTotal) || wxTotal !== expectedFen) {
         this.logger.error(
-          `【资金对账·金额不符】充值回调实付金额与应付金额不一致，拒绝入账: orderNo=${orderNo}, userId=${userId}, 实付=${wxTotal / 100}, 应付=${amountRmb}`,
+          `【资金对账·金额不符】充值回调实付金额与应付金额不一致，拒绝入账: orderNo=${orderNo}, userId=${userId}, 实付分=${String(wxTotal)}, 应付=${amountRmb}`,
         );
-        return;
+        return false;
       }
 
+      // 新单使用下单时的赠币快照，避免支付过程中运营配置变化导致到账数量漂移；旧单按当前档位兼容。
+      const attachedBonus = Number(attach.bonusCoin);
+      const bonus = Number.isInteger(attachedBonus) && attachedBonus >= 0
+        ? attachedBonus
+        : await this.resolveRechargeBonus(baseCoin);
+      const creditCoin = baseCoin + bonus;
       await this.recharge(userId, {
-        amountCoin,
+        amountCoin: creditCoin,
+        amountRmb,
         payMethod: "WECHAT",
         orderNo,
-        description: `微信支付充值${amountCoin}币`,
+        description: bonus > 0 ? `微信支付充值${baseCoin}币+赠${bonus}币` : `微信支付充值${baseCoin}币`,
       });
 
-      // 更新充值金额
-      await this.prisma.virtualCoinRecharge.update({
-        where: { orderNo },
-        data: { amountRmb, status: "PAID", paidAt: new Date() },
-      });
-
-      this.logger.log(`用户 ${userId} 充值 ${amountCoin} 币成功, 微信订单: ${orderNo}`);
+      await this.redis.del(`recharge:intent:${orderNo}`);
+      this.logger.log(`用户 ${userId} 充值 ${creditCoin} 币成功（实付${amountRmb}元）, 微信订单: ${orderNo}`);
+      return true;
     } finally {
       await this.redis.del(lockKey);
     }

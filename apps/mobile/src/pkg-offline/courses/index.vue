@@ -68,8 +68,7 @@
         <view v-for="c in filteredCourses" :key="c.id" class="cl-card" @tap="goDetail(c.id)">
           <view class="cl-card-main">
             <view class="cl-cover">
-              <image lazy-load v-if="c.cover" :src="c.cover" class="cl-cover-img" mode="aspectFill" />
-              <app-icon v-else name="graduation-cap" :size="24" color="#d8b48a" />
+              <smart-cover :src="c.cover" :title="c.title" type="course" deco :deco-size="40" class="cl-cover-img" />
               <text v-if="num(c.price) === 0" class="cl-cover-free">免费</text>
             </view>
             <view class="cl-info">
@@ -78,8 +77,8 @@
                 <text class="cl-status" :style="{ color: courseStatusStyle[deriveCourseStatus(c)].color, background: courseStatusStyle[deriveCourseStatus(c)].bg }">{{ courseStatusLabel[deriveCourseStatus(c)] }}</text>
               </view>
               <view v-if="c.teacher" class="cl-teacher">
-                <image lazy-load v-if="c.teacher.avatar" :src="c.teacher.avatar" class="cl-avatar-img" mode="aspectFill" />
-                <view v-else class="cl-avatar"><text class="cl-avatar-text">{{ c.teacher.name[0] }}</text></view>
+                <image lazy-load v-if="realAvatar(c.teacher.avatar)" :src="realAvatar(c.teacher.avatar)" class="cl-avatar-img" mode="aspectFill" />
+                <view v-else class="cl-avatar"><text class="cl-avatar-text">{{ (c.teacher.name || '师')[0] }}</text></view>
                 <text class="cl-teacher-name">{{ c.teacher.name }}</text>
               </view>
               <view class="cl-meta">
@@ -94,7 +93,7 @@
               </view>
               <view class="cl-bottom">
                 <view class="cl-price-row">
-                  <text v-if="num(c.price) > 0" class="cl-price">¥{{ num(c.price) }}</text>
+                  <text v-if="num(c.price) > 0" class="cl-price">¥{{ formatPrice(c.price) }}</text>
                   <text v-else class="cl-price free">免费</text>
                 </view>
                 <view class="cl-people">
@@ -115,11 +114,20 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   offlineApi, deriveCourseStatus, courseStatusLabel, courseStatusStyle, fmtCourseTime, num,
   type OfflineCourse, type Station,
 } from '@/lib/offline-data'
+import { formatPrice } from '@/utils/format'
+
+// dicebear/avataaars 卡通外链头像不专业且 H5 常失败 → 过滤后走姓名首字兜底
+const JUNK_AVATAR_RE = /dicebear|avataaars/i
+function realAvatar(url?: string | null): string {
+  const s = (url || '').trim()
+  return s && !JUNK_AVATAR_RE.test(s) ? s : ''
+}
 
 const statusBarHeight = ref(0)
 try {

@@ -1,9 +1,11 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
+import { Observable } from "rxjs";
+import { Cron } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
-import { CozeService } from "./coze.service";
+import { CozeService, CozeStreamEvent } from "./coze.service";
 import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDto } from "./bot.dto";
 import { encrypt, decrypt } from "../../common/crypto.util";
 import { Cacheable } from "../../common/cache.decorator";
@@ -11,6 +13,44 @@ import { safePagination } from "../../common/pagination";
 import { RISK_DISCLAIMER } from "../../common/ai-disclaimer";
 import { RecommendationService } from "./recommendation.service";
 import { CoinService } from "../coin/coin.service";
+import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { AiMessage } from "../ai-gateway/adapters/base.adapter";
+import { randomUUID } from "crypto";
+import { withUserAnswerExperience } from "../dialogue/answer-experience";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
+
+/** 首发广场不陈列结果预测型智能体；历史会话仍可通过详情继续访问。 */
+const PUBLIC_HIDDEN_BOT_TYPES = [
+  "FORTUNE_TELLER",
+  "RELATIONSHIP",
+  "DIVINATION",
+  "LIFE_CHOICE",
+  "FORTUNE_CHECK",
+  "REPORT_FACTORY",
+  "GOODS_RECOMMENDER",
+] as const;
+
+type QuotaCharge = "free_bot" | "member" | "trial" | "paid";
+type QuotaUse = { charge: QuotaCharge; reservationId?: string };
+
+/**
+ * 平台智能体统一协作协议。
+ * 具体知识仍由各智能体自己的 systemPrompt 决定；这里仅统一角色体验、回答结构和跨专业分流边界。
+ */
+const PLATFORM_AGENT_PROTOCOL = `
+
+【平台智能体协作与呈现协议】
+1. 始终以当前角色的专业身份和情感气质回应：先接住用户的真实需要，再给专业内容，避免通用客服腔。
+2. 回答要便于平台转换成图文知识卡：优先使用“角色回应 / 关键要点 / 下一步”三个短段落；每段聚焦一件事，避免一次堆出长篇大论。
+3. 用户询问个人运势、吉凶、婚恋财运、未来结果、具体预测或要求直接算命时，不在对话中下结论。应委婉说明“排盘工具集合了专业算法和结构化盘面，能提供区别于通用问答的专业分析”，引导用户前往平台排盘工具。
+4. 若用户是在学习易经术数原理、古籍方法、术语或案例方法论，可以继续进行知识讲解；不得把知识学习误判为个人预测。
+5. 只回答本智能体擅长的专业。遇到跨专业问题，简要说明边界并推荐对应学伴：古籍句读助手、诗词鉴赏导师、典故溯源官、国风写作陪练、礼乐文化顾问、节气生活顾问、亲子蒙学陪伴、国学学习规划师、易经义理研习伴或象数思维教练。
+6. 不虚构平台内容、作者、出处、服务能力或价格；不使用“保证、必然、注定”等绝对表述。
+7. 完整回答用户问题后，要判断是否出现自然的下一步：入门或制定计划可衔接文章与课程，练习或坚持可衔接圈子，跨专业可衔接对应智能体，结构化查询可衔接工具；用户明确问“推荐、课程、加入、购买”时应主动给出，不要反复用客套话拖延。推荐理由必须紧扣刚才的目标，不能制造焦虑。
+8. 有合适下一步时，在回答末尾附加一段仅供系统解析、不会展示给用户的协议：
+<!--RECO:[{"type":"article|classic|video|live|agent|tool|course|circle|product","query":"平台检索关键词","reason":"为什么正好适合当前这一步"}]-->
+每次最多 2 条，优先“一条立即可做 + 一条持续推进”。商品只在用品、器材、礼物或明确购买场景出现；投诉、退款、举报、连接失败或用户明显不满时禁止推荐。没有真实相关性就不要输出协议。
+`;
 
 @Injectable()
 export class BotService {
@@ -20,6 +60,7 @@ export class BotService {
     private prisma: PrismaService,
     private coze: CozeService,
     private reco: RecommendationService,
+    private aiGateway: AiGatewayService,
     @Optional() private coin?: CoinService,
   ) {}
 
@@ -36,30 +77,98 @@ export class BotService {
   }
 
   /** 追问额度检查与消耗（chat 与 chat/stream 共用）；耗尽抛出购买/开通会员引导 */
-  async consumeQuota(botConfigId: string, userId: string): Promise<"free_bot" | "member" | "trial" | "paid"> {
+  async consumeQuota(botConfigId: string, userId: string): Promise<QuotaUse> {
     const bot = await this.getBotOrThrow(botConfigId);
-    if (!bot.pricePer10Coin || bot.pricePer10Coin <= 0) return "free_bot"; // 免费智能体（仍受既有 dailyLimit 约束）
-    if (await this.isActiveMember(userId)) return "member"; // 会员权益：全部智能体免费
+    if (!bot.pricePer10Coin || bot.pricePer10Coin <= 0) return { charge: "free_bot" };
+    if (await this.isActiveMember(userId)) return { charge: "member" };
 
-    const quota = await this.prisma.userBotQuota.upsert({
-      where: { userId_botConfigId: { userId, botConfigId } },
-      create: { userId, botConfigId },
-      update: {},
+    const freeUses = bot.freeUses ?? 0;
+    return this.prisma.$transaction(async (tx) => {
+      const quota = await tx.userBotQuota.upsert({
+        where: { userId_botConfigId: { userId, botConfigId } },
+        create: { userId, botConfigId },
+        update: {},
+      });
+      let charge: "trial" | "paid" | undefined;
+      if (freeUses > 0) {
+        const trial = await tx.userBotQuota.updateMany({
+          where: { id: quota.id, freeUsed: { lt: freeUses } },
+          data: { freeUsed: { increment: 1 } },
+        });
+        if (trial.count > 0) charge = "trial";
+      }
+      if (!charge) {
+        const consumed = await tx.userBotQuota.updateMany({
+          where: { id: quota.id, paidRemaining: { gt: 0 } },
+          data: { paidRemaining: { decrement: 1 } },
+        });
+        if (consumed.count > 0) charge = "paid";
+      }
+      if (!charge) throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `免费追问次数已用完：可购买追问包（${bot.pricePer10Coin}币/10次），或开通会员畅享全部智能体`,
+      );
+      const reservation = await tx.botQuotaReservation.create({
+        data: { userId, botConfigId, charge },
+        select: { id: true },
+      });
+      return { charge, reservationId: reservation.id };
     });
-    if (quota.freeUsed < (bot.freeUses ?? 0)) {
-      await this.prisma.userBotQuota.update({ where: { id: quota.id }, data: { freeUsed: { increment: 1 } } });
-      return "trial";
+  }
+
+  /** 只有 RESERVED 能释放；状态变更与退额在同一事务，重复/跨进程调用不会双退。 */
+  async releaseFailedQuota(botConfigId: string, userId: string, use: QuotaUse) {
+    if (!use.reservationId) return;
+    if (use.charge !== "trial" && use.charge !== "paid") throw new Error("智能体预留类型无效");
+    await this.prisma.$transaction(async (tx) => {
+      const released = await tx.botQuotaReservation.updateMany({
+        where: { id: use.reservationId, userId, botConfigId, charge: use.charge, status: "RESERVED" },
+        data: { status: "RELEASED", settledAt: new Date() },
+      });
+      if (released.count === 0) return;
+      const quota = await tx.userBotQuota.updateMany({
+        where: { userId, botConfigId, ...(use.charge === "trial" ? { freeUsed: { gt: 0 } } : {}) },
+        data: use.charge === "trial"
+          ? { freeUsed: { decrement: 1 } }
+          : { paidRemaining: { increment: 1 } },
+      });
+      if (quota.count !== 1) throw new Error("智能体额度账户缺失，回滚本次释放");
+    });
+  }
+
+  /** 回答已经外发后确认消费；数据库暂不可用则保留预留，超时按用户优先原则返还。 */
+  async markDeliveredQuota(use: QuotaUse) {
+    if (!use.reservationId) return;
+    await this.prisma.botQuotaReservation.updateMany({
+      where: { id: use.reservationId, status: "RESERVED" },
+      data: { status: "DELIVERED", settledAt: new Date() },
+    });
+  }
+
+  async releaseFailedQuotaSafely(botConfigId: string, userId: string, use: QuotaUse) {
+    try {
+      await this.releaseFailedQuota(botConfigId, userId, use);
+    } catch (err) {
+      this.logger.error(`智能体失败额度归还异常 [${botConfigId}]: ${(err as Error).message}`);
     }
-    // 原子条件扣减，防并发透支
-    const consumed = await this.prisma.userBotQuota.updateMany({
-      where: { id: quota.id, paidRemaining: { gt: 0 } },
-      data: { paidRemaining: { decrement: 1 } },
+  }
+
+  /** 双节点可同时运行：条件更新锁定单条预留，未外发成功的超时请求只退一次。 */
+  @Cron("0 */5 * * * *")
+  async sweepStaleQuotaReservations() {
+    const stale = await this.prisma.botQuotaReservation.findMany({
+      where: { status: "RESERVED", createdAt: { lt: new Date(Date.now() - 30 * 60 * 1000) } },
+      select: { id: true, userId: true, botConfigId: true, charge: true },
+      take: 100,
+      orderBy: { createdAt: "asc" },
     });
-    if (consumed.count > 0) return "paid";
-    throw new BusinessException(
-      ErrorCode.BAD_REQUEST,
-      `免费追问次数已用完：可购买追问包（${bot.pricePer10Coin}币/10次），或开通会员畅享全部智能体`,
-    );
+    for (const row of stale) {
+      if (row.charge !== "trial" && row.charge !== "paid") {
+        this.logger.error(`智能体预留类型无效 [${row.id}]`);
+        continue;
+      }
+      await this.releaseFailedQuotaSafely(row.botConfigId, row.userId, { charge: row.charge, reservationId: row.id });
+    }
   }
 
   /** 我的追问额度（对话页展示余量与定价） */
@@ -79,32 +188,52 @@ export class BotService {
   }
 
   /** 购买追问包（10 次/包·扣国学币，CoinService 原子扣减余额不足自抛） */
-  async purchaseUses(botConfigId: string, userId: string) {
+  async purchaseUses(botConfigId: string, userId: string, requestId?: string) {
+    // 旧客户端未传请求号时兼容购买；新版客户端持久保存请求号，超时重试沿用同一号。
+    const normalizedKey = requestId === undefined ? randomUUID() : String(requestId).trim();
+    if (normalizedKey.length < 16 || normalizedKey.length > 128 || !/^[\w.:-]+$/.test(normalizedKey)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "追问包请求号格式错误");
+    }
+    const key = { userId, botConfigId, requestId: normalizedKey };
+    const existing = await this.prisma.botQuotaPurchase.findUnique({
+      where: { userId_botConfigId_requestId: key },
+    });
+    if (existing) return { purchased: existing.purchased, paidRemaining: existing.paidRemainingAfter };
     const bot = await this.getBotOrThrow(botConfigId);
     if (!bot.pricePer10Coin || bot.pricePer10Coin <= 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该智能体免费使用，无需购买");
     }
     if (!this.coin) throw new BusinessException(ErrorCode.BAD_REQUEST, "计费服务不可用");
     // 扣币与配额发放原子化（同一事务）：扣币成功后崩溃则回滚，杜绝「钱扣包未到」
-    const quota = await this.prisma.$transaction(async (tx) => {
-      await this.coin!.spend(
-        userId,
-        {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 唯一键先占位；同号并发在此等待首笔事务结果，不会重复扣币。
+        const purchase = await tx.botQuotaPurchase.create({
+          data: { ...key, amountCoin: bot.pricePer10Coin!, paidRemainingAfter: 0 },
+        });
+        await this.coin!.spend(userId, {
           // scene 必须是 CoinScene 枚举合法值（曾误写 BOT_USES 致真实落库被 DB 拒绝、购包 500）
-          amountCoin: bot.pricePer10Coin!,
-          scene: "BOT_CALL",
-          refId: botConfigId,
+          amountCoin: bot.pricePer10Coin!, scene: "BOT_CALL", refId: purchase.id,
           description: `购买「${bot.name}」追问包(10次)`,
-        },
-        tx,
-      );
-      return tx.userBotQuota.upsert({
-        where: { userId_botConfigId: { userId, botConfigId } },
-        create: { userId, botConfigId, paidRemaining: 10 },
-        update: { paidRemaining: { increment: 10 } },
+        }, tx);
+        const quota = await tx.userBotQuota.upsert({
+          where: { userId_botConfigId: { userId, botConfigId } },
+          create: { userId, botConfigId, paidRemaining: 10 },
+          update: { paidRemaining: { increment: 10 } },
+        });
+        await tx.botQuotaPurchase.update({
+          where: { id: purchase.id }, data: { paidRemainingAfter: quota.paidRemaining },
+        });
+        return { purchased: 10, paidRemaining: quota.paidRemaining };
       });
-    });
-    return { purchased: 10, paidRemaining: quota.paidRemaining };
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+      const concurrent = await this.prisma.botQuotaPurchase.findUnique({
+        where: { userId_botConfigId_requestId: key },
+      });
+      if (!concurrent) throw error;
+      return { purchased: concurrent.purchased, paidRemaining: concurrent.paidRemainingAfter };
+    }
   }
 
   // ───────── Bot配置 CRUD ─────────
@@ -131,8 +260,12 @@ export class BotService {
   async update(id: string, dto: UpdateBotDto) {
     const existing = await this.prisma.botConfig.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体配置不存在");
-    const data: Prisma.BotConfigUpdateInput = { ...dto };
-    if (dto.apiKey) data.apiKey = encrypt(dto.apiKey);
+    // apiKey/botId 传空串或缺省 = 保留原值（改价格/排序等无需重输令牌）。
+    // 🔴 原实现 `{ ...dto }` 会把 apiKey:"" 原样落库，管理端表单空提交即抹掉已配置的 Coze 令牌
+    const { apiKey, botId, ...rest } = dto;
+    const data: Prisma.BotConfigUpdateInput = { ...rest };
+    if (apiKey) data.apiKey = encrypt(apiKey);
+    if (botId) data.botId = botId;
     return this.prisma.botConfig.update({ where: { id }, data });
   }
 
@@ -143,8 +276,26 @@ export class BotService {
     return { success: true };
   }
 
+  /** Coze 凭证是否真实可用：种子占位（botId "coze_xx_001"、apiKey "sk_dev_placeholder"）
+   *  能过非空校验但一对话必失败——广场不陈列坏品（董事长 2026-07-17 拍板下架不能用的） */
+  private isConfigured(bot: { botId: string; apiKey: string; runtime?: string; systemPrompt?: string | null }): boolean {
+    if (bot.runtime === "local") return !!bot.systemPrompt;
+    if (!bot.botId) return false;
+    // 配了 OAuth 时全平台统一用 OAuth 令牌，单个智能体可不存 PAT；否则要求非空且非占位
+    if (!this.coze.isOAuthConfigured()) {
+      if (!bot.apiKey || bot.apiKey === "sk_dev_placeholder") return false;
+    }
+    // 真实 Coze bot_id 是纯数字长串；种子占位是 "coze_customer_001" 一类
+    if (/^coze_/i.test(bot.botId)) return false;
+    return true;
+  }
+
   async list(type?: string) {
-    const where: Prisma.BotConfigWhereInput = { status: "ACTIVE" };
+    if (type && (PUBLIC_HIDDEN_BOT_TYPES as readonly string[]).includes(type)) return [];
+    const where: Prisma.BotConfigWhereInput = {
+      status: "ACTIVE",
+      type: { notIn: [...PUBLIC_HIDDEN_BOT_TYPES] },
+    };
     if (type) where.type = type;
 
     const bots = await this.prisma.botConfig.findMany({
@@ -152,8 +303,37 @@ export class BotService {
       orderBy: { sortOrder: "asc" },
       take: 100,
     });
-    // apiKey 不对外暴露
-    return bots.map(({ apiKey: _apiKey, ...rest }) => rest);
+    // C 端只下发真实可对话的智能体（占位凭证=下架）；apiKey 不对外暴露
+    return bots
+      .filter((b) => this.isConfigured(b))
+      .map(({ apiKey: _apiKey, ...rest }) => rest);
+  }
+
+  /** apiKey 掩码：只露 sk_*** + 末 4 位（存量密文先解密再取尾，解密失败走明文兼容取尾） */
+  private maskApiKey(storedApiKey: string | null | undefined): string {
+    if (!storedApiKey) return "";
+    const plain = decrypt(storedApiKey); // decrypt 对非密文（明文旧数据/占位）原样返回，不抛错
+    if (plain.length <= 4) return "sk_***";
+    return `sk_***${plain.slice(-4)}`;
+  }
+
+  /**
+   * 管理端列表：返回全部智能体（含占位凭证/非 ACTIVE），供后台盘点与换发 Coze 新令牌。
+   * - apiKey 永不明文下发，只回掩码 apiKeyMask（sk_*** + 末4位）
+   * - isConfigured 布尔标注凭证是否真实可用（占位=false·即 C 端广场已下架项）
+   */
+  async adminList(type?: string) {
+    const where: Prisma.BotConfigWhereInput = {};
+    if (type) where.type = type;
+    const bots = await this.prisma.botConfig.findMany({
+      where,
+      orderBy: { sortOrder: "asc" },
+      take: 200,
+    });
+    return bots.map((b) => {
+      const { apiKey, ...rest } = b;
+      return { ...rest, apiKeyMask: this.maskApiKey(apiKey), isConfigured: this.isConfigured(b) };
+    });
   }
 
   async getDetail(id: string) {
@@ -165,7 +345,9 @@ export class BotService {
       },
     });
     if (!bot) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体不存在");
-    const { ...rest } = bot;
+    // 🔴 原为 `const { ...rest } = bot`——解构漏写 apiKey 项等于什么都没剥，
+    // C 端 detail 接口把（明文存储时期的）PAT 原样下发 = 令牌泄露事故
+    const { apiKey: _apiKey, ...rest } = bot;
     return rest;
   }
 
@@ -216,7 +398,8 @@ export class BotService {
       include: { botConfig: true },
     });
     if (bot?.botConfig) {
-      const { ...rest } = bot.botConfig;
+      // 公开圈子入口不得返回 Coze 凭据（包括数据库中的加密值）。
+      const { apiKey: _apiKey, ...rest } = bot.botConfig;
       return { ...bot, botConfig: rest };
     }
     return bot;
@@ -269,8 +452,16 @@ export class BotService {
   private async getBotOrThrow(id: string) {
     const bot = await this.prisma.botConfig.findUnique({ where: { id } });
     if (!bot) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体不存在");
-    if (!bot.apiKey || !bot.botId) throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体未配置API密钥");
-    const decrypted = decrypt(bot.apiKey);
+    if (bot.runtime === "local") {
+      if (!bot.systemPrompt?.trim()) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "本地智能体未配置角色提示词");
+      }
+    } else {
+      if (!bot.botId) throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体未配置 Bot ID");
+      // 配了 OAuth 时全平台统一用 OAuth 令牌，单个智能体可不存 PAT；否则仍要求 PAT
+      if (!bot.apiKey && !this.coze.isOAuthConfigured()) throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体未配置API密钥");
+    }
+    const decrypted = bot.apiKey ? decrypt(bot.apiKey) : "";
     // 返回时掩码 apiKey，防止 JSON 序列化/日志输出泄露
     return {
       ...bot,
@@ -285,6 +476,7 @@ export class BotService {
   /** 非流式对话 */
   async chat(botConfigId: string, userId: string, dto: ChatDto) {
     const bot = await this.getBotOrThrow(botConfigId);
+    await this.assertOwnedConversation(botConfigId, userId, dto.conversationId);
 
     const dailyCount = await this.getUserDailyCount(userId, botConfigId);
     if (!bot.isFree && dailyCount >= bot.dailyLimit) {
@@ -292,33 +484,55 @@ export class BotService {
     }
 
     // AI 计费（2026-07-03 拍板）：会员免费/试用/追问包，额度耗尽在此拦截
-    await this.consumeQuota(botConfigId, userId);
+    const quotaUse = await this.consumeQuota(botConfigId, userId);
+    let result: Awaited<ReturnType<CozeService["chat"]>> | Awaited<ReturnType<BotService["localChat"]>>;
+    try {
+      result = bot.runtime === "local"
+        ? await this.localChat(bot, userId, dto)
+        : await this.coze.chat({
+            botId: bot.botId,
+            apiKey: bot.apiKey,
+            userId,
+            query: dto.query,
+            conversationId: dto.conversationId,
+          });
+      if (typeof result.content !== "string" || !result.content.trim()) throw new Error("智能体未返回有效内容，请重试");
+    } catch (err) {
+      await this.releaseFailedQuotaSafely(botConfigId, userId, quotaUse);
+      throw err;
+    }
 
-    const result = await this.coze.chat({
-      botId: bot.botId,
-      apiKey: bot.apiKey,
-      userId,
-      query: dto.query,
-      conversationId: dto.conversationId,
-    });
-
-    // 软性导流：解析 Coze 协议意图(优先)/平台兜底 → 匹配真实课程/圈子 → 征求同意推荐
+    // 向导式推荐：解析模型协议(优先)/平台兜底 → 匹配真实内容 → 按意图置信度直展或征求同意
     // content 已剥离协议标记，落库与展示均用净文本
-    const { content: cleanContent, recommendation } = await this.reco.build(result.content as string, dto.query);
+    let cleanContent: string;
+    let recommendation: Awaited<ReturnType<RecommendationService["build"]>>["recommendation"];
+    try {
+      ({ content: cleanContent, recommendation } = await this.reco.build(result.content as string, dto.query));
+    } catch (err) {
+      this.logger.warn(`智能体推荐降级: ${(err as Error).message}`);
+      cleanContent = this.reco.parseProtocol(result.content as string).clean;
+      recommendation = null;
+    }
 
-    await this.prisma.botChatLog.create({
-      data: {
-        userId,
-        botConfigId,
-        query: dto.query,
-        response: cleanContent,
-        conversationId: result.conversationId,
-        chatId: result.chatId,
-      },
-    });
+    try {
+      await this.prisma.botChatLog.create({
+        data: {
+          userId,
+          botConfigId,
+          query: dto.query,
+          response: cleanContent,
+          conversationId: result.conversationId,
+          chatId: result.chatId,
+        },
+      });
+    } catch (err) {
+      // 回答尚未交给客户端；审计记录保存失败时不应让用户白扣一次追问。
+      await this.releaseFailedQuotaSafely(botConfigId, userId, quotaUse);
+      throw err;
+    }
 
     // 合规：AI 输出统一附带风险免责声明（前端在气泡下方展示）
-    return { ...result, content: cleanContent, disclaimer: RISK_DISCLAIMER, recommendation };
+    return { ...result, content: cleanContent, disclaimer: RISK_DISCLAIMER, recommendation, quotaUse };
   }
 
   /** 流式对话（返回 Observable，控制器处理为SSE） */
@@ -332,10 +546,250 @@ export class BotService {
     });
   }
 
-  /** 获取对话历史 */
-  async getChatHistory(botConfigId: string, conversationId: string) {
+  /** 流式对话前置校验（与非流式 chat 同一套门控：每日限次 + AI 计费额度），先于 SSE 头执行 */
+  async precheckChat(botConfigId: string, userId: string, conversationId?: string) {
+    const bot = await this.getBotOrThrow(botConfigId);
+    await this.assertOwnedConversation(botConfigId, userId, conversationId);
+    const dailyCount = await this.getUserDailyCount(userId, botConfigId);
+    if (!bot.isFree && dailyCount >= bot.dailyLimit) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `今日对话次数已达上限（${bot.dailyLimit}次）`);
+    }
+    const quotaUse = await this.consumeQuota(botConfigId, userId);
+    return { ...bot, quotaUse };
+  }
+
+  /**
+   * 流式对话（富事件版）：与非流式 chat 同一套审计/导流/免责闭环。
+   * - chunk：文本增量（尾部滞留过滤 `<!--RECO:...-->` 软性导流协议标记，不让协议漏上屏）
+   * - meta：流末下发 conversationId（续聊）+ disclaimer + recommendation（软性导流）
+   * - 审计：完整净文本落 BotChatLog（与非流式同表同结构）
+   */
+  chatStreamRich(
+    bot: { id: string; botId: string; apiKey: string; runtime?: string; systemPrompt?: string | null; quotaUse?: QuotaUse },
+    userId: string,
+    dto: ChatDto,
+  ): Observable<{ type: "chunk" | "meta"; content?: string; conversationId?: string; disclaimer?: string; recommendation?: unknown }> {
+    return new Observable((subscriber) => {
+      let full = ""; // 完整原始回复（含协议标记，用于导流解析与审计）
+      let held = ""; // 尾部滞留缓冲：疑似 `<!--` 协议标记开头后暂停外发
+      let conversationId = dto.conversationId || "";
+      let chatId: string | undefined;
+      let quotaSettled = false;
+      let visibleDelivered = false;
+      const releaseIfEmpty = async () => {
+        if (quotaSettled || visibleDelivered) return;
+        quotaSettled = true;
+        if (bot.quotaUse) await this.releaseFailedQuotaSafely(bot.id, userId, bot.quotaUse);
+      };
+
+      const emitVisible = (content: string) => {
+        if (!content) return;
+        subscriber.next({ type: "chunk", content });
+        if (!visibleDelivered && content.trim()) {
+          visibleDelivered = true;
+          if (bot.quotaUse) void this.markDeliveredQuota(bot.quotaUse).catch((err) =>
+            this.logger.error(`智能体额度确认异常 [${bot.id}]: ${(err as Error).message}`));
+        }
+      };
+
+      /** 输出安全前缀：可外发部分立即 emit，协议标记起点及其后滞留 */
+      const emitSafe = (s: string) => {
+        const idx = s.indexOf("<!--");
+        if (idx >= 0) {
+          // 命中协议标记起点：之前的照发，标记及其后全部滞留（协议约定标记在回复末尾）
+          if (idx > 0) emitVisible(s.slice(0, idx));
+          held = s.slice(idx);
+          return;
+        }
+        // 尾部可能是 "<"、"<!"、"<!-" 的半截标记：滞留等下一块拼上再判
+        let cut = s.length;
+        for (let k = Math.min(3, s.length); k >= 1; k--) {
+          if ("<!--".startsWith(s.slice(s.length - k))) {
+            cut = s.length - k;
+            break;
+          }
+        }
+        if (cut > 0) emitVisible(s.slice(0, cut));
+        held = s.slice(cut);
+      };
+
+      // 数据源按运行时分发：local 走自建 ai-gateway(DeepSeek 流式)，coze 保持现状。
+      // 两者产出同样的事件流 {type:'meta',conversationId} | {type:'chunk',content}，外层 emitSafe/reco/审计对两者通用。
+      const source$ =
+        bot.runtime === "local"
+          ? this.localChatStream(bot, userId, dto)
+          : this.coze.chatStreamEx({ botId: bot.botId, apiKey: bot.apiKey, userId, query: dto.query, conversationId: dto.conversationId });
+
+      const sub = source$
+        .subscribe({
+          next: (ev) => {
+            if (ev.type === "meta") {
+              if (ev.conversationId) conversationId = ev.conversationId;
+              chatId = ev.chatId;
+              return;
+            }
+            if (ev.type === "chunk" && ev.content) {
+              full += ev.content;
+              emitSafe(held + ev.content);
+            }
+          },
+          error: (err) => {
+            void releaseIfEmpty().finally(() => subscriber.error(err));
+          },
+          complete: () => {
+            void (async () => {
+              try {
+                if (!full.trim()) {
+                  await releaseIfEmpty();
+                  subscriber.error(new Error("智能体未返回有效内容，请重试"));
+                  return;
+                }
+                // 向导式推荐解析（剥离协议标记）+ 审计落库 —— 与非流式 chat 同一闭环
+                let cleanContent: string;
+                let recommendation: Awaited<ReturnType<RecommendationService["build"]>>["recommendation"];
+                try {
+                  ({ content: cleanContent, recommendation } = await this.reco.build(full, dto.query));
+                } catch (err) {
+                  this.logger.warn(`流式智能体推荐降级: ${(err as Error).message}`);
+                  cleanContent = this.reco.parseProtocol(full).clean;
+                  recommendation = null;
+                }
+                // 滞留尾巴若非协议标记（真实内容含 <!--），净文本比已发的长 → 把缺发部分补发
+                const alreadySent = full.length - held.length;
+                if (cleanContent.length > alreadySent) {
+                  emitVisible(cleanContent.slice(alreadySent));
+                }
+                if (!visibleDelivered) {
+                  await releaseIfEmpty();
+                  subscriber.error(new Error("智能体未返回有效内容，请重试"));
+                  return;
+                }
+                try {
+                  await this.prisma.botChatLog.create({
+                    data: {
+                      userId,
+                      botConfigId: bot.id,
+                      query: dto.query,
+                      response: cleanContent,
+                      conversationId: conversationId || undefined,
+                      chatId: chatId || undefined,
+                    },
+                  });
+                } catch {
+                  // 记录故障不吞掉收尾元信息；异常正文可能带提问等敏感字段，不直接输出。
+                  this.logger.warn("流式对话记录写入失败，请核查记录存储服务");
+                }
+                subscriber.next({
+                  type: "meta",
+                  conversationId: conversationId || undefined,
+                  disclaimer: RISK_DISCLAIMER,
+                  recommendation: recommendation || undefined,
+                });
+              } catch (err) {
+                this.logger.warn(`流式对话收尾处理失败（不影响已下发内容）: ${(err as Error).message}`);
+              } finally {
+                subscriber.complete();
+              }
+            })();
+          },
+        });
+      return () => {
+        sub.unsubscribe();
+        void releaseIfEmpty();
+      };
+    });
+  }
+
+  /**
+   * 自建运行时数据源（bot.runtime='local'）：走自建 ai-gateway(DeepSeek 流式)。
+   * 产出与 coze.chatStreamEx 一致的事件契约 {type:'meta',conversationId} | {type:'chunk',content}，
+   * 使 chatStreamRich 外层 emitSafe(软性导流)/reco.build/botChatLog 审计逻辑对两种运行时完全通用。
+   */
+  private localChatStream(
+    bot: { id: string; systemPrompt?: string | null },
+    userId: string,
+    dto: { query: string; conversationId?: string },
+  ): Observable<CozeStreamEvent> {
+    return new Observable((subscriber) => {
+      const abortController = new AbortController();
+      void (async () => {
+        try {
+          // conversationId：local 自管——续聊沿用传入的，首次用与 botChatLog 一致的新 id
+          const convId = dto.conversationId || randomUUID();
+          subscriber.next({ type: "meta", conversationId: convId }); // 先下发供前端续聊 + 外层审计取用
+          // 组装 messages：system(人设) + 历史 + 当前 query（历史仅续聊时按 conversationId 拉取）
+          const history = dto.conversationId ? await this.getChatHistory(bot.id, dto.conversationId, userId) : [];
+          if (subscriber.closed) return;
+          const messages: AiMessage[] = [
+            ...(bot.systemPrompt ? [{ role: "system" as const, content: this.buildAgentSystemPrompt(bot.systemPrompt) }] : []),
+            ...history.map((h) => ({ role: h.role as AiMessage["role"], content: h.content })),
+            { role: "user" as const, content: dto.query },
+          ];
+          for await (const chunk of this.aiGateway.chatStream({
+            scene: "agent-chat",
+            userId,
+            messages,
+            options: { temperature: 0.55, maxTokens: 1000, signal: abortController.signal },
+          })) {
+            if (subscriber.closed) return;
+            if (chunk) subscriber.next({ type: "chunk", content: chunk });
+          }
+          subscriber.complete();
+        } catch (err) {
+          subscriber.error(err);
+        }
+      })();
+      return () => abortController.abort();
+    });
+  }
+
+  /** 本地智能体非流式路径：与流式路径共享角色协议、历史上下文和网关审计。 */
+  private async localChat(
+    bot: { id: string; systemPrompt?: string | null },
+    userId: string,
+    dto: { query: string; conversationId?: string },
+  ) {
+    const conversationId = dto.conversationId || randomUUID();
+    const history = dto.conversationId ? await this.getChatHistory(bot.id, dto.conversationId, userId) : [];
+    const messages: AiMessage[] = [
+      ...(bot.systemPrompt
+        ? [{ role: "system" as const, content: this.buildAgentSystemPrompt(bot.systemPrompt) }]
+        : []),
+      ...history.map((h) => ({ role: h.role as AiMessage["role"], content: h.content })),
+      { role: "user" as const, content: dto.query },
+    ];
+    const result = await this.aiGateway.chat({
+      scene: "agent-chat",
+      userId,
+      messages,
+      options: { temperature: 0.55, maxTokens: 1000 },
+      cacheScopeKey: bot.id,
+    });
+    return {
+      content: result.content,
+      conversationId,
+      chatId: randomUUID(),
+    };
+  }
+
+  private buildAgentSystemPrompt(rolePrompt: string): string {
+    return withUserAnswerExperience(`${rolePrompt.trim()}${PLATFORM_AGENT_PROTOCOL}`);
+  }
+
+  /** 续聊会话必须属于当前用户；在扣额度前检查，避免把他人的远端会话号交给模型。 */
+  private async assertOwnedConversation(botConfigId: string, userId: string, conversationId?: string) {
+    if (!conversationId) return;
+    const owned = await this.prisma.botChatLog.findFirst({
+      where: { botConfigId, userId, conversationId },
+      select: { id: true },
+    });
+    if (!owned) throw new BusinessException(ErrorCode.NOT_FOUND, "对话不存在");
+  }
+
+  /** 获取当前用户自己的对话历史 */
+  async getChatHistory(botConfigId: string, conversationId: string, userId: string) {
     const logs = await this.prisma.botChatLog.findMany({
-      where: { botConfigId, conversationId },
+      where: { botConfigId, conversationId, userId },
       orderBy: { createdAt: "asc" },
       take: 100,
     });
@@ -395,7 +849,7 @@ export class BotService {
     const bots = botIds.length
       ? await this.prisma.botConfig.findMany({
           where: { id: { in: botIds } },
-          select: { id: true, name: true, avatar: true, type: true },
+          select: { id: true, name: true, avatar: true, type: true, voiceEnabled: true },
         })
       : [];
     const botMap = new Map(bots.map((b) => [b.id, b]));
@@ -408,6 +862,7 @@ export class BotService {
         botName: bot?.name ?? "智能体",
         botAvatar: bot?.avatar ?? "",
         botType: bot?.type ?? "",
+        voiceEnabled: bot?.voiceEnabled === true,
         lastQuery: c.lastQuery,
         lastMessage: c.lastResponse,
         lastTime: c.lastTime,
@@ -438,7 +893,7 @@ export class BotService {
     const { skip, page: p, pageSize: ps } = safePagination(page, pageSize);
     this.logger.log(`查询圈主助理审批列表: page=${p}, pageSize=${ps}`);
 
-    const where = { status: { not: "ACTIVE" } };
+    const where = { status: { notIn: ["ACTIVE", "REJECTED"] } };
     const [records, total] = await Promise.all([
       this.prisma.circleBot.findMany({
         where,
@@ -486,6 +941,19 @@ export class BotService {
     return this.prisma.circleBot.update({
       where: { circleId },
       data: { status: "ACTIVE" },
+    });
+  }
+
+  /** 驳回圈主助理开通申请（驳回原因仅记审计日志，CircleBot 不落 reason 列） */
+  async rejectBot(circleId: string, reason?: string) {
+    this.logger.log(`驳回圈主助理开通: circleId=${circleId} reason=${reason || "-"}`);
+    const circleBot = await this.prisma.circleBot.findUnique({ where: { circleId } });
+    if (!circleBot) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "该圈子暂无助理开通申请");
+    }
+    return this.prisma.circleBot.update({
+      where: { circleId },
+      data: { status: "REJECTED" },
     });
   }
 
@@ -635,11 +1103,12 @@ export class BotService {
 
   // ───────── 语音通话 ─────────
 
-  /** 获取全局 Coze PAT（用于管理类 API） */
+  /** 获取全局 Coze 令牌（用于管理类 API）：配了 OAuth 时 CozeService 内部自动换 token，PAT 可留空 */
   private getGlobalApiKey(): string {
     const key = process.env.COZE_API_KEY;
-    if (!key) throw new BusinessException(ErrorCode.BAD_REQUEST, "未配置全局 COZE_API_KEY");
-    return key;
+    if (key) return key;
+    if (this.coze.isOAuthConfigured()) return ""; // OAuth 生效，令牌由 CozeService 统一解析
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "未配置全局 COZE_API_KEY 或 Coze OAuth");
   }
 
   /** 创建语音通话房间 */
@@ -755,18 +1224,42 @@ export class BotService {
 
   /** 智能体热度排行 */
   async getRanking(limit = 20) {
-    return this.prisma.botConfig.findMany({
-      where: { status: "ACTIVE" },
+    const bots = await this.prisma.botConfig.findMany({
+      where: {
+        status: "ACTIVE",
+        type: { notIn: [...PUBLIC_HIDDEN_BOT_TYPES] },
+      },
       select: { id: true, name: true, avatar: true, intro: true, type: true },
       orderBy: { sortOrder: "asc" },
       take: limit,
     });
+    // 真实热度：按对话日志聚合（chatCount 对话次数 / userCount 使用人数），热度优先、同热度按后台权重
+    const [byChats, byUsers] = await Promise.all([
+      this.prisma.botChatLog.groupBy({
+        by: ["botConfigId"],
+        _count: { _all: true },
+        where: { botConfigId: { in: bots.map((b) => b.id) } },
+      }),
+      this.prisma.botChatLog.groupBy({
+        by: ["botConfigId", "userId"],
+        where: { botConfigId: { in: bots.map((b) => b.id) } },
+      }),
+    ]);
+    const chatMap = new Map(byChats.map((g) => [g.botConfigId, g._count._all]));
+    const userMap = new Map<string, number>();
+    for (const g of byUsers) userMap.set(g.botConfigId, (userMap.get(g.botConfigId) || 0) + 1);
+    return bots
+      .map((b) => ({ ...b, chatCount: chatMap.get(b.id) || 0, userCount: userMap.get(b.id) || 0 }))
+      .sort((a, b) => b.chatCount - a.chatCount);
   }
 
   /** 信息流智能体卡片（含动态背景色） */
   async getFeedCards(limit = 6) {
     const bots = await this.prisma.botConfig.findMany({
-      where: { status: "ACTIVE" },
+      where: {
+        status: "ACTIVE",
+        type: { notIn: [...PUBLIC_HIDDEN_BOT_TYPES] },
+      },
       select: { id: true, name: true, avatar: true, intro: true, type: true },
       orderBy: { sortOrder: "asc" },
       take: limit,

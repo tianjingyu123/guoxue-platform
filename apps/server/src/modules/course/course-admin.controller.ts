@@ -10,6 +10,7 @@ import { AnswerQuestionDto } from "./course.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 type AuthRequest = Omit<Request, "user"> & {
   user: { id: string; roles?: string[]; [key: string]: unknown };
@@ -27,6 +28,7 @@ export class CourseAdminController {
   // ───────── 审核 ─────────
 
   @Put("batch/audit")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量审核课程" })
@@ -48,8 +50,10 @@ export class CourseAdminController {
   }
 
   @Put(":id/audit")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：内容审核员负责课程审核，放行 CONTENT_AUDITOR。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "审核课程" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -57,14 +61,20 @@ export class CourseAdminController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  async audit(@Param("id") id: string, @Body("status") status: string, @Req() req: AuthRequest) {
+  async audit(
+    @Param("id") id: string,
+    @Body("status") status: string,
+    @Req() req: AuthRequest,
+    @Body("reason") reason?: string,
+  ) {
     const result = await this.course.audit(id, status);
+    // Course 模型无审核理由字段(仅 auditStatus)，reason 记入审计日志留痕，不加迁移
     this.systemService.logAudit({
       userId: req.user?.id,
       action: "AUDIT",
       targetType: "COURSE",
       targetId: id,
-      detail: `审核课程: ${status}`,
+      detail: `审核课程: ${status}${reason ? `，理由: ${reason}` : ""}`,
       ip: req.ip,
     }).catch((err) => this.logger.warn("审计日志记录失败", err));
     return result;
@@ -73,6 +83,7 @@ export class CourseAdminController {
   // ───────── 强制操作 ─────────
 
   @Delete(":id/force")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "管理员强制删除课程" })
@@ -96,6 +107,7 @@ export class CourseAdminController {
   }
 
   @Put(":id/status")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员强制变更课程状态" })
@@ -151,6 +163,7 @@ export class CourseAdminController {
   // ───────── 评价管理 ─────────
 
   @Put("reviews/:reviewId/reply")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员回复评价" })
@@ -164,6 +177,7 @@ export class CourseAdminController {
   }
 
   @Put("reviews/:reviewId/toggle")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员隐藏/恢复评价" })
@@ -192,6 +206,7 @@ export class CourseAdminController {
   // ───────── 作业批改 ─────────
 
   @Put("works/:workId/score")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批改作业评分（管理员/讲师/助教）" })
@@ -240,6 +255,7 @@ export class CourseAdminController {
   // ───────── 问答管理 ─────────
 
   @Put("questions/:qaId/answer")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "回答/回复问题" })

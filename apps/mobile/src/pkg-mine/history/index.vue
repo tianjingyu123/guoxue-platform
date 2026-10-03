@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack } from '@/utils/router'
+import { apiGet } from '@/utils/request'
 import {
   mineApi,
   historyTypeConfig,
@@ -30,8 +32,39 @@ function formatProgress(item: HistoryItem) {
   const watched = Math.floor((item.progress / 100) * item.duration)
   return `已观看 ${Math.floor(watched / 60)} 分钟`
 }
-function openItem() {
-  uni.showToast({ title: '内容详情开发中', icon: 'none' })
+/** 跳原内容页（原为"开发中"toast）。
+ * HistoryItem.id 是浏览记录 cuid 而非内容 id（adaptHistory 未透传 targetId）
+ * → 首次点击时拉一次原始记录建 记录id→{targetType,targetId} 映射，用原始 targetType 判跳转 */
+interface RawHistoryRow { id?: string | number; targetType?: string; targetId?: string }
+let rawMapPromise: Promise<Map<string, { targetType: string; targetId: string }>> | null = null
+function loadRawMap() {
+  if (!rawMapPromise) {
+    rawMapPromise = apiGet<{ items?: RawHistoryRow[] } | RawHistoryRow[]>('/users/history?page=1&pageSize=50')
+      .then((res) => {
+        const items = Array.isArray(res) ? res : (res?.items ?? [])
+        return new Map(items.map((r) => [
+          String(r.id),
+          { targetType: String(r.targetType || '').toLowerCase(), targetId: String(r.targetId || '') },
+        ]))
+      })
+      .catch(() => { rawMapPromise = null; return new Map<string, { targetType: string; targetId: string }>() })
+  }
+  return rawMapPromise
+}
+function contentUrl(type: string, id: string): string {
+  return type === 'article' ? `/pkg-circle/articles/detail?id=${id}`
+    : type === 'course' ? `/pkg-course/detail/index?id=${id}`
+    : type === 'video' ? `/pkg-video/detail/index?id=${id}`
+    : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
+    : type === 'live' ? `/pkg-live/watch/index?id=${id}`
+    : type === 'circle' ? `/pkg-circle/circles/detail?id=${id}`
+    : '' // post 无 circleId / classic·ebook·poetry·content 等无对应映射 → 保持提示
+}
+async function openItem(item: HistoryItem) {
+  const raw = (await loadRawMap()).get(item.id)
+  const url = raw && raw.targetId ? contentUrl(raw.targetType, raw.targetId) : ''
+  if (!url) { uni.showToast({ title: '该内容暂不支持跳转', icon: 'none' }); return }
+  uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })
 }
 </script>
 
@@ -40,7 +73,7 @@ function openItem() {
     <app-nav-bar title="浏览历史" :back-size="40" />
 
     <!-- 加载/错误 -->
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
     <template v-else>
     <!-- 统计条 -->
@@ -70,7 +103,7 @@ function openItem() {
           <view v-for="item in group.items" :key="item.id" class="item-wrap">
             <view
               class="item"
-              @tap="openItem"
+              @tap="openItem(item)"
             >
               <!-- 封面或图标 -->
               <view v-if="item.cover" class="cover">
@@ -115,7 +148,7 @@ function openItem() {
               <view
                 v-if="item.progress !== undefined && item.progress < 100"
                 class="continue-btn"
-                @tap.stop="openItem"
+                @tap.stop="openItem(item)"
               >
                 <text class="continue-text">继续</text>
               </view>

@@ -1,11 +1,14 @@
 import { Test } from "@nestjs/testing";
 import { RecommendController } from "./recommend.controller";
+import { RecommendScene } from "./recommend.dto";
 import { RecommendService } from "./recommend.service";
 import { ColdStartService } from "./services/cold-start.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { FEATURE_FLAG_KEY } from "../../common/feature-flag.decorator";
+import { RECOMMEND_FEATURE_FLAG } from "./recommend-feature.constants";
 
 const mockRecommendSvc = {
   logInteractions: jest.fn().mockResolvedValue({ success: true }),
@@ -44,9 +47,16 @@ describe("RecommendController", () => {
   beforeEach(() => { jest.clearAllMocks(); });
 
   it("POST /recommend/log — 上报推荐事件", async () => {
-    const dto: any = { events: [{ event: "click", contentId: "a1" }] };
-    const result: any = await ctrl.log(dto);
+    const req: any = { user: { id: "u1" } };
+    const dto: any = {
+      recommendId: "rec_12345678",
+      interactions: [
+        { itemId: "a1", itemType: "ARTICLE", position: 0, action: "CLICK" },
+      ],
+    };
+    const result: any = await ctrl.log(req, dto);
     expect(result.success).toBe(true);
+    expect(mockRecommendSvc.logInteractions).toHaveBeenCalledWith(dto, "u1");
   });
 
   it("GET /recommend/trending — 热门推荐", async () => {
@@ -63,6 +73,19 @@ describe("RecommendController", () => {
     const req: any = { user: { id: "u1" } };
     const result: any = await ctrl.personalized(req);
     expect(result).toHaveLength(1);
+  });
+
+  it("推荐门禁统一使用生产正式开关 recommend_algorithm", () => {
+    const guardedHandlers = [
+      RecommendController.prototype.personalized,
+      RecommendController.prototype.insertContent,
+      RecommendController.prototype.recommend,
+    ];
+
+    for (const handler of guardedHandlers) {
+      expect(Reflect.getMetadata(FEATURE_FLAG_KEY, handler)).toBe(RECOMMEND_FEATURE_FLAG);
+    }
+    expect(RECOMMEND_FEATURE_FLAG).toBe("recommend_algorithm");
   });
 
   it("GET /recommend/interests/defaults — 默认兴趣标签", async () => {
@@ -91,7 +114,7 @@ describe("RecommendController", () => {
   it("GET /recommend/:scene — 场景推荐", async () => {
     const q: any = { page: 1, pageSize: 10 };
     const req: any = { user: { id: "u1" } };
-    const result: any = await ctrl.recommend("home" as any, q, req);
+    const result: any = await ctrl.recommend(RecommendScene.GUESS_LIKE, q, req);
     expect(result).toHaveLength(1);
   });
 });

@@ -1,0 +1,8 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const ts=require('node:module').createRequire(path.resolve('apps/mobile/package.json'))('typescript');
+function load(file, bindings={}){const c={exports:{},...bindings};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8').replace(/^import .*$/mg,''),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,c);return c.exports;}
+const registry=load('apps/mobile/src/utils/registered-page-paths.ts');
+const router=load('apps/mobile/src/utils/router.ts',registry);
+test('回跳路径清单与实际页面登记保持同步',()=>{const p=ts.parseConfigFileTextToJson('pages.json',fs.readFileSync('apps/mobile/src/pages.json','utf8')).config;const expected=[...p.pages.map(x=>'/'+x.path),...p.subPackages.flatMap(g=>g.pages.map(x=>'/'+g.root+'/'+x.path))];assert.deepEqual([...registry.REGISTERED_PAGE_PATHS].sort(),[...new Set(expected)].sort());});
+test('登录完成回到旧排盘和分站页面并保留参数',()=>{for(const target of ['/pkg-common/legacy-paipan/index','/pkg-operator/station-paipan-auth/index?stationId=test','/pkg-classics/reader/index?id=book&chapter=2']){let actual='';const journey=load('apps/mobile/src/utils/auth-journey.ts',{...router,getStorage:()=>target,removeStorage:()=>{},uni:{reLaunch:({url})=>actual=url}});journey.finishAuthJourney();assert.equal(actual,target);}});
+test('仍拒绝外站、未知页面和登录页面回跳',()=>{const journey=load('apps/mobile/src/utils/auth-journey.ts',router);for(const value of ['https://example.com','//example.com','/unknown-page','/pkg-auth/login/index','/../pages/index/index'])assert.equal(journey.safeLoginRedirect(value),'');});

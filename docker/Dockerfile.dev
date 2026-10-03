@@ -1,12 +1,14 @@
 # ─────────────────────────────────────────────
 # 开发镜像 — 热重载 + 全量依赖
 # ─────────────────────────────────────────────
-FROM node:20-alpine AS builder
-RUN corepack enable && corepack prepare pnpm@10 --activate
+FROM node:24.18.0-alpine3.23@sha256:595398b0081eacda8e1c4c5b97b76cd1020e4d58a8ebcb4843b9bca1e79e7436 AS builder
+RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 
 # 依赖缓存层
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY .pnpmfile.cjs ./
+COPY patches/ ./patches/
 COPY apps/server/package.json apps/server/
 COPY packages/shared/package.json packages/shared/
 COPY packages/bazi-engine/package.json packages/bazi-engine/
@@ -22,8 +24,8 @@ RUN pnpm --filter @guoxue/ziwei-engine build
 RUN pnpm build:server
 
 # ── 开发运行阶段 ──
-FROM node:20-alpine
-RUN corepack enable && corepack prepare pnpm@10 --activate
+FROM node:24.18.0-alpine3.23@sha256:595398b0081eacda8e1c4c5b97b76cd1020e4d58a8ebcb4843b9bca1e79e7436
+RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 RUN apk add --no-cache curl
 WORKDIR /app
 
@@ -38,6 +40,7 @@ COPY --from=builder /app/packages/ziwei-engine/node_modules ./packages/ziwei-eng
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
 COPY --from=builder /app/apps/server/package.json ./apps/server/
+COPY --from=builder /app/apps/server/prisma.config.ts ./apps/server/
 COPY --from=builder /app/packages/bazi-engine/dist ./packages/bazi-engine/dist
 COPY --from=builder /app/packages/bazi-engine/package.json ./packages/bazi-engine/
 COPY --from=builder /app/packages/ziwei-engine/dist ./packages/ziwei-engine/dist

@@ -1,7 +1,7 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="nav" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
       <view class="nav-bar">
         <view class="nav-btn" @tap="goBack">
           <AppIcon name="arrow-left" :size="40" color="#2C2C2C" />
@@ -83,6 +83,7 @@ import { goBack } from '@/utils/router'
 import { obsGuideSteps, obsGuideRequirements, obsGuideFaq } from '@/lib/live-data'
 
 const statusBarHeight = ref(0)
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 const steps = ref(obsGuideSteps)
 const requirements = ref(obsGuideRequirements)
 const faq = ref(obsGuideFaq)

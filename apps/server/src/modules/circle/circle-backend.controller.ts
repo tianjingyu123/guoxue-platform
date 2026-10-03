@@ -8,6 +8,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { SetGuestShareRateDto } from "./circle.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("圈主个人中心")
 @Controller("circle-backend")
@@ -23,6 +24,38 @@ export class CircleBackendController {
     });
     if (!membership) throw new BusinessException(ErrorCode.FORBIDDEN, "你不是任何圈子的圈主或管理员");
     return membership;
+  }
+
+  /** 平台管理角色判定（SUPER_ADMIN/OPERATION_ADMIN） */
+  private isPlatformAdmin(req: Request): boolean {
+    const roles: string[] = (req.user?.roles as string[]) || [];
+    return roles.includes("SUPER_ADMIN") || roles.includes("OPERATION_ADMIN");
+  }
+
+  /**
+   * 显式圈子必须校验本圈管理身份；旧客户端仅在身份唯一时允许省略。
+   */
+  private async resolveCircle(req: Request, circleId?: string) {
+    if (circleId && this.isPlatformAdmin(req)) {
+      const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
+      if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
+      return circle;
+    }
+    if (circleId) {
+      const membership = await this.prisma.circleMember.findFirst({
+        where: { circleId, userId: req.user.id, role: { in: ["OWNER", "ADMIN"] } },
+        include: { circle: true },
+      });
+      if (!membership) throw new BusinessException(ErrorCode.FORBIDDEN, "你没有该圈子的管理权限");
+      return membership.circle;
+    }
+    const memberships = await this.prisma.circleMember.findMany({
+      where: { userId: req.user.id, role: { in: ["OWNER", "ADMIN"] } },
+      include: { circle: true }, take: 2,
+    });
+    if (!memberships.length) throw new BusinessException(ErrorCode.FORBIDDEN, "你不是任何圈子的圈主或管理员");
+    if (memberships.length > 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "请明确选择需要管理的圈子");
+    return memberships[0].circle;
   }
 
   @Get("overview")
@@ -77,9 +110,10 @@ export class CircleBackendController {
 
   @Get("guests")
   @ApiOperation({ summary: "嘉宾列表（含分账比例）" })
+  @ApiQuery({ name: "circleId", required: false, description: "目标圈子ID；多圈管理时必须传入，并校验本圈管理权限" })
   @ApiResponse({ status: 200, description: "成功" })
-  async getGuests(@Req() req: Request) {
-    const { circle } = await this.getMyCircle(req.user.id);
+  async getGuests(@Req() req: Request, @Query("circleId") circleId?: string) {
+    const circle = await this.resolveCircle(req, circleId);
     const guests = await this.prisma.circleMember.findMany({
       where: { circleId: circle.id, role: "GUEST" },
       include: { user: { select: { id: true, nickname: true, avatar: true } } },
@@ -99,21 +133,27 @@ export class CircleBackendController {
     });
     const earningsMap = new Map(earnings.map(e => [e.guestId, e._sum.earned || 0]));
 
-    return guests.map(g => ({
-      id: g.id,
-      userId: g.userId,
-      user: g.user,
-      shareRate: Number(splitMap.get(g.userId) || 0),
-      totalEarned: Number(earningsMap.get(g.userId) || 0),
-    }));
+    return guests.map(g => {
+      // splitRate 库内规范语义为 0-1 小数（schema.prisma:5849 如 0.3=30%），对外统一还原成 0-100 百分比；
+      // 兼容修正前旧代码把百分比原样写入的存量脏数据：>1 的值只可能是旧写入（新写入恒 ≤1），直接按百分比返回
+      const raw = Number(splitMap.get(g.userId) || 0);
+      return {
+        id: g.id,
+        userId: g.userId,
+        user: g.user,
+        shareRate: raw > 1 ? raw : raw * 100,
+        totalEarned: Number(earningsMap.get(g.userId) || 0),
+      };
+    });
   }
 
   @Put("guests/:userId/share-rate")
+  @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "设置嘉宾分账比例" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async setGuestShareRate(@Req() req: Request, @Param("userId") userId: string, @Body() body: SetGuestShareRateDto) {
-    const { circle } = await this.getMyCircle(req.user.id);
+    const circle = await this.resolveCircle(req, body.circleId);
 
     // 验证目标用户是当前圈子的嘉宾
     const isGuest = await this.prisma.circleMember.findFirst({
@@ -121,17 +161,21 @@ export class CircleBackendController {
     });
     if (!isGuest) throw new BusinessException(ErrorCode.BAD_REQUEST, "该用户不是本圈子的嘉宾");
 
+    // 资金修正：DTO 收 0-100 百分比，DB CircleRevenueSplit.splitRate 为 Decimal(5,4)、语义 0-1 小数
+    // （schema.prisma:5849 「如 0.3 = 30%」）。修正前把百分比原样写入 → >9.9999 直接溢出报错、≤9.9999 单位错 100 倍。
+    const splitRateFraction = body.shareRate / 100;
+
     const existing = await this.prisma.circleRevenueSplit.findFirst({
       where: { circleId: circle.id, guestId: userId },
     });
     if (existing) {
       await this.prisma.circleRevenueSplit.update({
         where: { id: existing.id },
-        data: { splitRate: body.shareRate },
+        data: { splitRate: splitRateFraction },
       });
     } else {
       await this.prisma.circleRevenueSplit.create({
-        data: { circleId: circle.id, guestId: userId, splitRate: body.shareRate },
+        data: { circleId: circle.id, guestId: userId, splitRate: splitRateFraction },
       });
     }
     return { success: true };
@@ -141,8 +185,9 @@ export class CircleBackendController {
   @ApiOperation({ summary: "圈主收益概览" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "period", required: false, description: "月份 如 2026-06" })
-  async getRevenue(@Req() req: Request, @Query("period") period?: string) {
-    const { circle } = await this.getMyCircle(req.user.id);
+  @ApiQuery({ name: "circleId", required: false, description: "管理角色（SUPER_ADMIN/OPERATION_ADMIN）跨圈查看时传入" })
+  async getRevenue(@Req() req: Request, @Query("period") period?: string, @Query("circleId") circleId?: string) {
+    const circle = await this.resolveCircle(req, circleId);
     const now = new Date();
     const monthStart = period ? new Date(period + "-01") : new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = period

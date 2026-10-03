@@ -4,23 +4,26 @@
 
     <scroll-view scroll-y class="scroll-area">
       <view v-if="loading" class="loading"><text>加载中...</text></view>
-      <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
+      <view v-else-if="error" class="error-state" role="alert"><text>{{ error }}</text><view class="retry-btn" role="button" tabindex="0" aria-label="重新加载退款进度" @tap="retry" @keydown.enter="retry" @keydown.space.prevent="retry">重试</view></view>
       <!-- 退款金额卡片 -->
       <block v-else>
-      <view class="amount-card">
+      <view class="amount-card" :class="{ 'amount-card--pending': data.status !== 'completed', 'amount-card--failed': data.status === 'rejected' || data.status === 'cancelled' }">
         <view class="amount-head">
           <app-icon name="wallet" :size="40" color="#FFFFFF" />
-          <text class="amount-label">退款金额</text>
+          <text class="amount-label">{{ data.status === 'rejected' || data.status === 'cancelled' ? '申请退款金额' : '退款金额' }}</text>
         </view>
         <text class="amount-value">¥{{ data.amount.toFixed(2) }}</text>
-        <text class="amount-method">退款方式：原路退回至{{ refundMethod }}</text>
+        <text v-if="data.status !== 'rejected' && data.status !== 'cancelled'" class="amount-method">退款方式：原路退回至{{ refundMethod }}</text>
         <view v-if="data.status === 'refunding'" class="amount-pill">
           <app-icon name="clock" :size="28" color="#FFFFFF" />
-          <text class="amount-pill-text">预计 {{ estimatedDate }} 前到账</text>
+          <text class="amount-pill-text">退款处理中，到账时间以支付渠道为准</text>
         </view>
         <view v-else-if="data.status === 'completed'" class="amount-pill">
           <app-icon name="check" :size="28" color="#FFFFFF" />
-          <text class="amount-pill-text">退款已到账</text>
+          <text class="amount-pill-text">退款处理完成，请核对原支付账户</text>
+        </view>
+        <view v-else class="amount-pill">
+          <text class="amount-pill-text">{{ data.status === 'return_pending' ? '等待退货' : data.status === 'rejected' ? '申请未通过' : data.status === 'cancelled' ? '申请已撤销' : '申请审核中' }}</text>
         </view>
       </view>
 
@@ -30,9 +33,10 @@
         <view class="timeline">
           <view v-for="(node, idx) in data.timeline" :key="idx" class="tl-node">
             <view class="tl-col">
-              <view class="tl-dot" :class="{ done: nodeStatus(idx) === 'completed', current: nodeStatus(idx) === 'refunding' }">
+              <view class="tl-dot" :class="{ done: nodeStatus(idx) === 'completed', current: nodeStatus(idx) === 'refunding', failed: nodeStatus(idx) === 'failed' }">
                 <app-icon v-if="nodeStatus(idx) === 'completed'" name="check" :size="24" color="#FFFFFF" />
                 <app-icon v-else-if="nodeStatus(idx) === 'refunding'" name="clock" :size="24" color="#FFFFFF" />
+                <app-icon v-else-if="nodeStatus(idx) === 'failed'" name="x" :size="24" color="#FFFFFF" />
                 <view v-else class="tl-dot-pending" />
               </view>
               <view v-if="idx < data.timeline.length - 1" class="tl-line" :class="{ done: nodeStatus(idx) === 'completed' }" />
@@ -73,7 +77,7 @@
         </view>
         <view class="info-row">
           <text class="info-label">退款原因</text>
-          <text class="info-val">{{ data.reason }}</text>
+          <text class="info-val">{{ data.reason || '未填写' }}</text>
         </view>
         <view class="info-row">
           <text class="info-label">申请时间</text>
@@ -90,7 +94,7 @@
             <text class="product-name">{{ data.product.name }}</text>
             <text class="product-sku">{{ data.product.skuName }}</text>
             <view class="product-foot">
-              <text class="product-price">¥{{ data.product.price }}</text>
+              <text class="product-price">¥{{ formatPrice(data.product.price) }}</text>
               <text class="product-qty">×{{ data.product.quantity }}</text>
             </view>
           </view>
@@ -102,8 +106,8 @@
         <app-icon name="alert-circle" :size="40" color="#f97316" class="tips-icon" />
         <view class="tips-body">
           <text class="tips-title">温馨提示</text>
-          <view class="tips-li"><text class="tips-dot">·</text><text class="tips-text">退款将在1-3个工作日内原路退回</text></view>
-          <view class="tips-li"><text class="tips-dot">·</text><text class="tips-text">银行卡退款可能延迟，具体以银行到账时间为准</text></view>
+          <view class="tips-li"><text class="tips-dot">·</text><text class="tips-text">退款进度以本页状态和支付渠道记录为准</text></view>
+          <view class="tips-li"><text class="tips-dot">·</text><text class="tips-text">如已处理完成但未到账，请核对原支付账户</text></view>
           <view class="tips-li"><text class="tips-dot">·</text><text class="tips-text">如有疑问，请联系在线客服</text></view>
         </view>
       </view>
@@ -127,10 +131,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
-import { orderApi } from '@/lib/order-data'
+import { orderApi } from '@/pkg-order/lib/order-data'
+import { formatPrice } from '@/utils/format'
 
 const safeBottom = ref(0)
 const loading = ref(true)
@@ -139,29 +145,29 @@ const error = ref('')
 const data = ref<any>(null)
 const orderId = ref('')
 
-async function loadData() {
-  loading.value = true
-  error.value = ''
+async function loadData(silent = false) {
+  if (!silent) { loading.value = true; error.value = '' }
   try {
     data.value = await orderApi.refundProgress(orderId.value)
+    error.value = ''
   } catch (e) {
-    error.value = (e as Error)?.message || '加载失败，请重试'
+    if (!silent) error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 function retry() { loadData() }
 
-const refundMethod = '微信支付'
-const estimatedDate = '2024年1月18日'
+// 退款方式没有单独渠道字段时只提示原支付账户，不推测微信或支付宝。
+const refundMethod = computed(() => data.value?.refundMethod || '原支付账户')
 
 const currentIndex = computed(() => data.value?.timeline?.findIndex((n: { isCurrent?: boolean }) => n.isCurrent) ?? -1)
 
-function nodeStatus(idx: number): 'completed' | 'refunding' | 'pending' {
+function nodeStatus(idx: number): 'completed' | 'refunding' | 'failed' | 'pending' {
   if (!data.value) return 'pending'
   if (currentIndex.value === -1) return data.value.status === 'completed' ? 'completed' : 'pending'
   if (idx < currentIndex.value) return 'completed'
-  if (idx === currentIndex.value) return 'refunding'
+  if (idx === currentIndex.value) return data.value.status === 'rejected' || data.value.status === 'cancelled' ? 'failed' : 'refunding'
   return 'pending'
 }
 
@@ -172,10 +178,11 @@ onLoad((q) => {
   } catch (e) {
     safeBottom.value = 0
   }
-  if (q?.id) orderId.value = q.id
+  // P1-4：入口（订单列表/详情）传的是 orderId，原来只读 q.id 恒空 → 兼容两种参数名
+  orderId.value = (q?.orderId as string) || (q?.id as string) || ''
 })
 
-onMounted(() => { loadData() })
+usePageRefresh(() => loadData(Boolean(data.value)))
 
 function copyId() {
   if (!data.value?.id) return
@@ -185,7 +192,7 @@ function copyId() {
   })
 }
 function contactService() {
-  uni.showToast({ title: '正在接入客服', icon: 'none' })
+  navigateTo('/customer-service')
 }
 function viewOrder() {
   if (data.value?.orderId) navigateTo(`/orders/${data.value.orderId}`)
@@ -216,6 +223,8 @@ function goDispute() {
   background: linear-gradient(to bottom right, #22c55e, #16a34a);
   border-radius: 32rpx;
 }
+.amount-card--pending { background: linear-gradient(to bottom right, #40556D, #273E54); }
+.amount-card--failed { background: linear-gradient(to bottom right, #707782, #4B5563); }
 .amount-head {
   display: flex;
   align-items: center;
@@ -294,6 +303,7 @@ function goDispute() {
 .tl-dot.current {
   background: #f97316;
 }
+.tl-dot.failed { background: #6B7280; }
 .tl-dot-pending {
   width: 16rpx;
   height: 16rpx;

@@ -4,19 +4,22 @@
  * 平台自建对话机器人，区别于智能体广场(Coze)。
  */
 import { apiPost } from '@/utils/request'
+import type { Recommendation } from '@/lib/agent-data'
 
 export interface AssistantSource {
   id: string
   content: string
   similarity: number
+  sourceType?: string
 }
 
 export interface AssistantReply {
   answer: string
   sources: AssistantSource[]
+  recommendation?: Recommendation
 }
 
-export type AssistantHistory = Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+export type AssistantHistory = Array<{ role: 'user' | 'assistant'; content: string }>
 
 export const assistantApi = {
   /** 向圈主助理提问（非流式） */

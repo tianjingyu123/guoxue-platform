@@ -1,4 +1,5 @@
 import { NodeSDK } from "@opentelemetry/sdk-node";
+import { diag } from "@opentelemetry/api";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
@@ -13,6 +14,7 @@ import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
+import { PrivacySpanExporter } from "./common/privacy-span-exporter";
 
 const tracingLog = (msg: string) => process.stderr.write(`[OpenTelemetry] ${msg}\n`);
 
@@ -21,33 +23,49 @@ const otlpEndpoint =
   process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
   "http://localhost:4318/v1/traces";
 
-const sdk = new NodeSDK({
-  resource: resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || "guoxue-platform",
-    [ATTR_SERVICE_VERSION]: "0.0.1",
-  }),
-  spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({ url: otlpEndpoint }))],
-  textMapPropagator: new CompositePropagator({
-    propagators: [
-      new W3CTraceContextPropagator(),
-      new W3CBaggagePropagator(),
-      new B3Propagator(),
-    ],
-  }),
-  instrumentations: [
-    new HttpInstrumentation(),
-    new ExpressInstrumentation(),
-    new PgInstrumentation(),
-    new IORedisInstrumentation(),
-  ],
-});
+function createTraceSDK(): NodeSDK {
+  const previousLogLevel = process.env.OTEL_LOG_LEVEL;
+  // SDK内部诊断会展开未清理的资源属性；构造阶段也须关闭，随后恢复调用者环境。
+  process.env.OTEL_LOG_LEVEL = "NONE";
+  try {
+    return new NodeSDK({
+      resource: resourceFromAttributes({
+        [ATTR_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || "guoxue-platform",
+        [ATTR_SERVICE_VERSION]: "0.0.1",
+      }),
+      spanProcessors: [new BatchSpanProcessor(new PrivacySpanExporter(new OTLPTraceExporter({ url: otlpEndpoint })))],
+      // 目前只验收追踪导出；阻断默认/环境配置自动开启的未清理指标及日志通道。
+      metricReaders: [],
+      logRecordProcessors: [],
+      textMapPropagator: new CompositePropagator({
+        propagators: [
+          new W3CTraceContextPropagator(),
+          new W3CBaggagePropagator(),
+          new B3Propagator(),
+        ],
+      }),
+      instrumentations: [
+        new HttpInstrumentation(),
+        new ExpressInstrumentation(),
+        new PgInstrumentation(),
+        new IORedisInstrumentation(),
+      ],
+    });
+  } finally {
+    if (previousLogLevel === undefined) delete process.env.OTEL_LOG_LEVEL;
+    else process.env.OTEL_LOG_LEVEL = previousLogLevel;
+    diag.disable();
+  }
+}
+
+const sdk = createTraceSDK();
 
 export async function startTracing() {
   try {
     await sdk.start();
     tracingLog("链路追踪已启动");
-  } catch (err) {
-    tracingLog(`链路追踪启动失败（无 Collector 可用，继续运行）: ${(err as Error).message}`);
+  } catch {
+    tracingLog("链路追踪启动失败，继续运行");
   }
 }
 
@@ -55,7 +73,7 @@ export async function stopTracing() {
   try {
     await sdk.shutdown();
     tracingLog("链路追踪已关闭");
-  } catch (err) {
-    tracingLog(`链路追踪关闭失败: ${(err as Error).message}`);
+  } catch {
+    tracingLog("链路追踪关闭失败");
   }
 }

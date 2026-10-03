@@ -15,7 +15,7 @@ for (const rel of ['../../.env', '../.env']) {
 const { PrismaClient } = require('@prisma/client')
 const p = new PrismaClient()
 
-const TEST_PHONE = '13912340099' // 测试账号（我的参赛者·密码 Test1234）
+const TEST_PHONE = '13912340099' // 测试账号；登录凭据由受控环境单独管理
 
 // 化名参赛者（demo 标记便于清理）
 const DEMO_USERS = [

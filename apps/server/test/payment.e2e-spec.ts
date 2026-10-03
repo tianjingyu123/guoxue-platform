@@ -33,10 +33,18 @@ describe("Payment E2E", () => {
 
   describe("POST /api/v1/shop/alipay/notify", () => {
     it("有效通知返回 success", async () => {
-      prisma.order.findFirst.mockResolvedValue({
-        id: "o-alipay", status: "PENDING", amount: "99.00", payTransactionId: "ALI001",
+      alipay.verifyNotify.mockResolvedValue({
+        valid: true,
+        data: {
+          outTradeNo: "ALI001",
+          tradeNo: "TXN001",
+          tradeStatus: "TRADE_SUCCESS",
+          totalAmount: 99,
+        },
       })
-      prisma.order.update.mockResolvedValue({})
+      prisma.order.findFirst.mockResolvedValue({
+        id: "o-alipay", type: "PRODUCT", userId: "u1", status: "PENDING", amount: "99.00", payTransactionId: "ALI001",
+      })
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/shop/alipay/notify")
@@ -48,7 +56,7 @@ describe("Payment E2E", () => {
           notify_id: "n1",
           total_amount: "99.00",
         })
-        .expect(201)
+        .expect(200)
 
       expect(res.text).toBe("success")
     })
@@ -59,7 +67,7 @@ describe("Payment E2E", () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/shop/alipay/notify")
         .send({ out_trade_no: "ALI001", sign: "invalid", trade_status: "TRADE_SUCCESS" })
-        .expect(201)
+        .expect(200)
 
       expect(res.text).toBe("fail")
     })
@@ -69,15 +77,23 @@ describe("Payment E2E", () => {
 
   describe("POST /api/v1/shop/unionpay/notify", () => {
     it("有效通知返回 success", async () => {
-      prisma.order.findFirst.mockResolvedValue({
-        id: "o-union", status: "PENDING", amount: "199.00", payTransactionId: "UNI001",
+      unionpay.verifyNotify.mockResolvedValue({
+        valid: true,
+        data: {
+          outTradeNo: "UNI001",
+          tradeNo: "QRY001",
+          respCode: "00",
+          amount: 19900,
+        },
       })
-      prisma.order.update.mockResolvedValue({})
+      prisma.order.findFirst.mockResolvedValue({
+        id: "o-union", type: "PRODUCT", userId: "u1", status: "PENDING", amount: "199.00", payTransactionId: "UNI001",
+      })
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/shop/unionpay/notify")
         .send({ orderId: "UNI001", respCode: "00", signature: "valid" })
-        .expect(201)
+        .expect(200)
 
       expect(res.text).toBe("success")
     })
@@ -88,7 +104,7 @@ describe("Payment E2E", () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/shop/unionpay/notify")
         .send({ orderId: "UNI001", respCode: "00", signature: "invalid" })
-        .expect(201)
+        .expect(200)
 
       expect(res.text).toBe("fail")
     })

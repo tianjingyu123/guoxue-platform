@@ -2,8 +2,7 @@
   <view class="gs-page">
     <!-- 加载中 -->
     <view v-if="loading" class="state-box">
-      <view class="state-spin" />
-      <text class="state-text">加载中...</text>
+      <AppLoading />
     </view>
     <!-- 加载失败 -->
     <view v-else-if="error" class="state-box">
@@ -11,13 +10,22 @@
         <app-icon name="alert-circle" :size="72" color="#b8ab94" />
       </view>
       <text class="state-text">{{ error }}</text>
-      <view class="state-retry" @tap="retryLoad">
+      <view class="state-retry" role="button" tabindex="0" aria-label="重新核对拼团结果" @tap="retryLoad" @keydown.enter="retryLoad" @keydown.space.prevent="retryLoad">
         <text class="state-retry-text">重试</text>
+      </view>
+      <view class="state-retry" role="button" tabindex="0" aria-label="返回上一页" @tap="onBack" @keydown.enter="onBack" @keydown.space.prevent="onBack">
+        <text class="state-retry-text">返回</text>
       </view>
     </view>
     <template v-else-if="data">
       <!-- 成功头部 -->
       <view class="header">
+        <view class="gs-nav">
+          <view class="gs-nav-back" hover-class="nav-hover" @tap="onBack">
+            <app-icon name="chevron-left" :size="40" color="#fff" />
+          </view>
+          <text class="gs-nav-title">拼团结果</text>
+        </view>
         <view class="success-icon">
           <app-icon name="check-circle" :size="96" color="#22c55e" />
         </view>
@@ -29,34 +37,33 @@
       <!-- 商品卡片 -->
       <view class="card">
         <view class="prod">
-          <image lazy-load class="prod-cover" :src="data.productCover" mode="aspectFill" />
+          <smart-cover class="prod-cover" :src="data.productCover" :title="data.productName" type="product" deco :deco-size="44" />
           <view class="prod-info">
             <text class="prod-name">{{ data.productName }}</text>
             <view class="prod-price">
-              <text class="price-now">¥{{ data.price }}</text>
-              <text class="price-old">¥{{ data.originalPrice }}</text>
-              <text class="save-tag">省¥{{ data.savedAmount }}</text>
+              <text class="price-now">¥{{ formatPrice(data.price) }}</text>
+              <text v-if="data.originalPrice != null" class="price-old">¥{{ formatPrice(data.originalPrice) }}</text>
+              <text v-if="data.savedAmount != null" class="save-tag">省¥{{ formatPrice(data.savedAmount) }}</text>
             </view>
           </view>
         </view>
         <view class="row">
           <text class="row-label">成团成员</text>
           <view class="members">
-            <image lazy-load
+            <smart-avatar
               v-for="(m, i) in data.members"
               :key="i"
               class="member-avatar"
               :src="m.avatar"
-              mode="aspectFill"
             />
             <text class="member-count">共{{ data.members.length }}人</text>
           </view>
         </view>
-        <view class="row row--sub">
-          <text class="row-label">成团时间</text>
-          <text class="row-value">{{ data.completedAt }}</text>
+        <view v-if="data.paidAt" class="row row--sub">
+          <text class="row-label">付款时间</text>
+          <text class="row-value">{{ data.paidAt }}</text>
         </view>
-        <view class="row row--sub">
+        <view v-if="data.orderId" class="row row--sub">
           <text class="row-label">订单编号</text>
           <view class="order-id">
             <text class="row-value">{{ data.orderId }}</text>
@@ -67,41 +74,25 @@
         </view>
       </view>
 
-      <!-- 发货信息 -->
+      <!-- 发货状态以订单页为准，不承诺接口未提供的时限。 -->
       <view class="ship-card">
         <view class="ship-icon">
           <app-icon name="package" :size="36" color="#4a90d9" />
         </view>
         <view class="ship-info">
-          <text class="ship-title">预计发货时间</text>
-          <text class="ship-sub">{{ data.estimatedShipDate }}（工作日）</text>
-        </view>
-      </view>
-
-      <!-- 分享得券 -->
-      <view class="share-card">
-        <view class="share-left">
-          <view class="share-icon">
-            <app-icon name="gift" :size="36" color="#fff" />
-          </view>
-          <view>
-            <text class="share-title">分享得优惠券</text>
-            <text class="share-sub">邀请好友拼团，获10元优惠券</text>
-          </view>
-        </view>
-        <view class="share-btn" @tap="share">
-          <app-icon name="share-2" :size="28" color="#ff6b35" />
-          <text class="share-btn-text">分享</text>
+          <text class="ship-title">发货进度</text>
+          <text class="ship-sub">以订单详情中的最新状态为准</text>
         </view>
       </view>
 
       <!-- 操作 -->
       <view class="actions">
-        <view class="btn-primary" hover-class="btn-hover" @tap="viewOrder">
+        <view v-if="data.orderId" class="btn-primary" role="link" tabindex="0" aria-label="查看拼团订单" hover-class="btn-hover" @tap="viewOrder" @keydown.enter="viewOrder" @keydown.space.prevent="viewOrder">
           <text class="btn-primary-text">查看订单</text>
           <app-icon name="chevron-right" :size="28" color="#fff" />
         </view>
-        <view class="btn-ghost" hover-class="btn-hover" @tap="goShop">
+        <view v-else class="order-pending">订单信息待同步，请稍后在订单中心核对</view>
+        <view class="btn-ghost" role="link" tabindex="0" aria-label="返回商城" hover-class="btn-hover" @tap="goShop" @keydown.enter="goShop" @keydown.space.prevent="goShop">
           <text class="btn-ghost-text">继续逛逛</text>
         </view>
       </view>
@@ -113,19 +104,22 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { navigateTo } from '@/utils/router'
+import { reLaunch } from '@/utils/router'
+import SmartCover from '@/components/common/smart-cover.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { shopApi } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 interface GroupBuySuccessData {
   productCover: string
   productName: string
   price: number
-  originalPrice: number
-  savedAmount: number
+  originalPrice: number | null
+  savedAmount: number | null
   members: { avatar: string }[]
-  completedAt: string
+  paidAt: string
   orderId: string
-  estimatedShipDate: string
 }
 
 const data = ref<GroupBuySuccessData | null>(null)
@@ -156,15 +150,15 @@ function copy(text: string) {
     },
   })
 }
-function share() {
-  uni.showToast({ title: '已唤起分享', icon: 'none' })
-}
 function viewOrder() {
   if (!data.value) return
-  navigateTo(`/orders/${data.value.orderId}`)
+  reLaunch(`/orders/${data.value.orderId}?paymentReturn=1`)
 }
 function goShop() {
-  navigateTo('/shop')
+  reLaunch('/mall')
+}
+function onBack() {
+  reLaunch('/mall')
 }
 async function retryLoad() {
   loading.value = true
@@ -186,13 +180,36 @@ async function retryLoad() {
 }
 .header {
   background: linear-gradient(to bottom right, #22c55e, #16a34a);
-  padding: 96rpx 32rpx 192rpx;
+  padding: 0 32rpx 192rpx;
   text-align: center;
+}
+.gs-nav {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  height: 88rpx;
+  padding-top: var(--status-bar-height, 0px);
+  text-align: left;
+}
+.gs-nav-back {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gs-nav-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #fff;
+}
+.nav-hover {
+  opacity: 0.6;
 }
 .success-icon {
   width: 160rpx;
   height: 160rpx;
-  margin: 0 auto 32rpx;
+  margin: 48rpx auto 32rpx;
   background: #fff;
   border-radius: 50%;
   display: flex;
@@ -233,6 +250,7 @@ async function retryLoad() {
   width: 144rpx;
   height: 144rpx;
   border-radius: 16rpx;
+  overflow: hidden;
   background: #f0ece2;
 }
 .prod-info {
@@ -349,53 +367,7 @@ async function retryLoad() {
   margin-top: 4rpx;
   display: block;
 }
-.share-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: linear-gradient(90deg, #ff8c42, #e85050);
-  border-radius: 24rpx;
-  padding: 24rpx;
-}
-.share-left {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-}
-.share-icon {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.share-title {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #fff;
-  display: block;
-}
-.share-sub {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.8);
-  margin-top: 4rpx;
-  display: block;
-}
-.share-btn {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-  padding: 14rpx 28rpx;
-  background: #fff;
-  border-radius: 999rpx;
-}
-.share-btn-text {
-  font-size: 26rpx;
-  font-weight: 500;
-  color: #ff6b35;
-}
+.order-pending { color: #666; font-size: 26rpx; text-align: center; line-height: 1.5; }
 .actions {
   display: flex;
   flex-direction: column;
@@ -438,17 +410,6 @@ async function retryLoad() {
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
-}
-.state-spin {
-  width: 64rpx;
-  height: 64rpx;
-  border: 4rpx solid #e8e3db;
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 .state-icon {
   width: 120rpx;

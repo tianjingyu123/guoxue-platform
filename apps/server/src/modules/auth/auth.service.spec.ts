@@ -8,18 +8,31 @@ import { RedisService } from "../../redis/redis.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { SmsService } from "../sms/sms.service";
 import { PermissionService } from "../system/permission.service";
+import { FeatureFlagService } from "../feature-flag/feature-flag.service";
+import { AppleLoginService } from "./apple-login.service";
 import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { Prisma } from "@prisma/client";
 
 jest.mock("bcryptjs");
 import * as bcrypt from "bcryptjs";
 
 const mockPrisma = {
   user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
-  auth: { findFirst: jest.fn(), update: jest.fn() },
+  auth: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    update: jest.fn(),
+    create: jest.fn(),
+    upsert: jest.fn(),
+  },
   userRole: { findMany: jest.fn() },
+  managedMembership: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
   station: { findUnique: jest.fn() },
   referralRelation: { create: jest.fn() },
   merchant: { findUnique: jest.fn() },
+  merchantMember: { findFirst: jest.fn() },
+  $transaction: jest.fn(),
 };
 
 const mockJwt = { sign: jest.fn() };
@@ -27,6 +40,7 @@ const mockJwt = { sign: jest.fn() };
 const mockRedis = {
   set: jest.fn(),
   get: jest.fn(),
+  getDel: jest.fn(),
   del: jest.fn(),
   sadd: jest.fn(),
   srem: jest.fn(),
@@ -35,9 +49,12 @@ const mockRedis = {
 };
 
 const mockWechat = {
+  resolveLoginClient: jest.fn(),
   buildOAuthUrl: jest.fn(),
   exchangeOAuthCode: jest.fn(),
   exchangeMiniCode: jest.fn(),
+  decryptPhoneNumber: jest.fn(),
+  exchangePhoneNumber: jest.fn(),
   getUserInfo: jest.fn(),
 };
 
@@ -48,6 +65,8 @@ const mockIm = {
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
 const mockSms = { sendVerifyCode: jest.fn(), verifyCode: jest.fn() };
 const mockPermSvc = { getUserPermissions: jest.fn().mockResolvedValue([]) };
+const mockFeatureFlag = { isEnabled: jest.fn().mockResolvedValue(true) };
+const mockAppleLogin = { verifyIdentityToken: jest.fn() };
 
 describe("AuthService", () => {
   let svc: AuthService;
@@ -63,41 +82,196 @@ describe("AuthService", () => {
         { provide: JwtService, useValue: mockJwt },
         { provide: RedisService, useValue: mockRedis },
         { provide: WechatService, useValue: mockWechat },
+        { provide: AppleLoginService, useValue: mockAppleLogin },
         { provide: ImService, useValue: mockIm },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: SmsService, useValue: mockSms },
         { provide: PermissionService, useValue: mockPermSvc },
+        { provide: FeatureFlagService, useValue: mockFeatureFlag },
       ],
     }).compile();
     svc = mod.get(AuthService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFeatureFlag.isEnabled.mockResolvedValue(true);
+    mockPrisma.$transaction.mockImplementation(
+      async (callback: (tx: typeof mockPrisma) => unknown) => callback(mockPrisma),
+    );
+    delete process.env.WECHAT_APP_ID;
+    delete process.env.WECHAT_APP_SECRET;
+    delete process.env.WECHAT_OFFICIAL_APPID;
+    delete process.env.WECHAT_OFFICIAL_APP_SECRET;
+    delete process.env.WECHAT_MINI_APP_ID;
+    delete process.env.MINIPROGRAM_APP_ID;
+    delete process.env.WECHAT_MP_APP_ID;
+    delete process.env.MINIPROGRAM_APP_SECRET;
+    delete process.env.WECHAT_OPEN_APP_ID;
+    delete process.env.WECHAT_OPEN_APP_SECRET;
+    mockWechat.resolveLoginClient.mockImplementation((loginType: string, clientKey?: string) => {
+      const isMini = loginType === "miniprogram";
+      const isApp = loginType === "app";
+      const appId = isMini
+        ? process.env.WECHAT_MINI_APP_ID ||
+          process.env.MINIPROGRAM_APP_ID ||
+          process.env.WECHAT_MP_APP_ID ||
+          process.env.WECHAT_APP_ID
+        : isApp
+          ? process.env.WECHAT_OPEN_APP_ID
+          : process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID;
+      const appSecret = isMini
+        ? process.env.MINIPROGRAM_APP_SECRET || process.env.WECHAT_APP_SECRET
+        : isApp
+          ? process.env.WECHAT_OPEN_APP_SECRET
+          : process.env.WECHAT_OFFICIAL_APP_SECRET || process.env.WECHAT_APP_SECRET;
+      if (!appId || !appSecret)
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "微信登录未配置");
+      return {
+        clientKey: clientKey || (isMini ? "legacy-mini" : isApp ? "legacy-app" : "legacy-h5"),
+        type: loginType,
+        appId,
+        appSecret,
+        identityNamespace: `wechat:${loginType}:${appId}`,
+        unionNamespace: "wechat-open:default",
+        isDefault: true,
+      };
+    });
+  });
+
+  describe("客户会话撤销故障与平台安全边界", () => {
+    afterEach(() => {
+      mockPrisma.managedMembership.updateMany.mockReset().mockResolvedValue({ count: 0 });
+      mockRedis.smembers.mockReset().mockResolvedValue([]);
+      mockRedis.set.mockReset();
+      mockRedis.del.mockReset();
+    });
+
+    it("客户修订成功后撤销平台的刷新及访问令牌", async () => {
+      mockRedis.smembers.mockResolvedValue(["synthetic-refresh-a", "synthetic-refresh-b"]);
+      await svc.revokeAllRefreshTokens("synthetic-user");
+      expect(mockPrisma.managedMembership.updateMany).toHaveBeenCalledWith({
+        where: { userId: "synthetic-user", enabled: true, identityProvider: "PLATFORM" },
+        data: { revision: { increment: 1 } },
+      });
+      expect(mockRedis.del.mock.calls).toEqual([
+        ["refresh:synthetic-refresh-a"], ["refresh:synthetic-refresh-b"], ["refresh:user:synthetic-user"],
+      ]);
+      expect(mockRedis.set).toHaveBeenCalledWith("revoked:user:synthetic-user", expect.any(String), 7260);
+    });
+
+    it("客户库修订失败仍撤销平台令牌，且不声称全部成功", async () => {
+      const failure = new Error("合成客户修订失败");
+      mockPrisma.managedMembership.updateMany.mockRejectedValueOnce(failure);
+      mockRedis.smembers.mockResolvedValue(["synthetic-refresh-a"]);
+      await expect(svc.revokeAllRefreshTokens("synthetic-user")).rejects.toBe(failure);
+      expect(mockRedis.del).toHaveBeenCalledWith("refresh:synthetic-refresh-a");
+      expect(mockRedis.del).toHaveBeenCalledWith("refresh:user:synthetic-user");
+      expect(mockRedis.set).toHaveBeenCalledWith("revoked:user:synthetic-user", expect.any(String), 7260);
+    });
+
+    it("实际改密方法已写凭据后客户修订失败，不跳过平台撤销", async () => {
+      mockPrisma.auth.findFirst.mockResolvedValue({ id: "synthetic-auth", credential: "old-hash" });
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (bcrypt.hash as jest.Mock).mockResolvedValue("new-hash");
+      const failure = new Error("合成客户修订失败");
+      mockPrisma.managedMembership.updateMany.mockRejectedValueOnce(failure);
+      await expect(svc.changePassword("synthetic-user", { oldPassword: "old-pass", newPassword: "new-pass" })).rejects.toBe(failure);
+      expect(mockPrisma.auth.update).toHaveBeenCalledWith({ where: { id: "synthetic-auth" }, data: { credential: "new-hash" } });
+      expect(mockRedis.set).toHaveBeenCalledWith("revoked:user:synthetic-user", expect.any(String), 7260);
+    });
+
+    it("平台撤销失败时仍拒绝成功，不将客户修订成功当成全部撤销", async () => {
+      mockRedis.set.mockRejectedValueOnce(new Error("合成平台撤销失败"));
+      await expect(svc.revokeAllRefreshTokens("synthetic-user")).rejects.toThrow("合成平台撤销失败");
+      expect(mockPrisma.managedMembership.updateMany).toHaveBeenCalledTimes(1);
+    });
+  });
 
   describe("phoneRegister", () => {
     it("注册成功", async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue("hashed");
-      mockPrisma.user.create.mockResolvedValue({ id: "user-1", nickname: "张三", phone: "13800138000" });
+      mockPrisma.user.create.mockResolvedValue({
+        id: "user-1",
+        nickname: "张三",
+        phone: "13800138000",
+      });
       mockPrisma.userRole.findMany.mockResolvedValue([]);
       mockJwt.sign.mockReturnValue("token");
-      const result = await svc.phoneRegister({ nickname: "张三", phone: "13800138000", password: "123456" });
+      const result = await svc.phoneRegister({
+        nickname: "张三",
+        phone: "13800138000",
+        code: "123456",
+        password: "123456",
+      });
+      expect(mockSms.verifyCode).toHaveBeenCalledWith("13800138000", "123456", "REGISTER");
       expect(result.accessToken).toBe("token");
       expect(result.user).toBeTruthy();
+      expect(mockPrisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            auths: {
+              create: expect.arrayContaining([
+                expect.objectContaining({ provider: "PASSWORD", namespace: "password" }),
+                expect.objectContaining({ provider: "PHONE", namespace: "phone" }),
+              ]),
+            },
+          }),
+        }),
+      );
+      const created = mockPrisma.user.create.mock.calls[0][0].data;
+      expect(created.auths.create).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ provider: "PASSWORD", subject: created.id }),
+        ]),
+      );
+    });
+    it("验证码未通过时不查询或创建账号", async () => {
+      mockSms.verifyCode.mockRejectedValueOnce(
+        new BusinessException(ErrorCode.AUTH_SMS_CODE_INVALID, "验证码错误"),
+      );
+      await expect(
+        svc.phoneRegister({
+          nickname: "张三",
+          phone: "13800138000",
+          code: "000000",
+          password: "123456",
+        }),
+      ).rejects.toThrow(BusinessException);
+      expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
     });
     it("手机号已注册抛出 ConflictException", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: "existing" });
-      await expect(svc.phoneRegister({ nickname: "张三", phone: "13800138000", password: "123456" })).rejects.toThrow(BusinessException);
+      await expect(
+        svc.phoneRegister({ nickname: "张三", phone: "13800138000", code: "123456", password: "123456" }),
+      ).rejects.toThrow(BusinessException);
     });
     it("带推荐码注册成功", async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue("hashed");
-      mockPrisma.user.create.mockResolvedValue({ id: "user-2", nickname: "李四", phone: "13900000000" });
-      mockPrisma.station.findUnique.mockResolvedValue({ id: "station-1", userId: "referrer-1", code: "ABC123", status: "ACTIVE" });
+      mockPrisma.user.create.mockResolvedValue({
+        id: "user-2",
+        nickname: "李四",
+        phone: "13900000000",
+      });
+      mockPrisma.station.findUnique.mockResolvedValue({
+        id: "station-1",
+        userId: "referrer-1",
+        code: "ABC123",
+        status: "ACTIVE",
+      });
       mockPrisma.referralRelation.create.mockResolvedValue({});
       mockPrisma.userRole.findMany.mockResolvedValue([]);
       mockJwt.sign.mockReturnValue("token");
-      const result = await svc.phoneRegister({ nickname: "李四", phone: "13900000000", password: "123456", referrerCode: "ABC123" });
+      const result = await svc.phoneRegister({
+        nickname: "李四",
+        phone: "13900000000",
+        code: "123456",
+        password: "123456",
+        referrerCode: "ABC123",
+      });
       expect(result.accessToken).toBe("token");
       expect(mockPrisma.referralRelation.create).toHaveBeenCalled();
     });
@@ -106,7 +280,8 @@ describe("AuthService", () => {
   describe("phoneLogin", () => {
     it("登录成功", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({
-        id: "user-1", nickname: "张三",
+        id: "user-1",
+        nickname: "张三",
         auths: [{ provider: "PASSWORD", credential: "hashed" }],
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
@@ -117,43 +292,91 @@ describe("AuthService", () => {
     });
     it("手机号不存在抛出 UnauthorizedException", async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
-      await expect(svc.phoneLogin({ phone: "13800138000", password: "123456" })).rejects.toThrow(BusinessException);
+      await expect(svc.phoneLogin({ phone: "13800138000", password: "123456" })).rejects.toThrow(
+        BusinessException,
+      );
     });
     it("密码错误抛出 UnauthorizedException", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({
-        id: "user-1", auths: [{ provider: "PASSWORD", credential: "hashed" }],
+        id: "user-1",
+        auths: [{ provider: "PASSWORD", credential: "hashed" }],
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-      await expect(svc.phoneLogin({ phone: "13800138000", password: "wrong" })).rejects.toThrow(BusinessException);
+      await expect(svc.phoneLogin({ phone: "13800138000", password: "wrong" })).rejects.toThrow(
+        BusinessException,
+      );
     });
   });
 
   describe("smsLogin", () => {
     it("已存在用户短信登录成功", async () => {
       mockSms.verifyCode.mockResolvedValue(true);
-      mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", nickname: "张三", phone: "13800138000" });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "user-1",
+        nickname: "张三",
+        phone: "13800138000",
+      });
+      mockPrisma.auth.upsert.mockResolvedValue({ userId: "user-1" });
       mockPrisma.userRole.findMany.mockResolvedValue([]);
       mockJwt.sign.mockReturnValue("token");
       const result = await svc.smsLogin({ phone: "13800138000", code: "123456" });
       expect(result.accessToken).toBe("token");
+      expect(mockPrisma.auth.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            provider_namespace_subject: expect.objectContaining({
+              provider: "PHONE",
+              namespace: "phone",
+            }),
+          },
+          update: { lastUsedAt: expect.any(Date) },
+          select: { userId: true },
+        }),
+      );
     });
     it("新用户自动注册并登录", async () => {
       mockSms.verifyCode.mockResolvedValue(true);
       mockPrisma.user.findUnique.mockResolvedValue(null);
-      mockPrisma.user.create.mockResolvedValue({ id: "user-2", nickname: "用户8000", phone: "13800008000" });
+      mockPrisma.user.create.mockResolvedValue({
+        id: "user-2",
+        nickname: "用户8000",
+        phone: "13800008000",
+      });
+      mockPrisma.auth.upsert.mockResolvedValue({ userId: "user-2" });
       mockPrisma.userRole.findMany.mockResolvedValue([]);
       mockJwt.sign.mockReturnValue("token");
       const result = await svc.smsLogin({ phone: "13800008000", code: "123456" });
       expect(result.accessToken).toBe("token");
       expect(mockPrisma.user.create).toHaveBeenCalled();
     });
+    it("手机号身份历史归属不一致时拒绝静默改绑", async () => {
+      mockSms.verifyCode.mockResolvedValue(true);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "user-1",
+        nickname: "张三",
+        phone: "13800138000",
+      });
+      mockPrisma.auth.upsert.mockResolvedValue({ userId: "other-user" });
+
+      await expect(svc.smsLogin({ phone: "13800138000", code: "123456" })).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_IDENTITY_CONFLICT,
+      });
+    });
     it("验证码错误抛出 BadRequestException", async () => {
-      mockSms.verifyCode.mockRejectedValue(new BusinessException("AUTH_SMS_CODE_INVALID" as any, "验证码错误"));
-      await expect(svc.smsLogin({ phone: "13800138000", code: "123456" })).rejects.toThrow(BusinessException);
+      mockSms.verifyCode.mockRejectedValue(
+        new BusinessException("AUTH_SMS_CODE_INVALID" as any, "验证码错误"),
+      );
+      await expect(svc.smsLogin({ phone: "13800138000", code: "123456" })).rejects.toThrow(
+        BusinessException,
+      );
     });
     it("验证码过期抛出 BadRequestException", async () => {
-      mockSms.verifyCode.mockRejectedValue(new BusinessException("AUTH_SMS_CODE_EXPIRED" as any, "验证码已过期"));
-      await expect(svc.smsLogin({ phone: "13800138000", code: "123456" })).rejects.toThrow(BusinessException);
+      mockSms.verifyCode.mockRejectedValue(
+        new BusinessException("AUTH_SMS_CODE_EXPIRED" as any, "验证码已过期"),
+      );
+      await expect(svc.smsLogin({ phone: "13800138000", code: "123456" })).rejects.toThrow(
+        BusinessException,
+      );
     });
   });
 
@@ -167,34 +390,423 @@ describe("AuthService", () => {
   });
 
   describe("wechatLogin", () => {
-    it("微信登录暂未开放", async () => {
+    it("排盘快捷进入找不到已关联身份时不自动创建无手机号账号", async () => {
+      process.env.WECHAT_OFFICIAL_APPID = "wx-official";
+      process.env.WECHAT_OFFICIAL_APP_SECRET = "official-secret";
+      mockWechat.exchangeOAuthCode.mockResolvedValue({ openId: "wx-new" });
+      mockPrisma.auth.findUnique.mockResolvedValue(null);
+
+      await expect(
+        svc.wechatLogin({ code: "code", loginType: "h5", createIfMissing: false }),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.AUTH_NOT_LOGGED_IN });
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it("App 开关关闭时返回 404，且不读取或调用任何微信凭据", async () => {
+      mockFeatureFlag.isEnabled.mockResolvedValue(false);
+
+      await expect(svc.wechatLogin({ code: "code", loginType: "app" })).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+        status: 404,
+      });
+      expect(mockWechat.resolveLoginClient).not.toHaveBeenCalled();
+      expect(mockWechat.exchangeOAuthCode).not.toHaveBeenCalled();
+    });
+
+    it("App 开关开启且凭据已就绪时才进入 code 换取流程", async () => {
+      process.env.WECHAT_OPEN_APP_ID = "wx-open-app";
+      process.env.WECHAT_OPEN_APP_SECRET = "open-secret";
+      mockWechat.exchangeOAuthCode.mockRejectedValueOnce(new Error("测试到此为止"));
+
+      await expect(svc.wechatLogin({ code: "code", loginType: "app" })).rejects.toThrow(
+        BusinessException,
+      );
+      expect(mockFeatureFlag.isEnabled).toHaveBeenCalledWith("client_wechat_app_login");
+      expect(mockWechat.exchangeOAuthCode).toHaveBeenCalledWith("code", "legacy-app", "app");
+    });
+
+    it("未配置任何微信应用时拒绝登录", async () => {
       await expect(svc.wechatLogin({ code: "code" })).rejects.toThrow(BusinessException);
+      expect(mockWechat.exchangeOAuthCode).not.toHaveBeenCalled();
+    });
+
+    it("只配置公众号卡片时允许进入 H5 code 换取流程", async () => {
+      process.env.WECHAT_OFFICIAL_APPID = "wx-official";
+      process.env.WECHAT_OFFICIAL_APP_SECRET = "official-secret";
+      mockWechat.exchangeOAuthCode.mockRejectedValueOnce(new Error("测试到此为止"));
+      await expect(svc.wechatLogin({ code: "code", loginType: "h5" })).rejects.toThrow(
+        BusinessException,
+      );
+      expect(mockWechat.exchangeOAuthCode).toHaveBeenCalledWith("code", "legacy-h5", "h5");
+    });
+
+    it("只配置小程序卡片时允许进入 code2session 流程", async () => {
+      process.env.WECHAT_MINI_APP_ID = "wx-mini";
+      process.env.MINIPROGRAM_APP_SECRET = "mini-secret";
+      mockWechat.exchangeMiniCode.mockRejectedValueOnce(new Error("测试到此为止"));
+      await expect(svc.wechatLogin({ code: "code", loginType: "miniprogram" })).rejects.toThrow(
+        BusinessException,
+      );
+      expect(mockWechat.exchangeMiniCode).toHaveBeenCalledWith("code", "legacy-mini");
+    });
+
+    it("openId 与 unionId 分属不同账号时拒绝静默登录", async () => {
+      process.env.WECHAT_OFFICIAL_APPID = "wx-official";
+      process.env.WECHAT_OFFICIAL_APP_SECRET = "official-secret";
+      mockWechat.exchangeOAuthCode.mockResolvedValue({ openId: "wx-open", unionId: "wx-union" });
+      mockPrisma.auth.findUnique
+        .mockResolvedValueOnce({ id: "auth-open", userId: "user-open" })
+        .mockResolvedValueOnce({ id: "auth-union", userId: "user-union" });
+      mockPrisma.auth.findFirst.mockResolvedValue(null);
+
+      await expect(svc.wechatLogin({ code: "code", loginType: "h5" })).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_IDENTITY_CONFLICT,
+      });
+      expect(mockPrisma.auth.update).not.toHaveBeenCalled();
+    });
+
+    it("新小程序通过同一 UnionID 锚点登录原用户，不重复注册", async () => {
+      process.env.WECHAT_MINI_APP_ID = "wx-mini-b";
+      process.env.MINIPROGRAM_APP_SECRET = "mini-secret";
+      mockWechat.exchangeMiniCode.mockResolvedValue({
+        openId: "open-b",
+        sessionKey: "s",
+        unionId: "union-1",
+      });
+      mockPrisma.auth.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "union-anchor", userId: "user-1" });
+      mockPrisma.auth.findFirst.mockResolvedValue(null);
+      mockPrisma.auth.upsert.mockResolvedValue({ userId: "user-1" });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "user-1",
+        nickname: "原用户",
+        memberLevel: "YEARLY",
+        memberExpire: null,
+      });
+      mockPrisma.userRole.findMany.mockResolvedValue([]);
+      mockJwt.sign.mockReturnValue("token");
+
+      const result = await svc.wechatLogin({
+        code: "code",
+        loginType: "miniprogram",
+        clientKey: "mini-b",
+      });
+
+      expect(result.user.id).toBe("user-1");
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+      expect(mockPrisma.auth.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            provider_namespace_subject: {
+              provider: "WECHAT",
+              namespace: "wechat:miniprogram:wx-mini-b",
+              subject: "open-b",
+            },
+          },
+        }),
+      );
+    });
+  });
+
+  describe("appleLogin", () => {
+    it("拒绝无法通过 Apple 公钥校验的令牌", async () => {
+      mockAppleLogin.verifyIdentityToken.mockRejectedValueOnce(new Error("invalid"));
+      await expect(svc.appleLogin({ identityToken: "x".repeat(100) })).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_TOKEN_INVALID,
+      });
+      expect(mockPrisma.auth.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("已有 Apple 身份直接登录且不重复注册", async () => {
+      mockAppleLogin.verifyIdentityToken.mockResolvedValueOnce({
+        subject: "apple-subject",
+        audience: "com.rebu.iosapprebu",
+        emailVerified: true,
+        isPrivateEmail: true,
+      });
+      mockPrisma.auth.findUnique.mockResolvedValueOnce({ id: "apple-auth", userId: "user-1" });
+      mockPrisma.auth.update.mockResolvedValueOnce({ id: "apple-auth" });
+      mockPrisma.user.findUnique.mockResolvedValueOnce({ id: "user-1", nickname: "老用户" });
+      mockPrisma.userRole.findMany.mockResolvedValueOnce([]);
+      mockJwt.sign.mockReturnValueOnce("token");
+
+      const result = await svc.appleLogin({ identityToken: "x".repeat(100) });
+
+      expect(result.user.id).toBe("user-1");
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+      expect(mockPrisma.auth.update).toHaveBeenCalledWith({
+        where: { id: "apple-auth" },
+        data: { lastUsedAt: expect.any(Date) },
+      });
+    });
+
+    it("首次 Apple 授权创建内部账号并绑定稳定 subject", async () => {
+      mockAppleLogin.verifyIdentityToken.mockResolvedValueOnce({
+        subject: "apple-subject-new",
+        audience: "com.rebu.iosapprebu",
+        emailVerified: true,
+        isPrivateEmail: false,
+        realUserStatus: 2,
+      });
+      mockPrisma.auth.findUnique.mockResolvedValueOnce(null);
+      mockPrisma.user.create.mockResolvedValueOnce({ id: "user-new", nickname: "热卜" });
+      mockPrisma.user.findUnique.mockResolvedValueOnce({ id: "user-new", nickname: "热卜" });
+      mockPrisma.userRole.findMany.mockResolvedValueOnce([]);
+      mockJwt.sign.mockReturnValueOnce("token");
+
+      const result = await svc.appleLogin({
+        identityToken: "x".repeat(100),
+        familyName: "热",
+        givenName: "卜",
+      });
+
+      expect(result.user.id).toBe("user-new");
+      expect(mockPrisma.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          nickname: "热卜",
+          auths: {
+            create: expect.objectContaining({
+              provider: "APPLE",
+              namespace: "apple:com.rebu.iosapprebu",
+              subject: "apple-subject-new",
+            }),
+          },
+        }),
+      });
+    });
+  });
+
+  describe("bindPhone", () => {
+    it("在同一事务内更新手机号身份与用户资料，并撤销旧会话", async () => {
+      mockSms.verifyCode.mockResolvedValue(true);
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.auth.findUnique.mockResolvedValue(null);
+      mockPrisma.auth.findFirst.mockResolvedValue({ id: "phone-auth" });
+      mockPrisma.auth.update.mockResolvedValue({ id: "phone-auth" });
+      mockPrisma.user.update.mockResolvedValue({ id: "user-1" });
+      mockRedis.smembers.mockResolvedValue([]);
+
+      await expect(svc.bindPhone("user-1", "13800138000", "123456")).resolves.toEqual({
+        success: true,
+      });
+
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.auth.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "phone-auth" },
+          data: expect.objectContaining({
+            openId: expect.any(String),
+            credential: expect.any(String),
+          }),
+        }),
+      );
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "user-1" } }),
+      );
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        "revoked:user:user-1",
+        expect.any(String),
+        2 * 3600 + 60,
+      );
+    });
+
+    it("并发换绑触发数据库唯一约束时返回手机号已占用", async () => {
+      mockSms.verifyCode.mockResolvedValue(true);
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.auth.findUnique.mockResolvedValue(null);
+      mockPrisma.$transaction.mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+          code: "P2002",
+          clientVersion: "test",
+        }),
+      );
+
+      await expect(svc.bindPhone("user-1", "13800138000", "123456")).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_PHONE_EXISTS,
+      });
+      expect(mockRedis.set).not.toHaveBeenCalledWith(
+        "revoked:user:user-1",
+        expect.any(String),
+        expect.any(Number),
+      );
+    });
+  });
+
+  describe("微信身份绑定冲突", () => {
+    it("授权后切换 JWT 主体时在供应商交换和事务前拒绝绑定", async () => {
+      await expect(svc.bindWechat("current-user", "code", "h5", undefined, "previous-user")).rejects.toMatchObject({
+        errorCode: ErrorCode.BAD_REQUEST,
+      });
+      expect(mockWechat.resolveLoginClient).not.toHaveBeenCalled();
+      expect(mockWechat.exchangeOAuthCode).not.toHaveBeenCalled();
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("相同主体绑定仅关联身份，不创建用户或发新登录令牌", async () => {
+      process.env.WECHAT_MINI_APP_ID = "wx-bind-test";
+      process.env.MINIPROGRAM_APP_SECRET = "synthetic-secret";
+      mockWechat.exchangeMiniCode.mockResolvedValue({ openId: "synthetic-open-id" });
+      mockPrisma.auth.upsert.mockResolvedValue({ userId: "current-user" });
+      mockPrisma.$transaction.mockImplementation(async callback => callback(mockPrisma));
+      await expect(svc.bindWechat("current-user", "code", "miniprogram", undefined, "current-user")).resolves.toEqual({ success: true });
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+      expect(mockJwt.sign).not.toHaveBeenCalled();
+      expect(mockWechat.exchangeMiniCode).toHaveBeenCalledWith("code", "legacy-mini");
+    });
+
+    it("手机号用户绑定已归属其他账号的 openId 时拒绝登录", async () => {
+      process.env.WECHAT_MINI_APP_ID = "wx-mini-conflict";
+      process.env.MINIPROGRAM_APP_SECRET = "mini-secret";
+      mockWechat.exchangeMiniCode.mockResolvedValue({
+        openId: "wx-used",
+        sessionKey: "session",
+        unionId: "union-used",
+      });
+      mockWechat.exchangePhoneNumber.mockResolvedValue({ purePhoneNumber: "13800138000" });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "phone-user",
+        nickname: "手机号用户",
+        phone: "13800138000",
+      });
+      mockPrisma.auth.findUnique
+        .mockResolvedValueOnce({ userId: "wechat-user" })
+        .mockResolvedValueOnce(null);
+      mockPrisma.auth.findFirst.mockResolvedValue(null);
+
+      await expect(
+        svc.miniPhoneLogin({ wxCode: "wx-code", phoneCode: "phone-code" }),
+      ).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_IDENTITY_CONFLICT,
+      });
+      expect(mockPrisma.auth.create).not.toHaveBeenCalled();
+    });
+
+    it("个人中心绑定已归属其他账号的微信身份时拒绝换绑", async () => {
+      process.env.WECHAT_OFFICIAL_APPID = "wx-official-conflict";
+      process.env.WECHAT_OFFICIAL_APP_SECRET = "official-secret";
+      mockWechat.exchangeOAuthCode.mockResolvedValue({ openId: "wx-used", unionId: "union-used" });
+      mockPrisma.auth.upsert.mockResolvedValue({ userId: "other-user" });
+
+      await expect(svc.bindWechat("current-user", "code")).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_IDENTITY_CONFLICT,
+      });
+      expect(mockPrisma.auth.update).not.toHaveBeenCalled();
+      expect(mockPrisma.auth.create).not.toHaveBeenCalled();
     });
   });
 
   describe("getProfile", () => {
+    it.each([
+      { interestCategories: [], interestGuideCompleted: true, expected: true },
+      { interestCategories: ["经典研读"], interestGuideCompleted: false, expected: true },
+      { interestCategories: [], interestGuideCompleted: false, expected: false },
+    ])("账号完成态同时返回给登录结果和 auth/me：%j", async ({ expected, ...interests }) => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", roles: [], ...interests });
+      mockPrisma.userRole.findMany.mockResolvedValue([]);
+      mockPrisma.merchant.findUnique.mockResolvedValue(null);
+      mockPrisma.merchantMember.findFirst.mockResolvedValue(null);
+      mockJwt.sign.mockReturnValue("local-test-token");
+      const profile = await svc.getProfile("user-1");
+      const login = await (svc as any).buildLoginResult("user-1");
+      expect(profile.interestGuideCompleted).toBe(expected);
+      expect(login.user.interestGuideCompleted).toBe(expected);
+      expect(login.user.interestCategories).toEqual(interests.interestCategories);
+      expect(mockPrisma.user.findUnique).toHaveBeenLastCalledWith(expect.objectContaining({
+        where: { id: "user-1" },
+        select: expect.objectContaining({ interestCategories: true, interestGuideCompleted: true }),
+      }));
+    });
+
+    it("不同账号的兴趣状态分别查询，不能继承前一账号完成态", async () => {
+      mockPrisma.user.findUnique.mockImplementation(async ({ where }: any) => ({
+        id: where.id, roles: [], interestCategories: [], interestGuideCompleted: where.id === "done-user",
+      }));
+      mockPrisma.merchant.findUnique.mockResolvedValue(null);
+      mockPrisma.merchantMember.findFirst.mockResolvedValue(null);
+      expect((await svc.getProfile("done-user")).interestGuideCompleted).toBe(true);
+      expect((await svc.getProfile("new-user")).interestGuideCompleted).toBe(false);
+    });
+
     it("获取用户信息成功", async () => {
       const profile = {
-        id: "user-1", nickname: "张三", avatar: null, phone: "13800138000",
-        email: null, gender: null, birthday: null, memberLevel: "NORMAL",
-        memberExpire: null, createdAt: new Date(), roles: [],
+        id: "user-1",
+        nickname: "张三",
+        avatar: null,
+        phone: "13800138000",
+        email: null,
+        gender: null,
+        birthday: null,
+        memberLevel: "NORMAL",
+        memberExpire: null,
+        createdAt: new Date(),
+        roles: [],
       };
       mockPrisma.user.findUnique.mockResolvedValue(profile);
       mockPrisma.merchant.findUnique.mockResolvedValue(null);
       const result = await svc.getProfile("user-1");
-      expect(result).toEqual({ ...profile, paymentPasswordSet: false, permissions: [], merchant: null });
+      expect(result).toEqual({
+        ...profile,
+        interestGuideCompleted: false,
+        paymentPasswordSet: false,
+        permissions: [],
+        merchant: null,
+      });
+    });
+  });
+
+  describe("跨端无感登录握手码", () => {
+    it("签发握手码：写入 Redis(60s) 并返回 code", async () => {
+      const r = await svc.issueHandoffCode("user-1");
+      expect(typeof r.code).toBe("string");
+      expect(r.code.length).toBeGreaterThan(0);
+      expect(mockRedis.set).toHaveBeenCalledWith(`handoff:${r.code}`, "user-1", 60);
+    });
+
+    it("换取会话：有效码返回新 token 且单次消费(del)", async () => {
+      mockRedis.getDel.mockResolvedValueOnce("user-1");
+      mockPrisma.user.findUnique.mockResolvedValue({ status: "ACTIVE" });
+      mockJwt.sign.mockReturnValue("access-token");
+      const r = await svc.exchangeHandoffCode("good-code");
+      expect(mockRedis.getDel).toHaveBeenCalledWith("handoff:good-code");
+      expect(r.accessToken).toBe("access-token");
+      expect(r.refreshToken).toBeDefined();
+    });
+
+    it("换取会话：无效/过期码抛错，不签发", async () => {
+      mockRedis.getDel.mockResolvedValueOnce(null);
+      await expect(svc.exchangeHandoffCode("bad-code")).rejects.toThrow();
+    });
+
+    it("换取会话：空码抛错", async () => {
+      await expect(svc.exchangeHandoffCode("")).rejects.toThrow();
     });
   });
 
   describe("updateProfile", () => {
     it("更新资料成功", async () => {
-      mockPrisma.user.update.mockResolvedValue({ id: "user-1", nickname: "新昵称", avatar: null, gender: null, birthday: null });
+      mockPrisma.user.update.mockResolvedValue({
+        id: "user-1",
+        nickname: "新昵称",
+        avatar: null,
+        gender: null,
+        birthday: null,
+      });
       const result = await svc.updateProfile("user-1", { nickname: "新昵称" });
       expect(result.nickname).toBe("新昵称");
     });
     it("带生日参数转换日期", async () => {
-      mockPrisma.user.update.mockResolvedValue({ id: "user-1", nickname: "张三", avatar: null, gender: null, birthday: new Date("1990-01-01") });
-      const result = await svc.updateProfile("user-1", { nickname: "张三", birthday: "1990-01-01" });
+      mockPrisma.user.update.mockResolvedValue({
+        id: "user-1",
+        nickname: "张三",
+        avatar: null,
+        gender: null,
+        birthday: new Date("1990-01-01"),
+      });
+      const result = await svc.updateProfile("user-1", {
+        nickname: "张三",
+        birthday: "1990-01-01",
+      });
       expect(result).toBeTruthy();
     });
   });
@@ -205,24 +817,40 @@ describe("AuthService", () => {
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       (bcrypt.hash as jest.Mock).mockResolvedValue("new-hash");
       mockPrisma.auth.update.mockResolvedValue({ id: "auth-1", credential: "new-hash" });
-      const result = await svc.changePassword("user-1", { oldPassword: "123456", newPassword: "654321" });
+      const result = await svc.changePassword("user-1", {
+        oldPassword: "123456",
+        newPassword: "654321",
+      });
       expect(result.success).toBe(true);
     });
-    it("未设置密码抛出 BadRequestException", async () => {
+    it("未设置密码时首次创建凭证（验证码/微信登录用户首次设密码，无需旧密码）", async () => {
       mockPrisma.auth.findFirst.mockResolvedValue(null);
-      await expect(svc.changePassword("user-1", { oldPassword: "123456", newPassword: "654321" })).rejects.toThrow(BusinessException);
+      (bcrypt.hash as jest.Mock).mockResolvedValue("new-hash");
+      mockPrisma.auth.create.mockResolvedValue({ id: "auth-new", credential: "new-hash" });
+      const result = await svc.changePassword("user-1", { newPassword: "Abc12345" });
+      expect(result.success).toBe(true);
+      expect(mockPrisma.auth.create).toHaveBeenCalled();
     });
     it("原密码错误抛出 BadRequestException", async () => {
       mockPrisma.auth.findFirst.mockResolvedValue({ id: "auth-1", credential: "hash" });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-      await expect(svc.changePassword("user-1", { oldPassword: "wrong", newPassword: "654321" })).rejects.toThrow(BusinessException);
+      await expect(
+        svc.changePassword("user-1", { oldPassword: "wrong", newPassword: "654321" }),
+      ).rejects.toThrow(BusinessException);
     });
   });
 
   describe("refreshToken", () => {
     it("有效 refreshToken 返回新 token 对", async () => {
-      mockRedis.get.mockResolvedValue("user-1");
-      mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", nickname: "张三", avatar: null, phone: "13800138000", memberLevel: "NORMAL", memberExpire: null });
+      mockRedis.getDel.mockResolvedValue("user-1");
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "user-1",
+        nickname: "张三",
+        avatar: null,
+        phone: "13800138000",
+        memberLevel: "NORMAL",
+        memberExpire: null,
+      });
       mockPrisma.userRole.findMany.mockResolvedValue([]);
       mockJwt.sign.mockReturnValue("new-access-token");
 
@@ -230,13 +858,27 @@ describe("AuthService", () => {
 
       expect(result.accessToken).toBe("new-access-token");
       expect(result.refreshToken).toBeTruthy();
-      // 旧 token 被删除（防重放攻击）
-      expect(mockRedis.del).toHaveBeenCalledWith("refresh:valid-refresh");
+      expect(mockRedis.getDel).toHaveBeenCalledWith("refresh:valid-refresh");
+      expect(mockRedis.srem).toHaveBeenCalledWith("refresh:user:user-1", "valid-refresh");
+      expect(mockRedis.expire).not.toHaveBeenCalledWith("refresh:valid-refresh", 60);
     });
 
     it("无效 refreshToken 抛出异常", async () => {
-      mockRedis.get.mockResolvedValue(null);
+      mockRedis.getDel.mockResolvedValue(null);
       await expect(svc.refreshToken("invalid")).rejects.toThrow(BusinessException);
+    });
+
+    it("同一 refreshToken 只能成功消费一次", async () => {
+      mockRedis.getDel.mockResolvedValueOnce("user-1").mockResolvedValueOnce(null);
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", status: "ACTIVE" });
+      mockJwt.sign.mockReturnValue("new-access-token");
+
+      await expect(svc.refreshToken("one-time-refresh")).resolves.toMatchObject({
+        accessToken: "new-access-token",
+      });
+      await expect(svc.refreshToken("one-time-refresh")).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_TOKEN_INVALID,
+      });
     });
   });
 
@@ -249,7 +891,11 @@ describe("AuthService", () => {
       expect(mockRedis.del).toHaveBeenCalledWith("refresh:rt-2");
       expect(mockRedis.del).toHaveBeenCalledWith("refresh:user:user-1");
       // 撤销时刻写入（JwtStrategy 用 iat 比对拒绝旧 accessToken），TTL 覆盖 accessToken 生命期
-      expect(mockRedis.set).toHaveBeenCalledWith("revoked:user:user-1", expect.any(String), 2 * 3600 + 60);
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        "revoked:user:user-1",
+        expect.any(String),
+        2 * 3600 + 60,
+      );
     });
   });
 
@@ -257,17 +903,36 @@ describe("AuthService", () => {
     it("新用户短信登录自动注册并绑定推荐关系", async () => {
       mockSms.verifyCode.mockResolvedValue(true);
       mockPrisma.user.findUnique.mockResolvedValue(null); // 用户不存在
-      mockPrisma.user.create.mockResolvedValue({ id: "user-3", nickname: "用户8000", phone: "13800008000" });
-      mockPrisma.station.findUnique.mockResolvedValue({ id: "s1", userId: "ref-1", code: "INVITE", status: "ACTIVE" });
+      mockPrisma.user.create.mockResolvedValue({
+        id: "user-3",
+        nickname: "用户8000",
+        phone: "13800008000",
+      });
+      mockPrisma.auth.upsert.mockResolvedValue({ userId: "user-3" });
+      mockPrisma.station.findUnique.mockResolvedValue({
+        id: "s1",
+        userId: "ref-1",
+        code: "INVITE",
+        status: "ACTIVE",
+      });
       mockPrisma.referralRelation.create.mockResolvedValue({});
       mockPrisma.userRole.findMany.mockResolvedValue([]);
       mockJwt.sign.mockReturnValue("token");
 
-      const result = await svc.smsLogin({ phone: "13800008000", code: "123456", referrerCode: "INVITE" });
+      const result = await svc.smsLogin({
+        phone: "13800008000",
+        code: "123456",
+        referrerCode: "INVITE",
+      });
 
       expect(result.accessToken).toBe("token");
       expect(mockPrisma.referralRelation.create).toHaveBeenCalledWith({
-        data: { userId: "user-3", referrerId: "ref-1", referrerType: "STATION_MASTER", sourceChannel: "INVITE_CODE" },
+        data: {
+          userId: "user-3",
+          referrerId: "ref-1",
+          referrerType: "STATION_MASTER",
+          sourceChannel: "INVITE_CODE",
+        },
       });
     });
   });

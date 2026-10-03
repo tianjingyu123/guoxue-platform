@@ -1,0 +1,50 @@
+{
+  "head": "982e90e41408296f6b74b007bb78a645652ad80a",
+  "node": "v24.17.0",
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-control-reader.ts": "8ea0c634818933ad992401a02b63f675ee0f42205982bb7a8491ff2c7935b5bf",
+    "scripts/ops/prisma-candidate/managed-control-scope.mjs": "a8a1c12a861758681932365ea944249b5d4e1ac90a3bc959b2c1b8b151fec74b",
+    "pilots/managed-tenancy/scoped-control.mjs": "2eec9b7eebc39b497e3ca95a1a17861372936b70f244664bad89ecc5f247113b"
+  },
+  "checks": [
+    {
+      "name": "实际数据库读取限制客户、部署、成员、应用和登记行，A不能枚举B",
+      "status": "PASS"
+    },
+    {
+      "name": "基础表、其他客户视图、手机号、切换角色、写入和DDL均拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "连接池并发及伪造session客户变量不能改变固定视图范围",
+      "status": "PASS"
+    },
+    {
+      "name": "平台账号及运营灰度目标限定本客户平台成员，规则按实际应用渠道过滤",
+      "status": "PASS"
+    },
+    {
+      "name": "公共发布裁决只投影本渠道，草稿、任意配置、其他客户能力记录及维护备注不可读",
+      "status": "PASS"
+    },
+    {
+      "name": "启动核验拒绝共用只读账号、错误客户绑定和额外读取权限",
+      "status": "PASS"
+    },
+    {
+      "name": "可调用的非系统SECURITY DEFINER函数即使没有表权限也使启动拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "视图实时读取合同修订和运营关闭，不依赖复制快照或缓存续命",
+      "status": "PASS"
+    }
+  ],
+  "passed": 8,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "数据库安全屏障视图与最低权限实测，不是公共基础表RLS迁移",
+    "仅本任务合成库；未验证数据库管理员攻破、OS、网络或跨服务器隔离"
+  ]
+}

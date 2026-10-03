@@ -1,0 +1,26 @@
+FROM eclipse-temurin:17-jdk-jammy@sha256:29467857e8bde40ab1f7befecbda0ea764b95afec1cc7f89aa90f7a766577e19 AS unpack
+
+ARG CANTALOUPE_VERSION=5.0.5
+ARG CANTALOUPE_SHA256=f8494ff940841e7b897b22d680e4bf87baf8fb1d6ced87117538dd5abaa1fc34
+
+WORKDIR /build
+
+# 发布流程需从 Cantaloupe 官方 GitHub Release 获取此文件；构建时强制校验摘要。
+COPY cantaloupe-${CANTALOUPE_VERSION}.zip /tmp/cantaloupe.zip
+
+RUN echo "${CANTALOUPE_SHA256}  /tmp/cantaloupe.zip" | sha256sum -c - \
+    && mkdir /build/unpacked \
+    && cd /build/unpacked \
+    && jar xf /tmp/cantaloupe.zip
+
+FROM eclipse-temurin:17-jre-jammy@sha256:89e68b9bb83713510b63e2059a415792a7fc77e14b739a7d7ede97f6d9ca2c38
+
+COPY --from=unpack --chown=10001:10001 /build/unpacked/cantaloupe-5.0.5 /opt/cantaloupe/app
+
+RUN install -d -o 10001 -g 10001 /var/cache/cantaloupe /data/images
+
+USER 10001:10001
+
+EXPOSE 8182
+
+ENTRYPOINT ["java", "-Dcantaloupe.config=/etc/cantaloupe/cantaloupe.properties", "-Xmx2g", "-jar", "/opt/cantaloupe/app/cantaloupe-5.0.5.jar"]

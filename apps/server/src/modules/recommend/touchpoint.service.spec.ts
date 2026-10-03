@@ -10,6 +10,7 @@ const mockPrisma = {
   product: { findFirst: jest.fn() },
   productCategory: { findMany: jest.fn() },
   circle: { findFirst: jest.fn() },
+  classicBook: { findFirst: jest.fn() },
   order: { findMany: jest.fn() },
 };
 const mockRedis = { incrWithTtl: jest.fn() };
@@ -102,12 +103,42 @@ describe("TouchpointService（无痕商业化触点·克制引擎）", () => {
     expect(mockRedis.incrWithTtl).not.toHaveBeenCalled();
   });
 
-  it("已登记未实现的场景诚实降级 show:false（如 classic_course）", async () => {
-    expect(TOUCHPOINTS.classic_course.status).toBe("pending");
-    const res = await svc.getTouchpoint("classic_course", "u1");
-    expect(res).toEqual({ show: false });
-    expect(mockPrisma.course.findFirst).not.toHaveBeenCalled();
-    expect(mockPrisma.product.findFirst).not.toHaveBeenCalled();
+  describe("classic_course（古籍阅读后的克制承接）", () => {
+    it("只召回本书直接相关且全平台可见的已过审课程", async () => {
+      expect(TOUCHPOINTS.classic_course.status).toBe("implemented");
+      mockPrisma.classicBook.findFirst.mockResolvedValue({ title: "周易", category: "经" });
+      mockPrisma.course.findFirst.mockResolvedValue({
+        id: "course-zhouyi",
+        title: "周易原典精讲",
+        cover: "zhouyi.webp",
+      });
+
+      const res = await svc.getTouchpoint("classic_course", "u1", "u1", {
+        bookId: "book-zhouyi",
+        bookTitle: "周易",
+      });
+
+      expect(res.card).toEqual({
+        skuType: "course",
+        skuId: "course-zhouyi",
+        title: "周易原典精讲",
+        reason: "读完《周易》·继续听讲",
+        cover: "zhouyi.webp",
+        link: "/courses/course-zhouyi",
+      });
+      const where = mockPrisma.course.findFirst.mock.calls[0][0].where;
+      expect(where.auditStatus).toBe("APPROVED");
+      expect(where.visibility).toBe("PLATFORM");
+      expect(where.OR).toContainEqual({ title: { contains: "周易", mode: "insensitive" } });
+    });
+
+    it("本书和分类都没有相关课程时不展示", async () => {
+      mockPrisma.classicBook.findFirst.mockResolvedValue({ title: "周易", category: "经" });
+      mockPrisma.course.findFirst.mockResolvedValue(null);
+      const res = await svc.getTouchpoint("classic_course", "u2", "u2", { bookId: "book-zhouyi" });
+      expect(res).toEqual({ show: false });
+      expect(mockPrisma.course.findFirst).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("jieqi_gift（供-P1 场景取货已接线）", () => {

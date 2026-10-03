@@ -1,0 +1,415 @@
+{
+  "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+  "ci": {
+    "head": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+    "readAtUtc": "2026-09-30T19:06:13.5452362Z",
+    "jobs": [
+      {
+        "name": "TypeScript 类型检查",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36761034693/job/110043774255"
+      },
+      {
+        "name": "迁移与上线代码门禁",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36761034693/job/110043774393"
+      },
+      {
+        "name": "ESLint + Prettier",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36761034693/job/110043774616"
+      },
+      {
+        "name": "单元测试 (1/3)",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36761034693/job/110044456762"
+      },
+      {
+        "name": "单元测试 (3/3)",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36761034693/job/110044456808"
+      },
+      {
+        "name": "单元测试 (2/3)",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36761034693/job/110044456811"
+      },
+      {
+        "name": "构建产物",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36761034693/job/110050033113"
+      },
+      {
+        "name": "测试结果汇总",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36761034693/job/110050033344"
+      }
+    ],
+    "status": "completed",
+    "conclusion": "success",
+    "runId": 36761034693
+  },
+  "linuxEvidence": {
+    "zipSha256": "c27638a051b41a8e0f4b4e172b24b794271c84dedf3e349b6128d1e998234880",
+    "digestMatched": true,
+    "verificationCommit": "8c99685dc79c107bd866653b92903ecff362a72c",
+    "zipBytes": 44117,
+    "runId": 36761708862,
+    "artifactId": 11119227767
+  },
+  "linuxGroups": 17,
+  "localRegression": {
+    "circleAndAudit": {
+      "tests": 34,
+      "batchSource": "ea22c672d002f7fca79af70627d4f6ffcf948d65"
+    },
+    "adminAxios": {
+      "tests": 97,
+      "batchSource": "3cd273c28d0cbb69ef8b98a668a9858411d544cd"
+    },
+    "bot": {
+      "tests": 75,
+      "batchSource": "99427380d0eae021466d97e29d54fa7bdb75589a"
+    },
+    "healthAndConfig": {
+      "tests": 43,
+      "batchSource": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a"
+    },
+    "prismaIsolationHistoricalTests": 11
+  },
+  "clientArtifacts": {
+    "schemaVersion": 2,
+    "generatedAt": "2026-09-30T18:50:43.123Z",
+    "releaseId": "launch-20260930-2c6b4d3d",
+    "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+    "environmentFile": "apps\\mobile\\.env.production",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5407,
+      "textFiles": 5343,
+      "bytes": 53708470,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "name": "管理后台",
+        "directory": "apps/admin/dist",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_H5_URL"
+        ],
+        "files": 503,
+        "textFiles": 503,
+        "sourceMaps": 0,
+        "bytes": 6449115,
+        "contentSha256": "2c6b870e22cc54bca52ad145247ea5ef829908ecaf1b5d7f8beb2ad5561281d7",
+        "success": true
+      },
+      {
+        "name": "H5",
+        "directory": "apps/mobile/dist/build/h5",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 1177,
+        "textFiles": 1160,
+        "sourceMaps": 0,
+        "bytes": 11062641,
+        "contentSha256": "78445f68157f8f4b0e6e21ca0faaaf51bfd4de3542b22ca73ff655814239ef36",
+        "success": true
+      },
+      {
+        "name": "微信小程序",
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 2748,
+        "textFiles": 2742,
+        "sourceMaps": 0,
+        "bytes": 11040838,
+        "contentSha256": "214fb08603919769efec67f19f0bf0a56da44054cb040ff577b376017a325cb4",
+        "success": true
+      },
+      {
+        "name": "App",
+        "directory": "apps/mobile/dist/build/app",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 489,
+        "textFiles": 470,
+        "sourceMaps": 0,
+        "bytes": 12728637,
+        "contentSha256": "c35b0011695b68ec3adc7d110ed449921689edc3b1e2290b170737be61f21601",
+        "success": true
+      },
+      {
+        "name": "鸿蒙 App",
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 490,
+        "textFiles": 468,
+        "sourceMaps": 0,
+        "bytes": 12427239,
+        "contentSha256": "aebf48e48de16f8c49d76e2b25a501097571fbd3b57134279814db79d850591a",
+        "success": true
+      }
+    ],
+    "errors": []
+  },
+  "clientVerification": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-09-30T18:50:43.933Z",
+    "releaseId": "launch-20260930-2c6b4d3d",
+    "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+    "auditFile": "artifacts/release-audit-20260927/client-artifacts-2c6b4d3d.json",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5407,
+      "bytes": 53708470,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 503,
+        "bytes": 6449115,
+        "contentSha256": "2c6b870e22cc54bca52ad145247ea5ef829908ecaf1b5d7f8beb2ad5561281d7",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1177,
+        "bytes": 11062641,
+        "contentSha256": "78445f68157f8f4b0e6e21ca0faaaf51bfd4de3542b22ca73ff655814239ef36",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2748,
+        "bytes": 11040838,
+        "contentSha256": "214fb08603919769efec67f19f0bf0a56da44054cb040ff577b376017a325cb4",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 489,
+        "bytes": 12728637,
+        "contentSha256": "c35b0011695b68ec3adc7d110ed449921689edc3b1e2290b170737be61f21601",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12427239,
+        "contentSha256": "aebf48e48de16f8c49d76e2b25a501097571fbd3b57134279814db79d850591a",
+        "matches": true
+      }
+    ],
+    "errors": []
+  },
+  "clientBuild": {
+    "rebuiltAtSource": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+    "sameFiveContentHashesAs3cd": true,
+    "newNativePackages": false
+  },
+  "officialMiniPreview": {
+    "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+    "scope": "official-preview-compile-not-actual-phone-or-release",
+    "snapshot": {
+      "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+      "files": 2748,
+      "copiedBytes": 11040838,
+      "allHashesEqual": true,
+      "appid": "wx06397e8ab26bed9e",
+      "scope": "official-preview-not-upload-or-release"
+    },
+    "mainBytes": 1889642,
+    "mainRemainingBytes": 207510,
+    "largestSubpackage": {
+      "name": "/pkg-paipan/",
+      "size": 1950310
+    },
+    "largestRemainingBytes": 146842,
+    "subpackageCount": 33,
+    "totalBytes": 12570376,
+    "passed": true
+  },
+  "sizeAndMigration": {
+    "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+    "archiveSha256": "04489581b5061855705f5103f059a897441a9abe8b7bc1e8b701c1af62e32af5",
+    "migrationCount": 24,
+    "migrationBytes": 46614,
+    "mainBytes": 1686248,
+    "estimatedUploadSourceBytes": 1981160,
+    "estimatedRemainingBytes": 115992,
+    "requiredReservedBytes": 81920,
+    "subpackageCount": 33,
+    "subpackages": [
+      {
+        "name": "pkg-paipan",
+        "bytes": 1764521
+      },
+      {
+        "name": "pkg-circle",
+        "bytes": 1147452
+      },
+      {
+        "name": "pkg-mine",
+        "bytes": 656623
+      },
+      {
+        "name": "pkg-paipan2",
+        "bytes": 580473
+      },
+      {
+        "name": "pkg-live",
+        "bytes": 565721
+      },
+      {
+        "name": "pkg-merchant",
+        "bytes": 539464
+      },
+      {
+        "name": "pkg-operator",
+        "bytes": 496813
+      },
+      {
+        "name": "pkg-classics",
+        "bytes": 405494
+      },
+      {
+        "name": "pkg-institute",
+        "bytes": 281348
+      },
+      {
+        "name": "pkg-offline",
+        "bytes": 276521
+      },
+      {
+        "name": "pkg-course",
+        "bytes": 272109
+      },
+      {
+        "name": "pkg-agent",
+        "bytes": 250653
+      },
+      {
+        "name": "pkg-competition",
+        "bytes": 224138
+      },
+      {
+        "name": "pkg-shop",
+        "bytes": 213154
+      },
+      {
+        "name": "pkg-workspace",
+        "bytes": 210027
+      },
+      {
+        "name": "pkg-video",
+        "bytes": 187761
+      },
+      {
+        "name": "pkg-paipan3",
+        "bytes": 178884
+      },
+      {
+        "name": "pkg-im",
+        "bytes": 162337
+      },
+      {
+        "name": "pkg-order",
+        "bytes": 142973
+      },
+      {
+        "name": "pkg-mall",
+        "bytes": 115782
+      },
+      {
+        "name": "pkg-account",
+        "bytes": 101406
+      },
+      {
+        "name": "pkg-creator",
+        "bytes": 83244
+      },
+      {
+        "name": "pkg-bounty",
+        "bytes": 79751
+      },
+      {
+        "name": "pkg-auth",
+        "bytes": 71099
+      },
+      {
+        "name": "pkg-settings",
+        "bytes": 70501
+      },
+      {
+        "name": "pkg-report",
+        "bytes": 55003
+      },
+      {
+        "name": "pkg-search",
+        "bytes": 54840
+      },
+      {
+        "name": "pkg-profile",
+        "bytes": 46762
+      },
+      {
+        "name": "pkg-common",
+        "bytes": 42252
+      },
+      {
+        "name": "pkg-notices",
+        "bytes": 34900
+      },
+      {
+        "name": "pkg-solar-term",
+        "bytes": 19199
+      },
+      {
+        "name": "pkg-help",
+        "bytes": 15187
+      },
+      {
+        "name": "pkg-discover",
+        "bytes": 7752
+      }
+    ],
+    "scope": "local-built-files-not-official-upload",
+    "passed": true
+  },
+  "grpcOfficialIntegrity": {
+    "version": "1.14.5",
+    "package": "@grpc/grpc-js",
+    "lockMatches": true,
+    "integrity": "sha512-7VZM+SVdEcUUqSQeNI3zM8Qs/BhQKZndPo2h5VkYkAM8Iz0wJIa8mKV5ekQGqG8UUsnkQ0NMxIxwkIHYvj0qOw==",
+    "readAtUtc": "2026-09-30T18:44:43.4006653Z"
+  },
+  "reviewedLateCandidate": "f563ace689ae9671f844d7b95a7df46231e5a45d",
+  "receivedAs": "99427380d0eae021466d97e29d54fa7bdb75589a",
+  "releaseDecision": "NO-GO",
+  "onlineState": "public-readback-still-old-release",
+  "realTransfers": 0,
+  "realNotifications": 0
+}

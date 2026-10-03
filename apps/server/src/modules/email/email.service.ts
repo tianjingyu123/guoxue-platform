@@ -14,17 +14,18 @@ import { decrypt } from "../../common/crypto.util";
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly config: {
-    mode: "smtp" | "api";
+    mode: "smtp" | "api" | "disabled";
     smtp?: { host: string; port: number; user: string; pass: string };
     api?: { url: string; key: string; from: string };
     from: string;
   };
 
   constructor(private readonly prisma: PrismaService) {
-    const mode = process.env.EMAIL_MODE || "smtp";
+    const rawMode = (process.env.EMAIL_MODE || "").trim().toLowerCase();
+    const mode = rawMode === "smtp" || rawMode === "api" ? rawMode : "disabled";
     this.config = {
-      mode: mode as "smtp" | "api",
-      from: process.env.EMAIL_FROM || "noreply@guoxue.com",
+      mode,
+      from: (process.env.EMAIL_FROM || "").trim(),
     };
 
     if (mode === "smtp") {
@@ -37,12 +38,16 @@ export class EmailService {
         user: process.env.SMTP_USER || "",
         pass,
       };
-    } else {
+    } else if (mode === "api") {
       this.config.api = {
-        url: process.env.EMAIL_API_URL || "https://api.sendgrid.com/v3/mail/send",
+        url: process.env.EMAIL_API_URL || "",
         key: process.env.EMAIL_API_KEY || "",
-        from: process.env.EMAIL_FROM || "noreply@guoxue.com",
+        from: (process.env.EMAIL_FROM || "").trim(),
       };
+    }
+
+    if (rawMode && mode === "disabled") {
+      this.logger.warn(`不支持的 EMAIL_MODE=${rawMode}，邮件服务保持禁用`);
     }
 
     if (!this.isConfigured()) {
@@ -52,9 +57,23 @@ export class EmailService {
 
   isConfigured(): boolean {
     if (this.config.mode === "smtp") {
-      return !!(this.config.smtp?.host && this.config.smtp?.user);
+      return !!(
+        this.config.smtp?.host &&
+        this.config.smtp.port === 465 &&
+        this.config.smtp.user &&
+        this.config.smtp.pass &&
+        this.parseMailbox(this.config.from)
+      );
     }
-    return !!(this.config.api?.key);
+    if (this.config.mode === "api") {
+      return !!(
+        this.config.api?.url &&
+        this.isSecureHttpUrl(this.config.api.url) &&
+        this.config.api.key &&
+        this.parseMailbox(this.config.api.from)
+      );
+    }
+    return false;
   }
 
   /** 发送邮件（主入口） */
@@ -85,9 +104,11 @@ export class EmailService {
     from?: string;
   }): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const from = params.from || this.config.from;
+    const mailbox = this.parseMailbox(from);
+    if (!mailbox) return { success: false, error: "发件人地址无效" };
     const to = Array.isArray(params.to) ? params.to.join(", ") : params.to;
 
-    const messageId = `<${Date.now()}.${Math.random().toString(36).substring(2, 8)}@guoxue.com>`;
+    const messageId = `<${Date.now()}.${Math.random().toString(36).substring(2, 8)}@${mailbox.domain}>`;
     const boundary = `----=_Part_${Math.random().toString(36).substring(2, 12)}`;
 
     const bodyParts: string[] = [];
@@ -114,7 +135,7 @@ export class EmailService {
     const raw = bodyParts.join("\r\n");
 
     try {
-      await this.smtpTransaction(from, to.split(", "), raw);
+      await this.smtpTransaction(mailbox.email, to.split(", "), raw, mailbox.domain);
       return { success: true, messageId };
     } catch (err: unknown) {
       const msg = (err as Error).message;
@@ -124,7 +145,12 @@ export class EmailService {
   }
 
   /** SMTP 事务（EHLO → AUTH LOGIN → MAIL → RCPT → DATA → QUIT） */
-  private smtpTransaction(from: string, toList: string[], data: string): Promise<void> {
+  private smtpTransaction(
+    from: string,
+    toList: string[],
+    data: string,
+    senderDomain: string,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const smtp = this.config.smtp!;
       const socket = tlsConnect(smtp.port, smtp.host, {
@@ -150,7 +176,10 @@ export class EmailService {
           try {
             switch (step) {
               case 0: // 等待220
-                if (code === 220) { send("EHLO guoxue.com"); step++; }
+                if (code === 220) {
+                  send(`EHLO ${(process.env.PUBLIC_DOMAIN || senderDomain).trim()}`);
+                  step++;
+                }
                 break;
               case 1: // 等待250
                 if (code === 250) { send("AUTH LOGIN"); step++; }
@@ -225,13 +254,18 @@ export class EmailService {
   }): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const api = this.config.api!;
     const toList = Array.isArray(params.to) ? params.to : [params.to];
+    const mailbox = this.parseMailbox(params.from || api.from);
+    if (!mailbox) return { success: false, error: "发件人地址无效" };
 
     const body: Record<string, unknown> = {
       personalizations: [{
         to: toList.map((email) => ({ email })),
         subject: params.subject,
       }],
-      from: { email: params.from || api.from },
+      from: {
+        email: mailbox.email,
+        ...(mailbox.name ? { name: mailbox.name } : {}),
+      },
       content: [] as Array<{ type: string; value: string }>,
     };
 
@@ -259,6 +293,27 @@ export class EmailService {
     } catch (err: unknown) {
       this.logger.error("邮件API请求异常", (err as Error).message);
       return { success: false, error: (err as Error).message };
+    }
+  }
+
+  private parseMailbox(value: string): { email: string; name: string; domain: string } | null {
+    const input = value.trim();
+    const bracketed = input.match(/^(.+?)\s*<([^<>\s]+@[^<>\s]+)>$/u);
+    const email = (bracketed?.[2] || input).trim().toLowerCase();
+    const match = email.match(/^[^@\s]+@([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)$/iu);
+    if (!match || !match[1].includes(".")) return null;
+    return {
+      email,
+      name: bracketed?.[1]?.trim().replace(/^['"]|['"]$/gu, "") || "",
+      domain: match[1].toLowerCase(),
+    };
+  }
+
+  private isSecureHttpUrl(value: string): boolean {
+    try {
+      return new URL(value).protocol === "https:";
+    } catch {
+      return false;
     }
   }
 

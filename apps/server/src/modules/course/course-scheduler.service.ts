@@ -22,6 +22,51 @@ export class CourseSchedulerService {
     );
   }
 
+  /** 每分钟检查定时上架/下架的课程（后台课程编辑器·2026-07-11·分布式锁防多实例重复） */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async flipScheduledOnOff() {
+    await this.redis.runExclusive("course_flip_scheduled_on_off", 600, () =>
+      this._flipScheduledOnOff(),
+    );
+  }
+
+  private async _flipScheduledOnOff() {
+    try {
+      const now = new Date();
+      // 先下架后上架：同一门课两者同时到点时以最终写入（上架）为准的歧义交给运营，正常场景不并存
+      const offDue = await this.prisma.course.findMany({
+        where: { scheduledOffAt: { lte: now } },
+        select: { id: true },
+      });
+      if (offDue.length > 0) {
+        await this.prisma.course.updateMany({
+          where: { id: { in: offDue.map((c) => c.id) } },
+          data: { auditStatus: "DRAFT", scheduledOffAt: null },
+        });
+        this.logger.log(`定时下架: ${offDue.length} 门课程 → DRAFT`);
+      }
+      const onDue = await this.prisma.course.findMany({
+        where: { scheduledOnAt: { lte: now } },
+        select: { id: true },
+      });
+      if (onDue.length > 0) {
+        await this.prisma.course.updateMany({
+          where: { id: { in: onDue.map((c) => c.id) } },
+          data: { auditStatus: "APPROVED", scheduledOnAt: null },
+        });
+        this.logger.log(`定时上架: ${onDue.length} 门课程 → APPROVED`);
+      }
+      if (offDue.length > 0 || onDue.length > 0) {
+        await this.redis.delByPattern("courses:list:*");
+        await Promise.all(
+          [...offDue, ...onDue].map((c) => this.redis.del(`courses:detail:${c.id}`)),
+        );
+      }
+    } catch (err) {
+      this.logger.error("定时上下架翻转失败", err);
+    }
+  }
+
   private async _publishScheduledCourses() {
     try {
       const now = new Date();
@@ -52,12 +97,18 @@ export class CourseSchedulerService {
     );
   }
 
+  /** 保留9点首轮；当天有限重试复用原事件键，不补历史日期。 */
+  @Cron("0 10,12,15,18,21 * * *")
+  async retryExpiringCourses() {
+    await this.checkExpiringCourses();
+  }
+
   private async _checkExpiringCourses() {
     if (!this.notification) return;
     try {
       // 获取所有有效期课程
       const courses = await this.prisma.course.findMany({
-        where: { validityDays: { gt: 0 }, auditStatus: "APPROVED" },
+        where: { validityDays: { gt: 0 }, auditStatus: "APPROVED", deletedAt: null },
         select: { id: true, title: true, validityDays: true },
       });
 
@@ -75,44 +126,53 @@ export class CourseSchedulerService {
         select: { targetId: true, userId: true, paidAt: true },
       });
 
-      // 按课程分组
-      const ordersByCourse = new Map<string, { userId: string; paidAt: Date }[]>();
+      // 与课程访问权限一致：同一用户续购后按最新有效已付订单计算，避免旧单误报或重复提醒。
+      const ordersByCourse = new Map<string, Map<string, Date>>();
       for (const o of allOrders) {
-        const list = ordersByCourse.get(o.targetId) || [];
-        list.push({ userId: o.userId, paidAt: o.paidAt! });
-        ordersByCourse.set(o.targetId, list);
+        const users = ordersByCourse.get(o.targetId) || new Map<string, Date>();
+        const previous = users.get(o.userId);
+        if (!previous || o.paidAt!.getTime() > previous.getTime()) users.set(o.userId, o.paidAt!);
+        ordersByCourse.set(o.targetId, users);
       }
 
       const now = Date.now();
+      // 全批使用同一个 UTC 日期：同日重跑/双节点只建一条站内通知，次日仍按既有频率提醒。
+      // 不改变 Cron 的运行时区；防重最终由 Notification 的收件人+事件唯一键完成。
+      const reminderDay = new Date(now).toISOString().slice(0, 10);
       let notified = 0;
 
       for (const course of courses) {
-        const orders = ordersByCourse.get(course.id) || [];
+        const orders = ordersByCourse.get(course.id) || new Map<string, Date>();
         const userIdsToNotify: string[] = [];
 
-        for (const order of orders) {
-          const expiresAt = order.paidAt.getTime() + course.validityDays * 86400000;
+        for (const [userId, paidAt] of orders) {
+          const expiresAt = paidAt.getTime() + course.validityDays * 86400000;
           const remainingDays = Math.ceil((expiresAt - now) / 86400000);
           if (remainingDays > 0 && remainingDays <= 3) {
-            userIdsToNotify.push(order.userId);
+            userIdsToNotify.push(userId);
           }
         }
 
         if (userIdsToNotify.length > 0) {
-          await this.notification.batchSend({
-            userIds: userIdsToNotify,
-            type: "SYSTEM",
-            title: "课程即将到期",
-            content: `您购买的课程《${course.title}》即将在3天内到期，请尽快完成学习`,
-            targetType: "COURSE",
-            targetId: course.id,
-          });
-          notified += userIdsToNotify.length;
+          try {
+            const result = await this.notification.batchSend({
+              userIds: userIdsToNotify,
+              type: "SYSTEM",
+              title: "课程即将到期",
+              content: `您购买的课程《${course.title}》即将在3天内到期，请尽快完成学习`,
+              targetType: "COURSE",
+              targetId: course.id,
+            }, `COURSE_EXPIRING:${course.id}:${reminderDay}`);
+            notified += result.count;
+          } catch (err) {
+            // 一门课程失败不能饿死其他课程；未落库的事件可在同日重跑时再次尝试。
+            this.logger.error(`课程到期通知失败 course=${course.id}`, err);
+          }
         }
       }
 
       if (notified > 0) {
-        this.logger.log(`到期提醒: 向 ${notified} 名用户发送了课程到期通知`);
+        this.logger.log(`到期提醒: 新增 ${notified} 条课程到期站内通知`);
       }
     } catch (err) {
       this.logger.error("到期提醒检查失败", err);

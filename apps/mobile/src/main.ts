@@ -1,8 +1,12 @@
+// #ifdef APP-PLUS
+import './utils/url-search-params-polyfill'
+// #endif
 import { createSSRApp } from 'vue'
 import App from './App.vue'
 // import 'uno.css'
 import './styles/tokens.scss'
 import './styles/animations.scss'
+import './styles/signature.scss'
 import { loadBrandFonts } from './utils/canvas/font-loader'
 import { track } from './composables/useTrack'
 

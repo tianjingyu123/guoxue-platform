@@ -1,0 +1,20 @@
+# 两节点正式 H5 环境变更预案
+
+本目录是**准备好的受控变更工具，不是线上执行记录**。运行源码固定为 `70e5f48639c3c0f4aa7dd7ed04e949de9308f115`，发布包仍是 `gx-deploy-91-launch-20260929-70e5f486.tar.gz`。本目录被固定包规则排除，加入本目录不会改变已经验真的运行包。
+
+`prepare-target-gx-env-20260929.py` 只处理 `/opt/guoxue/shared/.env.production` 内四项公开配置：两项 H5 URL 改为 `https://gx.yrydai.com/h5/`，两组现有 CORS/WS 来源保留并追加 `https://gx.yrydai.com`。先核对 API 和静态域名仍是正式入口；配置键缺失或重复、跨域列表为空或有通配符、文件为符号链接时拒绝执行。不会输出配置原文或密钥。
+
+本地验证：`python test-prepare-target-gx-env-20260929.py`。测试只在临时文件中运行，覆盖默认预检不写入、四键定向变更、原文件逐字节备份、重复执行幂等、SHA-256 版本锁以及异常配置拒绝。
+
+2026-09-29 只读 TAT 核验：`target-gx-env-readonly.sh` 与 `make-tat-readonly-wrapper.py` 生成的包装脚本分别顺序运行于 A、B。A（`ins-0sen8yvf`）环境文件 SHA-256 `94394368eeddfe128a571df67b16628362dc884461feb9d486a914dbc06d0352`，执行 `inv-d999ae0nrj`/`invt-d999ae0nrk`、预检 `inv-c999digq3p`/`invt-c999digq3q`；B（`ins-n0sqc627`）SHA-256 `5714776ebe165e57a8e88d9dacf9912d0ad721edb9770630928db1c19270d5e6`，执行 `inv-c999bwgshd`/`invt-c999bwgshe`、预检 `inv-a999eb0i8c`/`invt-a999eb0i8d`。均 SUCCESS、ExitCode 0；路径为普通文件、root:root、600、ext4，Python 3.14.4 可用。两台文件哈希不同，必须**逐节点独立变更**。预检均仅报告四键需要变更，没有输出文件原文；TAT 原始回执留在本机受限目录。预检包装脚本 SHA-256 `810d9f5db3aec509f5679a1dae7e24695e9eb7d7cb0fe5e9be88cf7d597513f1`。以上只读动作**没有修改正式配置**。
+
+同日用 `target-univerify-readonly.sh`（SHA-256 `17e649ca2367df1d3451ba80cd74034b701146bf05340c978286e66bcd4e72a3`）分别只读核验：A `inv-e999kk0tgw`/`invt-e999kk0tgx`，B `inv-a999migupw`/`invt-a999migupx`，均 SUCCESS、ExitCode 0。两台均**没有** `REBU_UNIVERIFY_SHARED_SECRET` 配置键，均有非空 `REDIS_URL`。未读取或输出密钥值、Redis 地址；有配置键不证明 Redis 实际连通或跨节点共享。一键登录云函数与服务端密钥配置仍待受控部署，不能开启客户端默认入口。
+
+正式执行顺序由**唯一云端操作负责人**在批准的发布窗口完成：
+
+1. 分别对 A/B 节点重新只读核身份、路径和当前文件 SHA-256；不得展示文件全文或复制凭据。当前已知两台为不同 ext4 文件，逐节点独立处理。若发布时挂载关系发生变化，先停下重新核实。
+2. 对每个实际目标文件先运行无 `--apply` 的预检，保存仅含 `changedKeys`、`ready` 的返回及该文件 SHA-256；再人工核对服务端启动校验、OAuth 来源和维护窗口。
+3. 只有在当前 SHA-256 与步骤 1 完全一致、备份目录可写时，使用 `--apply --expect-before-sha256 <当前文件SHA-256>`。工具写入同目录带原哈希前缀的备份，再原子替换；输出不含原配置内容。
+4. 逐节点只读确认四项布尔状态、正式 API/静态域名未变、文件权限与服务启动配置；**变更环境文件本身不会使运行中进程自动采用新值**。随候选部署按固定包流程重启并实测 CORS、WebSocket、微信授权及回跳。
+
+执行失败或超时先查询目标文件 SHA-256 和备份状态，不盲重试。回退时先停新交易并回退对应服务版本；环境文件只在确认当前文件仍为本次修改后版本、且旧服务确实需要旧来源时，从同目录备份恢复。备份含敏感配置，保留在原权限受限位置，不下载或写入仓库。本轮尚未触碰目标节点。

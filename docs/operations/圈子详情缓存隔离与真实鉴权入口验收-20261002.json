@@ -1,0 +1,477 @@
+{
+  "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
+  "parent": "0fb87b9012f3975d2fdaec9613a5b6b793c63e03",
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（详情入口与缓存隔离限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "scope": {
+    "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
+    "parent": "0fb87b9012f3975d2fdaec9613a5b6b793c63e03",
+    "files": [
+      "apps/server/src/modules/circle/circle.controller.ts",
+      "apps/server/src/modules/circle/circle.service.spec.ts",
+      "apps/server/src/modules/circle/services/circle-core.service.ts",
+      "apps/server/src/modules/circle/services/circle-detail-privacy.spec.ts"
+    ],
+    "tests": {
+      "red": {
+        "passed": 6,
+        "failed": 8
+      },
+      "regression": 93,
+      "newPrivacyCases": 14,
+      "compiled": 14
+    },
+    "migrationAdded": false,
+    "realDatabase": false,
+    "realRedis": false,
+    "realHTTPAndJWT": true,
+    "facadeDelegationAdapter": true,
+    "production": false
+  },
+  "local": {
+    "newPrivacyChecks": 14,
+    "regression": 93,
+    "suites": 4,
+    "compiled": 14,
+    "red": {
+      "passed": 6,
+      "failed": 8
+    },
+    "typecheck": true,
+    "build": true,
+    "lintErrors": 0,
+    "lintNewWarnings": 0,
+    "legacyAnyWarnings": 8,
+    "baseline": "0fb87b9012f3975d2fdaec9613a5b6b793c63e03",
+    "checkedAt": "2026-10-02T10:28:47.251Z"
+  },
+  "ci": {
+    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36995700546",
+    "headSha": "584705933d9a26e2321fb83f195d064f0029f840",
+    "runId": 36995700546,
+    "artifacts": [
+      {
+        "digest": "sha256:3b11466fe2b7865ab42ba86b453150fe953050972f47e057279cac6f1ee0c499",
+        "id": 11222420802,
+        "expired": false,
+        "name": "server-build"
+      }
+    ],
+    "status": "completed",
+    "jobs": [
+      {
+        "id": 110801795504,
+        "conclusion": "success",
+        "name": "迁移与上线代码门禁",
+        "status": "completed"
+      },
+      {
+        "id": 110801795627,
+        "conclusion": "success",
+        "name": "TypeScript 类型检查",
+        "status": "completed"
+      },
+      {
+        "id": 110801795685,
+        "conclusion": "success",
+        "name": "ESLint + Prettier",
+        "status": "completed"
+      },
+      {
+        "id": 110802264083,
+        "conclusion": "success",
+        "name": "单元测试 (1/3)",
+        "status": "completed"
+      },
+      {
+        "id": 110802264110,
+        "conclusion": "success",
+        "name": "单元测试 (3/3)",
+        "status": "completed"
+      },
+      {
+        "id": 110802264261,
+        "conclusion": "success",
+        "name": "单元测试 (2/3)",
+        "status": "completed"
+      },
+      {
+        "id": 110805467348,
+        "conclusion": "success",
+        "name": "测试结果汇总",
+        "status": "completed"
+      },
+      {
+        "id": 110805467367,
+        "conclusion": "success",
+        "name": "构建产物",
+        "status": "completed"
+      }
+    ],
+    "conclusion": "success",
+    "checkedAt": "2026-10-02T10:44:18.3638266Z",
+    "counts": {
+      "passed": 8979,
+      "production": false,
+      "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
+      "shards": [
+        {
+          "passed": 2828,
+          "id": 110802264083,
+          "summary": "2026-10-02T10:41:27.7769488Z Tests:       143 skipped, 2828 passed, 2971 total",
+          "name": "单元测试 (1/3)",
+          "skipped": 143
+        },
+        {
+          "passed": 3076,
+          "id": 110802264110,
+          "summary": "2026-10-02T10:33:24.0878242Z Tests:       72 skipped, 3076 passed, 3148 total",
+          "name": "单元测试 (3/3)",
+          "skipped": 72
+        },
+        {
+          "passed": 3075,
+          "id": 110802264261,
+          "summary": "2026-10-02T10:33:46.4691951Z Tests:       50 skipped, 3075 passed, 3125 total",
+          "name": "单元测试 (2/3)",
+          "skipped": 50
+        }
+      ],
+      "jobsPassed": 8,
+      "fullCIComplete": true,
+      "skipped": 265,
+      "checkedAt": "2026-10-02T10:44:41.9413275Z",
+      "runId": 36995700546
+    }
+  },
+  "linux": {
+    "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
+    "verificationCommit": "1db6cfcaece26ac5b2278463393fa75a397da216",
+    "runId": 36995759583,
+    "artifactId": 11222055258,
+    "artifactDigest": "sha256:0c1f33af99d04103ea8dfa7b65e358001e920f8107858f163cb92bd795ba4bbc",
+    "digestVerified": true,
+    "sourceBindings": [
+      {
+        "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
+        "sha256": "e0e8933425f69dc71ead6eab089a5bdf62bc8919db1f8e6deb45e6a3716ae1b3"
+      },
+      {
+        "path": "apps/server/src/modules/entitlement/entitlement.controller.ts",
+        "sha256": "1008f232f1bd0592c57f7db1b1a1b55528f64a6ea84e4fd913ad5111ef10d54a"
+      },
+      {
+        "path": "apps/mobile/src/pkg-mine/memberships/index.vue",
+        "sha256": "4699b9b4587b28ba2b239498be304c214f46eb4ca7b9a89c9073f062611a2343"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.service.ts",
+        "sha256": "b86371048153c7f6f6146e50b7ce3a23f4c8b3bc4b6f00206baf83801acd867b"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.controller.ts",
+        "sha256": "b071e9b9b56f9c2119956815c8487ef0f411ad07d07d4a1f3ad7239295f8b2e8"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.dto.ts",
+        "sha256": "832467dd50bf8f8b4e557aca088a9a754c57927205eda68237431b4ff869bc61"
+      },
+      {
+        "path": "apps/server/prisma/schema.prisma",
+        "sha256": "f342d7859e9ad04a1fa80a5ea9c44f3db4a942b969670404357d6e2884a68c6f"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-grant.service.ts",
+        "sha256": "2048876e2551047b8281146b62f7809759d58a5a2f0ab1a92f4c348aab637c7f"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+        "sha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+      },
+      {
+        "path": "apps/mobile/src/lib/im-data.ts",
+        "sha256": "8af6322ddb816573a9735c7e0567e427b6f893e0d4056cdaff67c8a4537221e3"
+      },
+      {
+        "path": "apps/mobile/src/lib/mine-data.ts",
+        "sha256": "86b63067fe9eb2f59e668230fd84612798ad481af08e861b6004ed038df3bfba"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "sha256": "e6cdae211eca1f515b53dbee281fd6c1dd11a054c00547b24b132fb0fb9ed7ac"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-reply.ts",
+        "sha256": "61597af6b20f93452ec7664e88e6d730d2ccd391c363a98cc09085fef64002b5"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.task.ts",
+        "sha256": "a7213e5514ab0bb7708f6dcf1d073841ec0477ed2f390e4e15ded456937c7add"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+        "sha256": "81dfadcfc6569ba836816ed2c46ada7aa1c78680bf3089ee887926db1ac85218"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.task.spec.ts",
+        "sha256": "26035bf36ca8c1a2bb44fa423702350232584037c9a3a06bd6ca44f975d15208"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.spec.ts",
+        "sha256": "b09c8cd7f2b1b6339717c2e9cd7593330081ee8e5d3ed4be74e7b4119bba3431"
+      },
+      {
+        "path": "apps/server/src/modules/user/user.module.ts",
+        "sha256": "df286cabda81c758a3dcc9b3e8839336a31fadf426fc3a3550179b1c8809c258"
+      },
+      {
+        "path": "apps/server/src/modules/im/im-callback.controller.ts",
+        "sha256": "72d9413d0245b098cfbf58bb64173eadcb2be6c9cd13c13d677f56b68628c187"
+      },
+      {
+        "path": "apps/server/src/modules/im/im-callback.privacy.spec.ts",
+        "sha256": "c3f5041b28c6d9d055ae46f4b2aa683910cddfcb90ccad541ce793fa54b55cb7"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.service.ts",
+        "sha256": "df8492d322ced1e97ebed34ca9b196454892cf951bd969871246e5844f24ca31"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+        "sha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "sha256": "ebb5d992fbef5ceae527ed00cfef71bedcc030ab714cbebf1d739f5c4459bbc8"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+        "sha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.spec.ts",
+        "sha256": "a771684a1e797cd2542f4d36c862cecaf96ed0208d056a106b76239cd66e59bb"
+      },
+      {
+        "path": "apps/server/prisma/migrations-deploy/full-baseline.sql",
+        "sha256": "2c6c1c9c1911553205d30590f555cbd69dcb75cae9393078f6f4e64261cd5591"
+      },
+      {
+        "path": "apps/server/prisma/migrations/manual_z_20261002_01_circle_post_reward_notice/migration.sql",
+        "sha256": "fa9af2c9585696874fd31ac4c7fd45210cc45a809fa9393f17970716435ea5aa"
+      },
+      {
+        "path": "apps/server/src/modules/circle/circle.module.ts",
+        "sha256": "e098eb6a686c23c813bb7b0b73c9ed212245fec21c80aae7b6161d8ae13dd550"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
+        "sha256": "1a581cc4079ae3b3aa067a95ca2dec5485c272cf4300b66efefdf3839378b220"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+        "sha256": "4fa588a45e1913450be3434cc971ff6dc59c9fd3db15a66c8d11caa0ca0f7774"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts",
+        "sha256": "b4f663ece1ac9376e26625f1a2d262f7700d6cd572788bdd03ce758d4b9946c6"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.spec.ts",
+        "sha256": "563ea21be3190867969a457dc97b42e4ea8be62b51f81a98dab4851365c6b84e"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+        "sha256": "f6408ed1547ecd2a0067eb425aa56aa3e5b6b2ae112b9b076b14b27044ed164c"
+      },
+      {
+        "path": "apps/server/src/modules/notification/notification.service.ts",
+        "sha256": "32aa26b7711c07de89d311d5fcb772307fa3812411aa7bfb3b3a6baea5987cb5"
+      },
+      {
+        "path": "apps/server/src/modules/notification/notification.service.spec.ts",
+        "sha256": "601a0ffad240ca8911bf3a7d0daaa3528f5cda146070724323e1112dbc55aa8b"
+      },
+      {
+        "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+        "sha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+        "sha256": "293a823a23d350e48d6491ceef12ffd831f6414f19278d5970898ce43d70b85f"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "sha256": "a0249585728c858affb28bd3b973429ac496dadd9b255cf136dc7f522e66622a"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+        "sha256": "d0cb60a7869a89ae182b607462bdc579bee8957f361c440776cea3175d4d7e35"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+        "sha256": "6a9fd49c5e01f6149267c0a11cb1767c354c1f951abb56d590db8b739422cbe9"
+      },
+      {
+        "path": "apps/server/src/modules/circle/circle.service.spec.ts",
+        "sha256": "315643d5fd8a9870b67434dee46df201e593ada04edf45abac9b06ddfbadc0fa"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-core.service.ts",
+        "sha256": "ee34c28a0b5cf182b5135786d8b209e06092c10ff9fa67ddc3ad1926d074e63d"
+      },
+      {
+        "path": "apps/server/src/modules/circle/circle.controller.ts",
+        "sha256": "4103041e15110a592341927140ff72f53b347fc66d7a8a7947ff2edb7ddfce1f"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-detail-privacy.spec.ts",
+        "sha256": "99b1c7797a4d5fe7c7f24be525b4984df0144ca014d85585fd7f15bfcf040362"
+      }
+    ],
+    "passed": 513,
+    "suites": 30,
+    "failed": 0,
+    "skipped": 0,
+    "newDetailPrivacyHTTPAndCacheChecks": 14,
+    "baselineWarnings": [
+      {
+        "path": "apps/server/src/modules/circle/circle.service.spec.ts",
+        "line": 50,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/circle.service.spec.ts",
+        "line": 396,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-core.service.ts",
+        "line": 155,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-core.service.ts",
+        "line": 163,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-core.service.ts",
+        "line": 189,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-core.service.ts",
+        "line": 217,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-core.service.ts",
+        "line": 291,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-core.service.ts",
+        "line": 546,
+        "parentEquivalent": true
+      }
+    ],
+    "postgres": "18.4",
+    "formalDockerfileImage": false,
+    "realChannels": false,
+    "production": false
+  },
+  "compiled": {
+    "passed": 14,
+    "skipped": 0,
+    "failed": 0,
+    "compiledRuntime": true,
+    "formalDockerfileImage": false,
+    "production": false,
+    "bindings": [
+      {
+        "path": "modules/circle/services/circle-core.service",
+        "sourceSha256": "fd69d76478d39c6bff11f4c76a5b727c0910b0665a9d126ae5e774883fc88c58",
+        "compiledSha256": "c6a23df323c20a3e89dbbbce6337d24e02eceb253baeb92fede52120de48a893"
+      },
+      {
+        "path": "modules/circle/circle.controller",
+        "sourceSha256": "15897370aa7466cbf1f03587639c77d4c0a908bc88543000a3f92c5cf39d3e8d",
+        "compiledSha256": "c0f75d8a3ec3ef38680c367e542933e2c183836672c3fac67fe9716595de770a"
+      },
+      {
+        "path": "common/jwt.strategy",
+        "sourceSha256": "55b1aef1790d362522c3b24f361760005d054fe5b2750a4d3b16ef7e7cea4f36",
+        "compiledSha256": "779d85f5ec9ee23181db84a25c30742cb0a0e17b9f9b176a34936588584b1801"
+      },
+      {
+        "path": "common/optional-auth.guard",
+        "sourceSha256": "99c0cee4657f7ea5e45efdd3b371718980c5037c7e1310a44e4467fb0e619629",
+        "compiledSha256": "b6ec866bc36fd5348bb9b207ddc99b108fc66f85f226c492faa535380a22867f"
+      },
+      {
+        "path": "common/station-isolation.guard",
+        "sourceSha256": "c767a8af7d21097cbefa13a1d2e1bf92af107d8977e949b394d07c2075feadc0",
+        "compiledSha256": "e40e1813ba88ebdee8e0fc4e8c1095f980628fe6258e370b05e8aa969935633d"
+      }
+    ]
+  },
+  "clients": {
+    "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
+    "clientBaseline": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+    "sourceTreeEquivalent": true,
+    "newClientBuild": false,
+    "newDeviceTest": false,
+    "backendRuntimeChanged": true
+  },
+  "migrationAdded": false,
+  "migrationCount": 129,
+  "realHttpAndJWT": true,
+  "realDatabaseThisBatch": false,
+  "realRedisThisBatch": false,
+  "facadeDelegationAdapter": true,
+  "unrelatedFeatureGuardOverridden": true,
+  "fullApplicationBootstrap": false,
+  "production": false,
+  "realChannels": false,
+  "formalDockerfileImage": false,
+  "membershipCountReproduced": {
+    "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
+    "actualServiceAndPostgres": true,
+    "redisSynthetic": true,
+    "realMoney": false,
+    "realNotifications": false,
+    "production": false,
+    "countedAsPassed": false,
+    "records": [
+      {
+        "method": "leave",
+        "countUpdateRejected": true,
+        "membershipMutationCommitted": true,
+        "actualCount": 1,
+        "recordedCount": 2,
+        "reproduced": true,
+        "implemented": false
+      },
+      {
+        "method": "join",
+        "countUpdateRejected": true,
+        "membershipMutationCommitted": true,
+        "actualCount": 2,
+        "recordedCount": 1,
+        "reproduced": true,
+        "implemented": false
+      }
+    ],
+    "checkedAt": "2026-10-02T10:38:14.303Z"
+  },
+  "expiredMemberAndGovernanceDurableNoticesComplete": false,
+  "N4OverallComplete": false,
+  "withdraw": "本批584独立撤回至0fb；无迁移。前ec移出、ed96治理CAS、e1分类及0d/91打赏恢复保持独立回退点。",
+  "checkedAt": "2026-10-02T10:45:04.455Z"
+}

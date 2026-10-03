@@ -19,6 +19,7 @@ export interface KnowledgeItem {
 
 const SOURCE_LABEL: Record<string, string> = {
   article: '文章', post: '帖子', course: '课程', file: '文件', manual: '手动添加', free_text: '文本',
+  expert_qa: '达人回答', // #38 从达人问答提炼
 }
 
 function deriveTitle(content: string): string {
@@ -42,6 +43,7 @@ interface RawKnowledgeResp {
   items?: RawKnowledge[]
   data?: RawKnowledge[]
   list?: RawKnowledge[]
+  total?: number
 }
 
 function adapt(k: RawKnowledge): KnowledgeItem {
@@ -63,17 +65,28 @@ function pickArray(res: RawKnowledge[] | RawKnowledgeResp | null | undefined): R
 }
 
 export const knowledgeApi = {
+  /** 管理页分页读取：失败上抛，避免将网络/权限错误误报为空库。 */
+  listPage: async (circleId: string, page = 1, pageSize = 20): Promise<{ items: KnowledgeItem[]; total: number }> => {
+    const res = await apiGet<RawKnowledge[] | RawKnowledgeResp>(`/circles/${circleId}/knowledge?page=${page}&pageSize=${pageSize}`)
+    const items = pickArray(res)
+    return { items: items.map(adapt), total: Array.isArray(res) ? items.length : (res?.total ?? items.length) }
+  },
+  candidatesPage: async (circleId: string, page = 1, pageSize = 20): Promise<{ items: KnowledgeItem[]; total: number }> => {
+    const res = await apiGet<RawKnowledge[] | RawKnowledgeResp>(`/circles/${circleId}/knowledge/candidates?page=${page}&pageSize=${pageSize}`)
+    const items = pickArray(res)
+    return { items: items.map(adapt), total: Array.isArray(res) ? items.length : (res?.total ?? items.length) }
+  },
   /** 已入库知识条目 — GET /circles/:id/knowledge */
   list: async (circleId: string): Promise<KnowledgeItem[]> => {
     try {
-      return pickArray(await apiGet<RawKnowledge[] | RawKnowledgeResp>(`/circles/${circleId}/knowledge?pageSize=50`)).map(adapt)
+      return (await knowledgeApi.listPage(circleId, 1, 50)).items
     } catch { return [] }
   },
   /** 待审核候选 — GET /circles/:id/knowledge/candidates */
-  candidates: async (circleId: string): Promise<KnowledgeItem[]> => {
+  candidates: async (circleId: string, options: { throwOnError?: boolean } = {}): Promise<KnowledgeItem[]> => {
     try {
-      return pickArray(await apiGet<RawKnowledge[] | RawKnowledgeResp>(`/circles/${circleId}/knowledge/candidates?pageSize=50`)).map(adapt)
-    } catch { return [] }
+      return (await knowledgeApi.candidatesPage(circleId, 1, 50)).items
+    } catch (error) { if (options.throwOnError) throw error; return [] }
   },
   /** 确认候选入库 */
   confirm: (circleId: string, id: string) =>
@@ -87,4 +100,10 @@ export const knowledgeApi = {
   /** 删除知识条目 — DELETE /circles/:id/knowledge/:id */
   remove: (circleId: string, id: string) =>
     apiDelete(`/circles/${circleId}/knowledge/${id}`),
+  /**
+   * #38 从达人回答提炼候选 — POST /circles/:id/knowledge/extract-candidates（圈主手动触发）。
+   * 后端取近 30 天已回答付费问答前 10 条 → AI 提炼落候选队列；AI 未配置抛友好错误（由调用方 toast）。
+   */
+  extract: (circleId: string) =>
+    apiPost<{ scanned?: number; created?: number; message?: string }>(`/circles/${circleId}/knowledge/extract-candidates`),
 }

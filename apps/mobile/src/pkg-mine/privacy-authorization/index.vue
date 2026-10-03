@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { mineApi, type AppPermission, type PermissionStatus } from '@/lib/mine-data'
 
 /** 前往系统设置（死入口大扫除：App→应用授权设置 / 小程序→授权面板；H5 无系统入口则提示）。运行时探测避免类型库版本差异 */
@@ -89,7 +90,7 @@ async function authorize(type: 'always' | 'while_using' | 'authorized' | 'deny')
   <view class="page">
     <app-nav-bar title="隐私授权管理" :back-size="40" />
 
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state">
       <text>{{ error }}</text>
       <view class="retry-btn" @tap="retry">重试</view>

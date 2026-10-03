@@ -165,9 +165,9 @@ export class ModelRouterService {
         await this.prisma.$queryRawUnsafe(
           `SELECT
              COALESCE(SUM(CAST("tokenUsage"->>'promptTokens' AS INTEGER)), 0) as total_prompt,
-             COALESCE(SUM(CAST("tokenUsage"->>'completionTokens' AS INTEGER)), 0) as total_completion
+           COALESCE(SUM(CAST("tokenUsage"->>'completionTokens' AS INTEGER)), 0) as total_completion
            FROM "AiAnalysisRecord"
-           WHERE scene = $1 AND "createdAt" >= $2`,
+           WHERE scene = $1 AND "createdAt" >= $2::timestamp`,
           scene,
           monthStart,
         );

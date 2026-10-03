@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📜</text></svg>" />
+    <!-- 首屏性能：提前与 COS 图片域完成 DNS+TCP+TLS 握手，首图少付一个往返；dns-prefetch 为不支持 preconnect 时兜底 -->
+    <link rel="preconnect" href="https://rebuguoxue-1325351100.cos.ap-guangzhou.myqcloud.com" crossorigin />
+    <link rel="dns-prefetch" href="https://rebuguoxue-1325351100.cos.ap-guangzhou.myqcloud.com" />
     <!-- 构建期取不到运行时 BrandConfig，保持硬编码；运行时品牌露出统一走 src/lib/brand.ts -->
     <title>热卜国学</title>
   </head>

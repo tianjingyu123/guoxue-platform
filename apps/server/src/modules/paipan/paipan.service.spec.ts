@@ -208,6 +208,25 @@ describe("PaipanService", () => {
     });
   });
 
+  describe("玄空手选元运与报告存盘", () => {
+    it("2026 年手选八运时保存八运盘；未指定仍按年份取九运", async () => {
+      const input = { shan: "子", xiang: "午", year: 2026, tiGua: false };
+      const manual = await svc.calcXuankong({ ...input, period: 8 });
+      const inferred = await svc.calcXuankong(input);
+      expect(manual.basicInfo.yuanYun).toBe(8);
+      expect(manual.basicInfo.yunRange).toContain("手动指定8运");
+      expect(inferred.basicInfo.yuanYun).toBe(9);
+      mockPrisma.paipanRecord.create.mockResolvedValue({ id: "xk-1" });
+      const saved = await svc.calcXuankongAndSave("user-1", { ...input, period: 8 });
+      const data = mockPrisma.paipanRecord.create.mock.calls[0][0].data;
+      expect(saved.id).toBe("xk-1");
+      expect(data.inputParams.period).toBe(8);
+      expect(data.resultData.gongs).toEqual(manual.gongs);
+      expect(data.resultData.basicInfo.yuanYun).toBe(8);
+      expect(manual.gongs.map((gong: { palace: number }) => gong.palace).sort()).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    });
+  });
+
   // 坏味道 P2-4：入参归一化（safePagination），防非法 page/pageSize 致 skip:NaN/负数进 Prisma 抛 500
   describe("分页入参加固（P2-4）", () => {
     it("getUserBaziHistory: 非法 page(NaN) 归一化第1页·skip 不为 NaN", async () => {

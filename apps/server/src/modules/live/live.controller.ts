@@ -1,17 +1,22 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, HttpCode } from "@nestjs/common";
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { LiveService } from "./live.service";
 import { LiveQualityService } from "./live-quality.service";
-import { CreateRoomDto, UpdateRoomDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
+import { CreateRoomDto, UpdateRoomDto, UpdateRoomProductsDto, UpdateLiveWatchProgressDto, LivePresenceDto, MicJoinDto, MicInviteDto, MicInviteResponseDto, LiveModerationSettingsDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto, UpdateLiveGiftSpendingPreferenceDto, PublishReplayDto } from "./live.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
+import { TrtcCallbackGuard } from "../../common/trtc-callback.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RequireFeature } from "../../common/feature-flag.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 import { StationId } from "../../common/station-id.decorator";
+import { ThrottleGuard } from "../../common/throttle.guard";
+import { LiveCredentialsGuard } from "./live-credentials.guard";
 
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
@@ -26,25 +31,37 @@ export class LiveController {
     private qualitySvc: LiveQualityService,
   ) {}
 
+  /** 是否平台管理员（超管/运营）——开播/下播/推流地址在 service 层做「房主或管理员」逻辑校验 */
+  private isAdmin(req: AuthRequest): boolean {
+    const roles = (req.user as { roles?: string[] }).roles || [];
+    return roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
+  }
+
   // ───────── 直播间 CRUD ─────────
 
   @Post("rooms")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
+  @RequireFeature("live_start")
   @ApiOperation({ summary: "创建直播间" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   createRoom(@Req() req: AuthRequest, @Body() dto: CreateRoomDto) {
-    return this.svc.createRoom(req.user.id, dto);
+    const roles = (req.user as { roles?: string[] }).roles || [];
+    const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
+    return this.svc.createRoom(req.user.id, dto, isAdmin);
   }
 
   @Get("rooms")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取直播间列表" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "status", required: false, type: String })
   @ApiQuery({ name: "courseId", required: false, type: String, description: "按课程ID过滤" })
   @ApiQuery({ name: "circleId", required: false, type: String, description: "按圈子ID过滤" })
+  @ApiQuery({ name: "scope", required: false, type: String, description: "all=不限开放范围（仅管理员生效·管理端用）" })
+  @ApiQuery({ name: "followed", required: false, type: Boolean, description: "仅返回当前用户已关注主播的直播" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   listRooms(
@@ -54,9 +71,17 @@ export class LiveController {
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
     @StationId() stationId?: string,
+    @Query("scope") scope?: string,
+    @Req() req?: Request,
+    @Query("followed") followed?: string,
   ) {
     if (courseId) return this.svc.listCourseRooms(courseId, +page, +pageSize, stationId);
-    return this.svc.listRooms(status, +page, +pageSize, circleId, stationId);
+    // scope=all（不限开放范围）仅管理员生效——防公共端点带参绕过圈内内容隔离
+    const roles = (req?.user as { roles?: string[] } | undefined)?.roles || [];
+    const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN" || r === "CONTENT_AUDITOR");
+    const wantsFollowed = followed === "1" || followed === "true";
+    const followedByUserId = wantsFollowed ? (req?.user?.id || null) : undefined;
+    return this.svc.listRooms(status, +page, +pageSize, circleId, stationId, scope === "all" && isAdmin ? "all" : undefined, followedByUserId);
   }
 
   @Get("my-rooms")
@@ -101,6 +126,20 @@ export class LiveController {
     return this.svc.getStreamerSettings(req.user.id);
   }
 
+  @Put("settings")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "保存主播直播间设置" })
+  @ApiResponse({ status: 200, description: "保存成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  saveStreamerSettings(@Req() req: AuthRequest, @Body() body: {
+    profile?: { name?: string; desc?: string; cover?: string };
+    notify?: Record<string, boolean>;
+    privacy?: Record<string, boolean>;
+  }) {
+    return this.svc.saveStreamerSettings(req.user.id, body);
+  }
+
   @Get("reviews")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "主播端直播评价 — 评分分布 + 评价列表" })
@@ -110,6 +149,20 @@ export class LiveController {
   @ApiBearerAuth()
   getStreamerReviews(@Req() req: AuthRequest, @Query("filter") filter?: string) {
     return this.svc.getStreamerReviews(req.user.id, filter);
+  }
+
+  @Post("reviews/:reviewId/reply")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "回复直播评价（仅评价所属直播间的房主）" })
+  @ApiResponse({ status: 201, description: "回复成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "仅房主可回复" })
+  @ApiResponse({ status: 404, description: "评价不存在" })
+  @ApiBearerAuth()
+  replyReview(@Param("reviewId") reviewId: string, @Req() req: AuthRequest, @Body("reply") reply: string) {
+    return this.svc.replyStreamerReview(req.user.id, reviewId, reply);
   }
 
   @Get("team")
@@ -134,14 +187,34 @@ export class LiveController {
   }
 
   @Get("rooms/:id")
-  @ApiOperation({ summary: "获取直播间详情" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "获取直播间详情（圈内直播仅主播或有效圈成员可见）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  getRoom(@Param("id") id: string) {
-    return this.svc.getRoom(id);
+  getRoom(@Param("id") id: string, @Req() req: Request) {
+    const roles = (req.user as { roles?: string[] } | undefined)?.roles || [];
+    const isAdmin = roles.some((role) => ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"].includes(role));
+    return this.svc.getRoom(id, req.user?.id, isAdmin);
+  }
+
+  @Put("rooms/:id/presence")
+  @UseGuards(OptionalAuthGuard, ThrottleGuard)
+  @HttpCode(200)
+  @ApiOperation({ summary: "进入直播间或续期观看心跳（唯一观看去重）" })
+  touchPresence(@Param("id") id: string, @Body() dto: LivePresenceDto, @Req() req: Request) {
+    return this.svc.touchPresence(id, dto.clientSessionId, req.user?.id);
+  }
+
+  @Post("rooms/:id/presence/leave")
+  @UseGuards(OptionalAuthGuard, ThrottleGuard)
+  @HttpCode(200)
+  @ApiOperation({ summary: "离开直播间（幂等）" })
+  leavePresence(@Param("id") id: string, @Body() dto: LivePresenceDto, @Req() req: Request) {
+    return this.svc.leavePresence(id, dto.clientSessionId, req.user?.id);
   }
 
   @Put("rooms/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新直播间" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -150,61 +223,113 @@ export class LiveController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   updateRoom(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: UpdateRoomDto) {
-    return this.svc.updateRoom(req.user.id, id, dto);
+    // 平台管理员（超管/运营）可编辑任意直播间——与开播/下播「房主或管理员」口径一致
+    return this.svc.updateRoom(req.user.id, id, dto, this.isAdmin(req));
+  }
+
+  @Put("rooms/:id/products")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "保存本场带货商品及展示顺序（房主或管理员）" })
+  @ApiResponse({ status: 200, description: "保存成功" })
+  @ApiResponse({ status: 400, description: "商品已下架、数量超限或参数错误" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权管理该直播间" })
+  @ApiResponse({ status: 404, description: "直播间不存在" })
+  @ApiBearerAuth()
+  updateRoomProducts(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: UpdateRoomProductsDto) {
+    return this.svc.updateRoomProducts(req.user.id, id, dto.productIds, this.isAdmin(req));
+  }
+
+  @Put("rooms/:id/featured-product")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "设置或取消本场正在讲解的商品（房主或管理员）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "商品不在本场清单或直播未开始" })
+  @ApiBearerAuth()
+  featureRoomProduct(
+    @Req() req: AuthRequest,
+    @Param("id") id: string,
+    @Body("productId") productId?: string | null,
+  ) {
+    return this.svc.featureRoomProduct(req.user.id, id, productId, this.isAdmin(req));
   }
 
   @Put("rooms/:id/start")
-  @UseGuards(JwtAuthGuard, FeatureFlagGuard, RolesGuard)
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
   @RequireFeature("live_start")
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "开始直播（生成推拉流地址）" })
+  @ApiOperation({ summary: "开始直播（房主或管理员·生成推拉流地址）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 403, description: "无权限（仅房主本人或管理员）" })
   @ApiBearerAuth()
-  startRoom(@Param("id") id: string) {
-    return this.svc.startLive(id);
+  startRoom(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.startLive(id, req.user.id, this.isAdmin(req));
   }
 
   @Get("rooms/:id/stream-urls")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, LiveCredentialsGuard)
   @ApiOperation({ summary: "获取推拉流地址" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getStreamUrls(@Param("id") id: string, @Req() req: AuthRequest) {
-    return this.svc.getStreamUrls(id, req.user.id);
+    return this.svc.getStreamUrls(id, req.user.id, this.isAdmin(req));
+  }
+
+  @Get("rooms/:id/stream-status")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取 OBS 真实推流连接态（房主或管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权查看该房间" })
+  @ApiBearerAuth()
+  getStreamStatus(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.getStreamStatus(id, req.user.id, this.isAdmin(req));
+  }
+
+  @Put("rooms/:id/start-obs")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
+  @RequireFeature("live_start")
+  @ApiOperation({ summary: "OBS 正式开播（必须已收到真实推流回调）" })
+  @ApiResponse({ status: 200, description: "开播成功" })
+  @ApiResponse({ status: 400, description: "尚未检测到推流或房间状态错误" })
+  @ApiBearerAuth()
+  startObsRoom(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.startObsLive(id, req.user.id, this.isAdmin(req));
   }
 
   @Get("rooms/:id/play-url")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "获取观众拉流地址" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "获取观众拉流地址（全平台直播可匿名；圈内直播需有效圈成员）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiBearerAuth()
-  playUrl(@Param("id") id: string, @Req() req: AuthRequest) {
-    return this.svc.getPlayUrl(id, req.user.id);
+  playUrl(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.getPlayUrl(id, req.user?.id);
   }
 
   @Put("rooms/:id/end")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "结束直播" })
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "结束直播（房主或管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 403, description: "无权限（仅房主本人或管理员）" })
   @ApiBearerAuth()
-  endRoom(@Param("id") id: string) {
-    return this.svc.endRoom(id);
+  endRoom(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.endRoom(id, req.user.id, this.isAdmin(req));
   }
 
   @Put("rooms/:id/replay")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "设置直播回放" })
@@ -214,11 +339,66 @@ export class LiveController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  setReplay(@Param("id") id: string, @Body("replayUrl") replayUrl: string) {
-    return this.svc.updateStatus(id, "REPLAY", { replayUrl });
+  setReplay(@Param("id") id: string, @Body() body: PublishReplayDto, @Req() req: AuthRequest) {
+    return this.svc.publishReplay(id, body.replayUrl, req.user.id);
+  }
+
+  @Put("rooms/:id/replay/unpublish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "下架直播回放并保留录像草稿" })
+  @ApiBearerAuth()
+  unpublishReplay(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.unpublishReplay(id, req.user.id);
+  }
+
+  @Put("rooms/:id/replay-chapters")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "标注回放章节点（仅主播本人·[{t 秒, title}]·随房间详情返回）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "仅主播本人可操作" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiBearerAuth()
+  setReplayChapters(
+    @Req() req: AuthRequest,
+    @Param("id") id: string,
+    @Body("chapters") chapters: Array<{ t?: number; title?: string }>,
+  ) {
+    return this.svc.setReplayChapters(req.user.id, id, chapters || []);
+  }
+
+  @Get("rooms/:id/watch-progress")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取当前用户的直播回放观看进度" })
+  @ApiResponse({ status: 200, description: "成功；没有记录时返回零进度" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 404, description: "直播间或回放不存在" })
+  @ApiBearerAuth()
+  getWatchProgress(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.svc.getWatchProgress(req.user.id, id);
+  }
+
+  @Put("rooms/:id/watch-progress")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "幂等保存当前用户的直播回放观看进度" })
+  @ApiResponse({ status: 200, description: "保存成功；重复或乱序请求返回已有进度" })
+  @ApiResponse({ status: 400, description: "当前房间没有可观看回放或参数无效" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 404, description: "直播间不存在" })
+  @ApiBearerAuth()
+  saveWatchProgress(
+    @Req() req: AuthRequest,
+    @Param("id") id: string,
+    @Body() dto: UpdateLiveWatchProgressDto,
+  ) {
+    return this.svc.saveWatchProgress(req.user.id, id, dto);
   }
 
   @Delete("rooms/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除直播间（房主或管理员）" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -234,14 +414,58 @@ export class LiveController {
   // ───────── 麦位管理 ─────────
 
   @Post("rooms/:id/mics")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "用户上麦" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiOperation({ summary: "申请上麦（需主播批准）" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  joinMic(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicManageDto) {
-    return this.svc.joinMic(id, req.user.id, dto.position);
+  joinMic(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicJoinDto) {
+    return this.svc.joinMic(id, req.user.id, dto.position, dto.mediaMode);
+  }
+
+  @Put("rooms/:id/mics/ready")
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiOperation({ summary: "连麦嘉宾原生 TRTC 进房成功心跳（驱动普通观众混流画面）" })
+  @ApiResponse({ status: 200, description: "返回当前 CDN 播放模式" })
+  @ApiBearerAuth()
+  markMicReady(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.markMicReady(id, req.user.id);
+  }
+
+  @Put("rooms/:id/host/ready")
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiOperation({ summary: "手机主播 TRTC 媒体就绪心跳（建立并续租统一 CDN 输出）" })
+  @ApiResponse({ status: 200, description: "返回当前 CDN 播放模式" })
+  @ApiBearerAuth()
+  markHostReady(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.markHostReady(id, req.user.id);
+  }
+
+  @Delete("rooms/:id/host/ready")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "手机主播离开原生 TRTC（立即撤销 CDN 输出租约）" })
+  @ApiBearerAuth()
+  markHostNotReady(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.markHostNotReady(id, req.user.id);
+  }
+
+  @Post("rooms/:id/mics/invite")
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiOperation({ summary: "主播或管理员邀请在线用户音频/视频连麦" })
+  @ApiResponse({ status: 201, description: "邀请已进入受邀用户候场状态" })
+  @ApiBearerAuth()
+  inviteMic(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicInviteDto) {
+    return this.svc.inviteMic(id, req.user.id, dto.userId, dto.position, dto.mediaMode, this.isAdmin(req));
+  }
+
+  @Put("rooms/:id/mics/invite/respond")
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiOperation({ summary: "受邀用户接受或拒绝主播连麦邀请" })
+  @ApiResponse({ status: 200, description: "邀请已处理" })
+  @ApiBearerAuth()
+  respondMicInvite(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicInviteResponseDto) {
+    return this.svc.respondMicInvite(id, req.user.id, dto.action);
   }
 
   @Delete("rooms/:id/mics/:userId")
@@ -257,9 +481,9 @@ export class LiveController {
   }
 
   @Put("rooms/:id/mics/manage")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "麦位操作（静音/解除/踢人）" })
+  @RedLineGate(RedLine.USER_DATA)
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "主播或管理员处理申请、静音、解除静音或踢人" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
@@ -267,15 +491,25 @@ export class LiveController {
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   manageMic(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicManageDto) {
-    return this.svc.manageMic(id, req.user.id, dto);
+    return this.svc.manageMic(id, req.user.id, dto, this.isAdmin(req));
   }
 
   @Get("rooms/:id/mics")
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取麦位列表" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  listMics(@Param("id") id: string) {
-    return this.svc.listMics(id);
+  @ApiBearerAuth()
+  listMics(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.listMics(id, req.user.id, this.isAdmin(req));
+  }
+
+  @Get("rooms/:id/rtc-config")
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiOperation({ summary: "获取直播连麦临时 TRTC 票据（仅主播或已获批嘉宾）" })
+  @ApiBearerAuth()
+  getRtcConfig(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.getRtcConfig(id, req.user.id);
   }
 
   // ───────── 预告与预约 ─────────
@@ -313,16 +547,18 @@ export class LiveController {
   }
 
   @Get("rooms/:id/bookings")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取直播预约人数" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  getBookingCount(@Param("id") id: string) {
-    return this.svc.getBookingCount(id);
+  getBookingCount(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.getBookingCount(id, req.user?.id);
   }
 
   // ───────── 课件管理 ─────────
 
   @Post("rooms/:id/slides")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "上传课件" })
@@ -336,6 +572,7 @@ export class LiveController {
   }
 
   @Delete("slides/:slideId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除课件" })
@@ -359,16 +596,15 @@ export class LiveController {
   // ───────── 禁言管理 ─────────
 
   @Post("rooms/:id/mute")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "禁言用户" })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "禁言用户（主播或管理员）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 403, description: "无权限（仅主播本人或管理员）" })
   @ApiBearerAuth()
   muteUser(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MuteUserDto) {
-    return this.svc.muteUser(id, req.user.id, dto);
+    return this.svc.muteUser(id, req.user.id, dto, this.isAdmin(req));
   }
 
   @Delete("rooms/:id/mute/:userId")
@@ -380,20 +616,41 @@ export class LiveController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   unmuteUser(@Param("id") id: string, @Param("userId") userId: string, @Req() req: AuthRequest) {
-    return this.svc.unmuteUser(id, userId, req.user.id);
+    return this.svc.unmuteUser(id, userId, req.user.id, this.isAdmin(req));
   }
 
   @Get("rooms/:id/muted-users")
-  @ApiOperation({ summary: "获取禁言用户列表" })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取禁言用户列表（主播或管理员）" })
   @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限（仅主播本人或管理员）" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  listMutedUsers(@Param("id") id: string) {
-    return this.svc.listMutedUsers(id);
+  @ApiBearerAuth()
+  listMutedUsers(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.listMutedUsers(id, req.user.id, this.isAdmin(req));
+  }
+
+  @Get("rooms/:id/moderation-settings")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取直播互动规则（主播或管理员）" })
+  @ApiBearerAuth()
+  getModerationSettings(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.getModerationSettings(id, req.user.id, this.isAdmin(req));
+  }
+
+  @Put("rooms/:id/moderation-settings")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "设置慢速模式及仅关注者评论（主播或管理员）" })
+  @ApiBearerAuth()
+  updateModerationSettings(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: LiveModerationSettingsDto) {
+    return this.svc.updateModerationSettings(id, req.user.id, dto, this.isAdmin(req));
   }
 
   // ───────── 限时秒杀 ─────────
 
   @Post("rooms/:id/flash-sales")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建秒杀活动" })
@@ -407,6 +664,7 @@ export class LiveController {
   }
 
   @Post("flash-sales/:saleId/start")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "开始秒杀" })
@@ -421,7 +679,7 @@ export class LiveController {
 
   @Post("flash-sales/:saleId/order")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "秒杀下单" })
+  @ApiOperation({ summary: "直播专属秒杀下单（即将开放）", deprecated: true })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -431,6 +689,7 @@ export class LiveController {
   }
 
   @Post("flash-sales/:saleId/end")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "结束秒杀" })
@@ -454,19 +713,57 @@ export class LiveController {
   // ───────── 腾讯云直播回调 ─────────
 
   @Post("callback")
+  @HttpCode(200)
   @UseGuards(TencentCallbackGuard)
   @SkipFormat()
   @ApiOperation({ summary: "腾讯云直播回调（推流/断流/录制/截图）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  handleCallback(@Body() body: Record<string, unknown>) {
-    const streamKey = (body.stream_param as string) || (body.StreamName as string) || "";
+  async handleCallback(@Body() body: Record<string, unknown>) {
+    // 腾讯云 CSS 推断流回调使用 stream_id 表示直播流名称；stream_param
+    // 只是推流 URL 携带的查询参数（通常包含 txSecret/txTime），不能当作流名。
+    // StreamName 仅用于兼容其他腾讯云事件的字段命名。
+    const streamKey = (body.stream_id as string) || (body.StreamName as string) || (body.stream_param as string) || "";
     const eventType = Number(body.event_type);
-    this.svc.handleLiveEvent(streamKey, eventType, body);
+    await this.svc.handleLiveEvent(streamKey, eventType, body);
+    return { code: 0 };
+  }
+
+  @Post("trtc/callback")
+  @HttpCode(200)
+  @UseGuards(TrtcCallbackGuard)
+  @SkipFormat()
+  @ApiOperation({ summary: "腾讯云 TRTC 房间/媒体回调（HMAC-SHA256 原文验签）" })
+  async handleTrtcCallback(@Body() body: Record<string, unknown>) {
+    await this.svc.handleTrtcEvent(body);
     return { code: 0 };
   }
 
   // ───────── 礼物系统 ─────────
+
+  @Get("gift-spending-preference")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "查询我的直播送礼消费保护设置" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  getGiftSpendingPreference(@Req() req: AuthRequest) {
+    return this.svc.getGiftSpendingPreference(req.user.id);
+  }
+
+  @Put("gift-spending-preference")
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "设置我的直播送礼单次与日累计限额" })
+  @ApiResponse({ status: 200, description: "设置成功" })
+  @ApiResponse({ status: 400, description: "限额无效" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  updateGiftSpendingPreference(
+    @Req() req: AuthRequest,
+    @Body() dto: UpdateLiveGiftSpendingPreferenceDto,
+  ) {
+    return this.svc.updateGiftSpendingPreference(req.user.id, dto);
+  }
 
   @Get("gifts")
   @ApiOperation({ summary: "获取礼物列表" })
@@ -476,6 +773,7 @@ export class LiveController {
   }
 
   @Post("gifts")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建礼物（管理员）" })
@@ -489,6 +787,7 @@ export class LiveController {
   }
 
   @Put("gifts/:giftId")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新礼物（管理员）" })
@@ -502,6 +801,7 @@ export class LiveController {
   }
 
   @Delete("gifts/:giftId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除礼物（管理员）" })
@@ -515,7 +815,7 @@ export class LiveController {
   }
 
   @Post("rooms/:id/gifts")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
   @ApiOperation({ summary: "发送礼物" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -526,15 +826,19 @@ export class LiveController {
     @Req() req: AuthRequest,
     @Body() dto: SendGiftDto,
   ) {
-    return this.svc.sendGift(id, req.user.id, dto.giftId, dto.quantity || 1);
+    return this.svc.sendGift(id, req.user.id, dto.giftId, dto.quantity || 1, dto.idempotencyKey);
   }
 
   @Get("rooms/:id/gift-ranking")
-  @ApiOperation({ summary: "直播间礼物排行榜" })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "直播间礼物经营统计（仅主播本人或管理员）" })
   @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "仅主播本人或管理员可访问" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  giftRanking(@Param("id") id: string) {
-    return this.svc.giftRanking(id);
+  giftRanking(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.giftRanking(id, req.user.id, this.isAdmin(req));
   }
 
   // ───────── 画质分档商业化（C5·时长包/额度）─────────
@@ -579,8 +883,33 @@ export class LiveController {
 
   // ───────── 评论与点赞 ─────────
 
+  @Get("rooms/:id/watch-context")
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "获取直播观看与互动能力契约" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "直播间不存在或无权查看" })
+  getWatchContext(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.getWatchContext(id, req.user?.id);
+  }
+
+  @Get("rooms/:id/comments")
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "获取直播公屏评论（先校验房间可见性）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "直播间不存在或无权查看" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页最多20条" })
+  listComments(
+    @Param("id") id: string,
+    @Req() req: Request,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.listComments(id, req.user?.id, page, pageSize);
+  }
+
   @Post("rooms/:id/comment")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
   @ApiOperation({ summary: "发送直播评论/弹幕" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -595,7 +924,7 @@ export class LiveController {
   }
 
   @Post("rooms/:id/like")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
   @ApiOperation({ summary: "直播点赞" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -608,6 +937,7 @@ export class LiveController {
   // ───────── 内容审核 ─────────
 
   @Post("audit/callback")
+  @HttpCode(200)
   @UseGuards(TencentCallbackGuard)
   @SkipFormat()
   @ApiOperation({ summary: "腾讯云CMS审核回调" })
@@ -624,7 +954,8 @@ export class LiveController {
   // ───────── 推流配置 ─────────
 
   @Get("stream-config")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
+  @RequireFeature("live_start", { writes: true })
   @ApiOperation({ summary: "获取推流配置（地址、密钥、推荐参数）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -652,10 +983,11 @@ export class LiveController {
   // ───────── 公开浏览端点 ─────────
 
   @Get("hosts")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "主播列表" })
   @ApiQuery({ name: "filter", required: false })
-  getHosts(@Query("filter") filter?: string) {
-    return this.svc.getHosts(filter);
+  getHosts(@Query("filter") filter?: string, @Req() req?: Request) {
+    return this.svc.getHosts(filter, req?.user?.id);
   }
 
   @Get("replays")
@@ -665,9 +997,10 @@ export class LiveController {
   }
 
   @Get("preview/:id")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "直播预告详情" })
-  getPreview(@Param("id") id: string) {
-    return this.svc.getPreview(id);
+  getPreview(@Param("id") id: string, @Req() req?: Request) {
+    return this.svc.getPreview(id, req?.user?.id);
   }
 
   @Get("replay/:id")

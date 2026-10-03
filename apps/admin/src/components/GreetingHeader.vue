@@ -26,7 +26,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps<{ username?: string }>()
+defineProps<{ username?: string }>()
 
 const now = new Date()
 const hour = now.getHours()
@@ -76,17 +76,26 @@ const solarTerm = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: 20px;
+  padding: 3px 2px;
 }
 .greeting-text {
-  font-size: var(--font-size-title-lg);
-  font-weight: 600;
+  font-size: 27px;
+  font-weight: 680;
+  letter-spacing: -.025em;
   color: var(--color-text-title);
   margin: 0;
 }
 .greeting-date {
   font-size: var(--font-size-caption);
   color: var(--color-text-secondary);
-  margin: 4px 0 0;
+  margin: 6px 0 0;
+}
+.greeting-extra :deep(.el-tag) {
+  height: 34px;
+  padding: 0 14px;
+  border-color: rgba(184,137,63,.18);
+  color: #7f5b25;
+  background: rgba(184,137,63,.07);
 }
 </style>

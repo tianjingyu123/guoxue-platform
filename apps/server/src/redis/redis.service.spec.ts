@@ -13,6 +13,11 @@ describe("RedisService", () => {
     await service.onModuleDestroy()
   })
 
+  it("无共享 Redis 时健康探测拒绝内存降级", async () => {
+    await service.set("health:local-only", "1")
+    await expect(service.pingShared()).rejects.toThrow("共享 Redis 不可用")
+  })
+
   // ═══════════════════ 基础 SET/GET ═══════════════════
 
   describe("set/get", () => {
@@ -41,6 +46,20 @@ describe("RedisService", () => {
       await service.set("key1", "second")
       const val = await service.get("key1")
       expect(val).toBe("second")
+    })
+
+    it("getDel 原子消费后不可再次读取", async () => {
+      await service.set("one-time", "payload", 60)
+      await expect(service.getDel("one-time")).resolves.toBe("payload")
+      await expect(service.getDel("one-time")).resolves.toBeNull()
+      await expect(service.get("one-time")).resolves.toBeNull()
+    })
+
+    it("getDel 不返回已过期值", async () => {
+      await service.set("one-time-expired", "payload", 60)
+      const entry = (service as any).memory.get("one-time-expired")
+      entry.expiry = Date.now() - 1000
+      await expect(service.getDel("one-time-expired")).resolves.toBeNull()
     })
   })
 
@@ -235,6 +254,42 @@ describe("RedisService", () => {
     })
   })
 
+  describe("publish/subscribe", () => {
+    it("无 Redis 时仍在当前进程可靠广播并可取消订阅", async () => {
+      const received: string[] = []
+      const unsubscribe = await service.subscribe("ops:test", async (message) => {
+        received.push(message)
+      })
+
+      await expect(service.publish("ops:test", "first")).resolves.toBe(1)
+      expect(received).toEqual(["first"])
+
+      await unsubscribe()
+      await expect(service.publish("ops:test", "second")).resolves.toBe(0)
+      expect(received).toEqual(["first"])
+    })
+  })
+
+  // ═══════════════════ SORTED SET 操作 ═══════════════════
+
+  describe("zset presence helpers", () => {
+    it("按成员删除与按分数清理过期项", async () => {
+      await service.zadd("presence:1", 100, "a")
+      await service.zadd("presence:1", 200, "b")
+      await service.zadd("presence:1", 300, "c")
+
+      await expect(service.zrem("presence:1", "b")).resolves.toBe(1)
+      await expect(service.zremrangebyscore("presence:1", 0, 150)).resolves.toBe(1)
+      await expect(service.zcard("presence:1")).resolves.toBe(1)
+    })
+
+    it("DEL 在内存降级模式同时清理 sorted set", async () => {
+      await service.zadd("presence:2", 100, "a")
+      await service.del("presence:2")
+      await expect(service.zcard("presence:2")).resolves.toBe(0)
+    })
+  })
+
   // ═══════════════════ 限流 incrWithTtl ═══════════════════
 
   describe("incrWithTtl", () => {
@@ -258,6 +313,14 @@ describe("RedisService", () => {
       entry.expiry = Date.now() - 1000
       const result = await service.incrWithTtl("rate:3", 60)
       expect(result.count).toBe(1)
+    })
+
+    it("失败后释放预占次数，保持原到期时间且不降到负数", async () => {
+      await service.incrWithTtl("rate:release", 60)
+      const before = (service as any).memory.get("rate:release").expiry
+      expect(await service.decrFloorZero("rate:release")).toBe(0)
+      expect(await service.decrFloorZero("rate:release")).toBe(0)
+      expect((service as any).memory.get("rate:release").expiry).toBe(before)
     })
   })
 

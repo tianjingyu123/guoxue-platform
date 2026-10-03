@@ -4,57 +4,63 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── 主色：故宫红 ── */
-  --color-primary: #C41E3A;
-  --color-primary-hover: #d43550;
-  --color-primary-active: #9d1830;
-  --color-primary-light: rgba(196, 30, 58, 0.08);
-  --color-primary-lighter: rgba(196, 30, 58, 0.04);
+  /* ── 主色：克制朱砂，用于关键动作而非大面积铺色 ── */
+  --color-primary: #B4233E;
+  --color-primary-hover: #C8324C;
+  --color-primary-active: #8F1C33;
+  --color-primary-light: rgba(180, 35, 62, 0.09);
+  --color-primary-lighter: rgba(180, 35, 62, 0.045);
 
   /* ── 辅助色：国学金 ── */
-  --color-gold: #C9A96E;
-  --color-gold-hover: #d4b87c;
-  --color-gold-active: #b8943d;
-  --color-gold-dark: #8B6914;
-  --color-gold-light: rgba(201, 169, 110, 0.12);
-  --color-gold-lighter: rgba(201, 169, 110, 0.06);
-  --color-gold-glow: rgba(201, 169, 110, 0.2);
+  --color-gold: #B8893F;
+  --color-gold-hover: #C79B50;
+  --color-gold-active: #936A2E;
+  --color-gold-dark: #795626;
+  --color-gold-light: rgba(184, 137, 63, 0.13);
+  --color-gold-lighter: rgba(184, 137, 63, 0.065);
+  --color-gold-glow: rgba(184, 137, 63, 0.2);
 
   /* ── 宣纸色系（页面基底）── */
-  --color-bg-page: #FAF8F5;
+  --color-bg-page: #F3F5F8;
   --color-bg-card: #FFFFFF;
-  --color-bg-dark: #1A1A2E;
-  --color-bg-dark-hover: #252540;
-  --color-bg-paper: #FBF9F2;
-  --color-bg-paper-dark: #F5F1E7;
+  --color-bg-dark: #0F1F32;
+  --color-bg-dark-hover: #172B42;
+  --color-bg-paper: #F8F9FB;
+  --color-bg-paper-dark: #EEF1F5;
+  --color-bg-elevated: rgba(255, 255, 255, 0.86);
+  --color-bg-muted: #F0F2F5;
+  --color-ink: #12243A;
+  --color-tech: #2C7BE5;
+  --color-tech-light: rgba(44, 123, 229, 0.1);
 
   /* ── 文字 ── */
-  --color-text-title: #2C2C2C;
-  --color-text-body: #666666;
-  --color-text-secondary: #999999;
-  --color-text-placeholder: #BBBBBB;
+  --color-text-title: #17202E;
+  --color-text-body: #475467;
+  --color-text-secondary: #7A8493;
+  --color-text-placeholder: #AAB1BC;
   --color-text-inverse: #FFFFFF;
 
   /* ── 分隔线 & 边框 ── */
-  --color-divider: #E8E3DB;
-  --color-border: #E8E0D5;
-  --color-border-light: #F0ECE4;
+  --color-divider: #E3E7ED;
+  --color-border: #D8DEE7;
+  --color-border-light: #EDF0F4;
 
   /* ── 状态色 ── */
-  --color-success: #52C41A;
-  --color-success-light: rgba(82, 196, 26, 0.08);
-  --color-error: #FF4D4F;
-  --color-error-light: rgba(255, 77, 79, 0.08);
-  --color-warning: #FAAD14;
-  --color-warning-light: rgba(250, 173, 20, 0.08);
-  --color-info: #1890FF;
-  --color-info-light: rgba(24, 144, 255, 0.08);
+  --color-success: #168A62;
+  --color-success-light: rgba(22, 138, 98, 0.09);
+  --color-error: #C73E4E;
+  --color-error-light: rgba(199, 62, 78, 0.09);
+  --color-warning: #B7791F;
+  --color-warning-light: rgba(183, 121, 31, 0.1);
+  --color-info: #2C7BE5;
+  --color-info-light: rgba(44, 123, 229, 0.09);
 
   /* ── 渐变色 ── */
-  --gradient-primary: linear-gradient(135deg, #C41E3A 0%, #d43550 100%);
-  --gradient-gold: linear-gradient(135deg, #C9A96E 0%, #d4b87c 50%, #b8943d 100%);
-  --gradient-dark: linear-gradient(180deg, #1A1A2E 0%, #16213e 100%);
-  --gradient-paper: linear-gradient(180deg, #FBF9F2 0%, #F5F1E7 100%);
+  --gradient-primary: linear-gradient(145deg, #B4233E 0%, #C8324C 100%);
+  --gradient-gold: linear-gradient(145deg, #C39A58 0%, #9A6C2C 100%);
+  --gradient-dark: linear-gradient(180deg, #12243A 0%, #0B1828 100%);
+  --gradient-paper: linear-gradient(180deg, #FFFFFF 0%, #F6F8FA 100%);
+  --gradient-hero: linear-gradient(128deg, #102842 0%, #1B476A 58%, #65563E 125%);
 
   /* ── 宣纸纹理（CSS 模拟）── */
   --paper-texture: repeating-linear-gradient(
@@ -66,11 +72,12 @@
     );
 
   /* ── 字体 ── */
-  --font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-family-display: "Noto Serif SC", "STSong", "SimSun", "KaiTi", var(--font-family);
-  --font-size-display: 28px;
-  --font-size-title-lg: 20px;
-  --font-size-title: 18px;
+  --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-family-display: "Noto Serif SC", "Songti SC", "STSong", var(--font-family);
+  --font-family-number: "SF Pro Display", "DIN Alternate", "Segoe UI", var(--font-family);
+  --font-size-display: 32px;
+  --font-size-title-lg: 22px;
+  --font-size-title: 19px;
   --font-size-subtitle: 16px;
   --font-size-body: 14px;
   --font-size-caption: 13px;
@@ -86,35 +93,36 @@
   --spacing-3xl: 48px;
 
   /* ── 圆角 ── */
-  --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-xs: 5px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
   --radius-full: 9999px;
 
   /* ── 阴影 ── */
-  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
-  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-sm: 0 1px 2px rgba(16, 36, 58, 0.04), 0 2px 8px rgba(16, 36, 58, 0.03);
+  --shadow-md: 0 8px 24px rgba(16, 36, 58, 0.075);
+  --shadow-lg: 0 16px 40px rgba(16, 36, 58, 0.1);
+  --shadow-xl: 0 28px 64px rgba(9, 24, 42, 0.18);
   --shadow-inset: inset 0 1px 3px rgba(0, 0, 0, 0.06);
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04);
-  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-card: 0 1px 2px rgba(16, 36, 58, 0.035), 0 8px 24px rgba(16, 36, 58, 0.055);
+  --shadow-card-hover: 0 2px 4px rgba(16, 36, 58, 0.04), 0 16px 34px rgba(16, 36, 58, 0.09);
 
   /* ── 装饰 ── */
   --gold-line: linear-gradient(90deg, transparent, var(--color-gold), transparent);
   --gold-dot: radial-gradient(circle, var(--color-gold) 1px, transparent 1px);
 
   /* ── 过渡动画 ── */
-  --transition-fast: 0.15s ease;
-  --transition-base: 0.2s ease;
-  --transition-slow: 0.3s ease;
-  --transition-spring: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-fast: 0.14s ease;
+  --transition-base: 0.22s cubic-bezier(0.2, 0, 0, 1);
+  --transition-slow: 0.36s cubic-bezier(0.2, 0, 0, 1);
+  --transition-spring: 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* ── 布局 ── */
-  --sidebar-width: 220px;
-  --sidebar-collapsed-width: 64px;
-  --header-height: 56px;
+  --sidebar-width: 248px;
+  --sidebar-collapsed-width: 76px;
+  --header-height: 68px;
   --safe-area-bottom: 34px;
 }

@@ -110,6 +110,20 @@ describe("DeepSeekAdapter", () => {
   });
 
   describe("chatStream", () => {
+    it("使用调用方的取消信号中止上游模型请求", async () => {
+      const controller = new AbortController();
+      mockFetch.mockImplementationOnce((_url, init) => new Promise((_resolve, reject) => {
+        init.signal.addEventListener("abort", () => reject({ name: "AbortError" }));
+      }));
+      const running = (async () => {
+        for await (const _ of adapter.chatStream("model", [{ role: "user", content: "hi" }], { signal: controller.signal })) { void _; }
+      })();
+      await new Promise((resolve) => setImmediate(resolve));
+      const upstreamSignal = mockFetch.mock.calls[0][1].signal as AbortSignal;
+      controller.abort();
+      expect(upstreamSignal.aborted).toBe(true);
+      await expect(running).rejects.toThrow(AiTimeoutError);
+    });
     it("逐块产出 SSE delta 内容", async () => {
       const sseChunks = [
         'data: {"choices":[{"delta":{"content":"你好"}}]}\n\n',

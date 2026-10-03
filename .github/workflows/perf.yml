@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       scenario:
-        description: '压测场景'
+        description: "压测场景"
         required: true
-        default: 'load'
+        default: "load"
         type: choice
         options:
           - smoke
@@ -15,22 +15,31 @@ on:
           - soak
           - spike
       base_url:
-        description: '目标服务地址（留空默认 localhost）'
+        description: "目标服务地址（留空默认 localhost）"
         required: false
         type: string
   schedule:
     # 每天凌晨 3:00 UTC（北京时间 11:00）执行负载测试
-    - cron: '0 3 * * *'
+    - cron: "0 3 * * *"
+
+permissions:
+  contents: read
 
 env:
-  NODE_VERSION: '20'
-  PNPM_VERSION: '10'
-  DATABASE_URL: 'postgresql://guoxue:guoxue123@localhost:5432/guoxue'
-  REDIS_URL: 'redis://localhost:6379'
-  ENCRYPTION_KEY: 'perf-test-key-32bytes-long!!'
-  JWT_SECRET: 'perf-test-jwt-secret-key!!'
-  DISABLE_RATE_LIMIT: 'true'
-  BULLMQ_DISABLED: 'true'
+  NODE_VERSION: "24.18.0"
+  PNPM_VERSION: "10.33.3"
+  DATABASE_URL: "postgresql://guoxue:guoxue123@localhost:5432/guoxue"
+  REDIS_URL: "redis://localhost:6379"
+  DISABLE_RATE_LIMIT: "true"
+  BULLMQ_DISABLED: "true"
+  PERF_PROFILE: "public"
+  # 仅供隔离压测服务通过生产入口校验；不指向真实线上域名。
+  PUBLIC_DOMAIN: "api.example.invalid"
+  PUBLIC_API_URL: "https://api.example.invalid"
+  PUBLIC_H5_URL: "https://h5.example.invalid/h5/"
+  PUBLIC_ASSET_ORIGIN: "https://assets.example.invalid"
+  CORS_ORIGIN: "https://h5.example.invalid"
+  WS_CORS_ORIGIN: "https://h5.example.invalid"
 
 jobs:
   perf-test:
@@ -38,11 +47,11 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     env:
       SCENARIO: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.scenario) || 'load' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16@sha256:a36250871de0833b8757561c72f2477ef1ddd1101afa4e617fb552e0de514c6b
         env:
           POSTGRES_USER: guoxue
           POSTGRES_PASSWORD: guoxue123
@@ -55,7 +64,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       redis:
-        image: redis:7-alpine
+        image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
         ports:
           - 6379:6379
         options: >-
@@ -65,18 +74,18 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 安装 Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
@@ -84,6 +93,7 @@ jobs:
 
       - name: 构建 workspace 包
         run: |
+          pnpm --filter @guoxue/shared build
           pnpm --filter @guoxue/bazi-engine build
           pnpm --filter @guoxue/ziwei-engine build
         timeout-minutes: 5
@@ -92,8 +102,9 @@ jobs:
         run: pnpm --filter @guoxue/server db:generate
         timeout-minutes: 2
 
-      - name: 执行数据库迁移
-        run: pnpm --filter @guoxue/server exec prisma migrate deploy
+      # 压测只需最终 schema 的临时空库；历史迁移链由独立迁移门禁核验。
+      - name: 创建临时压测库结构
+        run: pnpm --filter @guoxue/server exec prisma db push --skip-generate
         timeout-minutes: 3
         env:
           DATABASE_URL: postgresql://guoxue:guoxue123@localhost:5432/guoxue
@@ -101,6 +112,20 @@ jobs:
       - name: 构建服务
         run: pnpm --filter @guoxue/server build
         timeout-minutes: 5
+
+      - name: 生成本次隔离测试密钥
+        run: |
+          jwt_secret="$(openssl rand -hex 32)"
+          encryption_key="$(openssl rand -hex 16)"
+          bigscreen_secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$jwt_secret"
+          echo "::add-mask::$encryption_key"
+          echo "::add-mask::$bigscreen_secret"
+          {
+            echo "JWT_SECRET=$jwt_secret"
+            echo "ENCRYPTION_KEY=$encryption_key"
+            echo "BIGSCREEN_SECRET=$bigscreen_secret"
+          } >> "$GITHUB_ENV"
 
       - name: 启动服务
         run: |
@@ -126,39 +151,39 @@ jobs:
           done
 
       - name: 安装 k6
-        uses: grafana/setup-k6-action@v1
+        uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065 # v1
 
       - name: 运行性能测试
+        id: k6
         run: |
           mkdir -p results
           k6 run \
             --env SCENARIO=${{ env.SCENARIO }} \
+            --env PERF_PROFILE=${{ env.PERF_PROFILE }} \
             --env BASE_URL=${{ github.event.inputs.base_url || 'http://localhost:3000' }} \
             --out json=results/raw.json \
             --summary-export=results/summary.json \
             tests/performance/k6/main.js
-        continue-on-error: true
 
       - name: 分析结果
         if: always()
         run: |
           echo "## 性能测试报告 (${{ env.SCENARIO }})" >> $GITHUB_STEP_SUMMARY
+          echo "- 覆盖范围：公开只读首页、列表、搜索与配置；需登录或种子数据的路径未纳入本次基线" >> $GITHUB_STEP_SUMMARY
+          echo "- k6 执行结果: ${{ steps.k6.outcome }}" >> $GITHUB_STEP_SUMMARY
 
           if [ -f results/summary.json ]; then
             echo '```json' >> $GITHUB_STEP_SUMMARY
             cat results/summary.json | head -100 >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
 
-            # 检查阈值是否通过
-            THRESHOLDS_PASSED=$(jq -r '.metrics | select(.thresholds_passed != null) | .thresholds_passed' results/summary.json 2>/dev/null || echo "unknown")
-            echo "- 阈值检查: $THRESHOLDS_PASSED" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ 未生成性能报告文件" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: 上传结果
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: perf-results-${{ env.SCENARIO }}-${{ github.run_id }}
           path: results/

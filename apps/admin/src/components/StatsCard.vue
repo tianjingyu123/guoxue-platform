@@ -1,12 +1,12 @@
 <template>
   <el-card
     :class="['stats-card', { 'is-loading': loading }]"
-    shadow="hover"
+    shadow="never"
+    :style="{ '--stats-color': color }"
   >
     <div class="stats-inner">
       <div
         class="stats-icon"
-        :style="{ background: color }"
       >
         <el-icon :size="22">
           <component :is="icon" />
@@ -46,12 +46,13 @@
 </template>
 
 <script setup lang="ts">
+import type { Component } from 'vue'
 import AnimatedCounter from './AnimatedCounter.vue'
 
 defineProps<{
   title: string
   value: number | string
-  icon: any
+  icon: Component
   color: string
   loading?: boolean
   trend?: number
@@ -62,59 +63,49 @@ defineProps<{
 <style scoped>
 .stats-card {
   cursor: default;
-  transition: transform var(--transition-spring), box-shadow var(--transition-base);
-  border-radius: var(--radius-lg);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+  border-radius: var(--radius-lg) !important;
   position: relative;
   overflow: hidden;
+  min-height: 122px;
+  background: rgba(255,255,255,.92);
 }
-/* 顶部金线装饰 */
 .stats-card::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 20px;
-  right: 20px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--color-gold-light), transparent);
-  opacity: 0;
-  transition: opacity var(--transition-base);
+  top: 18px;
+  right: 18px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--stats-color) 10%, transparent);
+  filter: blur(1px);
 }
 .stats-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-card-hover);
-}
-.stats-card:hover::before {
-  opacity: 1;
+  border-color: color-mix(in srgb, var(--stats-color) 24%, var(--color-divider)) !important;
+  box-shadow: var(--shadow-md) !important;
 }
 
 .stats-inner {
   display: flex;
   align-items: center;
-  gap: var(--spacing-lg);
+  gap: 14px;
 }
 
 /* ── 图标 ── */
 .stats-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-lg);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--stats-color);
+  background: color-mix(in srgb, var(--stats-color) 11%, #fff);
   flex-shrink: 0;
   position: relative;
 }
 /* 图标发光 */
-.stats-icon::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: 14px;
-  background: inherit;
-  opacity: 0.12;
-  z-index: -1;
-}
 
 /* ── 信息 ── */
 .stats-info {
@@ -122,17 +113,18 @@ defineProps<{
   min-width: 0;
 }
 .stats-value {
-  font-size: 26px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 650;
   color: var(--color-text-title);
   line-height: 1.2;
-  font-family: var(--font-family);
+  font-family: var(--font-family-number);
+  letter-spacing: -.035em;
   font-variant-numeric: tabular-nums;
 }
 .stats-title {
   font-size: var(--font-size-caption);
   color: var(--color-text-secondary);
-  margin-top: 2px;
+  margin-top: 4px;
 }
 .is-loading .stats-value {
   color: var(--color-text-placeholder);
@@ -144,7 +136,7 @@ defineProps<{
   align-items: center;
   gap: 2px;
   padding: 4px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   font-size: var(--font-size-small);
   font-weight: 600;
   flex-shrink: 0;

@@ -6,6 +6,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ShopService } from "../shop/shop.service";
+import { ShopCouponService } from "../shop/shop-coupon.service";
 import { Prisma } from "@prisma/client";
 import { Cacheable } from "../../common/cache.decorator";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
@@ -26,7 +27,11 @@ import {
 export class MarketingService {
   private readonly logger = new Logger(MarketingService.name);
 
-  constructor(private prisma: PrismaService, private shop: ShopService) {}
+  constructor(
+    private prisma: PrismaService,
+    private shop: ShopService,
+    private shopCoupon: ShopCouponService,
+  ) {}
 
   // ═══════════════════════════════════════
   // 秒杀管理
@@ -222,7 +227,19 @@ export class MarketingService {
       this.prisma.groupBuy.count({ where }),
     ]);
 
-    return { items, total, page, pageSize };
+    // GroupBuy 无 name 列，活动展示名=关联商品标题。批量 join Product 补 productTitle
+    // 别名字段（GroupBuy 与 Product 无 Prisma relation，只能按 productId 批量查）。
+    const productIds = [...new Set(items.map(i => i.productId))];
+    const products = productIds.length
+      ? await this.prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, title: true },
+        })
+      : [];
+    const titleMap = new Map(products.map(p => [p.id, p.title]));
+    const enriched = items.map(i => ({ ...i, productTitle: titleMap.get(i.productId) ?? null }));
+
+    return { items: enriched, total, page, pageSize };
   }
 
   async updateGroupBuy(id: string, dto: UpdateGroupBuyDto) {
@@ -388,72 +405,40 @@ export class MarketingService {
     return { success: true };
   }
 
+  /**
+   * 发放优惠券给指定用户（券体系已统一到「商城优惠券」Coupon/UserCoupon）。
+   *
+   * 背景（转化失血命门·2026-07-18）：营销 CouponTemplate/CouponRecord 体系发放的券**无任何下单核销路径**
+   * （全库无地方把 CouponRecord.status 改 USED，结算只读 UserCoupon）——营销发的券、churn 召回券用户全用不了、核销率结构性恒 0。
+   * 该体系已归档只读（admin「优惠券模板」页停止新建与发放）。故此处 `id` 现指「商城优惠券」(Coupon) id，
+   * 发放即建 UserCoupon → 在商城结算 shop-order.applyCouponPricing/updateMany 真核销抵扣（含单用 CAS 防重复核销）。
+   *
+   * 幂等：已持有该券未使用记录则跳过重复发放，避免召回重复触发累积废券（并防同一用户被多次发同一券）。
+   * churn COUPON 动作 couponId 需为「商城优惠券」id；若传旧模板 id → 券不存在，抛错由 churn 标 FAILED（诚实失败胜过静默废券）。
+   */
   async grantCoupon(id: string, dto: GrantCouponDto) {
-    const template = await this.prisma.couponTemplate.findUnique({ where: { id } });
-    if (!template) throw new BusinessException(ErrorCode.NOT_FOUND, "优惠券模板不存在");
+    const coupon = await this.prisma.coupon.findUnique({ where: { id } });
+    if (!coupon) throw new BusinessException(ErrorCode.NOT_FOUND, "优惠券不存在（券体系已统一，请使用「商城优惠券」ID 发放）");
+    if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效，无法发放");
+    if (new Date() > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期，无法发放");
 
-    // 检查发行量
-    if (template.totalCount > 0 && template.claimedCount >= template.totalCount) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "优惠券已领完");
-    }
-
-    // 使用事务：原子增加 claimedCount + 创建领取记录
-    return this.prisma.$transaction(async (tx) => {
-      await tx.couponTemplate.update({
-        where: { id },
-        data: { claimedCount: { increment: 1 } },
-      });
-
-      return tx.couponRecord.create({
-        data: {
-          couponId: id,
-          userId: dto.userId,
-          status: "UNUSED",
-        },
-      });
+    // 幂等：已持有该券未使用则跳过（返回既有记录，不重复发放）
+    const existing = await this.prisma.userCoupon.findFirst({
+      where: { userId: dto.userId, couponId: id, used: false },
     });
+    if (existing) return existing;
+
+    // 委托商城统一发放口：建可核销 UserCoupon
+    return this.shopCoupon.grantCoupon(id, dto.userId);
   }
 
+  /**
+   * 批量发放优惠券（券体系已统一，委托「商城优惠券」统一批量发放口 ShopCouponService.batchGrantCoupon）。
+   * 建可核销 UserCoupon（内含 券存在/状态 ACTIVE/未过期 校验 + 已持有未使用去重），返回 { granted, skipped }。
+   * `id` = 「商城优惠券」(Coupon) id。理由同 grantCoupon（原 CouponRecord 无下单核销路径）。
+   */
   async batchGrantCoupon(id: string, dto: BatchGrantCouponDto) {
-    const template = await this.prisma.couponTemplate.findUnique({ where: { id } });
-    if (!template) throw new BusinessException(ErrorCode.NOT_FOUND, "优惠券模板不存在");
-
-    // 计算可发放数量
-    let remaining = dto.userIds.length;
-    if (template.totalCount > 0) {
-      const current = await this.prisma.couponTemplate.findUnique({
-        where: { id },
-        select: { claimedCount: true },
-      });
-      remaining = Math.max(0, template.totalCount - (current?.claimedCount ?? 0));
-    }
-
-    const toGrant = dto.userIds.slice(0, remaining);
-    const cannotGrant = dto.userIds.slice(remaining);
-    const results: Array<{ userId: string; success: boolean; error?: string }> = [];
-
-    // 单次事务批量发放
-    if (toGrant.length > 0) {
-      try {
-        await this.prisma.$transaction(async (tx) => {
-          await tx.couponTemplate.update({
-            where: { id },
-            data: { claimedCount: { increment: toGrant.length } },
-          });
-          await tx.couponRecord.createMany({
-            data: toGrant.map((userId) => ({ couponId: id, userId, status: "UNUSED" })),
-          });
-        });
-        toGrant.forEach((userId) => results.push({ userId, success: true }));
-      } catch (err: unknown) {
-        this.logger.warn(`批量发放优惠券事务失败: ${(err as Error).message}`);
-        toGrant.forEach((userId) => results.push({ userId, success: false, error: (err as Error).message }));
-      }
-    }
-
-    cannotGrant.forEach((userId) => results.push({ userId, success: false, error: "优惠券已领完" }));
-
-    return { total: dto.userIds.length, success: results.filter((r) => r.success).length, failed: results.filter((r) => !r.success).length, results };
+    return this.shopCoupon.batchGrantCoupon(id, dto.userIds);
   }
 
   async getCouponRecords(id: string, dto: CouponRecordFilterDto) {
@@ -926,9 +911,9 @@ export class MarketingService {
       where: { route },
       include: { components: { orderBy: { sortOrder: "asc" } } },
     });
-    if (!page || page.status !== "PUBLISHED") {
-      throw new BusinessException(ErrorCode.NOT_FOUND, "页面不存在或未发布");
-    }
+    // 这是 C 端可选运营楼层：未配置或尚未发布是正常状态，返回 null 让页面使用内建布局。
+    // 若抛 404，首页/发现每次进入都会制造 api_error 噪音，掩盖真正的接口故障。
+    if (!page || page.status !== "PUBLISHED") return null;
     // 过滤掉不在展示时间范围内的组件
     const now = new Date();
     page.components = page.components.filter((c) => {

@@ -1,0 +1,73 @@
+{
+  "production": false,
+  "builds": [
+    {
+      "name": "independent-h5",
+      "builtHead": "73772132e4450855fb033e9d5f86c06300427662",
+      "verifiedSourceHead": "982e90e41408296f6b74b007bb78a645652ad80a",
+      "sourceFilesChecked": 9,
+      "sourceBytesUnchanged": true,
+      "changedSinceBuild": [
+        "deploy/managed-tenancy/README.md",
+        "deploy/managed-tenancy/managed-lease@.service.in",
+        "docs/operations/多租户经营与迁出交接-20261003.md",
+        "pilots/managed-tenancy/verify-cutover-postgres.mjs",
+        "pilots/managed-tenancy/verify-real-candidate.mjs"
+      ],
+      "dependencyLockSha256": "994f2584f94434c5b5594b54c92186dd87df13e5d47563c196b2af85f37687db",
+      "receiptSha256": "01c6bd4a5268a6efcdb0d483cd683e1655171ce1622fae9b4acd96ac41c6ca0f"
+    },
+    {
+      "name": "independent-weixin",
+      "builtHead": "73772132e4450855fb033e9d5f86c06300427662",
+      "verifiedSourceHead": "982e90e41408296f6b74b007bb78a645652ad80a",
+      "sourceFilesChecked": 9,
+      "sourceBytesUnchanged": true,
+      "changedSinceBuild": [
+        "deploy/managed-tenancy/README.md",
+        "deploy/managed-tenancy/managed-lease@.service.in",
+        "docs/operations/多租户经营与迁出交接-20261003.md",
+        "pilots/managed-tenancy/verify-cutover-postgres.mjs",
+        "pilots/managed-tenancy/verify-real-candidate.mjs"
+      ],
+      "dependencyLockSha256": "994f2584f94434c5b5594b54c92186dd87df13e5d47563c196b2af85f37687db",
+      "receiptSha256": "cd23904a17c02f625a0462422025af0dbf8b3f0302dd1223824e4710da38fddb"
+    },
+    {
+      "name": "independent-app-resources",
+      "builtHead": "73772132e4450855fb033e9d5f86c06300427662",
+      "verifiedSourceHead": "982e90e41408296f6b74b007bb78a645652ad80a",
+      "sourceFilesChecked": 9,
+      "sourceBytesUnchanged": true,
+      "changedSinceBuild": [
+        "deploy/managed-tenancy/README.md",
+        "deploy/managed-tenancy/managed-lease@.service.in",
+        "docs/operations/多租户经营与迁出交接-20261003.md",
+        "pilots/managed-tenancy/verify-cutover-postgres.mjs",
+        "pilots/managed-tenancy/verify-real-candidate.mjs"
+      ],
+      "dependencyLockSha256": "994f2584f94434c5b5594b54c92186dd87df13e5d47563c196b2af85f37687db",
+      "receiptSha256": "a44f73680ac1d1cdbd7b219959bf5adc0f85f5b064d681b8a5629bce2763573b"
+    },
+    {
+      "name": "brand-h5",
+      "builtHead": "73772132e4450855fb033e9d5f86c06300427662",
+      "verifiedSourceHead": "982e90e41408296f6b74b007bb78a645652ad80a",
+      "sourceFilesChecked": 5,
+      "sourceBytesUnchanged": true,
+      "changedSinceBuild": [
+        "deploy/managed-tenancy/README.md",
+        "deploy/managed-tenancy/managed-lease@.service.in",
+        "docs/operations/多租户经营与迁出交接-20261003.md",
+        "pilots/managed-tenancy/verify-cutover-postgres.mjs",
+        "pilots/managed-tenancy/verify-real-candidate.mjs"
+      ],
+      "dependencyLockSha256": "994f2584f94434c5b5594b54c92186dd87df13e5d47563c196b2af85f37687db",
+      "receiptSha256": "f850097f4308d8384496ea471a91cba5a7285d03287987e26173059ebfed27e8"
+    }
+  ],
+  "limits": [
+    "原始构建凭据保留真实构建提交；逐文件核对当前源码一致，不改写为新提交构建",
+    "App仅渠道资源，品牌外壳未运行SDK，均非真机或商店验收"
+  ]
+}

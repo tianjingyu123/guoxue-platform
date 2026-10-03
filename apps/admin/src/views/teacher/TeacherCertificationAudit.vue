@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { teacherCertApi } from '@/api'
 
 interface CertUser {
@@ -116,6 +116,18 @@ async function submitReview(action: 'APPROVE' | 'REJECT') {
   if (action === 'REJECT' && !rejectReason.value.trim()) {
     ElMessage.warning('驳回必须填写驳回原因')
     return
+  }
+  // 通过认证=授予讲师身份对外展示，加二次确认防误点
+  if (action === 'APPROVE') {
+    try {
+      await ElMessageBox.confirm(
+        `确认通过「${current.value.realName}」的讲师认证？将授予头衔「${verifiedTitle.value.trim() || current.value.title || '认证讲师'}」并对外展示。`,
+        '确认通过认证',
+        { type: 'warning', confirmButtonText: '确认通过', cancelButtonText: '取消' },
+      )
+    } catch {
+      return // 取消
+    }
   }
   submitting.value = true
   try {

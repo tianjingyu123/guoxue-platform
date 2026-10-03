@@ -1,5 +1,5 @@
-// 积分中心数据与类型（迁移自原型 /points 体系，1:1 还原 lib/api/points.ts 的 mock 数据）
-import { apiGet, apiPost, useMock } from '@/utils/request'
+// 积分中心数据与类型（生产数据全部来自后端积分流水）
+import { apiGet, apiPost } from '@/utils/request'
 
 // 积分信息
 export interface PointsInfo {
@@ -42,30 +42,6 @@ export interface PointsExchangeItem {
   stock: number // 库存
   color: string // 图标颜色
 }
-
-// ========== Mock 数据 ==========
-
-export const pointsInfo: PointsInfo = {
-  balance: 2580,
-  totalEarned: 5280,
-  totalSpent: 2700,
-  todayEarned: 15,
-}
-
-export const pointsTasks: PointsTask[] = [
-  { id: 1, title: '每日签到', points: 5, icon: 'calendar', action: '去签到', limit: '每日1次', completed: false },
-  { id: 2, title: '发布帖子', points: 10, icon: 'file-text', action: '去发布', limit: '每日3次', completed: false, current: 1, max: 3 },
-  { id: 3, title: '发布文章', points: 30, icon: 'file-text', action: '去发布', limit: '每日1次', completed: true },
-  { id: 4, title: '邀请好友注册', points: 100, icon: 'users', action: '去邀请', limit: '无上限', completed: false },
-  { id: 5, title: '购买课程/商品', points: 1, icon: 'shopping-bag', action: '去购物', limit: '消费¥1=1积分', completed: false },
-]
-
-export const pointsHistory: PointsHistoryItem[] = [
-  { id: 1, title: '每日签到', points: 5, time: '今天 08:30', type: 'earn' },
-  { id: 2, title: '发布帖子', points: 10, time: '今天 10:15', type: 'earn' },
-  { id: 3, title: '兑换优惠券', points: -500, time: '昨天 14:20', type: 'spend' },
-  { id: 4, title: '购买课程', points: 199, time: '昨天 09:00', type: 'earn' },
-]
 
 /* —— 后端原始响应类型（容错适配用，字段全 optional） —— */
 interface RawPointsProduct { id?: string | number; type?: string; title?: string; points?: number | string; icon?: string; stock?: number | string; color?: string }
@@ -118,14 +94,14 @@ function adaptPointsRecord(r: RawPointsRecord): PointsHistoryItem {
 // ============ API 层 ============
 
 export const pointsApi = {
-  /** 获取积分信息 —— GET /users/me/points（后端 {balance,totalEarned,totalSpent}；今日获取后端无→0 降级） */
+  /** 获取积分信息 —— GET /users/me/points（余额、累计与北京时间今日获取均为真实流水口径） */
   async getInfo(): Promise<PointsInfo> {
-    const p = await apiGet<{ balance?: number; totalEarned?: number; totalSpent?: number }>('/users/me/points')
+    const p = await apiGet<{ balance?: number; totalEarned?: number; totalSpent?: number; todayEarned?: number }>('/users/me/points')
     return {
       balance: Number(p.balance ?? 0),
       totalEarned: Number(p.totalEarned ?? 0),
       totalSpent: Number(p.totalSpent ?? 0),
-      todayEarned: 0,
+      todayEarned: Number(p.todayEarned ?? 0),
     }
   },
 

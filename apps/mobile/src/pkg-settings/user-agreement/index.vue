@@ -123,7 +123,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
-import { legalApi, extractToc, type LegalDoc, type LegalTocItem } from '@/lib/legal-data'
+import { legalApi, extractToc, type LegalDoc, type LegalTocItem } from '@/pkg-settings/lib/legal-data'
 
 const TYPE = 'user-agreement'
 
@@ -189,7 +189,7 @@ async function handleConfirm() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24rpx 32rpx;
+  padding: calc(24rpx + var(--status-bar-height, 0px)) 32rpx 24rpx;
   background-color: #faf8f5;
   border-bottom: 2rpx solid #e8e0d5;
 }
@@ -407,7 +407,7 @@ async function handleConfirm() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 32rpx;
+  padding: calc(32rpx + var(--status-bar-height, 0px)) 32rpx 32rpx;
   border-bottom: 2rpx solid #e8e0d5;
 }
 .toc-title {

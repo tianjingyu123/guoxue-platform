@@ -22,6 +22,7 @@ import {
   DeviceFingerprintQueryDto,
   UserTimelineQueryDto,
 } from "./risk-control.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("风控中心")
 @Controller("risk-control")
@@ -75,6 +76,7 @@ export class RiskControlController {
   }
 
   @Delete("rules/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除预警规则" })
@@ -105,6 +107,7 @@ export class RiskControlController {
   }
 
   @Put("alerts/:id/handle")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "处理预警" })
@@ -119,6 +122,7 @@ export class RiskControlController {
   }
 
   @Put("alerts/:id/dismiss")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "忽略预警" })
@@ -133,6 +137,7 @@ export class RiskControlController {
   }
 
   @Post("alerts/:id/action")
+  @RedLineGate(RedLine.USER_DATA, RedLine.COMPLIANCE)
   @Auditable({ action: "风控预警处置", targetType: "RISK_ALERT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -178,6 +183,7 @@ export class RiskControlController {
   }
 
   @Put("fraud-detections/:id/confirm")
+  @RedLineGate(RedLine.USER_DATA, RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard, FeatureFlagGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @RequireFeature("risk_fraud_scan")
@@ -193,6 +199,7 @@ export class RiskControlController {
   }
 
   @Put("fraud-detections/:id/dismiss")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard, FeatureFlagGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @RequireFeature("risk_fraud_scan")
@@ -246,7 +253,8 @@ export class RiskControlController {
 
   @Get("appeals")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：客服工作台负责用户申诉受理，放行 CUSTOMER_SERVICE。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "获取申诉列表" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -257,8 +265,10 @@ export class RiskControlController {
   }
 
   @Put("appeals/:id/approve")
+  @RedLineGate(RedLine.USER_DATA, RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN")
+  // 权限修复(角色断裂)：申诉裁决原仅 SUPER_ADMIN，路由放行的运营/客服全 403，对齐为三角色。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "批准申诉" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -271,8 +281,10 @@ export class RiskControlController {
   }
 
   @Put("appeals/:id/reject")
+  @RedLineGate(RedLine.USER_DATA, RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN")
+  // 权限修复(角色断裂)：申诉裁决原仅 SUPER_ADMIN，路由放行的运营/客服全 403，对齐为三角色。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "驳回申诉" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

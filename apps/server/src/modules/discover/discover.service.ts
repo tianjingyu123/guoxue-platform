@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy";
 
 /** 发现页缓存 TTL */
 const DISCOVER_CACHE_TTL = 120;
@@ -48,7 +49,7 @@ export class DiscoverService {
     const filterHash = createHash("sha1")
       .update(`${page}|${pageSize}|${type || "all"}|${categoryLevel1 || ""}|${categoryLevel2 || ""}`)
       .digest("hex");
-    const cacheKey = `discover:${filterHash}`;
+    const cacheKey = `discover:v2:${filterHash}`;
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) return cached;
 
@@ -295,7 +296,7 @@ export class DiscoverService {
   }
 
   private async queryClassics(opts: { skip: number; pageSize: number }) {
-    const where = { status: "PUBLISHED" };
+    const where = PUBLIC_CLASSIC_BOOK_WHERE;
     const [items, total] = await Promise.all([
       this.prisma.classicBook.findMany({
         where,

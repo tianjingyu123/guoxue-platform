@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-03T07:07:53.582Z",
+  "baselineHead": "a1d37c4a2cfd0167a4474798a47a4cb6706e6c69",
+  "node": "v24.17.0",
+  "database": "SQLite synthetic pilot",
+  "sources": {
+    "pilots/managed-tenancy/pilot.mjs": "f66aa2a10424dfa0a2bb51603b176ad7b6d100d537bc14121db9bf0f27cbf952",
+    "pilots/managed-tenancy/server.mjs": "96638bfa2bed5856d282c716703a7a0d3a684dc09d3407352ba5720236794d13",
+    "pilots/managed-tenancy/verify.mjs": "01bf18a5588fce3982c267955d97c4b51bad1f0e2c889c3aeaa580dab3d2121c",
+    "pilots/managed-tenancy/audit-source.mjs": "7383fd7be14ebdfcaf4d8f74c94c404e9fee02ba35720b6f3002a1110d62f270",
+    "pilots/managed-tenancy/migrations/001-pilot.sql": "20cd456818e4c12e6a4d3d7622becdf08eb22b7e63b9f30598398720a5e92783",
+    "packages/shared/src/client-presentation.ts": "7c0e17ad8e106633fe9f4b9471c85f232a0c275ecd037d1a17d53042187f5493",
+    "apps/server/src/modules/system/distribution.util.ts": "95ac041d1d6f6fd6e8daab7d2bc3cc6a88445878b7ad6f234fbef72afb48bb69",
+    "apps/server/src/modules/shop/shop-order.service.ts": "2130f75974009458838322c0363770d451f3394cbbdf2187159d457e75a98930",
+    "apps/server/src/modules/commission/commission.service.ts": "ee3401260454c6b8f45649df9ebe5a49e6d7102a9624c30d5336c0c77e40925c",
+    "apps/server/prisma/schema.prisma": "e532e1dca81b31c44e63460a0de4028708f584758aef0065755ac93936c0795f"
+  },
+  "passed": 18,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "控制面拒绝客户、无身份与冲突开通；并发幂等开通",
+      "status": "PASS",
+      "durationMs": 127
+    },
+    {
+      "name": "五个独立进程、两个独立客户数据库、平台品牌共享空间",
+      "status": "PASS",
+      "durationMs": 9
+    },
+    {
+      "name": "无上下文、未知选择器、跨客户及同主体跨应用令牌拒绝",
+      "status": "PASS",
+      "durationMs": 73
+    },
+    {
+      "name": "伪造 tenantId、stationId、角色及令牌签名拒绝",
+      "status": "PASS",
+      "durationMs": 97
+    },
+    {
+      "name": "并发跨进程圈子配额原子限制",
+      "status": "PASS",
+      "durationMs": 44
+    },
+    {
+      "name": "成员修订撤销与主库角色降权立即生效",
+      "status": "PASS",
+      "durationMs": 48
+    },
+    {
+      "name": "单条与批量写入、原始 SQL 读过滤及事务回滚",
+      "status": "PASS",
+      "durationMs": 77
+    },
+    {
+      "name": "搜索、指定智能体知识、深链与本人会话隔离",
+      "status": "PASS",
+      "durationMs": 124
+    },
+    {
+      "name": "缓存账号/应用/客户命名空间、附件跨用户与跨客户隔离",
+      "status": "PASS",
+      "durationMs": 77
+    },
+    {
+      "name": "公共协议同源、模板不授权、旧客户端降级、未知组件及脚本拒绝",
+      "status": "PASS",
+      "durationMs": 61
+    },
+    {
+      "name": "客户商户与交易快照、金额/商户检查、支付履约退款幂等契约",
+      "status": "PASS",
+      "durationMs": 77
+    },
+    {
+      "name": "品牌分站共享获授权资源、主体分别声明且交易规则不扩大",
+      "status": "PASS",
+      "durationMs": 79
+    },
+    {
+      "name": "客户管理员、客服不能变平台超管；既有订单/售后仍按原权限",
+      "status": "PASS",
+      "durationMs": 77
+    },
+    {
+      "name": "提醒/到期/保留/续费状态、已有售后不关闭、旧令牌失效、任务不重跑",
+      "status": "PASS",
+      "durationMs": 155
+    },
+    {
+      "name": "导出实际范围、附件、敏感字段处理、跨客户与临时下载权限",
+      "status": "PASS",
+      "durationMs": 187
+    },
+    {
+      "name": "同版本备份恢复/迁出/回退、错误数据库身份拒绝与审计",
+      "status": "PASS",
+      "durationMs": 132
+    },
+    {
+      "name": "验收器结束后所有本任务进程与端口关闭",
+      "status": "PASS",
+      "durationMs": 5
+    },
+    {
+      "name": "运行前后候选源码与公共协议摘要一致",
+      "status": "PASS",
+      "durationMs": 0
+    }
+  ],
+  "limits": [
+    "未接生产/真实客户/真实商户/微信AppID/模型供应商",
+    "SQLite合成验证不代表PostgreSQL最小权限账号、Redis、BullMQ、COS、pgvector或生产容量实测",
+    "只验证试点API与合成交易契约，不替代现有NestJS全业务集成及真实佣金资金验收",
+    "无生产迁移、推送、部署或主线合并"
+  ],
+  "runtimeProcesses": 6,
+  "resourcesClosed": true
+}

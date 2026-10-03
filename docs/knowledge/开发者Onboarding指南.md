@@ -29,7 +29,7 @@ guoxue-platform/            pnpm monorepo
 
 - **模式**：单体模块化。src/modules/ 下 ~50 个业务模块，每模块 controller/service/dto/spec 四件套。公共层 src/common/（守卫/拦截器/装饰器/加密），基建 src/prisma、src/redis、src/config。
 - **请求管线**：nginx → main.ts 全局链 = TracingInterceptor → LoggingInterceptor → ResponseInterceptor（统一 {code,data,message}，@SkipFormat 跳过）→ AuditInterceptor（@Auditable 记审计）→ RedisThrottleGuard（全局限流）→ SanitizePipe（XSS 转义，注意会碰 JSON 体）→ ValidationPipe（whitelist+transform）。
-- **鉴权**：JWT（2h）+ refreshToken（UUID 存 Redis 7 天，轮换制，用户级索引 refresh:user:{id}，改密/封号即时撤销）。JwtStrategy 每请求查 DB 校验用户状态 + 比对撤销时间戳。角色：roles 表 + @Roles + RolesGuard（deny-by-default）。
+- **鉴权**：JWT（2h）+ refreshToken（UUID 存 Redis 30 天，原子一次性轮换，用户级索引 refresh:user:{id}，改密/封号即时撤销）。JwtStrategy 每请求查 DB 校验用户状态 + 比对撤销时间戳。角色：roles 表 + @Roles + RolesGuard（deny-by-default）。
 - **Redis 用途**：缓存 / 分布式锁（runExclusive·cron 全量已包）/ 限流（incrWithTtl）/ 验证码 / websocket 在线态与 adapter。**Redis 不可用自动降级内存模式**（单实例语义，资金 cron critical 拒跑）。
 - **websocket**：modules/websocket AppGateway（socket.io + Redis adapter，cluster 就绪）。房间约定：user:{id} / admin / circle:{id} / live:{id} / presence:{id}。
 - **AI 网关**：modules/ai-gateway——模型路由（场景→模型，DB 配置热更新）/月度预算封顶/语义缓存/审计。Provider：DeepSeek 为主，Coze（智能体广场），腾讯云（审核）。

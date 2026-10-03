@@ -5,6 +5,13 @@ import { AiGatewayService } from "./ai-gateway.service";
 import { ModelRouterService } from "./model-router.service";
 import { StreamUnifierService } from "./stream-unifier.service";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { ChatSceneAccessService } from "./chat-scene-access.service";
+
+/** 本单测用的路由配置：三项都落在 general_chat 的场景边界内，便于断言"默认值原样保留" */
+const SPEC_ROUTING = {
+  default: { model: "deepseek-v4-flash", temperature: 0.2, maxTokens: 1024, topP: 0.8 },
+  scenes: {},
+} as any;
 
 const mockSSE = { encode: jest.fn((chunk: any) => `data: ${JSON.stringify(chunk)}\n\n`), writeSseStream: jest.fn() } as any;
 
@@ -13,7 +20,8 @@ describe("AiGatewayController", () => {
   let gateway: jest.Mocked<AiGatewayService>;
   let router: jest.Mocked<ModelRouterService>;
 
-  const mockReq = { user: { id: "u1" } } as any;
+  // general_chat 仅供受控运维/压测账号使用
+  const mockReq = { user: { id: "u1", roles: ["OPERATION_ADMIN"] } } as any;
 
   const mockRes = () => {
     const res: any = {};
@@ -24,8 +32,9 @@ describe("AiGatewayController", () => {
     return res;
   };
 
+  // scene 必须是 chat-scene-registry.ts 中登记的场景，否则 403（默认拒绝）
   const chatDto = {
-    scene: "general",
+    scene: "general_chat",
     messages: [{ role: "user" as const, content: "你好" }],
     temperature: 0.7,
     maxTokens: 2048,
@@ -36,6 +45,7 @@ describe("AiGatewayController", () => {
     const mod = await Test.createTestingModule({
       controllers: [AiGatewayController],
       providers: [
+        ChatSceneAccessService,
         { provide: StreamUnifierService, useValue: mockSSE },
         {
           provide: AiGatewayService,
@@ -59,6 +69,8 @@ describe("AiGatewayController", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // 场景准入要读路由配置来推导最终生效参数，每个用例都给一份确定的
+    router.getRoutingConfig.mockResolvedValue(SPEC_ROUTING);
   });
 
   describe("chat — 非流式对话", () => {
@@ -72,7 +84,7 @@ describe("AiGatewayController", () => {
       const result = await ctrl.chat(chatDto, mockReq);
 
       expect(gateway.chat).toHaveBeenCalledWith({
-        scene: "general",
+        scene: "general_chat",
         userId: "u1",
         messages: [{ role: "user", content: "你好" }],
         options: { temperature: 0.7, maxTokens: 2048, topP: 0.9 },
@@ -81,27 +93,28 @@ describe("AiGatewayController", () => {
       expect(result.model).toBe("deepseek-v4-flash");
     });
 
-    it("不传可选参数时 options 字段全为 undefined", async () => {
+    // 行为变更（2026-09-19）：
+    // ① 此前不传可选参数也会下发 { temperature: undefined, ... }，而网关的
+    //    { ...routeOptions, ...reqOptions } 是按键覆盖的 —— undefined 同样会把路由配置覆盖掉；
+    // ② 现在改为在控制器侧把路由默认值与调用方覆盖合并成**最终生效参数**后下发（三项齐全），
+    //    网关因此无法再解析出一份不同的参数。合法的路由默认值原样保留。
+    it("不传可选参数时下发路由配置推导出的最终生效参数", async () => {
       gateway.chat.mockResolvedValue({
         content: "ok",
         model: "deepseek-v4-flash",
       });
       const minimalDto = {
-        scene: "general",
+        scene: "general_chat",
         messages: [{ role: "user" as const, content: "hi" }],
       };
 
       await ctrl.chat(minimalDto, mockReq);
 
       expect(gateway.chat).toHaveBeenCalledWith({
-        scene: "general",
+        scene: "general_chat",
         userId: "u1",
         messages: [{ role: "user", content: "hi" }],
-        options: {
-          temperature: undefined,
-          maxTokens: undefined,
-          topP: undefined,
-        },
+        options: { temperature: 0.2, maxTokens: 1024, topP: 0.8 },
       });
     });
 

@@ -1,0 +1,23 @@
+/** 常见分发目录；存在目录项不表示已取得该商店上架身份或 WGT 许可。 */
+export const APP_CHANNELS = [
+  { id: "web", name: "H5网页入口", platforms: ["h5"] },
+  { id: "weixin", name: "微信小程序", platforms: ["mp-weixin"] },
+  { id: "huawei", name: "华为应用市场", platforms: ["android", "harmony"] },
+  { id: "xiaomi", name: "小米应用商店", platforms: ["android"] },
+  { id: "oppo", name: "OPPO 软件商店", platforms: ["android"] },
+  { id: "oneplus", name: "一加渠道", platforms: ["android"] },
+  { id: "vivo", name: "vivo 应用商店", platforms: ["android"] },
+  { id: "honor", name: "荣耀应用市场", platforms: ["android"] },
+  { id: "realme", name: "realme 渠道", platforms: ["android"] },
+  { id: "tencent", name: "腾讯应用宝", platforms: ["android"] },
+  { id: "qihoo360", name: "360 手机助手", platforms: ["android"] },
+  { id: "baidu", name: "百度手机助手", platforms: ["android"] },
+  { id: "wandoujia", name: "豌豆荚", platforms: ["android"] },
+  { id: "meizu", name: "魅族应用商店", platforms: ["android"] },
+  { id: "lenovo", name: "联想应用商店", platforms: ["android"] },
+  { id: "samsung", name: "三星 Galaxy Store", platforms: ["android"] },
+  { id: "google-play", name: "Google Play", platforms: ["android"] },
+  { id: "app-store", name: "Apple App Store", platforms: ["ios"] },
+  { id: "official", name: "官方直发", platforms: ["android"] },
+  { id: "legacy", name: "历史无渠道", platforms: ["android", "ios", "harmony"] },
+] as const;

@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Param, Body, Query, UseGuards, Req, ForbiddenException } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiParam, ApiResponse } from "@nestjs/swagger";
 import { DashboardService } from "./dashboard.service";
 import { EntityDashboardService } from "./entity-dashboard.service";
@@ -10,7 +11,12 @@ import { Roles } from "../../common/roles.decorator";
 @ApiTags("仪表盘")
 @ApiBearerAuth()
 @Controller("dashboard")
-@UseGuards(JwtAuthGuard)
+// 安全修复(后端审计#1)：类级补 RolesGuard + 默认管理角色门槛。
+// 原先类级仅 JwtAuthGuard，导致 stats/trends/charts/revenue/realtime/bigscreen/content-health/funnel
+// 这 8 个未挂方法级 @Roles 的端点，任何已登录 C 端用户都能读全平台营收/实时/大屏数据。
+// RolesGuard 用 getAllAndOverride([handler,class])，下方带方法级 @Roles 的端点会自动覆盖此默认值，行为不变。
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 export class DashboardController {
   constructor(
     private svc: DashboardService,
@@ -19,6 +25,9 @@ export class DashboardController {
   ) {}
 
   @Get("stats")
+  // 权限修复(角色断裂)：六个角色工作台(Super/Operation/Finance/CustomerService/ContentAudit/GoodsAudit)均调本端点，
+  // 方法级 @Roles 覆盖类级默认，放行全部管理角色（仍不放任何 C 端角色）。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE", "CONTENT_AUDITOR", "GOODS_AUDITOR")
   @ApiOperation({ summary: "获取统计数据" })
   @ApiResponse({ status: 200, description: "成功" })
   getStats() {
@@ -33,6 +42,8 @@ export class DashboardController {
   }
 
   @Get("charts")
+  // 权限修复(角色断裂)：内容审核工作台(ContentAuditDashboard)调本端点，放行 CONTENT_AUDITOR。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "获取图表数据" })
   @ApiResponse({ status: 200, description: "成功" })
   getCharts() {
@@ -40,6 +51,8 @@ export class DashboardController {
   }
 
   @Get("revenue")
+  // 权限修复(角色断裂)：财务工作台(FinanceDashboard)调本端点，放行 FINANCE_ADMIN；财务数据不放其他审核/客服角色。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "营收概览（总额/环比/分类型）" })
   @ApiResponse({ status: 200, description: "成功" })
   getRevenueOverview() {
@@ -61,6 +74,8 @@ export class DashboardController {
   }
 
   @Get("content-health")
+  // 权限修复(角色断裂)：内容审核工作台(ContentAuditDashboard)调本端点，放行 CONTENT_AUDITOR。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "内容健康度分析（低质内容识别）" })
   @ApiResponse({ status: 200, description: "成功" })
   getContentHealth() {
@@ -78,7 +93,8 @@ export class DashboardController {
 
   @Get("today-overview")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：运营/客服/内容审核工作台均调本端点，属通用工作台概览，放行全部六个管理角色。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE", "CONTENT_AUDITOR", "GOODS_AUDITOR")
   @ApiOperation({ summary: "工作台今日概览（今日新增/趋势/待办）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -199,7 +215,15 @@ export class DashboardController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiParam({ name: "roleType", description: "角色类型：SUPER_ADMIN/OPERATION_ADMIN/FINANCE_ADMIN/CUSTOMER_SERVICE/CONTENT_AUDITOR/GOODS_AUDITOR" })
-  getRoleDashboard(@Param("roleType") roleType: string) {
+  getRoleDashboard(@Req() req: Request, @Param("roleType") roleType: string) {
+    // 安全修复(后端审计P1)：roleType 原直接取自 URL，不与调用者实际角色绑定 →
+    // 低权管理角色(如客服/内容审核)可越权拉取 FINANCE_ADMIN 财务面板。
+    // 超管/运营管理员保留跨角色查看(管理监督)；其余角色只能看自己拥有的角色面板。
+    const roles: string[] = (req.user as { roles?: string[] })?.roles ?? [];
+    const isSuper = roles.includes("SUPER_ADMIN") || roles.includes("OPERATION_ADMIN");
+    if (!isSuper && !roles.includes(roleType)) {
+      throw new ForbiddenException("无权查看该角色的仪表盘");
+    }
     return this.roleSvc.getRoleDashboard(roleType);
   }
 

@@ -1,3 +1,4 @@
+import { PILLAR_LABEL } from "@guoxue/bazi-engine";
 import type { BaziResult } from "@guoxue/bazi-engine";
 
 /**
@@ -58,7 +59,7 @@ export function formatBaziChart(result: BaziResult): string {
 
   const shenShaLines = shenSha
     .slice(0, 15)
-    .map((s) => `${s.name}（${s.pillar}，${s.type === "ji" ? "吉" : "凶"}）：${s.desc}`);
+    .map((s) => `${s.name}（${PILLAR_LABEL[s.pillar] || s.pillar}，${s.type === "ji" ? "吉" : "凶"}）：${s.desc}`);
 
   const cangGanLines = [
     `年支${siZhu.nian.zhi}藏：${siZhu.nian.cangGan.map((c) => `${c.gan}（${c.shiShen}）`).join("、")}`,

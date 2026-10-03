@@ -1,0 +1,335 @@
+{
+  "candidateSource": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+  "actualAcceptedBusinessCommits": [
+    "28aec2edb9d9a932aeb40ebbcf1d5196b2f1c16e",
+    "48ac4cf4489f4a1f5241c421375da2fab3154d39"
+  ],
+  "fixedPackage": {
+    "sourceCommit": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+    "archiveSha256": "c42ed81b26ad4a872d611b41c0a409efb8be41f7a06e992aa2e27a5631811284",
+    "assetName": "gx-deploy-91-launch-20260930-48ac4cf4.tar.gz",
+    "assetId": 601942714,
+    "draft": true,
+    "size": 15596642,
+    "releaseId": 400058667,
+    "digest": "sha256:c42ed81b26ad4a872d611b41c0a409efb8be41f7a06e992aa2e27a5631811284"
+  },
+  "beforeRegression": {
+    "failed": 2,
+    "skipped": 48,
+    "scope": "two-focused-cas-reproductions-before-fix"
+  },
+  "afterRegression": {
+    "passed": 58,
+    "suites": 2,
+    "newCases": 9,
+    "scope": "focused-service-unit-tests"
+  },
+  "targetedTypecheckPassed": true,
+  "targetedEslintPassed": true,
+  "ci": {
+    "head": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+    "readAtUtc": "2026-09-30T23:04:20.0162796Z",
+    "status": "completed",
+    "conclusion": "success",
+    "runId": 36787478389,
+    "jobs": [
+      {
+        "name": "迁移与上线代码门禁",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36787478389/job/110132248981"
+      },
+      {
+        "name": "ESLint + Prettier",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36787478389/job/110132249165"
+      },
+      {
+        "name": "TypeScript 类型检查",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36787478389/job/110132249196"
+      },
+      {
+        "name": "单元测试 (3/3)",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36787478389/job/110132737440"
+      },
+      {
+        "name": "单元测试 (1/3)",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36787478389/job/110132737467"
+      },
+      {
+        "name": "单元测试 (2/3)",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36787478389/job/110132737481"
+      },
+      {
+        "name": "测试结果汇总",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36787478389/job/110136946716"
+      },
+      {
+        "name": "构建产物",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36787478389/job/110136946771"
+      }
+    ]
+  },
+  "imageBinding": {
+    "official": {
+      "zipSha256": "6380addd339d98f1af1bc8cd9a9d17d5d5d02a577e3354308db98e10debf0fe3",
+      "runId": 36788059926,
+      "zipBytes": 30632,
+      "digestMatched": true,
+      "conclusion": "success",
+      "verificationCommit": "ea605e44ad498ea008bb7aac8bb0676967cf9f4d",
+      "artifactId": 11130498895,
+      "readAtUtc": "2026-09-30T22:59:40.3136562Z"
+    },
+    "report": {
+      "sourceCommit": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+      "sourceSha256": "c42ed81b26ad4a872d611b41c0a409efb8be41f7a06e992aa2e27a5631811284",
+      "image": "rebu-linux-verify:48ac4cf4",
+      "scope": "image-artifact-binding-no-app-start-no-db-no-external-channels",
+      "checks": [
+        {
+          "name": "image-identity",
+          "passed": true,
+          "detail": {
+            "imageId": "sha256:ec3ef92b8a7ae6f8a553bf3df0b74115344159e8813082a90e22f44c2cd199b6",
+            "sourceCommit": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+            "sourceSha256": "c42ed81b26ad4a872d611b41c0a409efb8be41f7a06e992aa2e27a5631811284",
+            "os": "linux",
+            "architecture": "amd64"
+          }
+        },
+        {
+          "name": "prisma-source-compile-runtime-binding",
+          "passed": true,
+          "detail": {
+            "schemaVersion": 1,
+            "kind": "prisma-build-binding",
+            "schemaHash": "4004f698511cae3b29ef3aef324bf00bab417160724de2938dd17ed0f06e67d5",
+            "clientVersion": "6.19.3"
+          }
+        },
+        {
+          "name": "admin-h5-base-and-public-config",
+          "passed": true,
+          "detail": [
+            {
+              "name": "admin",
+              "prefix": "/admin/",
+              "fileCount": 503,
+              "friendlyMessagesPresent": false
+            },
+            {
+              "name": "h5",
+              "prefix": "/h5/",
+              "fileCount": 1178,
+              "friendlyMessagesPresent": true
+            }
+          ]
+        }
+      ],
+      "passed": true,
+      "businessRegressionRerun": false,
+      "productionDeployment": false,
+      "databaseOperations": 0,
+      "realMessages": 0
+    }
+  },
+  "newRealPostgresServiceVerification": {
+    "sourceCommit": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+    "sourceSha256": "c42ed81b26ad4a872d611b41c0a409efb8be41f7a06e992aa2e27a5631811284",
+    "image": "rebu-linux-verify:48ac4cf4",
+    "postgresImage": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff",
+    "passed": true,
+    "productionDeployment": false,
+    "productionDatabaseTouched": false,
+    "realNotifications": 0,
+    "checks": [
+      {
+        "name": "appeal-committed-success-notification",
+        "passed": true
+      },
+      {
+        "name": "stale-scan-manual-rejection-no-success-notification",
+        "passed": true
+      },
+      {
+        "name": "stale-scan-extended-deadline-no-success-notification",
+        "passed": true
+      },
+      {
+        "name": "appeal-real-transaction-rollback-no-success-notification",
+        "passed": true
+      },
+      {
+        "name": "two-transactions-stale-scan-postgres-cas-one-notification",
+        "passed": true
+      },
+      {
+        "name": "appeal-notification-failure-keeps-committed-ruling",
+        "passed": true
+      },
+      {
+        "name": "reward-real-ledgers-match-notified-credit",
+        "passed": true
+      },
+      {
+        "name": "reward-author-ledger-failure-rolls-back-credit-and-avoids-success-wording",
+        "passed": true
+      },
+      {
+        "name": "reward-spend-failure-no-credit-or-notification",
+        "passed": true
+      },
+      {
+        "name": "reward-notification-failure-keeps-ledgers-and-success-result",
+        "passed": true
+      }
+    ],
+    "imageId": "sha256:ec3ef92b8a7ae6f8a553bf3df0b74115344159e8813082a90e22f44c2cd199b6",
+    "postgresVersion": "18.6 (Debian 18.6-1.pgdg13+2)",
+    "targetObservedVersion": "18.4",
+    "targetPatchMatch": false,
+    "schemaScope": "final-schema-in-temporary-empty-database-not-production-upgrade",
+    "scope": "compiled-services-real-postgres-transactions-synthetic-notification-sink",
+    "httpEntryTested": false,
+    "realRedisLockTested": false,
+    "independentProcessesTested": false,
+    "existingRewardSplitPolicyPreserved": true,
+    "temporaryResourcesReleased": true
+  },
+  "frontendEvidenceReuse": {
+    "candidateSource": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+    "actualClientBuildSource": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "comparedPaths": [
+      "apps/mobile",
+      "apps/admin",
+      "packages",
+      "package.json",
+      "pnpm-lock.yaml"
+    ],
+    "treeEquivalent": true,
+    "freshLocalClientRebuild": false,
+    "actualPhoneSource": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "actualOfficialMiniPreviewSource": "43de59acf81e7d622edc4e57285ddf41b7ad89f2"
+  },
+  "backendChangesSincePrior19Runtime": [
+    "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+    "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+    "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+    "apps/server/src/modules/circle/services/circle-post.service.ts"
+  ],
+  "actualPrior19Source": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
+  "actualPrior19Run": 36768859516,
+  "prior19NotRerunAtCurrentSource": true,
+  "currentHttpEntrypointNotRerun": true,
+  "schemaEquivalentToFullBackupRehearsalSource": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+  "scopeLimits": [
+    "synthetic-notification-sink-not-real-push",
+    "same-process-two-real-pg-transactions-not-two-application-nodes",
+    "postgres-18.6-not-target-patch-18.4",
+    "existing-author-credit-failure-policy-still-log-only-no-automatic-compensation"
+  ],
+  "androidReadOnlyDiagnostic": {
+    "candidateSource": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+    "actualInstalledClientSource": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "checkedAtUtc": "2026-09-30T22:55:46.489819+00:00",
+    "androidVersion": "14",
+    "declaredHost": "api.rebugx.cn",
+    "domainState": "legacy_failure",
+    "resolvedActivity": "com.heytap.browser/com.android.browser.RealBrowserActivity",
+    "publicAssociationFiles": [
+      {
+        "host": "api.rebugx.cn",
+        "status": 200,
+        "redirected": false,
+        "contentType": "application/json",
+        "packageMatched": true,
+        "installedCertificateMatched": true
+      },
+      {
+        "host": "gx.yrydai.com",
+        "status": 200,
+        "redirected": false,
+        "contentType": "application/json",
+        "packageMatched": true,
+        "installedCertificateMatched": true
+      }
+    ],
+    "forcedApproval": false,
+    "userDefaultsChanged": false,
+    "networkChanged": false,
+    "secondDeviceAvailable": false,
+    "scope": "readonly-installed-domain-and-public-certificate-binding",
+    "conclusion": "公开关联文件匹配已安装包证书；自然HTTPS入站仍落浏览器，未证明设备验证失败根因"
+  },
+  "rollbackBusinessOrder": [
+    "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+    "28aec2edb9d9a932aeb40ebbcf1d5196b2f1c16e",
+    "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "7e2fc4cae3525951004a826a9f95812b0309a372",
+    "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
+    "1843d1b0e8a041bf82943ae4fcfb5160bf765ad2",
+    "5d2e335e0c0909dca386a6639f4768cd77a31869"
+  ],
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（注明范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "productionDeployment": false,
+  "productionMigration": false,
+  "realMoneyTouched": false,
+  "realNotificationsSent": false,
+  "evidenceFiles": [
+    {
+      "path": "artifacts/release-audit-20260927/circle-notification-cas-before.json",
+      "bytes": 24004,
+      "sha256": "8ad137f72abccba0e706ba9c60bbf1277f42d54891e3cfeeca81b926c7510cbe"
+    },
+    {
+      "path": "artifacts/release-audit-20260927/circle-notification-facts-after.json",
+      "bytes": 23653,
+      "sha256": "dcc305bd773e805be705a88087ff4734bfd92092910d79fa4744012d29079026"
+    },
+    {
+      "path": "artifacts/release-audit-20260927/circle-notification-facts-typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/release-audit-20260927/circle-notification-facts-eslint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/release-audit-20260927/frontend-48ac-equivalent-43de.json",
+      "bytes": 486,
+      "sha256": "b6654d9b699250c9261dbec2fdcb13ecfcc090ee2d4c2faac6d28df6eb1f8692"
+    },
+    {
+      "path": "artifacts/release-audit-20260927/android-domain-48ac-readonly-current.json",
+      "bytes": 1180,
+      "sha256": "d5a71d06488ce092c45f9c16daa55a4844d3057c980735832513021f62be0e7c"
+    }
+  ],
+  "beforeFailedCaseNames": [
+    "CircleGovernanceService cron 超时申诉CAS无变更：不撤销处理，也不谎报申诉成立",
+    "CircleGovernanceService cron 超时任务重复读取旧名单：只有实际完成裁决的一次发送通知"
+  ]
+}

@@ -1,0 +1,726 @@
+{
+  "sourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
+  "acceptedCommits": [
+    "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7"
+  ],
+  "originalCandidate": "fcc07a31487eea09272cdef508a49bea5b74c5af",
+  "parent": "7c13193f38f939c61eaf6f36f42a59bc7ad58485",
+  "conflicts": false,
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "checkedAt": "2026-10-03T00:38:53.789Z",
+  "local": {
+    "relatedPassed": 194,
+    "relatedSuites": 6,
+    "newTests": 8,
+    "skipped": 0,
+    "typecheckPassed": true,
+    "buildPassed": true,
+    "lintErrors": 0,
+    "lintWarnings": 12,
+    "realPostgres": true,
+    "realRedis": false,
+    "realChannels": false,
+    "realFunds": false,
+    "production": false,
+    "schemaChanged": false,
+    "checkedAt": "2026-10-03T00:12:09.304Z"
+  },
+  "compiled": {
+    "passed": 8,
+    "compiledRuntime": true,
+    "realPostgres": true,
+    "realHttp": false,
+    "realRedis": false,
+    "realChannels": false,
+    "realFunds": false,
+    "production": false,
+    "bindings": [
+      {
+        "path": "modules/shop/shop-refund.service",
+        "sourceSha256": "35ee15cb7d2d417cb70fd303c278dce019cbac90e73ccaa13836efd83926f950",
+        "compiledSha256": "1847b05da6c9dd484314e55a4c72cd1af480b4ca2c369441e8b079f3b2e79c3f"
+      },
+      {
+        "path": "modules/notification/notification.service",
+        "sourceSha256": "7d05953383dc8097514ecec8c48954cc59057cce96ace710ad0d6161f013d1ed",
+        "compiledSha256": "24ab860e79fa2f1928eb701ec9dcf956ee13135ce944c26626d3b72db63d537c"
+      },
+      {
+        "path": "modules/entitlement/entitlement.service",
+        "sourceSha256": "0ff437bf42f08e5d3ef8cdc2e05efbe7195895b9eb906ed5e3b113b3b667f25e",
+        "compiledSha256": "501512eea964f83269848809054741e01bce1b3ecf9ccb9cf8e0f526cb0107cd"
+      }
+    ],
+    "checkedAt": "2026-10-03T00:13:50.376Z"
+  },
+  "linux": {
+    "checkedAt": "2026-10-03T00:28:48.007Z",
+    "sourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
+    "runId": 37081443642,
+    "verificationHead": "82879ad50ea16f461873e38ffbf257e312b4255e",
+    "artifactId": 11258912178,
+    "artifactDigest": "sha256:3f1746bff93945b46194c14921c63698b139c0db9db66569ab490934be03a964",
+    "digestVerified": true,
+    "verifiedSourceHashLines": 1973,
+    "migrationsUnmodified": 135,
+    "passed": 194,
+    "suites": 6,
+    "compiledPassed": 8,
+    "compiledSourceBindings": 3,
+    "typecheck": true,
+    "build": true,
+    "lintErrors": 0,
+    "lintWarnings": 12,
+    "realPostgres": true,
+    "realRedis": false,
+    "realHttp": false,
+    "realChannels": false,
+    "realFunds": false,
+    "production": false,
+    "scope": "同源Linux专项与编译服务、合成PG；分佣与Redis及渠道为替身，不是正式镜像或真实渠道",
+    "summaries": [
+      {
+        "file": "src/modules/shop/shop-payment.service.spec.ts",
+        "passed": 70
+      },
+      {
+        "file": "src/modules/shop/shop-refund.service.spec.ts",
+        "passed": 44
+      },
+      {
+        "file": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+        "passed": 33
+      },
+      {
+        "file": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+        "passed": 19
+      },
+      {
+        "file": "src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+        "passed": 20
+      },
+      {
+        "file": "src/modules/shop/refund-completion-boundary.postgres.spec.ts",
+        "passed": 8
+      }
+    ]
+  },
+  "formalImage": {
+    "checkedAt": "2026-10-03T00:35:37.228Z",
+    "sourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
+    "runId": 37082128277,
+    "verificationHead": "ffd2ce02ca255a356460f7aa46e202b689248d79",
+    "artifactId": 11259372984,
+    "artifactDigest": "sha256:5304e603f4f3eaf73097ccc272e28a5e65d03b0744b03372e4d0a4c8b09a3648",
+    "digestVerified": true,
+    "sourcePackageDigest": "fd2b50733f7db588eb2008796b9ca819e50429d3b28dc6a8f9577968c255488d",
+    "sourcePackageFiles": 4501,
+    "formalDockerfile": true,
+    "passedChecks": 31,
+    "checks": [
+      {
+        "name": "image-identity",
+        "passed": true
+      },
+      {
+        "name": "prisma-source-compile-runtime-binding",
+        "passed": true
+      },
+      {
+        "name": "grpc-security-version-in-runtime-image",
+        "passed": true
+      },
+      {
+        "name": "admin-h5-base-and-public-config",
+        "passed": true
+      },
+      {
+        "name": "postgres-runtime-version-match",
+        "passed": true
+      },
+      {
+        "name": "formal-empty-bootstrap-ledger-and-channel-constraints",
+        "passed": true
+      },
+      {
+        "name": "postgres-vector-extension-runtime",
+        "passed": true
+      },
+      {
+        "name": "production-entrypoint-health-public-http",
+        "passed": true
+      },
+      {
+        "name": "real-jwt-global-guards-cross-user-and-admin-roles",
+        "passed": true
+      },
+      {
+        "name": "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+        "passed": true
+      },
+      {
+        "name": "sensitive-feedback-roles-mask-audit-limit-and-validation",
+        "passed": true
+      },
+      {
+        "name": "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+        "passed": true
+      },
+      {
+        "name": "signed-encrypted-http-payment-refund-rollback-notification-retry",
+        "passed": true
+      },
+      {
+        "name": "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+        "passed": true
+      },
+      {
+        "name": "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+        "passed": true
+      },
+      {
+        "name": "merchant-shipping-ownership-replay-rollback-and-concurrency",
+        "passed": true
+      },
+      {
+        "name": "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+        "passed": true
+      },
+      {
+        "name": "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+        "passed": true
+      },
+      {
+        "name": "circle-post-published-state-context-preview-and-notification-target-permissions",
+        "passed": true
+      },
+      {
+        "name": "competition-disclosure-finished-only-and-public-state-boundary",
+        "passed": true
+      },
+      {
+        "name": "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+        "passed": true
+      },
+      {
+        "name": "redis7-two-process-notification-idempotency",
+        "passed": true
+      },
+      {
+        "name": "database-unique-after-redis-key-loss",
+        "passed": true
+      },
+      {
+        "name": "notification-failure-release-and-two-process-retry",
+        "passed": true
+      },
+      {
+        "name": "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions",
+        "passed": true
+      },
+      {
+        "name": "free-course-full-http-postcommit-notification-failure-and-permissions",
+        "passed": true
+      },
+      {
+        "name": "live-booking-real-db-failures-retry-concurrency-and-http-target-permissions",
+        "passed": true
+      },
+      {
+        "name": "compiled-entitlement-service-and-durable-notification-idempotency",
+        "passed": true
+      },
+      {
+        "name": "compiled-member-grant-state-durable-notification-failure-retry-and-revoke",
+        "passed": true
+      },
+      {
+        "name": "compiled-member-renew-durable-retry-date-boundary-rollback-and-renewal-lock",
+        "passed": true
+      },
+      {
+        "name": "compiled-practitioner-concurrent-payment-refund-durable-notice",
+        "passed": true
+      }
+    ],
+    "imageIdentity": {
+      "id": "sha256:11c31fe93100790315537c543a5bc80716fa577b383a646439dd781ec2b1d835",
+      "os": "linux",
+      "architecture": "amd64",
+      "sourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
+      "sourceSha256": "fd2b50733f7db588eb2008796b9ca819e50429d3b28dc6a8f9577968c255488d"
+    },
+    "prisma": {
+      "schemaVersion": 1,
+      "kind": "prisma-build-binding",
+      "schemaHash": "b8a508852cd78e97228018f16da04cc98b92cbbc34a07c5044a027d59df44f33",
+      "clientVersion": "6.19.3"
+    },
+    "migrationLedger": {
+      "total": 135,
+      "complete": 135,
+      "failed": 0
+    },
+    "migrationScope": "formal-empty-bootstrap-only-not-production-upgrade",
+    "postgresRuntime": {
+      "actual": "18.4 (Debian 18.4-1.pgdg13+1)",
+      "targetObserved": "18.4",
+      "patchMatched": true,
+      "productionVersionRecheckStillRequired": true
+    },
+    "snapshotColumns": [
+      "sourceCircleId",
+      "sourcePostId",
+      "sourceRecipientId",
+      "sourceVersion"
+    ],
+    "snapshotShapeCheck": true,
+    "details": {
+      "circle-auto-refund-http.json": {
+        "cases": 12,
+        "passed": true,
+        "scope": "synthetic-http-not-real-provider-or-settlement"
+      },
+      "circle-post-detail-http-permissions.json": {
+        "cases": 89,
+        "passed": true,
+        "scope": "full-app-real-http-jwt-postgres-synthetic-only"
+      },
+      "circle-recall-http-transactions.json": {
+        "cases": 22,
+        "passed": true,
+        "scope": "synthetic-ledger-http-not-production-funds-or-settlement"
+      },
+      "circle-reward-http-transactions.json": {
+        "cases": 25,
+        "passed": true,
+        "scope": "two-full-apps-real-http-jwt-postgres-redis-synthetic-only"
+      },
+      "competition-disclosure-http-boundary.json": {
+        "cases": 8,
+        "passed": true,
+        "scope": "full-app-real-public-http-postgres-synthetic-only"
+      },
+      "course-expiry-reminder-runtime.json": {
+        "cases": 15,
+        "passed": true,
+        "scope": "compiled-scheduler-real-pg-redis-independent-processes-and-full-http-target-permissions"
+      },
+      "course-free-enrollment-runtime.json": {
+        "cases": 19,
+        "passed": true,
+        "scope": "full-http-real-di-postcommit-pg-failure-and-lock-redis-permissions"
+      },
+      "finance-http-boundaries.json": {
+        "cases": 22,
+        "passed": true
+      },
+      "im-fallback-http-transactions.json": {
+        "cases": 26,
+        "passed": true,
+        "scope": "synthetic-http-real-jwt-postgresql-transactions-no-external-im"
+      },
+      "im-two-process-socket-transactions.json": {
+        "cases": 12,
+        "passed": true,
+        "scope": "isolated-two-app-processes-synthetic-socket-http-no-tencent-no-production"
+      },
+      "live-booking-notification-runtime.json": {
+        "cases": 31,
+        "passed": true,
+        "scope": "compiled-live-schedulers-real-pg-redis-two-processes-booking-http-and-target-permissions"
+      },
+      "merchant-shipping-http-transactions.json": {
+        "cases": 14,
+        "passed": true,
+        "scope": "synthetic-http-no-carrier-or-wechat-delivery"
+      },
+      "payment-refund-http-transactions.json": {
+        "cases": 28,
+        "passed": true,
+        "scope": "synthetic-course-orders-not-real-provider-or-target-database"
+      },
+      "sensitive-http-audit.json": {
+        "cases": 36,
+        "passed": true
+      }
+    },
+    "cleanup": {
+      "rebu-app-second-3d3260e92e": true,
+      "rebu-app-3d3260e92e": true,
+      "rebu-db-3d3260e92e": true,
+      "rebu-redis-3d3260e92e": true,
+      "networkAbsent": true
+    },
+    "realRedisInIsolatedImage": true,
+    "twoIndependentAppProcesses": true,
+    "production": false,
+    "productionUpgrade": false,
+    "realPaymentProvider": false,
+    "externalDelivery": false,
+    "newDeviceTest": false,
+    "refundFinalCompletionWaitsForAfterSale": true,
+    "refundFinalWriteFailureRetryRestoresOneNotification": true,
+    "historicalBackfill": false,
+    "scope": "正式Dockerfile、真实隔离PG18.4与Redis、两个完整应用进程；不代表生产升级、真实供应商、手机或线上版本"
+  },
+  "fullCI": {
+    "production": false,
+    "sourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
+    "checkedAt": "2026-10-03T00:32:16.2557658Z",
+    "runId": 37081334519,
+    "fullCIComplete": true,
+    "skipped": 601,
+    "shards": [
+      {
+        "skipped": 241,
+        "id": 111082651886,
+        "passed": 2929,
+        "name": "单元测试 (1/3)",
+        "summary": "2026-10-03T00:25:55.2683223Z Tests:       241 skipped, 2929 passed, 3170 total"
+      },
+      {
+        "skipped": 164,
+        "id": 111082651959,
+        "passed": 3097,
+        "name": "单元测试 (3/3)",
+        "summary": "2026-10-03T00:21:09.9528710Z Tests:       164 skipped, 3097 passed, 3261 total"
+      },
+      {
+        "skipped": 196,
+        "id": 111082652027,
+        "passed": 3078,
+        "name": "单元测试 (2/3)",
+        "summary": "2026-10-03T00:20:19.9668048Z Tests:       196 skipped, 3078 passed, 3274 total"
+      }
+    ],
+    "passed": 9104,
+    "jobsPassed": 8,
+    "artifactId": 11259382382,
+    "artifactDigest": "sha256:f40526fff5a360f4ff2fb7949681cee280a2b7dc448b4df9b757725408c2b8b8",
+    "artifactDigestVerified": true
+  },
+  "fixedDraft": {
+    "sourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
+    "assetId": 606779894,
+    "releaseId": 402239557,
+    "draft": true,
+    "archiveSha256": "fd2b50733f7db588eb2008796b9ca819e50429d3b28dc6a8f9577968c255488d",
+    "officialDigestMatches": true,
+    "checkedAt": "2026-10-03T00:25:03.2415877Z",
+    "bytes": 15874575,
+    "published": false,
+    "tag": "launch-20261002-f2c7ccec4"
+  },
+  "publicConfiguration": {
+    "sourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
+    "config": {
+      "VITE_API_URL": "https://api.rebugx.cn",
+      "VITE_PUBLIC_H5_URL": "https://gx.yrydai.com/h5/",
+      "VITE_PUBLIC_ASSET_ORIGIN": "https://static.rebugx.cn"
+    },
+    "target": "北京两节点正式API、已接入备案H5、独立静态资源域名",
+    "actualDeployment": false,
+    "univerifyEnabled": "未设置，仍使用源码默认关闭；不能冒充手机号原生验收",
+    "meaning": "只绑定三个公开构建项，不读取或复制后端密钥；手机号云端接通仍待完成",
+    "checkedAt": "2026-10-02T23:18:47.824Z",
+    "sourceBindingCheckedAt": "2026-10-03T00:19:39.081Z",
+    "referenceSource": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+    "newBuild": false
+  },
+  "clientEquivalence": {
+    "sourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
+    "builtSource": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
+    "inputEquivalence": true,
+    "config": {
+      "VITE_RELEASE_CHANNEL": "formal",
+      "VITE_API_URL": "https://api.rebugx.cn",
+      "VITE_PUBLIC_H5_URL": "https://gx.yrydai.com/h5/",
+      "VITE_PUBLIC_ASSET_ORIGIN": "https://static.rebugx.cn"
+    },
+    "configHash": "169ac4768c23c5c664b469a27c2d05d6850d50527069bde6b7b755ca0a60fca4",
+    "filesVerified": 7572,
+    "builds": [
+      {
+        "platform": "mp-weixin",
+        "fileCount": 2759,
+        "bytes": 11127130,
+        "fingerprint": "1ead4416b4f3c30e79f79ba48d354ca92804631126175d1957db1fde7b25c6ab"
+      },
+      {
+        "platform": "h5",
+        "fileCount": 1181,
+        "bytes": 11147496,
+        "fingerprint": "61078ebe4fb13408844c7edc46824ce580dd9dbe60f5348d8e2bfbf99b35212d"
+      },
+      {
+        "platform": "app",
+        "fileCount": 492,
+        "bytes": 12897547,
+        "fingerprint": "1317b62c1a6368b4c830e3ed4ab3534a380016cc9434f5bdb15b7d9d0a78f0f8"
+      },
+      {
+        "platform": "mp-harmony",
+        "fileCount": 2650,
+        "bytes": 11039457,
+        "fingerprint": "fd9a11b028443ae5bdd831bc7c27410a2561b18a3d99699776fa79c48a6ebef0"
+      },
+      {
+        "platform": "app-harmony",
+        "fileCount": 490,
+        "bytes": 12537060,
+        "fingerprint": "ec013c886e5c3a16ccf3935b8c78e398d3431c17f0763ea981d7caf7dcc50597"
+      }
+    ],
+    "miniSize": {
+      "mainBytes": 1701808,
+      "subpackages": [
+        {
+          "root": "pkg-paipan",
+          "bytes": 1764521
+        },
+        {
+          "root": "pkg-paipan3",
+          "bytes": 178884
+        },
+        {
+          "root": "pkg-paipan2",
+          "bytes": 580473
+        },
+        {
+          "root": "pkg-course",
+          "bytes": 272353
+        },
+        {
+          "root": "pkg-mall",
+          "bytes": 116024
+        },
+        {
+          "root": "pkg-shop",
+          "bytes": 213154
+        },
+        {
+          "root": "pkg-order",
+          "bytes": 142973
+        },
+        {
+          "root": "pkg-account",
+          "bytes": 152674
+        },
+        {
+          "root": "pkg-classics",
+          "bytes": 406996
+        },
+        {
+          "root": "pkg-circle",
+          "bytes": 1147445
+        },
+        {
+          "root": "pkg-agent",
+          "bytes": 250898
+        },
+        {
+          "root": "pkg-live",
+          "bytes": 566894
+        },
+        {
+          "root": "pkg-video",
+          "bytes": 189113
+        },
+        {
+          "root": "pkg-competition",
+          "bytes": 228961
+        },
+        {
+          "root": "pkg-merchant",
+          "bytes": 539464
+        },
+        {
+          "root": "pkg-operator",
+          "bytes": 496813
+        },
+        {
+          "root": "pkg-institute",
+          "bytes": 281696
+        },
+        {
+          "root": "pkg-offline",
+          "bytes": 276850
+        },
+        {
+          "root": "pkg-mine",
+          "bytes": 660168
+        },
+        {
+          "root": "pkg-profile",
+          "bytes": 46762
+        },
+        {
+          "root": "pkg-settings",
+          "bytes": 70501
+        },
+        {
+          "root": "pkg-auth",
+          "bytes": 71099
+        },
+        {
+          "root": "pkg-im",
+          "bytes": 165968
+        },
+        {
+          "root": "pkg-search",
+          "bytes": 56877
+        },
+        {
+          "root": "pkg-discover",
+          "bytes": 7752
+        },
+        {
+          "root": "pkg-bounty",
+          "bytes": 79751
+        },
+        {
+          "root": "pkg-help",
+          "bytes": 15187
+        },
+        {
+          "root": "pkg-report",
+          "bytes": 55003
+        },
+        {
+          "root": "pkg-notices",
+          "bytes": 34900
+        },
+        {
+          "root": "pkg-common",
+          "bytes": 42252
+        },
+        {
+          "root": "pkg-creator",
+          "bytes": 83244
+        },
+        {
+          "root": "pkg-solar-term",
+          "bytes": 19199
+        },
+        {
+          "root": "pkg-workspace",
+          "bytes": 210027
+        }
+      ],
+      "estimatedPlatformOverhead": 294912,
+      "estimatedUploadMain": 1996720,
+      "estimatedRemaining": 100432,
+      "minimumReserved": 81920,
+      "realUpload": false
+    },
+    "univerifyEnabled": "未设置，仍使用源码默认关闭；不能冒充手机号原生验收",
+    "newBuild": false,
+    "realDevice": false,
+    "signedNativeBundle": false,
+    "production": false,
+    "checkedAt": "2026-10-02T23:18:47.822Z",
+    "fileMeasurementAt": "2026-10-02T23:18:47.822Z",
+    "referenceSourceAtMeasurement": "9061f11fa68a0c7b7fa78084ee1dbd5100df3793",
+    "sourceBindingCheckedAt": "2026-10-03T00:19:39.081Z",
+    "newFileHashRunForAll7572": false,
+    "scope": "复用已实测的7572文件及未变客户端输入；910候选5427文件另有独立本轮验真，不伪称所有7572文件在910创建后重测",
+    "referenceSource": "910806b8e72b7259b6b8011604d3e23413ae93fd"
+  },
+  "clientFiles": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-03T00:19:47.068Z",
+    "releaseId": "launch-20261002-f2c7ccec4",
+    "sourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
+    "auditFile": "artifacts/channel-intake-20260930/final-image-f2c7ccec4-20261002/client-artifacts.json",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5427,
+      "bytes": 54196818,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 505,
+        "bytes": 6487585,
+        "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1181,
+        "bytes": 11147496,
+        "contentSha256": "24a4a75abbf499c3cb1e9e47a95a1d536ffd18c35f5450d24c07860572188b73",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2759,
+        "bytes": 11127130,
+        "contentSha256": "9caf2e43ce7b6c76ce9c0a986c51c4365b33da01147c9907a20fb5d465f93fa5",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 492,
+        "bytes": 12897547,
+        "contentSha256": "7a23dd9c8bf6ca8b159fbf584c5dd385fe56e766ef6cbf8cc64ba79a4f585183",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12537060,
+        "contentSha256": "4f6c452ac4787d4548aefad84351482a91eba82fd9ba8236313b78591350697e",
+        "matches": true
+      }
+    ],
+    "errors": []
+  },
+  "preservedCounterexample": {
+    "sourceCommit": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+    "compiledBuiltFrom": "2b108baf7e61d30ceb8136bc9af0206a7591c916",
+    "refundSourceUnchanged": true,
+    "sourceSha256": "fb25d177caf9629b86957399de3adfb1e7657cf57f16fcd8815bae54d226d758",
+    "compiledSha256": "8f25220fe201c81ae2a25db6dfb544e92a3085d6cd1f52d318578b1f52053e0c",
+    "observedError": "QA_FINAL_COMMISSION_FAILURE",
+    "orderStatus": "REFUNDED",
+    "afterSaleStatus": "PROCESSING",
+    "refundCompletedNotifications": 1,
+    "prematureCompletionObserved": true,
+    "realPostgres": true,
+    "compiledService": true,
+    "realHttp": false,
+    "commissionFailureInjected": true,
+    "realFunds": false,
+    "realChannel": false,
+    "production": false,
+    "syntheticRecordPrefix": "qa-final-refund-09210087-dba0-43dc-b5cb-697db5ad1f45",
+    "fixturePreserved": true,
+    "checkedAt": "2026-10-03T00:02:08.150Z"
+  },
+  "idempotencyKey": "ORDER_REFUNDED:<orderId>",
+  "migrationChanged": false,
+  "migrationCount": 135,
+  "rollback": [
+    "先撤回本批交付文档",
+    "撤回f2c7ccec4，返回7c13193f3；原候选FCC对应同一三文件，不重复撤回"
+  ],
+  "noRealFunds": true,
+  "noRealChannels": true,
+  "noProduction": true,
+  "noHistoricalBackfill": true,
+  "newDeviceTest": false,
+  "remainingOrderDurableRecovery": {
+    "done": false,
+    "state": "独立工作树正在补新事实及分钟恢复，未接收；不得当作本f2已实现"
+  },
+  "releaseReady": false
+}
