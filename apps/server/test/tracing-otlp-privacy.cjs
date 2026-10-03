@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const { createServer } = require("node:http");
 const { BasicTracerProvider, SimpleSpanProcessor } = require("@opentelemetry/sdk-trace-base");
 const { OTLPTraceExporter } = require("@opentelemetry/exporter-trace-otlp-http");
-const { SpanStatusCode } = require("@opentelemetry/api");
+const { SpanStatusCode, context, trace, createTraceState } = require("@opentelemetry/api");
 const { resourceFromAttributes } = require("@opentelemetry/resources");
 const { PrivacySpanExporter } = require(process.argv[2] || "../src/common/privacy-span-exporter");
 let failureStage = "setup";
@@ -21,6 +21,8 @@ let failureStage = "setup";
     await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
     const exporter = new PrivacySpanExporter(new OTLPTraceExporter({ url: `http://127.0.0.1:${server.address().port}/v1/traces`, timeoutMillis: 3000 }));
     provider = new BasicTracerProvider({ resource: resourceFromAttributes({ "service.name": "synthetic-resource-service", "api.secret": marker, "process.command_args": ["node", marker], "process.command_line": `node --token=${marker}` }), spanProcessors: [new SimpleSpanProcessor(exporter)] });
+    // 合成入站W3C上下文及链接自由内容不得绕过属性清理进入OTLP。
+    const parent = { traceId: "3".repeat(32), spanId: "4".repeat(16), traceFlags: 1, isRemote: true, traceState: createTraceState("rebu=" + marker) };
     const span = provider.getTracer("privacy-wire-test").startSpan("POST /api/v1/im/callback", { attributes: {
       "http.url": `https://user:${marker}@console.tim.qq.com/v4/im?usersig=${marker}`,
       "http.target": `/api/v1/im/callback?signature=${marker}`, "url.full": `https://example.test/?token=${marker}`,
@@ -29,7 +31,7 @@ let failureStage = "setup";
       "http.response.body": marker, "http.response.status_code": 502,
       "db.statement": `SELECT '${marker}'`, "db.query.text": `GET ${marker}`,
       "db.query.parameter.user": marker, "db.redis.args": [marker],
-    }, links: [{ context: { traceId: "1".repeat(32), spanId: "2".repeat(16), traceFlags: 1 }, attributes: { token: marker } }] });
+    }, links: [{ context: { traceId: "1".repeat(32), spanId: "2".repeat(16), traceFlags: 1, traceState: createTraceState("rebu=" + marker) }, attributes: { token: marker } }] }, trace.setSpanContext(context.active(), parent));
     const traceId = span.spanContext().traceId;
     span.setStatus({ code: SpanStatusCode.ERROR, message: marker });
     span.recordException(new Error(marker));
@@ -41,6 +43,12 @@ let failureStage = "setup";
     failureStage = "diagnostics";
     const wire = JSON.parse(payload).resourceSpans[0].scopeSpans[0].spans[0];
     assert.equal(wire.traceId, traceId);
+    assert.equal(traceId, parent.traceId);
+    assert.equal(wire.parentSpanId, parent.spanId);
+    assert.equal(wire.traceState || "", "");
+    assert.equal(wire.links[0].traceState || "", "");
+    assert.equal(wire.links[0].traceId, "1".repeat(32));
+    assert.equal(span.spanContext().traceState.serialize(), "rebu=" + marker);
     assert.equal(wire.name, "POST /api/v1/im/callback");
     const status = wire.attributes.find(row => row.key === "http.response.status_code").value.intValue;
     assert.equal(Number(status), 502);

@@ -1,4 +1,4 @@
-import type { Attributes } from "@opentelemetry/api";
+import type { Attributes, SpanContext } from "@opentelemetry/api";
 import { ExportResult, ExportResultCode } from "@opentelemetry/core";
 import type { ReadableSpan, SpanExporter } from "@opentelemetry/sdk-trace-base";
 import { resourceFromAttributes } from "@opentelemetry/resources";
@@ -40,19 +40,25 @@ function attributes(input: Attributes): Attributes {
   return output;
 }
 
+/** W3C tracestate可来自入站请求，导出仅保留关联标识，不透传自由内容。 */
+function privateSpanContext(input: SpanContext): SpanContext {
+  const { traceId, spanId, traceFlags, isRemote } = input;
+  return { traceId, spanId, traceFlags, isRemote };
+}
+
 /** 显式复制公开字段，不修改 SDK Span，也不把其内部原始字段交给下一层。 */
 export function privateTraceSpan(span: ReadableSpan): ReadableSpan {
   if (span.resource.asyncAttributesPending) throw new Error("异步追踪资源尚未解析");
   return {
     name: span.name,
     kind: span.kind,
-    spanContext: () => span.spanContext(),
-    parentSpanContext: span.parentSpanContext,
+    spanContext: () => privateSpanContext(span.spanContext()),
+    parentSpanContext: span.parentSpanContext ? privateSpanContext(span.parentSpanContext) : undefined,
     startTime: span.startTime,
     endTime: span.endTime,
     status: { code: span.status.code },
     attributes: attributes(span.attributes),
-    links: span.links.map(link => ({ ...link, attributes: link.attributes ? attributes(link.attributes) : undefined })),
+    links: span.links.map(link => ({ ...link, context: privateSpanContext(link.context), attributes: link.attributes ? attributes(link.attributes) : undefined })),
     events: span.events.map(event => ({ ...event, attributes: event.attributes ? attributes(event.attributes) : undefined })),
     duration: span.duration,
     ended: span.ended,
