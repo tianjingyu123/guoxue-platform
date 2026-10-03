@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T08:04:39.470Z",
+  "checkedAt": "2026-10-03T09:23:37.910Z",
   "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
   "releaseReady": false,
   "states": [
@@ -9728,14 +9728,392 @@
     },
     "states": [
       "候选交接已登记",
-      "冻结证据摘要复核完成",
-      "独立接收评审未完成",
+      "冻结证据摘要及旧副本恢复复核完成",
+      "独立组合及限定范围修复、复验完成",
+      "整体接收评审未完成",
       "线上状态未知",
       "待发布决策"
     ],
     "received": false,
-    "independentTestRerun": false,
-    "production": false
+    "independentTestRerun": true,
+    "production": false,
+    "isolatedReview": {
+      "record": "docs/operations/多租户组合候选安全修复与隔离复验-20261003.md",
+      "sourceCommit": "bd30924d7ff6e7d4824d9344546585c7cf2f5011",
+      "receivingBase": "ebd27667bfde889953b97d5083bffa78cd1ed86a",
+      "commits": [
+        "13f9f058fc6ed7d36ebc53143143a0583ad03e94",
+        "969ba7a5607ef95365fe8904b513a01c9f28a12a",
+        "bd30924d7ff6e7d4824d9344546585c7cf2f5011"
+      ],
+      "observedCandidateHead": "b03ebdcc962d14d278c496c58470b9a7966b37a5",
+      "observedHeadDelta": "一份文档新增六行，业务源码仍4717",
+      "oldBundleFreshRestore": {
+        "checkedAt": "2026-10-03T08:25:02.856Z",
+        "archive": "f81e147a2a080a6c486b628ce389bbb528529e14",
+        "source": "d4503b782f3378eee1c9a64bad97e957195c12ce",
+        "bundleSha256": "c2639cd420de4eb660c12c4b764c58073d8126211c1481c57687e5d5e930735c",
+        "freshIndependentCheckout": true,
+        "trackedEvidenceFiles": 310,
+        "gitAndWorkingSourceFiles": 133,
+        "allBytesMatch": true,
+        "dependenciesRestored": false,
+        "compiledProductsRebuilt": false,
+        "testsRerun": false,
+        "received": false,
+        "production": false
+      },
+      "newFrozenEvidence": {
+        "checkedAt": "2026-10-03T08:48:01.484Z",
+        "source": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+        "archive": "143f9c20df5bd75c375ff24f9731d430ef4ddb24",
+        "base": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+        "observedHead": "143f9c20df5bd75c375ff24f9731d430ef4ddb24",
+        "candidateAdvancedAfterHandoff": false,
+        "gitSources": 134,
+        "currentWorkingSourcesMatch": 134,
+        "currentWorkingSourcesTotal": 134,
+        "currentCompiledMatch": 1365,
+        "currentCompiledTotal": 1365,
+        "reports": 32,
+        "archivedEvidence": 49,
+        "unchangedExistingMigrations": 135,
+        "bundleSha256": "c853d496ca424e0fb74bacbb01d84cb147c841c84e3478cabc3a1cb6e0723da0",
+        "bundleStructureVerified": true,
+        "failures": [],
+        "independentTestRerun": false,
+        "freshRestoreCheckedByThisTask": false,
+        "received": false,
+        "production": false
+      },
+      "newRuns": [
+        {
+          "report": "tenant-auth-final.json",
+          "suites": 5,
+          "passed": 178,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "report": "tenant-token-unbind-final.json",
+          "suites": 2,
+          "passed": 13,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "report": "tenant-shop-regression.json",
+          "suites": 2,
+          "passed": 114,
+          "skipped": 0,
+          "failed": 0
+        }
+      ],
+      "authHttp": {
+        "passed": 7,
+        "realPg": true,
+        "redis": "合成内存适配器"
+      },
+      "providerChecks": {
+        "registration": 4,
+        "response": 9,
+        "runtime": 9,
+        "billable": 0,
+        "realModel": false
+      },
+      "schemaUpgrade": {
+        "oldMigrationFilesUnchanged": 136,
+        "addedMigrationFiles": 8,
+        "combinedMigrationCount": 144,
+        "retainedRowsAndBytes": {
+          "User": {
+            "rows": 1,
+            "sha256": "97567a89894d4afe9b5d412f46c02a75fd29262ce46824fbd9f3564d136fc0e4"
+          },
+          "Auth": {
+            "rows": 0,
+            "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "Order": {
+            "rows": 1,
+            "sha256": "a1c557958b16b9c8c9b624ce5e5bded28d1f77ceda5a8677e911f29c8b3b3795"
+          }
+        },
+        "templatePreserved": true,
+        "ledgerUpgrade": false,
+        "productionUpgrade": false,
+        "temporaryIntakeTriggersRemaining": 0
+      },
+      "mobile": {
+        "checkedAt": "2026-10-03T09:14:47.234Z",
+        "sourceCommit": "bd30924d7ff6e7d4824d9344546585c7cf2f5011",
+        "sourceTree": "aae63aec728807ed12fa52a5d2d892c9fb967d3e",
+        "environment": {
+          "publicVariables": {
+            "VITE_API_URL": "https://api.rebugx.cn",
+            "VITE_PUBLIC_H5_URL": "https://gx.yrydai.com/h5/",
+            "VITE_PUBLIC_ASSET_ORIGIN": "https://static.rebugx.cn",
+            "VITE_RELEASE_CHANNEL": "formal"
+          },
+          "origin": "命令行显式环境；与受跟踪 vite.config.ts 正式环境校验相符",
+          "envProductionCopied": false,
+          "viteSha256": "197f88cefdc3a3fa787984d6475b1a3e74c1ddb56743f63367a1c06d77ccb8ad",
+          "managedBrandEntryEnabled": false,
+          "dnsOrProductionIdentityProved": false
+        },
+        "mp": {
+          "localMainBytes": 1704799,
+          "platformOverheadEstimateBytes": 294912,
+          "estimatedUploadBytes": 1999711,
+          "reserveBytes": 97441,
+          "requiredReserveBytes": 81920,
+          "subpackages": [
+            {
+              "root": "pkg-paipan",
+              "bytes": 1764521,
+              "pages": 64
+            },
+            {
+              "root": "pkg-paipan3",
+              "bytes": 178884,
+              "pages": 6
+            },
+            {
+              "root": "pkg-paipan2",
+              "bytes": 580473,
+              "pages": 14
+            },
+            {
+              "root": "pkg-course",
+              "bytes": 272353,
+              "pages": 11
+            },
+            {
+              "root": "pkg-mall",
+              "bytes": 116024,
+              "pages": 4
+            },
+            {
+              "root": "pkg-shop",
+              "bytes": 213154,
+              "pages": 15
+            },
+            {
+              "root": "pkg-order",
+              "bytes": 142973,
+              "pages": 8
+            },
+            {
+              "root": "pkg-account",
+              "bytes": 152674,
+              "pages": 6
+            },
+            {
+              "root": "pkg-classics",
+              "bytes": 406996,
+              "pages": 20
+            },
+            {
+              "root": "pkg-circle",
+              "bytes": 1147445,
+              "pages": 52
+            },
+            {
+              "root": "pkg-agent",
+              "bytes": 250898,
+              "pages": 14
+            },
+            {
+              "root": "pkg-live",
+              "bytes": 566894,
+              "pages": 23
+            },
+            {
+              "root": "pkg-video",
+              "bytes": 189113,
+              "pages": 7
+            },
+            {
+              "root": "pkg-competition",
+              "bytes": 228961,
+              "pages": 12
+            },
+            {
+              "root": "pkg-merchant",
+              "bytes": 539464,
+              "pages": 24
+            },
+            {
+              "root": "pkg-operator",
+              "bytes": 496813,
+              "pages": 25
+            },
+            {
+              "root": "pkg-institute",
+              "bytes": 281696,
+              "pages": 15
+            },
+            {
+              "root": "pkg-offline",
+              "bytes": 276850,
+              "pages": 13
+            },
+            {
+              "root": "pkg-mine",
+              "bytes": 657704,
+              "pages": 50
+            },
+            {
+              "root": "pkg-profile",
+              "bytes": 46762,
+              "pages": 4
+            },
+            {
+              "root": "pkg-settings",
+              "bytes": 70501,
+              "pages": 6
+            },
+            {
+              "root": "pkg-auth",
+              "bytes": 71140,
+              "pages": 5
+            },
+            {
+              "root": "pkg-im",
+              "bytes": 165968,
+              "pages": 10
+            },
+            {
+              "root": "pkg-search",
+              "bytes": 56877,
+              "pages": 2
+            },
+            {
+              "root": "pkg-discover",
+              "bytes": 7752,
+              "pages": 1
+            },
+            {
+              "root": "pkg-bounty",
+              "bytes": 79751,
+              "pages": 5
+            },
+            {
+              "root": "pkg-help",
+              "bytes": 15187,
+              "pages": 1
+            },
+            {
+              "root": "pkg-report",
+              "bytes": 55003,
+              "pages": 4
+            },
+            {
+              "root": "pkg-notices",
+              "bytes": 34900,
+              "pages": 3
+            },
+            {
+              "root": "pkg-common",
+              "bytes": 42252,
+              "pages": 6
+            },
+            {
+              "root": "pkg-creator",
+              "bytes": 83244,
+              "pages": 5
+            },
+            {
+              "root": "pkg-solar-term",
+              "bytes": 19199,
+              "pages": 1
+            },
+            {
+              "root": "pkg-workspace",
+              "bytes": 221193,
+              "pages": 9
+            }
+          ],
+          "registeredPages": 451,
+          "missingPageOutputs": [],
+          "optionalStylesAbsent": [
+            "pkg-paipan/bazi/history/groups",
+            "pkg-paipan/qimen/history/groups",
+            "pkg-paipan/yangpan/history/groups",
+            "pkg-mine/teen-mode/index",
+            "pkg-mine/teen-mode-intro/index"
+          ],
+          "componentReferences": 1316,
+          "unresolvedReferences": [],
+          "files": 2765,
+          "actualWechatUpload": false
+        },
+        "h5": {
+          "files": 1183,
+          "bytes": 11159916,
+          "productionDeployed": false
+        },
+        "nativeSignedPackage": false
+      },
+      "h5Download": {
+        "checkedAt": "2026-10-03T09:13:36.609Z",
+        "sourceCommit": "bd30924d7ff6e7d4824d9344546585c7cf2f5011",
+        "sourceSha256": "e6ee5de2f22cdf21ce0d8b889ee9b31307b80b559806549af67d21caf6bc9a41",
+        "h5SdkProcessedSha256": "6bf1fbd61d32fbf8885f6cd55c156b626ea64135c42ff41e35422db3ed121e9b",
+        "chromeVersion": "Chrome/154.0.8037.58",
+        "actualChromeFileDownloads": 44,
+        "completedDownloadEvents": 44,
+        "allSavedBytesMatch": true,
+        "clickIntervalMs": 1100,
+        "rapidBurstSupported": false,
+        "invalidFilenameRejected": true,
+        "backendSnapshotExportTested": false,
+        "managedFullUiTested": false,
+        "fixture": "独立构造的22集合合成清单，不是前任务数据库快照",
+        "verified": {
+          "verified": true,
+          "version": 3,
+          "collections": 22,
+          "pages": 43,
+          "totalRows": 4801,
+          "totalBytes": 2131868,
+          "assets": 1,
+          "readOnly": true,
+          "credentialsImported": false
+        },
+        "blockedExternalRequests": 0,
+        "production": false,
+        "downloadedDirectory": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-intake-review-20260930\\gx-deploy-91\\artifacts\\channel-intake-20260930\\tenant-h5-download-1791018762757\\downloaded"
+      },
+      "notCovered": [
+        "原32套冻结验证在组合源码上的全部重跑",
+        "组合版本完整CI及Linux固定包、正式Docker镜像",
+        "真实Redis跨进程、多客户外部资源隔离及跨主机授权撤销",
+        "真实模型预算对账与供应商收费",
+        "独立客户客户端全部渠道UI、签名及同版真机",
+        "真实数据库退出快照与前端整套导出端到端",
+        "生产登记账本升级及正式发布决策"
+      ],
+      "seal": {
+        "sourceCommit": "bd30924d7ff6e7d4824d9344546585c7cf2f5011",
+        "receivingBase": "ebd27667bfde889953b97d5083bffa78cd1ed86a",
+        "sealedAt": "2026-10-03T09:20:54.890Z",
+        "fileCount": 99,
+        "package": "artifacts/channel-intake-20260930/tenant-independent-evidence-1791019254634.tar.gz",
+        "packageBytes": 286627,
+        "packageSha256": "d440851c6cbfb6f599b79fa247bc94ea02be2f52c4aa0785a8d10eaa6fe59110",
+        "manifestSha256": "ae9382c2cce3eb9ae930288b1ee332d2c2b2f16cdd319e98533209361c2651a1",
+        "freshExtractionAllMatch": true,
+        "localArchiveOnly": true,
+        "remotePersistentArchive": false,
+        "production": false
+      },
+      "receivedIntoStaging": false,
+      "prIncludesTenantSource": false,
+      "releaseReady": false,
+      "production": false
+    },
+    "independentTestRerunScope": "上述定向范围，非原32套或全仓"
   },
   "latestEvidenceSeal": {
     "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
