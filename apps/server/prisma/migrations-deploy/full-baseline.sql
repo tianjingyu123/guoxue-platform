@@ -158,6 +158,355 @@ CREATE TYPE "PromotionStatus" AS ENUM ('ELIMINATED', 'PROMOTED', 'CHAMPION', 'RU
 CREATE TYPE "MarketingContentKind" AS ENUM ('SHORT_VIDEO', 'MOMENTS', 'XIAOHONGSHU');
 
 -- CreateTable
+CREATE TABLE "ManagedCustomer" (
+    "id" TEXT NOT NULL,
+    "requestKey" TEXT NOT NULL,
+    "requestDigest" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "mode" TEXT NOT NULL,
+    "tradingSubject" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'CONFIGURED',
+    "maintenanceCycle" TEXT NOT NULL DEFAULT 'ANNUAL',
+    "maintenancePrice" TEXT,
+    "remindAt" TIMESTAMP(3) NOT NULL,
+    "endAt" TIMESTAMP(3) NOT NULL,
+    "exportUntil" TIMESTAMP(3) NOT NULL,
+    "downloadTtlSeconds" INTEGER NOT NULL,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+    "createdBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ManagedCustomer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedDeployment" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "spaceKey" TEXT NOT NULL,
+    "databaseName" TEXT NOT NULL,
+    "databaseRole" TEXT NOT NULL,
+    "credentialRef" TEXT NOT NULL,
+    "authKeyFingerprint" TEXT NOT NULL,
+    "state" TEXT NOT NULL DEFAULT 'PLANNED',
+    "verifiedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ManagedDeployment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedApplication" (
+    "id" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationSubject" TEXT NOT NULL,
+    "stationId" TEXT,
+    "allowedPlatforms" TEXT[],
+    "brand" JSONB NOT NULL,
+    "templateId" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "ManagedApplication_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedGrant" (
+    "customerId" TEXT NOT NULL,
+    "modules" TEXT[],
+    "resources" JSONB NOT NULL,
+    "circleLimit" INTEGER NOT NULL,
+    "creationLimits" JSONB NOT NULL DEFAULT '{}',
+    "revision" INTEGER NOT NULL DEFAULT 1,
+
+    CONSTRAINT "ManagedGrant_pkey" PRIMARY KEY ("customerId")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedMembership" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "identityProvider" TEXT NOT NULL DEFAULT 'PLATFORM',
+    "role" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+
+    CONSTRAINT "ManagedMembership_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseIdentity" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "username" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ManagedLeaseIdentity_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseRefresh" (
+    "id" TEXT NOT NULL,
+    "identityId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "clientKey" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "identityRevision" INTEGER NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "revokedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseRefresh_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseLoginThrottle" (
+    "key" TEXT NOT NULL,
+    "windowStart" TIMESTAMP(3) NOT NULL,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ManagedLeaseLoginThrottle_pkey" PRIMARY KEY ("key")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseAftercare" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "requestKey" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseAftercare_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseExport" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "manifest" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "downloadedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ManagedLeaseExport_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseWriteFence" (
+    "customerId" TEXT NOT NULL,
+    "spaceKey" TEXT NOT NULL,
+    "writerRole" TEXT NOT NULL,
+    "authKeyFingerprint" VARCHAR(64) NOT NULL,
+    "state" VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',
+    "epoch" INTEGER NOT NULL DEFAULT 1,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ManagedLeaseWriteFence_pkey" PRIMARY KEY ("customerId")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseResource" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "kind" VARCHAR(16) NOT NULL,
+    "resourceId" TEXT NOT NULL,
+    "creatorId" TEXT NOT NULL,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseResource_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseAsset" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "contentType" VARCHAR(64) NOT NULL,
+    "size" INTEGER NOT NULL,
+    "sha256" VARCHAR(64) NOT NULL,
+    "dataBase64" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseAsset_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseJoinRequest" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "status" VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+    "reviewedBy" TEXT,
+    "reason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "reviewedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ManagedLeaseJoinRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseOrder" (
+    "orderId" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "requestKey" VARCHAR(80) NOT NULL,
+    "requestDigest" VARCHAR(64) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseOrder_pkey" PRIMARY KEY ("orderId")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeasePostRequest" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "requestKey" VARCHAR(80) NOT NULL,
+    "requestDigest" VARCHAR(64) NOT NULL,
+    "postId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeasePostRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseCircleMute" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "until" TIMESTAMP(3) NOT NULL,
+    "reason" TEXT NOT NULL,
+    "moderatedBy" TEXT NOT NULL,
+
+    CONSTRAINT "ManagedLeaseCircleMute_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseChatSession" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "agentId" TEXT NOT NULL,
+    "circleId" TEXT,
+    "nextSequence" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseChatSession_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseChatMessage" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "sequence" INTEGER NOT NULL,
+    "requestKey" VARCHAR(80) NOT NULL,
+    "requestDigest" VARCHAR(64) NOT NULL,
+    "userText" TEXT NOT NULL,
+    "assistantText" TEXT,
+    "state" VARCHAR(24) NOT NULL DEFAULT 'DISPATCHING',
+    "failureCode" VARCHAR(64),
+    "providerRequestId" VARCHAR(128),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "finishedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ManagedLeaseChatMessage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseExportPage" (
+    "exportId" TEXT NOT NULL,
+    "collection" TEXT NOT NULL,
+    "page" INTEGER NOT NULL,
+    "payload" JSONB NOT NULL,
+    "sha256" TEXT NOT NULL,
+
+    CONSTRAINT "ManagedLeaseExportPage_pkey" PRIMARY KEY ("exportId","collection","page")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedLeaseAudit" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "reason" TEXT,
+    "entityId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedLeaseAudit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedBrandOrder" (
+    "orderId" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "stationId" TEXT NOT NULL,
+    "buyerId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedBrandOrder_pkey" PRIMARY KEY ("orderId")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedBrandRequest" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "stationId" TEXT NOT NULL,
+    "buyerId" TEXT NOT NULL,
+    "requestKey" TEXT NOT NULL,
+    "requestDigest" TEXT NOT NULL,
+    "clientRequestId" TEXT NOT NULL,
+    "orderKind" VARCHAR(16) NOT NULL DEFAULT 'PRODUCT',
+    "courseId" TEXT,
+    "productId" TEXT,
+    "quantity" INTEGER NOT NULL,
+    "addressId" TEXT,
+    "skuId" TEXT,
+    "couponId" TEXT,
+    "state" TEXT NOT NULL DEFAULT 'WAITING_ORDER',
+    "orderId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ManagedBrandRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ManagedAudit" (
+    "id" TEXT NOT NULL,
+    "customerId" TEXT NOT NULL,
+    "actorId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "revision" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ManagedAudit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "ImFallbackMessage" (
     "id" TEXT NOT NULL,
     "fromUserId" TEXT NOT NULL,
@@ -6873,6 +7222,111 @@ CREATE TABLE "CircleGovernanceNotice" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "ManagedCustomer_requestKey_key" ON "ManagedCustomer"("requestKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedDeployment_customerId_key" ON "ManagedDeployment"("customerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedDeployment_spaceKey_key" ON "ManagedDeployment"("spaceKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedDeployment_databaseName_key" ON "ManagedDeployment"("databaseName");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedDeployment_databaseRole_key" ON "ManagedDeployment"("databaseRole");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedDeployment_authKeyFingerprint_key" ON "ManagedDeployment"("authKeyFingerprint");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedApplication_applicationId_key" ON "ManagedApplication"("applicationId");
+
+-- CreateIndex
+CREATE INDEX "ManagedApplication_customerId_idx" ON "ManagedApplication"("customerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedMembership_customerId_userId_key" ON "ManagedMembership"("customerId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseIdentity_userId_key" ON "ManagedLeaseIdentity"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseIdentity_username_key" ON "ManagedLeaseIdentity"("username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseRefresh_tokenHash_key" ON "ManagedLeaseRefresh"("tokenHash");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseRefresh_identityId_expiresAt_idx" ON "ManagedLeaseRefresh"("identityId", "expiresAt");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseAftercare_customerId_orderId_idx" ON "ManagedLeaseAftercare"("customerId", "orderId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseAftercare_userId_requestKey_key" ON "ManagedLeaseAftercare"("userId", "requestKey");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseExport_customerId_userId_expiresAt_idx" ON "ManagedLeaseExport"("customerId", "userId", "expiresAt");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseResource_customerId_applicationId_kind_id_idx" ON "ManagedLeaseResource"("customerId", "applicationId", "kind", "id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseResource_customerId_kind_resourceId_key" ON "ManagedLeaseResource"("customerId", "kind", "resourceId");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseAsset_customerId_applicationId_id_idx" ON "ManagedLeaseAsset"("customerId", "applicationId", "id");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseJoinRequest_customerId_circleId_status_id_idx" ON "ManagedLeaseJoinRequest"("customerId", "circleId", "status", "id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseJoinRequest_customerId_circleId_userId_key" ON "ManagedLeaseJoinRequest"("customerId", "circleId", "userId");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseOrder_customerId_applicationId_userId_orderId_idx" ON "ManagedLeaseOrder"("customerId", "applicationId", "userId", "orderId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseOrder_customerId_applicationId_userId_requestKe_key" ON "ManagedLeaseOrder"("customerId", "applicationId", "userId", "requestKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeasePostRequest_postId_key" ON "ManagedLeasePostRequest"("postId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeasePostRequest_customerId_applicationId_userId_req_key" ON "ManagedLeasePostRequest"("customerId", "applicationId", "userId", "requestKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseCircleMute_customerId_circleId_userId_key" ON "ManagedLeaseCircleMute"("customerId", "circleId", "userId");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseChatSession_customerId_applicationId_userId_id_idx" ON "ManagedLeaseChatSession"("customerId", "applicationId", "userId", "id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseChatMessage_sessionId_requestKey_key" ON "ManagedLeaseChatMessage"("sessionId", "requestKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedLeaseChatMessage_sessionId_sequence_key" ON "ManagedLeaseChatMessage"("sessionId", "sequence");
+
+-- CreateIndex
+CREATE INDEX "ManagedLeaseAudit_customerId_createdAt_idx" ON "ManagedLeaseAudit"("customerId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ManagedBrandOrder_customerId_applicationId_buyerId_idx" ON "ManagedBrandOrder"("customerId", "applicationId", "buyerId");
+
+-- CreateIndex
+CREATE INDEX "ManagedBrandRequest_customerId_state_createdAt_idx" ON "ManagedBrandRequest"("customerId", "state", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedBrandRequest_applicationId_buyerId_requestKey_key" ON "ManagedBrandRequest"("applicationId", "buyerId", "requestKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ManagedBrandRequest_buyerId_clientRequestId_key" ON "ManagedBrandRequest"("buyerId", "clientRequestId");
+
+-- CreateIndex
+CREATE INDEX "ManagedAudit_customerId_createdAt_idx" ON "ManagedAudit"("customerId", "createdAt");
+
+-- CreateIndex
 CREATE INDEX "ImFallbackMessage_fromUserId_toUserId_createdAt_idx" ON "ImFallbackMessage"("fromUserId", "toUserId", "createdAt");
 
 -- CreateIndex
@@ -9862,6 +10316,42 @@ CREATE UNIQUE INDEX "CircleGovernanceNotice_eventKey_key" ON "CircleGovernanceNo
 
 -- CreateIndex
 CREATE INDEX "CircleGovernanceNotice_occurredAt_id_idx" ON "CircleGovernanceNotice"("occurredAt", "id");
+
+-- AddForeignKey
+ALTER TABLE "ManagedDeployment" ADD CONSTRAINT "ManagedDeployment_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "ManagedCustomer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedApplication" ADD CONSTRAINT "ManagedApplication_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "ManagedCustomer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedGrant" ADD CONSTRAINT "ManagedGrant_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "ManagedCustomer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedMembership" ADD CONSTRAINT "ManagedMembership_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "ManagedCustomer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedLeaseIdentity" ADD CONSTRAINT "ManagedLeaseIdentity_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedLeaseRefresh" ADD CONSTRAINT "ManagedLeaseRefresh_identityId_fkey" FOREIGN KEY ("identityId") REFERENCES "ManagedLeaseIdentity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedLeaseOrder" ADD CONSTRAINT "ManagedLeaseOrder_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedLeasePostRequest" ADD CONSTRAINT "ManagedLeasePostRequest_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedLeaseChatMessage" ADD CONSTRAINT "ManagedLeaseChatMessage_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "ManagedLeaseChatSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedLeaseExportPage" ADD CONSTRAINT "ManagedLeaseExportPage_exportId_fkey" FOREIGN KEY ("exportId") REFERENCES "ManagedLeaseExport"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedBrandOrder" ADD CONSTRAINT "ManagedBrandOrder_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ManagedAudit" ADD CONSTRAINT "ManagedAudit_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "ManagedCustomer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_competitionInviteCodeId_fkey" FOREIGN KEY ("competitionInviteCodeId") REFERENCES "CompetitionInviteCode"("id") ON DELETE SET NULL ON UPDATE CASCADE;
