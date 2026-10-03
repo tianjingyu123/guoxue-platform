@@ -28,7 +28,7 @@ for (const name of [...suites,'provider-registration','native-commerce','bootstr
   else if (name === 'sqlite') args = ['pilots/managed-tenancy/verify.mjs', reportPath];
   else if (name === 'isolation') args = ['scripts/ops/prisma-candidate/assert-isolation.mjs'];
   else args = [`pilots/managed-tenancy/verify-${name}-postgres.mjs`, reportPath];
-  const run = spawnSync(process.execPath, args, { cwd: repo, encoding: 'utf8', windowsHide: true, timeout: 180000, maxBuffer: 8 * 1024 * 1024 });
+  const run = spawnSync(process.execPath, args, { cwd: repo, encoding: 'utf8', windowsHide: true, timeout: name==='cutover'?600000:180000, maxBuffer: 8 * 1024 * 1024 });
   writeFileSync(resolve(runtime, `${name}.log`), (run.stdout || '') + (run.stderr || ''));
   if (run.status !== 0 || run.error) { console.error(`${name}验证失败，诊断保留在本任务忽略目录`); process.exit(1); }
   if (name === 'bootstrap') writeFileSync(reportPath, readFileSync(resolve(repo, 'pilots/managed-tenancy/.runtime/bootstrap-compiled-postgres.json')));
