@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-02T23:16:59.307Z",
-  "sourceCommit": "4c546b89bf81121a051e785d3a399f3690205671",
+  "checkedAt": "2026-10-03T00:09:03.668Z",
+  "sourceCommit": "910806b8e72b7259b6b8011604d3e23413ae93fd",
   "testFixtureCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
   "releaseReady": false,
   "states": [
@@ -62,7 +62,7 @@
     "硬件商业化",
     "未经审核诗词内容"
   ],
-  "record": "圈帖打赏成交快照与删帖通知验收-20261002.json",
+  "record": "完整空库快照约束与正式镜像复验-20261002.json",
   "handoffCi": {
     "head": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
     "runId": 36903974810,
@@ -70,16 +70,17 @@
     "skipped": 134
   },
   "formalImage": {
-    "sourceCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
-    "runId": 37066496281,
-    "verificationHead": "08c24163c160dc0c5bf0b01194ed90601265f4c7",
-    "artifactId": 11252991353,
-    "artifactDigest": "sha256:c7d9c40571433d089b72a9636c57e9ffad895517095cc1c69df1279a8ea5ed0a",
+    "checkedAt": "2026-10-03T00:08:36.419Z",
+    "sourceCommit": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+    "runId": 37080065098,
+    "verificationHead": "4f4d24baf97a17d0ed309d2f9f7f15032b9807d6",
+    "artifactId": 11258905074,
+    "artifactDigest": "sha256:87e641a35f8cbbb12b84d3c05a2f1378399d36e41479907394622d32d8dc85c0",
     "digestVerified": true,
-    "sourcePackageDigest": "d57bc3fdb7c1b7d52865c13c57e0c20b38841e362015247940cd423fb0ddd0bf",
-    "sourcePackageFiles": 4497,
+    "sourcePackageDigest": "3e78509d9c28bce9a5b14490685f667ea19ccc4e4e5d4315c95f770df342e304",
+    "sourcePackageFiles": 4500,
     "formalDockerfile": true,
-    "passedChecks": 30,
+    "passedChecks": 31,
     "checks": [
       {
         "name": "image-identity",
@@ -98,11 +99,15 @@
         "passed": true
       },
       {
-        "name": "postgres-major-match",
+        "name": "postgres-runtime-version-match",
         "passed": true
       },
       {
         "name": "formal-empty-bootstrap-ledger-and-channel-constraints",
+        "passed": true
+      },
+      {
+        "name": "postgres-vector-extension-runtime",
         "passed": true
       },
       {
@@ -203,128 +208,124 @@
       }
     ],
     "imageIdentity": {
-      "id": "sha256:4dee9ffffba1f03f7d796689062fec43ab35979a69f894c56e909b2279f1b9e0",
+      "id": "sha256:d41231b555bf31a89f444e691cd41728a4f62380cf7a9090544c40e6fd425614",
       "os": "linux",
       "architecture": "amd64",
-      "sourceCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
-      "sourceSha256": "d57bc3fdb7c1b7d52865c13c57e0c20b38841e362015247940cd423fb0ddd0bf"
+      "sourceCommit": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+      "sourceSha256": "3e78509d9c28bce9a5b14490685f667ea19ccc4e4e5d4315c95f770df342e304"
     },
     "prisma": {
       "schemaVersion": 1,
       "kind": "prisma-build-binding",
-      "schemaHash": "83980c1b988e8520d805c8f3fb4d0c0bf2d14000251ce270d119ee1b6f0633ef",
+      "schemaHash": "b8a508852cd78e97228018f16da04cc98b92cbbc34a07c5044a027d59df44f33",
       "clientVersion": "6.19.3"
     },
     "migrationLedger": {
-      "total": 134,
-      "complete": 134,
+      "total": 135,
+      "complete": 135,
       "failed": 0
     },
     "migrationScope": "formal-empty-bootstrap-only-not-production-upgrade",
+    "postgresRuntime": {
+      "actual": "18.4 (Debian 18.4-1.pgdg13+1)",
+      "targetObserved": "18.4",
+      "patchMatched": true,
+      "productionVersionRecheckStillRequired": true
+    },
+    "snapshotColumns": [
+      "sourceCircleId",
+      "sourcePostId",
+      "sourceRecipientId",
+      "sourceVersion"
+    ],
+    "snapshotShapeCheck": true,
     "details": {
       "circle-auto-refund-http.json": {
-        "passed": true,
         "cases": 12,
+        "passed": true,
         "scope": "synthetic-http-not-real-provider-or-settlement"
       },
       "circle-post-detail-http-permissions.json": {
-        "passed": true,
         "cases": 89,
+        "passed": true,
         "scope": "full-app-real-http-jwt-postgres-synthetic-only"
       },
       "circle-recall-http-transactions.json": {
-        "passed": true,
         "cases": 22,
+        "passed": true,
         "scope": "synthetic-ledger-http-not-production-funds-or-settlement"
       },
       "circle-reward-http-transactions.json": {
+        "cases": 25,
         "passed": true,
-        "cases": 19,
         "scope": "two-full-apps-real-http-jwt-postgres-redis-synthetic-only"
       },
       "competition-disclosure-http-boundary.json": {
-        "passed": true,
         "cases": 8,
+        "passed": true,
         "scope": "full-app-real-public-http-postgres-synthetic-only"
       },
       "course-expiry-reminder-runtime.json": {
-        "passed": true,
         "cases": 15,
+        "passed": true,
         "scope": "compiled-scheduler-real-pg-redis-independent-processes-and-full-http-target-permissions"
       },
       "course-free-enrollment-runtime.json": {
-        "passed": true,
         "cases": 19,
+        "passed": true,
         "scope": "full-http-real-di-postcommit-pg-failure-and-lock-redis-permissions"
       },
       "finance-http-boundaries.json": {
-        "passed": true,
-        "cases": 22
+        "cases": 22,
+        "passed": true
       },
       "im-fallback-http-transactions.json": {
-        "passed": true,
         "cases": 26,
+        "passed": true,
         "scope": "synthetic-http-real-jwt-postgresql-transactions-no-external-im"
       },
       "im-two-process-socket-transactions.json": {
-        "passed": true,
         "cases": 12,
+        "passed": true,
         "scope": "isolated-two-app-processes-synthetic-socket-http-no-tencent-no-production"
       },
       "live-booking-notification-runtime.json": {
-        "passed": true,
         "cases": 31,
+        "passed": true,
         "scope": "compiled-live-schedulers-real-pg-redis-two-processes-booking-http-and-target-permissions"
       },
       "merchant-shipping-http-transactions.json": {
-        "passed": true,
         "cases": 14,
+        "passed": true,
         "scope": "synthetic-http-no-carrier-or-wechat-delivery"
       },
       "payment-refund-http-transactions.json": {
-        "passed": true,
         "cases": 24,
+        "passed": true,
         "scope": "synthetic-course-orders-not-real-provider-or-target-database"
       },
       "sensitive-http-audit.json": {
-        "passed": true,
-        "cases": 36
+        "cases": 36,
+        "passed": true
       }
     },
     "cleanup": {
-      "rebu-app-second-2f889a43da": true,
-      "rebu-app-2f889a43da": true,
-      "rebu-db-2f889a43da": true,
-      "rebu-redis-2f889a43da": true,
+      "rebu-app-second-cbaebd734b": true,
+      "rebu-app-cbaebd734b": true,
+      "rebu-db-cbaebd734b": true,
+      "rebu-redis-cbaebd734b": true,
       "networkAbsent": true
     },
     "realRedisInIsolatedImage": true,
     "twoIndependentAppProcesses": true,
     "production": false,
+    "productionUpgrade": false,
     "realPaymentProvider": false,
     "externalDelivery": false,
     "newDeviceTest": false,
-    "productionUpgrade": false,
-    "reportErrata": [
-      {
-        "file": "course-free-enrollment-runtime.json",
-        "fields": [
-          "crashDurableRetryNotImplemented",
-          "paidCourseSeparateEnrollmentNotAdded"
-        ],
-        "meaning": "旧验证脚本固定文案已过时；该HTTP专项没有测试这两条新恢复链，不代表产品没有实现。免费8c、付费e8源码及各独立PG专项已证明实现。保留官方原件，不改写原附件。"
-      },
-      {
-        "file": "course-expiry-reminder-runtime.json",
-        "fields": [
-          "unchangedCronSchedule"
-        ],
-        "meaning": "原9点Cron保持；f77另新增当天5次重试。镜像专项调用同服务方法，但未验证新Cron元数据；元数据由本次485专项验证。真实云Cron与手机仍未覆盖。"
-      }
-    ],
-    "checkedAt": "2026-10-02T21:35:52.993Z",
-    "coversCurrentSource": false,
-    "scope": "0078旧正式镜像，不能证明927/f1/2b新源码"
+    "historicalBackfill": false,
+    "firstFailureEvidence": "image-first-failure-verified.json",
+    "scope": "正式Dockerfile、真实隔离PG18.4与Redis、两个完整应用进程；不代表生产升级、真实供应商、手机或线上版本"
   },
   "previousBusinessSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
   "ci": {
@@ -5439,5 +5440,43 @@
   },
   "softwareSkippedCoverageHistoricalOnly": true,
   "remainingPostRewardLifecycle": false,
-  "postRewardLifecycleCoveredScope": "仅新成交快照及删帖后收入通知恢复；旧事实不回填、真实渠道未验"
+  "postRewardLifecycleCoveredScope": "仅新成交快照及删帖后收入通知恢复；旧事实不回填、真实渠道未验",
+  "finalSourceCI": {
+    "jobsPassed": 8,
+    "fullCIComplete": true,
+    "skipped": 593,
+    "production": false,
+    "runId": 37078311701,
+    "sourceCommit": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+    "checkedAt": "2026-10-02T23:55:17.8825718Z",
+    "shards": [
+      {
+        "name": "单元测试 (1/3)",
+        "id": 111073346129,
+        "passed": 2929,
+        "summary": "2026-10-02T23:51:09.5299593Z Tests:       241 skipped, 2929 passed, 3170 total",
+        "skipped": 241
+      },
+      {
+        "name": "单元测试 (3/3)",
+        "id": 111073346158,
+        "passed": 3097,
+        "summary": "2026-10-02T23:40:26.6094874Z Tests:       156 skipped, 3097 passed, 3253 total",
+        "skipped": 156
+      },
+      {
+        "name": "单元测试 (2/3)",
+        "id": 111073346189,
+        "passed": 3078,
+        "summary": "2026-10-02T23:39:33.6098437Z Tests:       196 skipped, 3078 passed, 3274 total",
+        "skipped": 196
+      }
+    ],
+    "passed": 9104,
+    "artifactId": 11257379580,
+    "artifactDigest": "sha256:5ad5d1c929740cc1a6e34e1de18c42f313f7566c06c7647bbc3522d3e3242383",
+    "artifactDigestVerified": true
+  },
+  "remainingOrderDurableRecovery": true,
+  "remainingRefundCompletionOrdering": true
 }

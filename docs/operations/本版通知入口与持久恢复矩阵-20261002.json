@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "4c546b89bf81121a051e785d3a399f3690205671",
-  "checkedAt": "2026-10-02T23:16:58.258Z",
+  "sourceCommit": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+  "checkedAt": "2026-10-03T00:09:03.669Z",
   "rows": [
     {
       "id": "order-paid",
@@ -10,7 +10,7 @@
       ],
       "key": "ORDER_PAID:<orderId>",
       "state": "真实代码入口；课程合成签名HTTP、从业真实PG等限定验证",
-      "recovery": "通知写入失败独立捕获；外发箱失败仍要求回调重投",
+      "recovery": "站内sendOnce失败独立捕获，依赖回调重投；WebhookDelivery仅外部订阅恢复，通用站内持久事实尚未接入",
       "gap": "四入口回滚/CAS冲突不误确认、通知失败与退款重投语义在本版真实PG及成品通过；验签运输、真实供应商、Redis锁、线上两节点及同版手机未覆盖",
       "online": "未知"
     },
@@ -23,7 +23,7 @@
       "key": "ORDER_REFUNDED:<orderId>",
       "state": "真实代码入口；CAS/权益事务后才发完成通知",
       "recovery": "通知失败不改退款结果；重投补发",
-      "gap": "无全订单独立分钟恢复证明；真实供应商与手机未全验",
+      "gap": "真实合成PG复现分佣冲正失败仍提前发退款完成（售后PROCESSING）；通用订单独立恢复未接入，待独立修复；真实渠道与最终手机未全验",
       "online": "未知"
     },
     {
@@ -371,5 +371,11 @@
     "record": "支付事务回滚误确认与退款重投通知验收-20261002.json"
   },
   "previousSourceCommit": "f1c950c0861c97cc96d05af6e1be608a316d15cf",
-  "migrationCount": 135
+  "migrationCount": 135,
+  "previousEvidenceSource": "4c546b89bf81121a051e785d3a399f3690205671",
+  "currentFormalImage": {
+    "sourceCommit": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+    "runId": 37080065098,
+    "checks": 31
+  }
 }
