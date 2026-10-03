@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
-      SOURCE_COMMIT: 1abd0eb7b5d6f225d26c6b2d5b83d6b32d42c40d
-      RELEASE_ID: launch-20261002-1abd0eb7b
+      SOURCE_COMMIT: cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e
+      RELEASE_ID: launch-20261002-cc78fbe4f
       NODE_OPTIONS: --max-old-space-size=6144
       VITE_API_URL: https://api.rebugx.cn
       VITE_PUBLIC_H5_URL: https://gx.yrydai.com/h5/
@@ -34,10 +34,10 @@ jobs:
           set -euo pipefail
           git config --local --unset-all http.https://github.com/.extraheader || true
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
-          git switch -c codex/final-package-1abd0eb7b
+          git switch -c codex/final-package-cc78fbe4f
           mkdir -p artifacts/final-package
           git rev-parse HEAD > artifacts/final-package/source-binding.txt
-          git ls-files -z package.json pnpm-lock.yaml patches apps/mobile apps/admin packages apps/server/src apps/server/prisma docker scripts/release | xargs -0 sha256sum >> artifacts/final-package/source-binding.txt
+          git ls-files -z package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs .gitattributes patches apps/mobile apps/admin packages apps/server/src apps/server/prisma docker scripts/release | xargs -0 sha256sum >> artifacts/final-package/source-binding.txt
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
           version: 10.33.3
@@ -49,6 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile
+          pnpm release:test-app-build 2>&1 | tee artifacts/final-package/app-boundary-tests.log
           pnpm release:test-braces-depth 2>&1 | tee artifacts/final-package/braces-tests.log
           pnpm release:audit-deps 2>&1 | tee artifacts/final-package/dependency-audit.log
       - name: 固定公开配置并构建各端
@@ -71,7 +72,7 @@ jobs:
           node scripts/release/create-client-config-binding.mjs artifacts/final-package/public-config.env --release-id "$RELEASE_ID" --source-commit "$SOURCE_COMMIT" --output artifacts/final-package/client-config.json
           node scripts/release/audit-client-artifacts.mjs artifacts/final-package/public-config.env --release-id "$RELEASE_ID" --source-commit "$SOURCE_COMMIT" --report artifacts/final-package/client-artifacts.json 2>&1 | tee artifacts/final-package/client-audit.log
           node scripts/release/verify-client-artifacts.mjs artifacts/final-package/client-artifacts.json --expected-release-id "$RELEASE_ID" --expected-commit "$SOURCE_COMMIT" --output artifacts/final-package/client-artifacts-verified.json 2>&1 | tee artifacts/final-package/client-verify.log
-          node scripts/release/audit-source-freeze.mjs --strict --expected-branch codex/final-package-1abd0eb7b --expected-commit "$SOURCE_COMMIT" --report artifacts/final-package/source-freeze.json 2>&1 | tee artifacts/final-package/source-freeze.log
+          node scripts/release/audit-source-freeze.mjs --strict --expected-branch codex/final-package-cc78fbe4f --expected-commit "$SOURCE_COMMIT" --report artifacts/final-package/source-freeze.json 2>&1 | tee artifacts/final-package/source-freeze.log
       - name: 生成与核验独立固定包
         run: |
           set -euo pipefail
