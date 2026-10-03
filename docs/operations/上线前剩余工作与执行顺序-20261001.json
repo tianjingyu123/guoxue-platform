@@ -11177,5 +11177,25 @@
   "currentDefaultCiSkipped": 631,
   "currentDefaultCiSkippedSourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
   "currentSoftwareCoverageAppliesToNewBackend": false,
-  "tenantIntegrationNotFullBusinessAcceptance": true
+  "tenantIntegrationNotFullBusinessAcceptance": true,
+  "managedExitDownloadLateCandidate": {
+    "downloadFormatVerifySourcesRead": true,
+    "sourceSuitesHistorical": 34,
+    "mustReviewBeforeLaunch": true,
+    "sourceWorktree": "C:/Users/Administrator/.codex/worktrees/tenant-isolation-pilot-20261002/gx-deploy-91",
+    "bundleSha256": "3fe361e393346e9a5bd867a94e0697366550e5077ff68e68e03297d53fce2703",
+    "fullDiffRead": true,
+    "independentTestRerun": false,
+    "deferred": false,
+    "archive": "ba682221c28ebaf195c71f65dc401e514495e437",
+    "checkedAt": "2026-10-03T12:49:36.1803700Z",
+    "currentCandidateMigrationCount": 144,
+    "record": "退出文件采集晚到候选接收预检-20261003.md",
+    "sourceMigrationCount": 143,
+    "production": false,
+    "actualBundleHashChecked": true,
+    "candidate": "1e1199a9b9bc0e48092526017447b18ba37fb688",
+    "received": false,
+    "bundleBytes": 147950062
+  }
 }
