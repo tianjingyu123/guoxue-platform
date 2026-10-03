@@ -9,7 +9,7 @@ for(const key of ['XIAOBU_IT_DATABASE_URL','ENTITLEMENT_NOTICE_TEST_DATABASE_URL
 fs.mkdirSync(output,{recursive:true});
 const hash=file=>crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 for(const row of manifest.rows)assert.equal(hash(row.path),row.sourceSha256);
-const bindingFiles=cp.execFileSync('git',['ls-files','apps/server/src','apps/server/prisma','packages','pnpm-lock.yaml'],{encoding:'utf8'}).trim().split('\n');
+const bindingFiles=cp.execFileSync('git',['ls-files','-z','apps/server/src','apps/server/prisma','packages','pnpm-lock.yaml'],{encoding:'utf8'}).split('\0').filter(Boolean);
 fs.writeFileSync(output+'/source-binding.json',JSON.stringify({source:manifest.sourceCommit,files:bindingFiles.map(file=>({path:file,sha256:hash(file)}))},null,2));
 // 所有服务仅能连接回环地址；子进程通过NODE_OPTIONS继承相同保护。
 const guard=output+'/loopback-only.cjs';
