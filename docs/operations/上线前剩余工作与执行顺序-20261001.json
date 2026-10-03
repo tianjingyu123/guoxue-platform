@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T05:13:59.373Z",
+  "checkedAt": "2026-10-03T05:35:49.230Z",
   "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
   "releaseReady": false,
   "states": [
@@ -8885,5 +8885,28 @@
     "cleanupPerformed": false,
     "scope": "只匹配标明预发布勿购买的商品、名称同时含QA及驿站的分站/线下驿站；不推断全部测试资料已清空"
   },
-  "currentSupplementRecord": "上线补验与功能缺口复核-20261003.json"
+  "currentSupplementRecord": "上线补验与功能缺口复核-20261003.json",
+  "productionMigrationChecksumPreflight": {
+    "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+    "completed": 103,
+    "rawExactMatches": 18,
+    "lineEndingCompatible": 85,
+    "otherChecksumDifferences": 0,
+    "pendingCandidate": 33,
+    "productionDataPreconditionsChecked": false,
+    "upgradeRehearsal103to136": false,
+    "productionDdl": false,
+    "record": "正式迁移校验值只读预检-20261003.json"
+  },
+  "productionMigrationTargetInventory": {
+    "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+    "declarations": 210,
+    "present": 1,
+    "missing": 209,
+    "appVersionDuplicateGroups": 0,
+    "fullSchemaDriftChecked": false,
+    "allRequiredDataPreconditionsChecked": false,
+    "upgradeRehearsal103to136": false,
+    "record": "待登记迁移结构与版本唯一性只读预检-20261003.json"
+  }
 }
