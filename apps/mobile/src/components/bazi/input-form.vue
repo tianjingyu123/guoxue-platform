@@ -9,6 +9,8 @@ import LocationPickerModal from './location-picker-modal.vue'
 import GroupPickerModal from './group-picker-modal.vue'
 // 农历→公历归一（与 qimen 等 13 个排盘入口同一把尺子；本组件仅被 pkg-paipan 页面引用，不进主包）
 import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
+import { baziApi } from '@/lib/bazi-result-data'
+import type { BaziReversePillars } from '@/lib/bazi-reverse-data'
 
 const name = ref('')
 const gender = ref<'male' | 'female'>('male')
@@ -19,6 +21,8 @@ const useTrueSolarTime = ref(true)
 const useEarlyZiHour = ref(false)
 const useDaylightSaving = ref(false)
 const saveRecord = ref(true)
+const sourcePillars = ref<BaziReversePillars | null>(null)
+const submitting = ref(false)
 
 const showDatePicker = ref(false)
 const showLocationPicker = ref(false)
@@ -55,7 +59,7 @@ const formatBirthDate = computed(() => {
   const d = birthDate.value
   const hourStr = d.hour !== null ? `${pad(d.hour)}:${pad(d.minute || 0)}` : '未知时'
   // 农历输入如实标注（数字仍是用户所选的农历年月日，提交时才归一为公历）
-  return `${d.isLunar ? '农历 ' : ''}${d.year}-${pad(d.month)}-${pad(d.day)} ${hourStr}`
+  return `${sourcePillars.value ? '四柱反查 ' : d.isLunar ? '农历 ' : ''}${d.year}-${pad(d.month)}-${pad(d.day)} ${hourStr}`
 })
 const formatBirthPlace = computed(() => {
   const p = birthPlace.value
@@ -85,12 +89,23 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
 }
 
 // 与 date-picker-modal 的 confirm 事件载荷结构一致
-function onDateConfirm(d: { year: number; month: number; day: number; hour: number | null; minute: number | null; isLunar: boolean }) {
+function onDateConfirm(d: { year: number; month: number; day: number; hour: number | null; minute: number | null; isLunar: boolean; sourcePillars?: BaziReversePillars }) {
   birthDate.value = { year: d.year, month: d.month, day: d.day, hour: d.hour ?? 12, minute: d.minute ?? 0, isLunar: d.isLunar }
+  sourcePillars.value = d.sourcePillars || null
+  if (d.sourcePillars) {
+    // 反查候选按未校正的北京时间生成；这两个选项由用户后续主动调整。
+    useTrueSolarTime.value = false
+    useDaylightSaving.value = false
+  }
 }
 
-function handleSubmit() {
-  const p = birthDate.value
+async function handleSubmit() {
+  if (submitting.value) return
+  const p = { ...birthDate.value }
+  const selectedPlace = { ...birthPlace.value }
+  const selectedName = name.value
+  const selectedGender = gender.value
+  const sourceAtSubmit = sourcePillars.value ? { ...sourcePillars.value } : null
   // 🔴 P0 修复（2026-07-17）：农历输入必须先归一为公历再进排盘链路。
   // 此前 isLunar 标记只是随 query 传给 result，而 result/calculate 只吃公历数字，
   // 农历起盘等于把农历年月日当公历排 —— 四柱全错。
@@ -103,15 +118,54 @@ function handleSubmit() {
     uni.showToast({ title: '农历日期无效，请重新选择', icon: 'none' })
     return
   }
+  const optionsAtSubmit = {
+    trueSolar: useTrueSolarTime.value, earlyZi: useEarlyZiHour.value, dst: useDaylightSaving.value,
+  }
+  if (sourceAtSubmit) {
+    submitting.value = true
+    try {
+      const result = await baziApi.calculate({
+        name: selectedName || undefined, gender: selectedGender === 'male' ? '男' : '女',
+        year: date.year, month: date.month, day: date.day, hour: date.hour, minute: date.minute,
+        city: selectedPlace.city || selectedPlace.province || undefined,
+        useTrueSolarTime: optionsAtSubmit.trueSolar,
+        useDaylightSaving: optionsAtSubmit.dst,
+        earlyZi: optionsAtSubmit.earlyZi,
+      })
+      if (JSON.stringify(birthDate.value) !== JSON.stringify(p)
+        || JSON.stringify(birthPlace.value) !== JSON.stringify(selectedPlace)
+        || name.value !== selectedName || gender.value !== selectedGender
+        || JSON.stringify(sourcePillars.value) !== JSON.stringify(sourceAtSubmit)
+        || useTrueSolarTime.value !== optionsAtSubmit.trueSolar
+        || useEarlyZiHour.value !== optionsAtSubmit.earlyZi
+        || useDaylightSaving.value !== optionsAtSubmit.dst) {
+        uni.showToast({ title: '输入已更新，请再次确认排盘', icon: 'none' })
+        return
+      }
+      const actual = result.siZhu
+      if (actual.year.gan + actual.year.zhi !== sourceAtSubmit.year
+        || actual.month.gan + actual.month.zhi !== sourceAtSubmit.month
+        || actual.day.gan + actual.day.zhi !== sourceAtSubmit.day
+        || actual.hour.gan + actual.hour.zhi !== sourceAtSubmit.hour) {
+        uni.showToast({ title: '当前时间选项与输入四柱不符，请调整后重试', icon: 'none' })
+        return
+      }
+    } catch (cause) {
+      uni.showToast({ title: (cause as Error)?.message || '四柱复核失败，请重试', icon: 'none' })
+      return
+    } finally {
+      submitting.value = false
+    }
+  }
   const q = [
-    `name=${encodeURIComponent(name.value || '未知')}`,
-    `gender=${gender.value === 'male' ? '男' : '女'}`,
+    `name=${encodeURIComponent(selectedName || '未知')}`,
+    `gender=${selectedGender === 'male' ? '男' : '女'}`,
     // 归一后恒为公历，不再向 result 传 isLunar（result 只吃公历）
     `year=${date.year}`, `month=${date.month}`, `day=${date.day}`, `hour=${date.hour}`, `minute=${date.minute}`,
-    `province=${encodeURIComponent(birthPlace.value.province)}`,
-    `city=${encodeURIComponent(birthPlace.value.city)}`,
-    `district=${encodeURIComponent(birthPlace.value.district)}`,
-    `trueSolar=${useTrueSolarTime.value}`, `earlyZi=${useEarlyZiHour.value}`, `dst=${useDaylightSaving.value}`,
+    `province=${encodeURIComponent(selectedPlace.province)}`,
+    `city=${encodeURIComponent(selectedPlace.city)}`,
+    `district=${encodeURIComponent(selectedPlace.district)}`,
+    `trueSolar=${optionsAtSubmit.trueSolar}`, `earlyZi=${optionsAtSubmit.earlyZi}`, `dst=${optionsAtSubmit.dst}`,
   ].join('&')
   navigateTo(`/paipan/bazi/result?${q}`)
 }
@@ -197,12 +251,12 @@ function handleSubmit() {
       </view>
       <!-- 开始排盘 -->
       <view class="bf-submit-wrap">
-        <view class="bf-submit" role="button" tabindex="0"
-          @tap="handleSubmit" @keydown="activateOnKeyboard($event, handleSubmit)"><text class="bf-submit-text">开始排盘</text></view>
+        <view class="bf-submit" role="button" :aria-disabled="submitting" tabindex="0"
+          @tap="handleSubmit" @keydown="activateOnKeyboard($event, handleSubmit)"><text class="bf-submit-text">{{ submitting ? '正在核对四柱…' : '开始排盘' }}</text></view>
       </view>
     </view>
 
-    <date-picker-modal :open="showDatePicker" :initial-date="{ year: birthDate.year, month: birthDate.month, day: birthDate.day, hour: birthDate.hour, minute: birthDate.minute }" @close="showDatePicker = false" @confirm="onDateConfirm" />
+    <date-picker-modal :open="showDatePicker" :enable-sizhu="true" :zi-shi-mode="useEarlyZiHour ? 'modern' : 'traditional'" :initial-date="{ year: birthDate.year, month: birthDate.month, day: birthDate.day, hour: birthDate.hour, minute: birthDate.minute }" @close="showDatePicker = false" @confirm="onDateConfirm" />
     <location-picker-modal :open="showLocationPicker" :initial-location="birthPlace.province ? birthPlace : undefined" @close="showLocationPicker = false" @confirm="(v) => birthPlace = v" />
     <group-picker-modal :open="showGroupPicker" :initial-group="group" @close="showGroupPicker = false" @confirm="(v) => group = v" />
   </view>
