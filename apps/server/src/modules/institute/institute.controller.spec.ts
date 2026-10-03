@@ -131,6 +131,7 @@ describe("InstituteController", () => {
 
   it("GET /institute/admin/members — 平台后台成员列表", async () => {
     const result: any = await ctrl.listAdminMembers(
+      { user: { id: "u-admin" } } as any,
       undefined,
       "ACTIVE",
       undefined,
@@ -139,7 +140,7 @@ describe("InstituteController", () => {
     );
     expect(result.total).toBe(1);
     expect(mockInstituteSvc.listAdminMembers).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "ACTIVE", page: 1, pageSize: 20 }),
+      expect.objectContaining({ status: "ACTIVE", page: 1, pageSize: 20 }), "u-admin",
     );
   });
 
@@ -151,22 +152,22 @@ describe("InstituteController", () => {
 
   it("PUT /institute/members/:id/lecturer-level — 更新讲师等级", async () => {
     const dto: any = { level: 3 };
-    const result: any = await ctrl.updateLecturerLevel("m1", dto);
+    const result: any = await ctrl.updateLecturerLevel("m1", dto, { user: { id: "u-admin" } } as any);
     expect(result.lecturerLevel).toBe(3);
-    expect(mockInstituteSvc.updateLecturerLevel).toHaveBeenCalledWith("m1", dto);
+    expect(mockInstituteSvc.updateLecturerLevel).toHaveBeenCalledWith("m1", dto, "u-admin");
   });
 
   it("GET /institute/candidates — 候选讲师", async () => {
-    const result: any = await ctrl.getCandidates();
+    const result: any = await ctrl.getCandidates({ user: { id: "u-admin" } } as any);
     expect(result).toHaveLength(1);
-    expect(mockInstituteSvc.getSigningCandidates).toHaveBeenCalled();
+    expect(mockInstituteSvc.getSigningCandidates).toHaveBeenCalledWith("u-admin");
   });
 
   it("POST /institute/members/:id/tasks — 添加任务", async () => {
     const dto: any = { title: "年度任务", year: 2025 };
-    const result: any = await ctrl.addTask("m1", dto);
+    const result: any = await ctrl.addTask("m1", dto, { user: { id: "u-admin" } } as any);
     expect(result.title).toBe("年度任务");
-    expect(mockInstituteSvc.addTask).toHaveBeenCalledWith("m1", dto);
+    expect(mockInstituteSvc.addTask).toHaveBeenCalledWith("m1", dto, "u-admin");
   });
 
   it("POST /institute/tasks/:id/complete — 完成任务", async () => {
@@ -245,8 +246,8 @@ describe("InstituteController", () => {
 
   it("PUT /institute/events/:id — 更新活动", async () => {
     const dto = { status: "CANCELLED" };
-    const result: any = await ctrl.updateEvent("e1", dto);
+    const result: any = await ctrl.updateEvent("e1", dto, { user: { id: "u-admin" } } as any);
     expect(result.status).toBe("CANCELLED");
-    expect(mockInstituteSvc.updateEvent).toHaveBeenCalledWith("e1", dto);
+    expect(mockInstituteSvc.updateEvent).toHaveBeenCalledWith("e1", dto, "u-admin");
   });
 });

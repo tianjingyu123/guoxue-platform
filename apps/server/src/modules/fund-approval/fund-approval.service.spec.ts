@@ -7,7 +7,7 @@ import { BusinessException } from "../../common/business.exception";
  * 资金审批 CRUD/状态流转层单测（T4 审查补齐）。
  * 关键语义：claim 的 CAS（仅 PENDING 可流转·并发只有一个成功）与
  * revertToPending 的回滚条件（仅 APPROVED 可回退，防"已通过未执行"资金空档）。
- * （自审自批拦截在 executor 层，已由 fund-approval.executor.spec 覆盖。）
+ * （当前审核权限及自审自批在真实库 fund-review-authorization.postgres.spec 验证。）
  */
 
 const mockModel = {
@@ -17,7 +17,8 @@ const mockModel = {
   findUnique: jest.fn(),
   updateMany: jest.fn(),
 };
-const mockPrisma = { fundApproval: mockModel };
+const mockPrisma = { fundApproval: mockModel, $queryRaw: jest.fn().mockResolvedValue([{ id: "reviewer", status: "ACTIVE" }]), $transaction: jest.fn() };
+mockPrisma.$transaction.mockImplementation(async callback => callback(mockPrisma));
 
 describe("FundApprovalService", () => {
   let svc: FundApprovalService;
@@ -66,7 +67,7 @@ describe("FundApprovalService", () => {
     it("默认查 PENDING 第一页", async () => {
       mockModel.findMany.mockResolvedValue([{ id: "fa-1", type: "REFUND" }]);
       mockModel.count.mockResolvedValue(1);
-      const result = await svc.list();
+      const result = await svc.list("reviewer");
       expect(result).toEqual({ items: [{ id: "fa-1", type: "REFUND", amountUnit: "CNY" }], total: 1, page: 1, pageSize: 20 });
       expect(mockModel.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: { status: "PENDING" }, skip: 0, take: 20,
@@ -76,14 +77,14 @@ describe("FundApprovalService", () => {
     it("status 传空串时查全部状态", async () => {
       mockModel.findMany.mockResolvedValue([]);
       mockModel.count.mockResolvedValue(0);
-      await svc.list(2, 10, "");
+      await svc.list("reviewer", 2, 10, "");
       expect(mockModel.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {}, skip: 10, take: 10 }));
     });
 
     it("status=ALL（不分大小写）查全部状态", async () => {
       mockModel.findMany.mockResolvedValue([]);
       mockModel.count.mockResolvedValue(0);
-      await svc.list(1, 20, "all");
+      await svc.list("reviewer", 1, 20, "all");
       expect(mockModel.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
     });
 
@@ -96,7 +97,7 @@ describe("FundApprovalService", () => {
         { id: "4", type: "HUIFU_SPLIT", amount: 100 },
       ]);
       mockModel.count.mockResolvedValue(4);
-      const result = await svc.list(1, 20, "ALL");
+      const result = await svc.list("reviewer", 1, 20, "ALL");
       expect(result.items.map((i: any) => i.amountUnit)).toEqual(["COIN", "COIN", "CNY", "CNY"]);
     });
   });
@@ -151,7 +152,7 @@ describe("FundApprovalService", () => {
     it("list 传 page='abc' 时 skip 不为 NaN", async () => {
       mockModel.findMany.mockResolvedValue([]);
       mockModel.count.mockResolvedValue(0);
-      await svc.list("abc" as any);
+      await svc.list("reviewer", "abc" as any);
       expect(Number.isNaN(mockModel.findMany.mock.calls[0][0].skip)).toBe(false);
     });
   });

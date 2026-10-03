@@ -34,8 +34,9 @@ export class FundApprovalController {
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
     @Query("status") status = "PENDING",
+    @Req() req: Request,
   ) {
-    return this.approvals.list(+page, +pageSize, status);
+    return this.approvals.list(req.user.id, +page, +pageSize, status);
   }
 
   @Post("admin/:id/review")

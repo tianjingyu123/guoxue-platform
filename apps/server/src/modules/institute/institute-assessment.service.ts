@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
-import { InstituteRole } from "@prisma/client";
+import { InstituteRole, Prisma } from "@prisma/client";
 
 /**
  * T9-P1 研究院考核制度服务（V5 真源）
@@ -449,17 +449,42 @@ export class InstituteAssessmentService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "积分须为非零整数且绝对值不超过1000");
     }
 
-    return this.prisma.instituteSharePoint.create({
-      data: {
-        instituteId: member.instituteId,
-        memberId: member.id,
-        userId: member.userId,
-        pointType,
-        points: dto.points,
-        refId: dto.refId || null,
-        remark: dto.remark || null,
-        verifiedBy: operatorUserId, // 记录操作者（人工记分可追溯）
-      },
+    return this.prisma.$transaction(async tx => {
+      // 人工记分锁内当前身份：院→操作者账号→排序会籍；历史纠错仍允许非ACTIVE目标和关闭院。
+      const institutes = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "Institute" WHERE id=${member.instituteId} FOR SHARE`;
+      if (!institutes[0]) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院不存在");
+      const accounts = await tx.$queryRaw<Array<{ id: string; status: string }>>`
+        SELECT id, status::text AS status FROM "User" WHERE id=${operatorUserId} FOR SHARE`;
+      if (accounts[0]?.status !== "ACTIVE")
+        throw new BusinessException(ErrorCode.FORBIDDEN, "当前记分账号不可用");
+      type LockedMember = { id: string; userId: string; instituteId: string; role: string; status: string };
+      const locked = new Map<string, LockedMember>();
+      for (const id of [...new Set([mgr.id, member.id])].sort()) {
+        const rows = await tx.$queryRaw<LockedMember[]>`
+          SELECT id, "userId", "instituteId", role::text AS role, status
+          FROM "InstituteMember" WHERE id=${id} FOR SHARE`;
+        if (rows[0]) locked.set(id, rows[0]);
+      }
+      const manager = locked.get(mgr.id);
+      if (!manager || manager.userId !== operatorUserId || manager.instituteId !== member.instituteId || manager.status !== "ACTIVE" || !MGMT_ROLES.includes(manager.role as InstituteRole))
+        throw new BusinessException(ErrorCode.FORBIDDEN, "当前管理身份已变化，不能记分");
+      const current = locked.get(member.id);
+      if (!current) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院成员不存在");
+      if (current.userId !== member.userId || current.instituteId !== member.instituteId)
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "记分目标归属已变化，请重新查询");
+      return tx.instituteSharePoint.create({
+        data: {
+          instituteId: current.instituteId,
+          memberId: current.id,
+          userId: current.userId,
+          pointType,
+          points: dto.points,
+          refId: dto.refId || null,
+          remark: dto.remark || null,
+          verifiedBy: operatorUserId, // 记录操作者（人工记分可追溯）
+        },
+      });
     });
   }
 
@@ -473,46 +498,43 @@ export class InstituteAssessmentService {
     title?: string | null;
     lecturerId?: string | null;
     instituteId?: string | null;
-  }) {
+  }, transaction?: Prisma.TransactionClient) {
     if (!event.lecturerId) return null;
-
     const conf: Record<string, { pointType: SharePointType; points: number }> = {
-      SALON: {
-        pointType: "INSTITUTE_SALON",
-        points: envNum("INSTITUTE_POINTS_INSTITUTE_SALON", 20),
-      },
+      SALON: { pointType: "INSTITUTE_SALON", points: envNum("INSTITUTE_POINTS_INSTITUTE_SALON", 20) },
       LIVE: { pointType: "LIVE_COURSE", points: envNum("INSTITUTE_POINTS_LIVE_COURSE", 15) },
     };
     const rule = conf[event.type];
     if (!rule) return null;
-
-    const member = await this.prisma.instituteMember.findFirst({
-      where: {
-        userId: event.lecturerId,
-        status: "ACTIVE",
-        ...(event.instituteId ? { instituteId: event.instituteId } : {}),
-      },
-      select: { id: true, instituteId: true, userId: true },
-    });
-    if (!member) return null;
-
-    // 幂等：同一活动不重复记分
-    const existing = await this.prisma.instituteSharePoint.findFirst({
-      where: { memberId: member.id, refId: event.id },
-      select: { id: true },
-    });
-    if (existing) return null;
-
-    return this.prisma.instituteSharePoint.create({
-      data: {
-        instituteId: member.instituteId,
-        memberId: member.id,
-        userId: member.userId,
-        pointType: rule.pointType,
-        points: rule.points,
-        refId: event.id,
-        remark: `活动完成自动记分${event.title ? `：${event.title}` : ""}`,
-      },
-    });
+    const award = async (tx: Prisma.TransactionClient) => {
+      const events = await tx.$queryRaw<Array<{ id: string; type: string; title: string; lecturerId: string | null; instituteId: string | null; status: string }>>`
+        SELECT id, type, title, "lecturerId", "instituteId", status FROM "InstituteEvent" WHERE id=${event.id} FOR UPDATE`;
+      const current = events[0];
+      if (!current || current.status !== "COMPLETED") return null;
+      if (current.type !== event.type || current.lecturerId !== event.lecturerId || (event.instituteId !== undefined && current.instituteId !== event.instituteId))
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "活动来源或归属已变化，不能按旧快照记分");
+      const accounts = await tx.$queryRaw<Array<{ status: string }>>`
+        SELECT status::text AS status FROM "User" WHERE id=${current.lecturerId} FOR SHARE`;
+      if (accounts[0]?.status !== "ACTIVE") return null;
+      const member = await tx.instituteMember.findFirst({
+        where: { userId: current.lecturerId!, status: "ACTIVE", ...(current.instituteId ? { instituteId: current.instituteId } : {}) },
+        select: { id: true, instituteId: true, userId: true },
+      });
+      if (!member) return null;
+      const members = await tx.$queryRaw<Array<{ id: string; userId: string; instituteId: string; status: string }>>`
+        SELECT id, "userId", "instituteId", status FROM "InstituteMember" WHERE id=${member.id} FOR SHARE`;
+      const locked = members[0];
+      if (!locked || locked.status !== "ACTIVE" || locked.userId !== current.lecturerId || locked.instituteId !== member.instituteId || (current.instituteId && locked.instituteId !== current.instituteId))
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "讲师当前会籍或归属已变化，不能按旧快照记分");
+      // 同活动行锁串行保护查重/写入；人工同refId多次调整的既有政策保持。
+      const existing = await tx.instituteSharePoint.findFirst({ where: { memberId: locked.id, refId: current.id }, select: { id: true } });
+      if (existing) return null;
+      return tx.instituteSharePoint.create({
+        data: { instituteId: locked.instituteId, memberId: locked.id, userId: locked.userId,
+          pointType: rule.pointType, points: rule.points, refId: current.id,
+          remark: `活动完成自动记分${current.title ? `：${current.title}` : ""}` },
+      });
+    };
+    return transaction ? award(transaction) : this.prisma.$transaction(award);
   }
 }

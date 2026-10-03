@@ -816,6 +816,16 @@ CREATE TABLE "CircleMembershipCacheInvalidation" (
 );
 
 -- CreateTable
+CREATE TABLE "CourseCacheInvalidation" (
+    "id" TEXT NOT NULL,
+    "courseId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL,
+    "clearedAt" TIMESTAMP(3),
+
+    CONSTRAINT "CourseCacheInvalidation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "CirclePublishGrant" (
     "id" TEXT NOT NULL,
     "circleId" TEXT NOT NULL,
@@ -7493,6 +7503,9 @@ CREATE INDEX "CircleMembershipExpiryNotice_cache_pending_idx" ON "CircleMembersh
 
 -- CreateIndex
 CREATE INDEX "CircleMembershipCacheInvalidation_pending_idx" ON "CircleMembershipCacheInvalidation"("clearedAt", "createdAt", "id");
+
+-- CreateIndex
+CREATE INDEX "CourseCacheInvalidation_pending_idx" ON "CourseCacheInvalidation"("clearedAt", "createdAt", "id");
 
 -- CreateIndex
 CREATE INDEX "CirclePublishGrant_circleId_status_createdAt_idx" ON "CirclePublishGrant"("circleId", "status", "createdAt");

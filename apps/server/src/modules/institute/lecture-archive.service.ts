@@ -1,9 +1,10 @@
-import { Injectable, Optional } from "@nestjs/common";
+import { Injectable, Optional, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { InstituteRole } from "@prisma/client";
+import { enqueueCourseCache, clearCourseCaches } from "./lecture-cache.task";
 import { ArchiveLectureDto } from "./institute.dto";
 
 const MGMT_ROLES: InstituteRole[] = ["PRESIDENT", "VICE_PRESIDENT", "SECRETARY_GENERAL"];
@@ -19,6 +20,7 @@ export const COURSE_ORIGIN_LECTURE = "INSTITUTE_LECTURE";
  */
 @Injectable()
 export class LectureArchiveService {
+  private readonly logger = new Logger(LectureArchiveService.name);
   constructor(
     private prisma: PrismaService,
     @Optional() private redis?: RedisService,
@@ -47,6 +49,7 @@ export class LectureArchiveService {
 
     // 1. 解析回放地址：videoUrl 优先，否则取直播间回放
     let videoUrl = dto.videoUrl?.trim();
+    let sourceRoom: { id: string; replayUrl: string | null } | undefined;
     if (!videoUrl && dto.liveRoomId) {
       const room = await this.prisma.liveRoom.findUnique({
         where: { id: dto.liveRoomId },
@@ -55,6 +58,7 @@ export class LectureArchiveService {
       if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
       if (!room.replayUrl) throw new BusinessException(ErrorCode.BAD_REQUEST, "该直播间尚无回放，无法归档");
       videoUrl = room.replayUrl;
+      sourceRoom = room;
     }
     if (!videoUrl) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供回放视频 URL 或含回放的直播间 ID");
@@ -69,19 +73,6 @@ export class LectureArchiveService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "讲师须为本研究院 ACTIVE 成员");
     }
 
-    // 3. 防重复归档：同一回放已沉淀过讲座则拒绝
-    const dup = await this.prisma.course.findFirst({
-      where: {
-        courseOrigin: COURSE_ORIGIN_LECTURE,
-        deletedAt: null,
-        chapters: { some: { content: videoUrl } },
-      },
-      select: { id: true, title: true },
-    });
-    if (dup) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, `该回放已归档为讲座《${dup.title}》，请勿重复归档`);
-    }
-
     // 4. 建课（最小合法字段集与 course.service.create 对齐）：单章=回放视频，讲义为可选第二章节
     const chapters: { title: string; content: string; mediaUrl: string; sortOrder: number; freeTrial: boolean }[] = [
       { title: "讲座回放", content: videoUrl, mediaUrl: videoUrl, sortOrder: 0, freeTrial: false },
@@ -91,25 +82,66 @@ export class LectureArchiveService {
       chapters.push({ title: "讲义资料", content: materialUrl, mediaUrl: materialUrl, sortOrder: 1, freeTrial: false });
     }
 
-    const course = await this.prisma.course.create({
-      data: {
-        userId: dto.lecturerUserId,
-        title: dto.title,
-        intro: dto.intro,
-        cover: dto.cover,
-        type: "VIDEO",
-        price: dto.price ?? 0,
-        tags: ["大师讲座", "研究院出品"],
-        courseOrigin: COURSE_ORIGIN_LECTURE,
-        // auditStatus 不显式传 → 走 Course 默认值 PENDING（现有课程审核流）
-        chapters: { create: chapters },
-      },
-      include: { chapters: { orderBy: { sortOrder: "asc" } } },
+    const course = await this.prisma.$transaction(async (tx) => {
+      // 所有讲座归档按回放串行；权限和来源锁持到课程/章节/缓存待办共同提交。
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${'institute-lecture:' + videoUrl}, 0))::text`;
+      const institutes = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "Institute" WHERE id=${mgr.instituteId} FOR SHARE`;
+      if (!institutes[0]) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院不存在");
+      for (const id of [...new Set([operatorUserId, dto.lecturerUserId])].sort()) {
+        const rows = await tx.$queryRaw<Array<{ status: string }>>`
+          SELECT status::text AS status FROM "User" WHERE id=${id} FOR SHARE`;
+        if (rows[0]?.status !== "ACTIVE") throw new BusinessException(ErrorCode.FORBIDDEN, "归档相关账号当前不可用");
+      }
+      type CurrentMember = { id: string; userId: string; instituteId: string; role: InstituteRole; status: string };
+      const locked = new Map<string, CurrentMember>();
+      for (const id of [...new Set([mgr.id, lecturer.id])].sort()) {
+        const rows = await tx.$queryRaw<CurrentMember[]>`
+          SELECT id, "userId", "instituteId", role::text AS role, status FROM "InstituteMember" WHERE id=${id} FOR SHARE`;
+        if (rows[0]) locked.set(id, rows[0]);
+      }
+      const manager = locked.get(mgr.id), currentLecturer = locked.get(lecturer.id);
+      if (!manager || manager.userId !== operatorUserId || manager.instituteId !== mgr.instituteId || manager.status !== "ACTIVE" || !MGMT_ROLES.includes(manager.role))
+        throw new BusinessException(ErrorCode.FORBIDDEN, "当前管理身份已变化，不能归档讲座");
+      if (!currentLecturer || currentLecturer.userId !== dto.lecturerUserId || currentLecturer.instituteId !== mgr.instituteId || currentLecturer.status !== "ACTIVE")
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "讲师当前资格或归属已变化，不能归档讲座");
+      if (sourceRoom) {
+        const rows = await tx.$queryRaw<Array<{ id: string; replayUrl: string | null }>>`
+          SELECT id, "replayUrl" FROM "LiveRoom" WHERE id=${sourceRoom.id} FOR SHARE`;
+        if (!rows[0]) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+        if (rows[0].replayUrl !== sourceRoom.replayUrl) throw new BusinessException(ErrorCode.BAD_REQUEST, "直播间回放已变化，请重新选择");
+      }
+      // 重复检查必须位于同回放互斥锁内；软删讲座仍按原政策可重新归档。
+      const dup = await tx.course.findFirst({
+        where: { courseOrigin: COURSE_ORIGIN_LECTURE, deletedAt: null, chapters: { some: { content: videoUrl } } },
+        select: { id: true, title: true },
+      });
+      if (dup) throw new BusinessException(ErrorCode.BAD_REQUEST, `该回放已归档为讲座《${dup.title}》，请勿重复归档`);
+      const created = await tx.course.create({
+        data: {
+          userId: dto.lecturerUserId,
+          title: dto.title,
+          intro: dto.intro,
+          cover: dto.cover,
+          type: "VIDEO",
+          price: dto.price ?? 0,
+          tags: ["大师讲座", "研究院出品"],
+          courseOrigin: COURSE_ORIGIN_LECTURE,
+          // auditStatus 不显式传 → 走 Course 默认值 PENDING（现有课程审核流）
+          chapters: { create: chapters },
+        },
+        include: { chapters: { orderBy: { sortOrder: "asc" } } },
+      });
+      await enqueueCourseCache(tx, created.id);
+      return created;
     });
 
     // TODO(研-P1 后续)：AI 转写摘要接线——回放自动转写→AI 生成图文摘要与章节点（依赖媒资转写服务，本单不做）
 
-    await this.redis?.delByPattern?.("courses:list:*");
+    if (this.redis) {
+      try { await clearCourseCaches(this.prisma, this.redis, course.id); }
+      catch { this.logger.warn("讲座归档已提交，课程缓存待办将由调度恢复"); }
+    }
     return course;
   }
 

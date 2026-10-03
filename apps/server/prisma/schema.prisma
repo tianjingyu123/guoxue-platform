@@ -931,6 +931,15 @@ model CircleMembershipCacheInvalidation {
   @@index([clearedAt, createdAt, id], map: "CircleMembershipCacheInvalidation_pending_idx")
 }
 
+// 讲座归档缓存恢复与课程创建共同提交，不因删课而丢失待办。
+model CourseCacheInvalidation {
+  id        String @id @default(uuid())
+  courseId  String
+  createdAt DateTime
+  clearedAt DateTime?
+  @@index([clearedAt, createdAt, id], map: "CourseCacheInvalidation_pending_idx")
+}
+
 model CirclePublishGrant {
   id                    String                   @id @default(uuid())
   circleId              String

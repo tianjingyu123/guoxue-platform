@@ -13,6 +13,30 @@ describe("InstituteService", () => {
 
   beforeEach(async () => {
     prisma = {
+      $queryRaw: jest.fn().mockImplementation(async (sql: unknown, ...values: unknown[]) => {
+        if (!Array.isArray(sql)) return [];
+        const text = sql.join('');
+        if (text.includes('FROM "UserRole"')) return prisma.userRoleRows.filter((row: { userId: string; roleType: string }) => row.userId === values[0] && ['SUPER_ADMIN', 'OPERATION_ADMIN'].includes(row.roleType));
+        if (text.includes('FROM "InstituteEvent"')) {
+          const row = await prisma.instituteEvent.findUnique.mock.results.at(-1)?.value;
+          return row ? [row] : [];
+        }
+        if (text.includes('SELECT id, "userId", "instituteId" FROM "InstituteMember"')) {
+          const row = await prisma.instituteMember.findUnique.mock.results.at(-1)?.value;
+          return row ? [row] : [];
+        }
+        if (text.includes('role::text AS role')) {
+          const method = values[0] === 'mgr' ? prisma.instituteMember.findFirst : prisma.instituteMember.findUnique;
+          const row = await method.mock.results.at(-1)?.value;
+          return row ? [row] : [];
+        }
+        if (text.includes('FROM "InstituteMember"')) return [{ id: values[0], status: 'ACTIVE' }];
+        if (text.includes('FROM "Institute"')) return [{ id: values[0], circleId: 'big-c', status: 'ACTIVE' }];
+        if (text.includes('FROM "User"')) return [{ id: values[0], status: 'ACTIVE' }];
+        return [{ id: values[0], status: 'ACTIVE' }];
+      }),
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      userRoleRows: [],
       institute: {
         findFirst: jest.fn().mockResolvedValue({ id: "i1", name: "国学研究院", circleId: null }),
         findUnique: jest.fn().mockResolvedValue({ circleId: null }),
@@ -198,6 +222,7 @@ describe("InstituteService", () => {
     it("审批通过 ACTIVE 后才自动入圈并增加圈成员数", async () => {
       prisma.instituteMember.findFirst.mockResolvedValue({
         id: "mgr",
+        userId: "u-admin",
         instituteId: "i1",
         role: "PRESIDENT",
         status: "ACTIVE",
@@ -227,6 +252,7 @@ describe("InstituteService", () => {
     it("审批已生效但自动入圈异常时 fail-open，不回滚会籍", async () => {
       prisma.instituteMember.findFirst.mockResolvedValue({
         id: "mgr",
+        userId: "u-admin",
         instituteId: "i1",
         role: "PRESIDENT",
         status: "ACTIVE",
@@ -257,6 +283,7 @@ describe("InstituteService", () => {
   });
 
   describe("inviteMember（T9-P1 特邀席位·名师破格引入）", () => {
+    beforeEach(() => { prisma.userRoleRows = [{ id: "role-admin", userId: "u-admin", roleType: "OPERATION_ADMIN" }]; });
     it("特邀成功：跳过全部准入门槛（不调 eligibility）·直接 ACTIVE·免会费 deposit=0 无到期·留痕", async () => {
       prisma.instituteMember.findFirst.mockResolvedValue(null);
       prisma.instituteMember.create.mockResolvedValue({
@@ -336,6 +363,10 @@ describe("InstituteService", () => {
       expect(prisma.circleMember.create).toHaveBeenCalledWith({
         data: { circleId: "big-c", userId: "u-vip", role: "MEMBER" },
       });
+      expect(prisma.$executeRaw).toHaveBeenCalledWith(expect.any(Array), expect.any(String), 'big-c', 'u-vip');
+      const circleLock = prisma.$queryRaw.mock.calls.findIndex((args: unknown[]) => Array.isArray(args[0]) && args[0].join('').includes('FROM "Circle"'));
+      expect(circleLock).toBeGreaterThanOrEqual(0);
+      expect(prisma.$queryRaw.mock.invocationCallOrder[circleLock]).toBeLessThan(prisma.circleMember.create.mock.invocationCallOrder[0]);
     });
   });
 
@@ -370,6 +401,19 @@ describe("InstituteService", () => {
   });
 
   describe("requestDividend（只允许真实入账留存）", () => {
+    beforeEach(() => {
+      // 本组明确提供合法院、账号、管理会籍和目标会籍，不影响其他权限桩。
+      prisma.$queryRaw.mockImplementation(async (sql: string[], id: string) => {
+        const query = sql.join("");
+        if (query.includes('FROM "Institute"')) return [{ id: "i1", status: "ACTIVE" }];
+        if (query.includes('FROM "User"')) return [{ id, status: "ACTIVE" }];
+        if (query.includes('FROM "InstituteMember"')) return id === "mgr"
+          ? [{ id, userId: "u-admin", instituteId: "i1", role: "PRESIDENT", status: "ACTIVE" }]
+          : id === "target" ? [{ id, userId: "u1", instituteId: "i1", role: "TYPE_A", status: "ACTIVE" }] : [];
+        return [];
+      });
+    });
+
     it("收入池为 0 时拒绝发起分红审批", async () => {
       prisma.instituteMember.findFirst
         .mockResolvedValueOnce({
@@ -408,6 +452,7 @@ describe("InstituteService", () => {
           amount: 400,
           payload: expect.objectContaining({ instituteId: "i1", userId: "u1" }),
         }),
+        prisma,
       );
     });
     it("待审批金额先占用余额，不能重复申请超发", async () => {
@@ -448,6 +493,19 @@ describe("InstituteService", () => {
   });
 
   describe("createDividend（审批执行二次资金复核）", () => {
+    beforeEach(() => {
+      // 本组明确提供合法院、账号、管理会籍和目标会籍，不影响其他权限桩。
+      prisma.$queryRaw.mockImplementation(async (sql: string[], id: string) => {
+        const query = sql.join("");
+        if (query.includes('FROM "Institute"')) return [{ id: "i1", status: "ACTIVE" }];
+        if (query.includes('FROM "User"')) return [{ id, status: "ACTIVE" }];
+        if (query.includes('FROM "InstituteMember"')) return id === "mgr"
+          ? [{ id, userId: "u-admin", instituteId: "i1", role: "PRESIDENT", status: "ACTIVE" }]
+          : id === "target" ? [{ id, userId: "u1", instituteId: "i1", role: "TYPE_A", status: "ACTIVE" }] : [];
+        return [];
+      });
+    });
+
     it("在可串行化事务内按审批单院归属复核并生成分配记录", async () => {
       prisma.instituteMember.findFirst
         .mockResolvedValueOnce({
@@ -537,6 +595,7 @@ describe("InstituteService", () => {
     it("待审列表只查询管理者所属研究院", async () => {
       prisma.instituteMember.findFirst.mockResolvedValue({
         id: "mgr",
+        userId: "u-admin",
         instituteId: "i1",
         role: "PRESIDENT",
         status: "ACTIVE",
@@ -552,6 +611,7 @@ describe("InstituteService", () => {
   });
 
   describe("updateEvent（T9-P1 活动完成自动记分挂点）", () => {
+    beforeEach(() => { prisma.userRoleRows = [{ id: 'admin-role', userId: 'op-admin', roleType: 'OPERATION_ADMIN' }]; });
     it("状态首次流转 COMPLETED → 触发讲师自动记分", async () => {
       prisma.instituteEvent.findUnique.mockResolvedValue({ id: "e1", status: "ONGOING" });
       prisma.instituteEvent.update.mockResolvedValue({
@@ -562,14 +622,14 @@ describe("InstituteService", () => {
         lecturerId: "uL",
         instituteId: "i1",
       });
-      await svc.updateEvent("e1", { status: "COMPLETED" });
+      await svc.updateEvent("e1", { status: "COMPLETED" }, "op-admin");
       expect(assessment.awardEventPointsForCompletedEvent).toHaveBeenCalledWith({
         id: "e1",
         type: "SALON",
         title: "院内沙龙",
         lecturerId: "uL",
         instituteId: "i1",
-      });
+      }, prisma);
     });
 
     it("已是 COMPLETED 再更新 → 不重复触发记分", async () => {
@@ -579,7 +639,7 @@ describe("InstituteService", () => {
         status: "COMPLETED",
         type: "SALON",
       });
-      await svc.updateEvent("e1", { status: "COMPLETED" });
+      await svc.updateEvent("e1", { status: "COMPLETED" }, "op-admin");
       expect(assessment.awardEventPointsForCompletedEvent).not.toHaveBeenCalled();
     });
 
@@ -590,7 +650,7 @@ describe("InstituteService", () => {
         status: "SCHEDULED",
         type: "SALON",
       });
-      await svc.updateEvent("e1", { title: "新标题" });
+      await svc.updateEvent("e1", { title: "新标题" }, "op-admin");
       expect(assessment.awardEventPointsForCompletedEvent).not.toHaveBeenCalled();
     });
   });
@@ -650,12 +710,14 @@ describe("InstituteService", () => {
 
   describe("addTask", () => {
     it("创建新任务", async () => {
+      prisma.userRoleRows = [{ id: 'admin-role', userId: 'op-admin', roleType: 'OPERATION_ADMIN' }];
+      prisma.instituteMember.findUnique.mockResolvedValue({ id: 'm1', userId: 'u1', instituteId: 'i1' });
       prisma.instituteTask.create.mockResolvedValue({ id: "t1", title: "授课", status: "PENDING" });
       const result = await svc.addTask("m1", {
         taskType: "TEACHING",
         title: "授课",
         description: "讲授国学课程",
-      });
+      }, "op-admin");
       expect(result.status).toBe("PENDING");
       expect(prisma.instituteTask.create).toHaveBeenCalled();
     });
@@ -680,11 +742,14 @@ describe("InstituteService", () => {
         member: { userId: "u1" },
       });
       prisma.instituteTask.update.mockResolvedValue({ id: "t1", status: "COMPLETED" });
+      prisma.$queryRaw.mockResolvedValueOnce([{ id: "u1", status: "ACTIVE" }])
+        .mockResolvedValueOnce([{ id: "m1", userId: "u1" }])
+        .mockResolvedValueOnce([{ id: "t1", memberId: "m1", status: "PENDING" }]);
       const result = await svc.completeTask("t1", "u1");
       expect(result.status).toBe("COMPLETED");
       expect(prisma.instituteMember.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: "m1" },
+          where: { id: "m1", userId: "u1" },
           data: { tasksCompleted: { increment: 1 } },
         }),
       );
@@ -697,13 +762,17 @@ describe("InstituteService", () => {
         id: "t1",
         memberId: "m1",
         status: "COMPLETED",
-        member: { userId: "u1" },
+        member: { userId: "u1", instituteId: "i1" },
       });
       prisma.instituteTask.update.mockResolvedValue({
         id: "t1",
         status: "VERIFIED",
         verifiedBy: "v1",
       });
+      prisma.$queryRaw.mockResolvedValueOnce([{ id: "v1", status: "ACTIVE" }])
+        .mockResolvedValueOnce([{ id: "r1" }])
+        .mockResolvedValueOnce([{ id: "m1", userId: "u1", instituteId: "i1" }])
+        .mockResolvedValueOnce([{ id: "t1", memberId: "m1", status: "COMPLETED", verifiedBy: null }]);
       const result = await svc.verifyTask("t1", "v1");
       expect(result.status).toBe("VERIFIED");
     });
@@ -727,6 +796,9 @@ describe("InstituteService", () => {
         role: "PRESIDENT",
         status: "ACTIVE",
       });
+      prisma.$queryRaw.mockResolvedValueOnce([{ id: "i1", status: "ACTIVE" }])
+        .mockResolvedValueOnce([{ id: "u1", status: "ACTIVE" }])
+        .mockResolvedValueOnce([{ id: "m1", userId: "u1", instituteId: "i1", role: "PRESIDENT", status: "ACTIVE" }]);
       prisma.instituteEvent.create.mockResolvedValue({ id: "e1", title: "讲座" });
       const result = await svc.createEvent("u1", {
         title: "讲座",
@@ -749,7 +821,8 @@ describe("InstituteService", () => {
       prisma.instituteMember.findMany.mockResolvedValue([
         { id: "m1", user: { id: "u1", nickname: "Alice" } },
       ]);
-      const result = await svc.getSigningCandidates();
+      prisma.userRoleRows = [{ userId: "platform-admin", roleType: "OPERATION_ADMIN" }];
+      const result = await svc.getSigningCandidates("platform-admin");
       expect(result.length).toBe(1);
     });
   });
@@ -860,6 +933,7 @@ describe("InstituteService", () => {
       prisma.instituteMember.findFirst
         .mockResolvedValueOnce({
           id: "mgr",
+          userId: "u-admin",
           instituteId: "i1",
           role: "PRESIDENT",
           status: "ACTIVE",

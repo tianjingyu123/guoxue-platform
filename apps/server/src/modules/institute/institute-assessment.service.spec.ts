@@ -32,6 +32,18 @@ describe("InstituteAssessmentService（T9-P1 考核制度 V5）", () => {
       },
     };
 
+    prisma.$transaction = jest.fn(async callback => callback(prisma));
+    prisma.$queryRaw = jest.fn(async (sql: unknown, ...values: unknown[]) => {
+      const text = Array.isArray(sql) ? sql.join("") : "";
+      if (text.includes('FROM "InstituteEvent"')) return [prisma.currentEvent];
+      if (text.includes('FROM "InstituteMember"')) {
+        const method = ["mgr1", "m1"].includes(values[0] as string) ? prisma.instituteMember.findFirst : prisma.instituteMember.findUnique;
+        const row = await method.mock.results.at(-1)?.value;
+        return row ? [row] : [];
+      }
+      return [{ id: values[0], status: "ACTIVE" }];
+    });
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [InstituteAssessmentService, { provide: PrismaService, useValue: prisma }],
     }).compile();
@@ -308,10 +320,12 @@ describe("InstituteAssessmentService（T9-P1 考核制度 V5）", () => {
 
   describe("awardEventPointsForCompletedEvent — 活动自动记分（幂等）", () => {
     beforeEach(() => {
+      prisma.currentEvent = { id: "e1", type: "SALON", title: "院内沙龙", lecturerId: "uL", instituteId: "i1", status: "COMPLETED" };
       prisma.instituteMember.findFirst.mockResolvedValue({
         id: "m1",
         instituteId: "i1",
         userId: "uL",
+        status: "ACTIVE",
       });
     });
 
@@ -337,6 +351,7 @@ describe("InstituteAssessmentService（T9-P1 考核制度 V5）", () => {
     });
 
     it("LIVE 完成 → 记 LIVE_COURSE 15 分", async () => {
+      prisma.currentEvent = { ...prisma.currentEvent, id: "e2", type: "LIVE", instituteId: null };
       prisma.instituteSharePoint.create.mockResolvedValue({ id: "sp2" });
       await svc.awardEventPointsForCompletedEvent({ id: "e2", type: "LIVE", lecturerId: "uL" });
       expect(prisma.instituteSharePoint.create).toHaveBeenCalledWith({
@@ -380,7 +395,7 @@ describe("InstituteAssessmentService（T9-P1 考核制度 V5）", () => {
     });
 
     it("管理层记分成功：缺省 MANUAL 类型 + verifiedBy 记录操作者（可负分纠错）", async () => {
-      prisma.instituteMember.findFirst.mockResolvedValue({ id: "mgr1", instituteId: "i1" });
+      prisma.instituteMember.findFirst.mockResolvedValue({ id: "mgr1", userId: "u-mgr", instituteId: "i1", role: "PRESIDENT", status: "ACTIVE" });
       prisma.instituteMember.findUnique.mockResolvedValue({
         id: "m2",
         instituteId: "i1",

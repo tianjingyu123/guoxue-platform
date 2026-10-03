@@ -443,8 +443,8 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  createTaskTemplate(@Body() dto: CreateTaskTemplateDto) {
-    return this.svc.createTaskTemplate(dto);
+  createTaskTemplate(@Body() dto: CreateTaskTemplateDto, @Req() req: Request) {
+    return this.svc.createTaskTemplate(dto, req.user.id);
   }
 
   @Put("task-templates/:id")
@@ -457,8 +457,8 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  updateTaskTemplate(@Param("id") id: string, @Body() dto: CreateTaskTemplateDto) {
-    return this.svc.updateTaskTemplate(id, dto);
+  updateTaskTemplate(@Param("id") id: string, @Body() dto: CreateTaskTemplateDto, @Req() req: Request) {
+    return this.svc.updateTaskTemplate(id, dto, req.user.id);
   }
 
   // ════════════════════════════════════════
@@ -487,8 +487,8 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  updateEvent(@Param("id") id: string, @Body() dto: UpdateEventDto) {
-    return this.svc.updateEvent(id, dto);
+  updateEvent(@Param("id") id: string, @Body() dto: UpdateEventDto, @Req() req: Request) {
+    return this.svc.updateEvent(id, dto, req.user.id);
   }
 
   // ════════════════════════════════════════
@@ -501,6 +501,7 @@ export class InstituteController {
   @ApiOperation({ summary: "平台后台研究院成员列表（含特邀与免会费留痕）" })
   @ApiBearerAuth()
   listAdminMembers(
+    @Req() req: Request,
     @Query("role") role?: string,
     @Query("status") status?: string,
     @Query("joinYear") joinYear?: number,
@@ -513,7 +514,7 @@ export class InstituteController {
       joinYear: joinYear ? +joinYear : undefined,
       page: +page,
       pageSize: +pageSize,
-    });
+    }, req.user.id);
   }
   @Post("admin/members/invite")
   @RedLineGate(RedLine.USER_DATA)
@@ -532,6 +533,21 @@ export class InstituteController {
     return this.svc.inviteMember(req.user.id, dto);
   }
 
+  @Post("admin/members/:id/circle/retry")
+  @RedLineGate(RedLine.USER_DATA)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "人工重试已生效研究院会籍入专属圈（幂等）" })
+  @ApiResponse({ status: 201, description: "CREATED已补建；ALREADY_MEMBER已有成员且角色和期限保持" })
+  @ApiResponse({ status: 400, description: "院、账号、会籍、圈子或禁入状态不允许补偿" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无当前平台权限" })
+  @ApiResponse({ status: 404, description: "会籍不存在" })
+  @ApiBearerAuth()
+  retryMemberCircle(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.retryMemberCircle(req.user.id, id);
+  }
+
   @Put("members/:id")
   @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -543,8 +559,8 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  updateMember(@Param("id") id: string, @Body() dto: UpdateMemberDto) {
-    return this.svc.updateMember(id, dto);
+  updateMember(@Param("id") id: string, @Body() dto: UpdateMemberDto, @Req() req: Request) {
+    return this.svc.updateMember(id, dto, req.user.id);
   }
 
   @Put("members/:id/lecturer-level")
@@ -558,8 +574,8 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  updateLecturerLevel(@Param("id") id: string, @Body() dto: UpdateLecturerLevelDto) {
-    return this.svc.updateLecturerLevel(id, dto);
+  updateLecturerLevel(@Param("id") id: string, @Body() dto: UpdateLecturerLevelDto, @Req() req: Request) {
+    return this.svc.updateLecturerLevel(id, dto, req.user.id);
   }
 
   @Get("candidates")
@@ -570,8 +586,8 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  getCandidates() {
-    return this.svc.getSigningCandidates();
+  getCandidates(@Req() req: Request) {
+    return this.svc.getSigningCandidates(req.user.id);
   }
 
   // 任务管理（保留兼容）
@@ -585,8 +601,8 @@ export class InstituteController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  addTask(@Param("id") memberId: string, @Body() dto: CreateTaskDto) {
-    return this.svc.addTask(memberId, dto);
+  addTask(@Param("id") memberId: string, @Body() dto: CreateTaskDto, @Req() req: Request) {
+    return this.svc.addTask(memberId, dto, req.user.id);
   }
 
   @Post("tasks/:id/verify")
