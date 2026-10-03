@@ -1,0 +1,78 @@
+{
+  "checkedAt": "2026-10-03T05:15:19.902Z",
+  "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+  "localPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-intake-review-20260930\\gx-deploy-91\\artifacts\\channel-intake-20260930\\monthly-coupon-source-20261002\\current-verification-evidence-20261003.tar.gz",
+  "sha256": "5eed2a72ece4d55b8cf2c342fde3a86f1ef141cbf2a1f79b892f77bcf8125312",
+  "bytes": 71338,
+  "files": [
+    {
+      "name": "bounded-burst-verified.json",
+      "bytes": 6718,
+      "sha256": "fb01f745374c6f81818e3d3c5eca4ea9c7544c2fd491cde604eb0893f37cc6fb"
+    },
+    {
+      "name": "confirmed-source-gaps.json",
+      "bytes": 8459,
+      "sha256": "caae519a4d66aec604a99696cf7441f8f7d4acadc7cf82c2a56883977e75136e"
+    },
+    {
+      "name": "current-skipped-cases.json",
+      "bytes": 384191,
+      "sha256": "4139f42b92859d7819dd056ea78a6bac6b15ef0f5a7af4be7c11bcb4e3f2a5ae"
+    },
+    {
+      "name": "current-skips-verified.json",
+      "bytes": 434303,
+      "sha256": "15f73ff58c69b02f2aa1796a87d3a267f59a9e8fcf5f64557735bf4712295a7d"
+    },
+    {
+      "name": "official-37097064949.json",
+      "bytes": 649,
+      "sha256": "611a1f69dec45d8556d97eab338be289868f8bb7369eb309c64b1e73a2c42dcc"
+    },
+    {
+      "name": "official-37097421377.json",
+      "bytes": 646,
+      "sha256": "f524fbf8fac2137f2df584bd79d3227dbf125b07076d3e438307e5f3a8ff7fb3"
+    },
+    {
+      "name": "official-37098185885.json",
+      "bytes": 711,
+      "sha256": "38c877ad591f014489b349fd9beb2aabefde1a5a39066c61754b489c8668d3d6"
+    },
+    {
+      "name": "phone-version-readonly-20261003.json",
+      "bytes": 580,
+      "sha256": "796cb328ac33d2aaf18b6b4e6ad82f44dc58cb447daf2fef61c12658de9bfb92"
+    },
+    {
+      "name": "record-source-gaps.cjs",
+      "bytes": 5365,
+      "sha256": "6587bb77a2dd5e82541dce0b1c3bbf378d399c9dec0430bfc5d08951a78f6afc"
+    },
+    {
+      "name": "test-resource-inventory.json",
+      "bytes": 2918,
+      "sha256": "b088c67f8ecfd106d2d02e99c034d8ba30edf7a60d43fcef17191ad3ddc11fd1"
+    },
+    {
+      "name": "verify-bounded-burst.cjs",
+      "bytes": 3945,
+      "sha256": "49c8d614483ab62952ec8387ec86f68d5f575f3b96af294f5f3aded483d838a5"
+    },
+    {
+      "name": "verify-current-skips.cjs",
+      "bytes": 4634,
+      "sha256": "a3bcf706f32c535e79b98779630372e31c7e43cc502f8aa035722e0177e05079"
+    }
+  ],
+  "uploaded": false,
+  "permanentOnlineArchive": false,
+  "containsCredentials": false,
+  "productionMutation": false,
+  "officialRunIds": [
+    37097064949,
+    37097421377,
+    37098185885
+  ]
+}

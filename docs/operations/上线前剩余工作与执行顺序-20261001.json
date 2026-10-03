@@ -1,8 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T04:11:49.411Z",
+  "checkedAt": "2026-10-03T05:13:59.373Z",
   "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
-  "testFixtureCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
   "releaseReady": false,
   "states": [
     "代码候选完成",
@@ -55,7 +54,7 @@
       "externalOnly": false
     }
   ],
-  "softwareSkippedCovered": 382,
+  "softwareSkippedCovered": 592,
   "hardwareSkippedDeferred": 29,
   "deferred": [
     "L3",
@@ -410,7 +409,7 @@
       "ci-111111530564.log": "58d955584dd865b263f8535b6b3b37575fbc4c8bc5a7e7f1fbec8cc1568c7711"
     }
   },
-  "historicalSoftwareSkippedCovered": 104,
+  "historicalSoftwareSkippedCovered": 382,
   "additionalSkippedCovered": 32,
   "independentEntitlementScope": {
     "event": "ENTITLEMENT_GRANTED:<ledgerId>",
@@ -5403,7 +5402,7 @@
     "ciRun": 37065459515,
     "newTests": 18
   },
-  "historicalTestFixtureCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+  "historicalTestFixtureCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
   "finalDeliveryCi": {
     "completed": false,
     "note": "纯交付文档提交后的最终HEAD另查官方CI，旧业务CI不冒充最终HEAD"
@@ -8678,5 +8677,213 @@
       "localOnly": true,
       "uploaded": false
     }
-  }
+  },
+  "defaultCiSkipped": 621,
+  "skippedSourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+  "unclassifiedSkipped": 0,
+  "currentSoftwareCoverage": {
+    "covered": 592,
+    "runs": [
+      {
+        "run": 37097064949,
+        "artifact": 11264557315,
+        "head": "90e15907dc2df9fcc7ce6a87ca4a471f2c94c4fb",
+        "conclusion": "failure",
+        "passed": 572,
+        "suites": 47,
+        "digest": "sha256:22d3bd6727a34cead6342b559631e7e053377038d8224115564b3756ff38815f",
+        "digestVerified": true,
+        "sourceBoundFiles": 2361,
+        "workerExitWarning": true,
+        "production": false
+      },
+      {
+        "run": 37097421377,
+        "artifact": 11264653947,
+        "head": "d9b260ea75fc6d3fc77522c4271adb2b75b7ccf7",
+        "conclusion": "success",
+        "passed": 20,
+        "suites": 1,
+        "digest": "sha256:1f1bcd9e0b3904a78d8c8eaeaa4eec4d975adb3484991ee1630cb4693aa65152",
+        "digestVerified": true,
+        "sourceBoundFiles": 2361,
+        "workerExitWarning": false,
+        "production": false
+      }
+    ],
+    "warningRetained": true,
+    "caseMappingVerified": true
+  },
+  "boundedAuthenticatedImage": {
+    "runId": 37098185885,
+    "passedChecks": 34,
+    "requests": 384,
+    "maxConcurrency": 16,
+    "productionPeakCapacityProven": false
+  },
+  "currentSourceGapGroups": [
+    {
+      "id": "F1",
+      "title": "八字四柱直接录入到排盘",
+      "current": "四柱确认只提示开发中，不提交排盘。公历和农历入口不因此判为失败。",
+      "remaining": "先核现有四柱反查能力；接入有效干支组合校验和候选日期选择，再验证年/月/日/时与报告事实一致。不得随意替用户选出生时间。",
+      "businessDecision": "四柱对应多日期时需要可解释选择流程，无新增付费政策。",
+      "done": false,
+      "deferredByUser": false,
+      "evidence": [
+        {
+          "path": "apps/mobile/src/components/bazi/date-picker-modal.vue",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "3f9d086a62b495cbbb9110f466f24ec084f0002c08ce098adb6a3fdb63e55707"
+        }
+      ]
+    },
+    {
+      "id": "F2",
+      "title": "第三方账号新绑定",
+      "current": "用户端新绑定处于预告；后端确有受保护的POST /auth/bind/wechat，不能误写为所有绑定接口都不存在。QQ、Apple绑定不据微信接口推定完成。",
+      "remaining": "核对已有微信授权与绑定入口、渠道能力、绑定冲突和账号合并边界，复用已有授权流程；逐渠道补接口与页面联调。",
+      "businessDecision": "不能将第三方登录等同账号绑定，不能自动合并不同用户账号。",
+      "done": false,
+      "deferredByUser": false,
+      "evidence": [
+        {
+          "path": "apps/mobile/src/lib/mine-data.ts",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "4aefb144e0a56344523292ae8263fc5584dca42618ad8c8865f8d14a45981ba4"
+        },
+        {
+          "path": "apps/mobile/src/pkg-mine/bind-accounts/index.vue",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "2235410b66288c7f01d26e4b6d5641d71dad99f98ba3fa29033ca878d90ea73c"
+        },
+        {
+          "path": "apps/server/src/modules/auth/auth.controller.ts",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "1a888ada51ca78a7357cad4477689beee4c3949066389f7ad03be94aceb836ce"
+        },
+        {
+          "path": "apps/server/src/modules/auth/auth.service.ts",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "81f6944621e5c84ece37adcf180ae71a21ef36fe0135a09ae7f46ba4a1b25faa"
+        }
+      ]
+    },
+    {
+      "id": "F3",
+      "title": "首页同城频道",
+      "current": "切换local时只提示即将开放并返回，未拉取同城内容。",
+      "remaining": "核实可用地域内容查询，设计拒绝定位后手选地区和空态，补真实页面加载。",
+      "businessDecision": "定位需用户授权；不能静默取精确位置或以随机推荐冒充同城。",
+      "done": false,
+      "deferredByUser": false,
+      "evidence": [
+        {
+          "path": "apps/mobile/src/pages/index/index.vue",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "1e5897bb8cc34ef76a2f184a5eca8d5149a9814d470b6a2bc341c869ae0bc742"
+        }
+      ]
+    },
+    {
+      "id": "F4",
+      "title": "赛事直播、线下赛、签到与邀请奖励",
+      "current": "四个页面主要是静态预告；已有赛事列表、报名、排名和考试入口不等于直播PK、现场核销或奖励闭环。register确实接受邀请参数，不因此证明发奖。",
+      "remaining": "先补赛事事实与页面闭包；直播PK/线下凭证需有受控会话、校验、防重和审计；邀请奖励另核真实规则与发放依据。",
+      "businessDecision": "邀请获奖连带收益和具体发放规则未从这些静态文案获得授权，不直接生成资金写接口。",
+      "done": false,
+      "deferredByUser": false,
+      "evidence": [
+        {
+          "path": "apps/mobile/src/pkg-competition/invite-rewards/index.vue",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "816ee8a6d6755fe0aca4614ae7a58c095f920f7064721861606f981bd957abfe"
+        },
+        {
+          "path": "apps/mobile/src/pkg-competition/live-arena/index.vue",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "dd1c71b742834cd14607a30a53805a3f97c5c6cd4197dc1b76399b72faa5eb6a"
+        },
+        {
+          "path": "apps/mobile/src/pkg-competition/offline-checkin/index.vue",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "6416069a07b67555802f9e3ebf3db442ee2a70e4448f7900976bae18094b084e"
+        },
+        {
+          "path": "apps/mobile/src/pkg-competition/offline-detail/index.vue",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "5d635a32dc1890c34ce25781f009bdd3b1eda6650d314fdacfc75b7cdf2ad011"
+        },
+        {
+          "path": "apps/mobile/src/pkg-competition/lib/competition-data.ts",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "51a22bea9e7ab0786cf67807817e643e81650dd45397aab879418690669cf874"
+        },
+        {
+          "path": "apps/server/src/modules/competition/competition.controller.ts",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "83f112ac350aa2f15c3a74266331e1c6e5e3471a46eb4d3276deb656ac0aa621"
+        },
+        {
+          "path": "apps/server/src/modules/competition/competition.service.ts",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "7a3086e964609359858492d52efc62ebdb9d9624f8bc0f25b2894682dd6bfecc"
+        }
+      ]
+    },
+    {
+      "id": "F5",
+      "title": "普通用户邀请分享、记录与奖励汇总",
+      "current": "邀请分享与专属码不可用，记录页为预告空态；registeredCount*7是页面表达，不能据此认定会员天数已发。注册推荐关系存在不等于用户聚合和奖励闭环。",
+      "remaining": "核对已有真实推荐关系与邀请来源，补本人只读记录/专属邀请链接，再衔接分享与受控验收；奖励按正式规则另接。",
+      "businessDecision": "不能自行批准每邀请一人赠7天或奖励金额，不能输出被邀请者不必要个人信息。",
+      "done": false,
+      "deferredByUser": false,
+      "evidence": [
+        {
+          "path": "apps/mobile/src/pkg-profile/invite/index.vue",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "54bb4f1a8e49572ed5873189df661c2243c8be894c9c5ffdd314c4297fb0cded"
+        },
+        {
+          "path": "apps/mobile/src/pkg-profile/invite/history/index.vue",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "5ae6485eec8af44b75716507579d0fd250bf86814b0c5d3e4fe23da138dde6be"
+        },
+        {
+          "path": "apps/mobile/src/pkg-mine/invite-records/index.vue",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "eb8e4a438b331bce196340b503a5adb35948c76b9e02ce167f9b2f68dd3af92e"
+        },
+        {
+          "path": "apps/server/src/modules/auth/auth.service.ts",
+          "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+          "gitBlobSha256": "81f6944621e5c84ece37adcf180ae71a21ef36fe0135a09ae7f46ba4a1b25faa"
+        }
+      ]
+    }
+  ],
+  "latestPhoneVersion": {
+    "versionCode": 253,
+    "note": "当前253旧包，不作为cc78最终同版真机验证；未读取用户私信、手机号、订单或余额",
+    "android": "14",
+    "versionName": "1.1.0",
+    "journeyTested": false,
+    "realPayment": false,
+    "installed": false,
+    "method": "Android官方adb系统和应用版本只读",
+    "package": "com.rebu.apprebu",
+    "checkedAt": "2026-10-03T05:10:22.3210384Z",
+    "candidateMatchingProven": false,
+    "model": "LE2100",
+    "chargedPhoneNumberRequest": false,
+    "candidateSource": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e"
+  },
+  "testResourceReadonly": {
+    "checkedAt": "2026-10-03T04:39:53.318Z",
+    "productionMutation": false,
+    "cleanupPerformed": false,
+    "scope": "只匹配标明预发布勿购买的商品、名称同时含QA及驿站的分站/线下驿站；不推断全部测试资料已清空"
+  },
+  "currentSupplementRecord": "上线补验与功能缺口复核-20261003.json"
 }
