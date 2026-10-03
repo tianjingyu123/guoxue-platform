@@ -18,7 +18,7 @@ const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: '
 const client = assertFresh();
 const checks = [];
 // 同一控制库的写测试串行执行，避免多个测试同时改急停/品牌配置。
-const suites = ['control','lease','local-auth','learning','content','circle','commerce','chat','limits','fence','exit','brand','brand-course','presentation','layout-client','backup','cutover','schema','control-scope','shutdown','provider-boundary','chat-budget','provider-reload','proxy','virtual-pilot'];
+const suites = ['control','lease','local-auth','learning','content','circle','commerce','chat','limits','fence','exit','brand','brand-course','presentation','layout-client','backup','cutover','schema','control-scope','shutdown','provider-boundary','chat-budget','provider-reload','provider-request','proxy','virtual-pilot'];
 for (const name of [...suites,'provider-registration','provider-response','native-commerce','bootstrap','auth','sqlite','isolation']) {
   const reportPath = resolve(output, `${name}-20261003.json`);
   let args;

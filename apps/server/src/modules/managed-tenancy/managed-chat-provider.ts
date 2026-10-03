@@ -5,6 +5,7 @@ import {ManagedCredential} from "./managed-credentials";
 import {ManagedChatProvider,ManagedChatBudget,managedChatBudget} from "./managed-lease-chat";
 import {ServiceUnavailableException} from "@nestjs/common";
 import {QwenAdapter} from "../ai-gateway/adapters/qwen.adapter";
+import {managedChatResult} from "./managed-chat-result";
 
 export type ManagedProviderReceipt={customerId:string;spaceKey:string;provider:"qwen";baseUrl:string;model:string;keyFingerprint:string;verifiedAt:string;expiresAt:string;verificationMethod:"GET_MODELS";providerRequestId:string;responseSha256:string;paidCallsAuthorized:boolean;callBudget?:ManagedChatBudget};
 export type ManagedProviderRegistration={baseUrl:string;model:string;apiKey:string;receipt:ManagedProviderReceipt;signature:string};
@@ -55,6 +56,6 @@ export function managedChatProvider(customerId:string,spaceKey:string,credential
   const file=process.env.MANAGED_CHAT_PROVIDERS_FILE;if(!file)return undefined;
   return registeredManagedChatProvider(customerId,spaceKey,credential,file,async(entry,input)=>{
     const response=await new QwenAdapter({apiKey:entry.apiKey,baseUrl:entry.baseUrl}).chat(entry.model,input.messages,{maxTokens:512,timeout:30000,signal:input.signal});
-    if(response.finishReason!=="stop")throw new Error("供应商未确认完整响应");return {content:response.content};
+    return managedChatResult(response);
   });
 }

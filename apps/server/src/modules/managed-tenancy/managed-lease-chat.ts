@@ -3,6 +3,7 @@ import {PrismaClient} from "@prisma/client";
 import {AiMessage} from "../ai-gateway/adapters/base.adapter";
 import {contentBody,contentId,contentText,ManagedContentActor} from "./managed-lease-content";
 import {digest} from "./managed-policy";
+import {ManagedIncompleteChatError,managedProviderRequestId} from "./managed-chat-result";
 
 export type ManagedChatBudget={maxRequests:number;maxUnresolved:number};
 /** 累计次数不随签名续期重置；未知结果占位不按超时自动释放。 */
@@ -101,24 +102,25 @@ export class ManagedLeaseChatService {
       dispatched=true;
       response=await Promise.race([this.provider!.complete({messages,requestId:reservation.message.id,signal:controller.signal}),new Promise<never>((_resolve,reject)=>{if(controller.signal.aborted)reject(new Error("UNKNOWN"));else controller.signal.addEventListener("abort",()=>reject(new Error("UNKNOWN")),{once:true});})]);
       if(typeof response.content!=="string"||!response.content.trim()||response.content.length>8000||Array.from(response.content).some(char=>char.charCodeAt(0)<32&&![9,10,13].includes(char.charCodeAt(0))))throw new Error("UNKNOWN");
-    }catch{
+    }catch(error){
       // 上游超时和网络失败不能据此断言未计费，保留结果未知，不重新调用。
       const state=dispatched?"UNKNOWN":"ABORTED",failureCode=dispatched?"PROVIDER_OUTCOME_UNKNOWN":"REQUEST_AUTHORIZATION_CHANGED";
-      await this.db.$transaction(async tx=>{await tx.managedLeaseChatMessage.updateMany({where:{id:reservation.message.id,state:"DISPATCHING"},data:{state,failureCode,finishedAt:new Date()}});await tx.managedLeaseAudit.create({data:{customerId:this.actor.customerId,userId:this.actor.userId,action:dispatched?"CHAT_OUTCOME_UNKNOWN":"ABORT_OWN_CHAT",entityId:reservation.message.id}});});
+      const providerRequestId=dispatched?managedProviderRequestId(response?.requestId??(error instanceof ManagedIncompleteChatError?error.requestId:null)):null;
+      await this.db.$transaction(async tx=>{await tx.managedLeaseChatMessage.updateMany({where:{id:reservation.message.id,state:"DISPATCHING"},data:{state,failureCode,providerRequestId,finishedAt:new Date()}});await tx.managedLeaseAudit.create({data:{customerId:this.actor.customerId,userId:this.actor.userId,action:dispatched?"CHAT_OUTCOME_UNKNOWN":"ABORT_OWN_CHAT",entityId:reservation.message.id}});});
       await this.historical();return {id:reservation.message.id,sequence:reservation.message.sequence,state,failureCode};
     }finally{clearTimeout(timer);controller.abort();}
     try{
       await this.scope(session.agentId);
       if(!this.provider?.ready())throw new ServiceUnavailableException("模型调用授权已撤销，不保存或下发在途答复");
       return await this.db.$transaction(async tx=>{
-        const changed=await tx.managedLeaseChatMessage.updateMany({where:{id:reservation.message.id,state:"DISPATCHING"},data:{state:"COMPLETED",assistantText:response!.content,providerRequestId:typeof response!.requestId==="string"&&/^[a-zA-Z0-9_.:-]{1,128}$/.test(response!.requestId)?response!.requestId:null,finishedAt:new Date()}});
+        const changed=await tx.managedLeaseChatMessage.updateMany({where:{id:reservation.message.id,state:"DISPATCHING"},data:{state:"COMPLETED",assistantText:response!.content,providerRequestId:managedProviderRequestId(response!.requestId),finishedAt:new Date()}});
         if(changed.count!==1)throw new ConflictException("调用结果已由维护流程处理");
         await tx.managedLeaseAudit.create({data:{customerId:this.actor.customerId,userId:this.actor.userId,action:"COMPLETE_OWN_CHAT",entityId:reservation.message.id}});await this.scope(session.agentId);
         if(!this.provider?.ready())throw new ServiceUnavailableException("模型调用授权已撤销，不提交在途答复");
         return tx.managedLeaseChatMessage.findUnique({where:{id:reservation.message.id},select:messageSelect});
       });
     }catch(error){
-      await this.db.managedLeaseChatMessage.updateMany({where:{id:reservation.message.id,state:"DISPATCHING"},data:{state:"ABORTED",failureCode:"RESULT_AUTHORIZATION_CHANGED",finishedAt:new Date()}});
+      await this.db.managedLeaseChatMessage.updateMany({where:{id:reservation.message.id,state:"DISPATCHING"},data:{state:"ABORTED",failureCode:"RESULT_AUTHORIZATION_CHANGED",providerRequestId:managedProviderRequestId(response!.requestId),finishedAt:new Date()}});
       throw error;
     }
   }

@@ -66,6 +66,8 @@ export interface AiChatResponse {
     totalTokens: number;
   };
   finishReason?: string;
+  /** 已完整解析的供应商响应编号；不得用本地重试键代替。 */
+  requestId?: string;
 }
 
 /** 超时专用错误，网关捕获后触发 fallback */

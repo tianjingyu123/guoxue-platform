@@ -40,8 +40,9 @@ try {
     const url=new URL(config.syntheticQwenProviderUrl);
     if(url.hostname!=='127.0.0.1'||url.protocol!=='http:'||url.username||url.password||url.search||url.hash||url.pathname!=='/synthetic-qwen/v1'||!Number.isInteger(Number(url.port))||Number(url.port)<1)throw new Error('合成Qwen须为本任务loopback服务');
     const {QwenAdapter}=require(resolve(repo,'apps/server/src/modules/ai-gateway/adapters/qwen.adapter.ts'));
+    const {managedChatResult}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-chat-result.ts'));
     const adapter=new QwenAdapter({baseUrl:url.href,apiKey:'synthetic-test-key-never-an-account'});
-    syntheticProvider={ready:()=>true,budget:()=>config.syntheticCallBudget??{maxRequests:1000000,maxUnresolved:100},complete:async input=>{const response=await adapter.chat('synthetic-model',input.messages,{maxTokens:512,timeout:30000,signal:input.signal});if(response.finishReason!=='stop')throw new Error('合成供应商未完整结束');return {content:response.content};}};
+    syntheticProvider={ready:()=>true,budget:()=>config.syntheticCallBudget??{maxRequests:1000000,maxUnresolved:100},complete:async input=>managedChatResult(await adapter.chat('synthetic-model',input.messages,{maxTokens:512,timeout:30000,signal:input.signal}))};
   }
   const runtime=new ManagedLeaseRuntime(control,business,config.customerId,config.credential,syntheticProvider);
   await runtime.initialize();

@@ -5,6 +5,7 @@ import { ErrorCode } from "../../../common/error-codes";
 import { readBoundedJson } from "./bounded-response";
 
 interface QwenResponse {
+  id?: unknown;
   choices?: Array<{ message?: { content?: string }; delta?: { content?: string }; finish_reason?: string }>;
   model?: string;
   usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
@@ -103,6 +104,7 @@ export class QwenAdapter implements AiModelAdapter {
         ? { promptTokens: data.usage.prompt_tokens || 0, completionTokens: data.usage.completion_tokens || 0, totalTokens: data.usage.total_tokens || 0 }
         : undefined,
       finishReason: choice?.finish_reason,
+      requestId: typeof data.id === "string" && /^[a-zA-Z0-9_.:-]{1,128}$/.test(data.id) ? data.id : undefined,
     };
   }
 
