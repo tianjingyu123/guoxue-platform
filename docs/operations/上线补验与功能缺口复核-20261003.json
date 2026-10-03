@@ -778,14 +778,17 @@
     "manifestSha256": "4c492d4ec8fc86af8b35fab5894c438781f9cf28f93e327304bb847b39018533",
     "migrations": 144,
     "sourcePackageSubtaskClosed": "PKG-01",
-    "linuxImageRunId": 37125908232,
-    "linuxImageVerified": false,
-    "prodUpgradeVerified": false,
+    "linuxImageRunId": 37126636286,
+    "linuxImageVerified": true,
+    "prodUpgradeVerified": true,
     "brandEntryEnabled": false,
     "brandActualMappingVerified": false,
     "independentTenantCommercializationBlocksFirstLaunch": false,
     "independentExitCliBlocksFirstLaunch": false,
     "existingPlatformFeatureGapsRemain": true,
-    "productionGo": false
+    "productionGo": false,
+    "prodUpgradeVerificationScope": "生产备份的隔离完整副本103→144演练，非生产迁移",
+    "productionMigrationPerformed": false,
+    "fixed144GateReceipt": "docs/operations/固定144包镜像与完整副本升级验收-20261003.json"
   }
 }
