@@ -97,12 +97,34 @@ try{
   await assert.rejects(()=>verifyManagedDatabase(readControl,aRuntimeDb,customers.a.id,{...refs['secret-ref:synthetic/real-lease-a'],authKey:keys.b}));
   record('误接另一客户数据库或认证密钥时拒绝启动');
   const runtime=new ManagedLeaseRuntime(readControl,aRuntimeDb,customers.a.id,refs['secret-ref:synthetic/real-lease-a']);await runtime.initialize();
+  async function rejectRevokedTransaction(delegate,method,args,token){
+    const revision=(await control.managedCustomer.findUnique({where:{id:customers.a.id}})).revision;let intercepted=false;
+    const db=new Proxy(aRuntimeDb,{get(target,key){
+      if(key==='$transaction')return(callback,options)=>target.$transaction(tx=>callback(new Proxy(tx,{get(inner,modelKey){
+        if(modelKey===delegate)return new Proxy(inner[modelKey],{get(model,operation){
+          if(operation==='create')return async payload=>{const result=await model.create(payload);intercepted=true;await control.managedCustomer.update({where:{id:customers.a.id},data:{revision:{increment:1}}});return result;};
+          const value=model[operation];return typeof value==='function'?value.bind(model):value;
+        }});
+        const value=inner[modelKey];return typeof value==='function'?value.bind(inner):value;
+      }})),options);
+      const value=target[key];return typeof value==='function'?value.bind(target):value;
+    }});
+    const tested=new ManagedLeaseRuntime(readControl,db,customers.a.id,refs['secret-ref:synthetic/real-lease-a']);await tested.initialize();
+    const context=await tested.authenticate(token,selectors.a);
+    try {await assert.rejects(()=>tested[method](context,...args),error=>[401,403].includes(error.getStatus?.()));assert.equal(intercepted,true);}
+    finally {await control.managedCustomer.update({where:{id:customers.a.id},data:{revision}});}
+  }
   const rootPassword=readFileSync(resolve(repo,'pilots/managed-tenancy/.runtime/postgres/synthetic-password.txt'),'utf8').trim();
   const changeAcl=statement=>execFileSync('C:/Program Files/PostgreSQL/16/bin/psql.exe',['-X','-h','127.0.0.1','-p','55467','-U','mt_admin','-d','mt_customer_a','-v','ON_ERROR_STOP=1'],{input:statement,env:{...process.env,PGPASSWORD:rootPassword},stdio:['pipe','pipe','pipe']});
   changeAcl('GRANT SELECT ON "UserRole" TO mt_customer_a_runtime;');
   try { await assert.rejects(()=>verifyManagedDatabase(readControl,aRuntimeDb,customers.a.id,refs['secret-ref:synthetic/real-lease-a'])); }
   finally { changeAcl('REVOKE SELECT ON "UserRole" FROM mt_customer_a_runtime;'); }
   record('即使账号与库身份正确，额外平台角色读取权限也使维护核验拒绝');
+  changeAcl(`CREATE FUNCTION public."synthetic_business_bypass"() RETURNS bigint LANGUAGE SQL SECURITY DEFINER SET search_path=pg_catalog AS 'SELECT count(*) FROM public."UserRole"'; REVOKE ALL ON FUNCTION public."synthetic_business_bypass"() FROM PUBLIC; GRANT EXECUTE ON FUNCTION public."synthetic_business_bypass"() TO mt_customer_a_runtime;`);
+  try { await assert.rejects(()=>verifyManagedDatabase(readControl,aRuntimeDb,customers.a.id,refs['secret-ref:synthetic/real-lease-a'])); }
+  finally { changeAcl('DROP FUNCTION public."synthetic_business_bypass"();'); }
+  await verifyManagedDatabase(readControl,aRuntimeDb,customers.a.id,refs['secret-ref:synthetic/real-lease-a']);
+  record('客户业务账号可调用非系统特权函数时拒绝核验，不能绕过字段权限');
   await assert.rejects(()=>runtime.resources({userId,role:'CUSTOMER_ADMIN',applicationId:customers.a.applications[0].applicationId,clientKey:selectors.a,revision:customers.a.revision,memberRevision:1},'product'));
   const tokens={a:(await maintenance.session(selectors.a,userId)).accessToken,b:(await maintenance.session(selectors.b,userId)).accessToken};
   const a1=await start(customers.a.id,refs['secret-ref:synthetic/real-lease-a'],'a1');const a2=await start(customers.a.id,refs['secret-ref:synthetic/real-lease-a'],'a2');const b=await start(customers.b.id,refs['secret-ref:synthetic/real-lease-b'],'b');
@@ -144,6 +166,9 @@ try{
   assert.equal((await call(a1,'/lease/products',tokens.a,selectors.a,'PUT',[{id:resourceIds.a.product,title:'授权更新'}])).status,200);
   record('真实商品白名单、批量越权整组拒绝及另一库商品ID拒绝');
   const baseCount=await aDb.circle.count({where:{deletedAt:null}});
+  await rejectRevokedTransaction('circle','createCircle',[{name:tag+'-revoked-circle',intro:'创建后合同修订变化应回滚'}],tokens.a);
+  assert.equal(await aDb.circle.count({where:{deletedAt:null}}),baseCount);
+  record('圈子已写入但提交前合同修订变化时实际事务回滚，不消耗数量名额');
   const circles=await Promise.all(Array.from({length:8},(_,i)=>call(i%2?a1:a2,'/lease/circles',tokens.a,selectors.a,'POST',{name:'合成竞争圈'+i,intro:'跨进程事务配额'})));
   assert.equal(circles.filter(result=>result.status===201).length,2);assert.equal(await aDb.circle.count({where:{deletedAt:null}}),baseCount+2);
   record('两个独立进程并发八次创建，仅合同剩余两个名额成功');
@@ -163,7 +188,15 @@ try{
   assert.equal((await call(a1,'/lease/orders/'+order.id,tokens.a,selectors.a)).status,200);assert.equal((await call(a1,'/lease/orders/'+foreign.id,tokens.a,selectors.a)).status,404);
   const aftercareBody={orderId:order.id,requestKey:tag+'-aftercare',reason:'已到期合同下的既有订单售后'};const aftercare=await Promise.all(Array.from({length:4},()=>call(a1,'/lease/aftercare',tokens.a,selectors.a,'POST',aftercareBody)));assert.ok(aftercare.every(result=>result.status===201));assert.equal(new Set(aftercare.map(result=>result.body.id)).size,1);assert.equal((await aDb.order.findUnique({where:{id:order.id}})).status,'PAID');
   record('到期旧令牌失效，新经营受限；本人订单及幂等售后受理保留，不自动退款');
+  const rejectedAftercare={orderId:order.id,requestKey:tag+'-revoked-aftercare',reason:'售后写入后修订撤销应回滚'};
+  await rejectRevokedTransaction('managedLeaseAftercare','aftercare',[rejectedAftercare],tokens.a);
+  assert.equal(await aDb.managedLeaseAftercare.count({where:{userId,requestKey:rejectedAftercare.requestKey}}),0);
+  record('售后记录已写入但提交前身份修订变化时申请与审计整组回滚');
   const exported=await call(a1,'/lease/exports/paged',tokens.a,selectors.a,'POST',{});assert.equal(exported.status,201);
+  await rejectRevokedTransaction('managedLeaseAudit','downloadExport',[exported.body.id,exported.body.downloadToken],tokens.a);
+  assert.equal((await aDb.managedLeaseExport.findUnique({where:{id:exported.body.id}})).downloadedAt,null);
+  assert.equal(await aDb.managedLeaseAudit.count({where:{entityId:exported.body.id,action:'DOWNLOAD_EXPORT'}}),0);
+  record('导出manifest下载审计已写入但授权撤销时不返回数据，下载时间与审计回滚');
   assert.equal((await call(a1,'/lease/exports/'+exported.body.id,tokens.a,selectors.a)).status,400);
   const download=await call(a1,'/lease/exports/'+exported.body.id,tokens.a,selectors.a,'GET',undefined,{'x-export-token':exported.body.downloadToken});assert.equal(download.status,200);
   const users=[];for(const page of download.body.collections.users.pages){const chunk=await call(a1,'/lease/exports/'+exported.body.id+'/pages/users/'+page.page,tokens.a,selectors.a,'GET',undefined,{'x-export-token':exported.body.downloadToken});assert.equal(chunk.status,200);users.push(...chunk.body.payload);}

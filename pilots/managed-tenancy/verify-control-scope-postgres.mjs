@@ -72,6 +72,13 @@ try {
   try{await assert.rejects(()=>verifyManagedControlReader(a,customers.a.id));}finally{root(`REVOKE SELECT ON public."UserRole" FROM "${role}";`);}
   await verifyManagedControlReader(a,customers.a.id);
   record('启动核验拒绝共用只读账号、错误客户绑定和额外读取权限');
+  root(`CREATE FUNCTION "${role}"."synthetic_scope_bypass"() RETURNS bigint LANGUAGE SQL SECURITY DEFINER SET search_path=pg_catalog AS 'SELECT count(*) FROM public."ManagedCustomer"'; REVOKE ALL ON FUNCTION "${role}"."synthetic_scope_bypass"() FROM PUBLIC; GRANT EXECUTE ON FUNCTION "${role}"."synthetic_scope_bypass"() TO "${role}";`);
+  try{
+    const leaked=await a.$queryRawUnsafe(`SELECT "${role}"."synthetic_scope_bypass"() count`);assert.ok(leaked[0].count>1n);
+    await assert.rejects(()=>verifyManagedControlReader(a,customers.a.id));
+  }finally{root(`DROP FUNCTION "${role}"."synthetic_scope_bypass"();`);}
+  await verifyManagedControlReader(a,customers.a.id);
+  record('可调用的非系统SECURITY DEFINER函数即使没有表权限也使启动拒绝');
   const before=await a.managedCustomer.findUnique({where:{id:customers.a.id}});
   try{await control.managedCustomer.update({where:{id:customers.a.id},data:{revision:{increment:1}}});assert.equal((await a.managedCustomer.findUnique({where:{id:customers.a.id}})).revision,before.revision+1);}finally{await control.managedCustomer.update({where:{id:customers.a.id},data:{revision:before.revision}});}
   await control.featureFlag.update({where:{key:flagKey},data:{enabled:false}});assert.equal((await a.featureFlag.findUnique({where:{key:flagKey}})).enabled,false);

@@ -33,7 +33,8 @@ export async function verifyManagedDatabase(control: PrismaClient, business: Pri
   const identity = rows[0];
   if (!identity || identity.db !== deployment.databaseName || identity.actor !== deployment.databaseRole || identity.port !== credentials.port || identity.elevated || identity.can_create) throw new ForbiddenException("客户数据库身份或最低权限校验失败");
   const permission = await business.$queryRaw<Array<{ excessive: boolean }>>`WITH allowed AS (SELECT ${JSON.stringify(managedLeasePermissions)}::jsonb rules)
-    SELECT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+    SELECT EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname NOT LIKE 'pg_%' AND n.nspname<>'information_schema' AND p.prosecdef AND has_schema_privilege(current_user,n.oid,'USAGE') AND has_function_privilege(current_user,p.oid,'EXECUTE'))
+    OR EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
       WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','f') AND has_table_privilege(current_user,c.oid,'DELETE,TRUNCATE,REFERENCES,TRIGGER'))
     OR EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
       JOIN pg_attribute a ON a.attrelid=c.oid CROSS JOIN allowed CROSS JOIN (VALUES ('select'),('insert'),('update')) operation(name)
@@ -229,6 +230,7 @@ export class ManagedLeaseRuntime {
       const count = await tx.circle.count({ where: { deletedAt: null } });
       if (count >= customer.grant!.circleLimit) throw new ForbiddenException("圈子数量已达到合同上限");
       const circle = await tx.circle.create({ data: { name: body.name.trim(), intro: body.intro, tags: [], ownerId: context.userId }, select: { id: true, name: true, status: true } });
+      await this.authorize(context, "circle");
       return { id: circle.id, name: circle.name, status: circle.status };
     }, { timeout: 15000, maxWait: 15000 });
   }
@@ -263,6 +265,7 @@ export class ManagedLeaseRuntime {
       }
       const row = await tx.managedLeaseAftercare.create({ data: { customerId: this.customerId, userId: context.userId, orderId: body.orderId, requestKey: body.requestKey, reason: body.reason.trim() } });
       await tx.managedLeaseAudit.create({ data: { customerId: this.customerId, userId: context.userId, action: "REQUEST_AFTERCARE", entityId: row.id } });
+      await this.authorize(context, undefined, false);
       return { id: row.id, status: row.status };
     });
   }
@@ -325,6 +328,7 @@ export class ManagedLeaseRuntime {
       if (!row || !timingSafeEqual(Buffer.from(hash), Buffer.from(row.tokenHash))) throw new NotFoundException("导出不存在、已过期或下载授权无效");
       await tx.managedLeaseExport.update({ where: { id }, data: { downloadedAt: new Date() } });
       await tx.managedLeaseAudit.create({ data: { customerId: this.customerId, userId: context.userId, action: "DOWNLOAD_EXPORT", entityId: row.id } });
+      await this.authorize(context, undefined, false);
       return row.manifest;
     });
   }

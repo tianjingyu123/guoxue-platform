@@ -31,6 +31,8 @@ try {
         assert.ok(snapshotConstraint.definition.includes(`"${field}" IS NOT NULL`));
       }
       assert.ok(snapshotConstraint.definition.includes("'POST_REWARD_LOCKED_V1'"));
+      // PG16规范化输出与已审阅接收迁移一致；防止保留字段词却追加OR TRUE。
+      assert.equal(createHash('sha256').update(snapshotConstraint.definition).digest('hex'), 'd97551116e67fcf6cfccb0b8a9d583f86d004f06730cd2e9e06419e79e48aed3', '公共成交快照CHECK定义与固定接收点不一致');
     } finally { await db.$disconnect(); }
     const cli = args => spawnSync(process.execPath, [resolve(require.resolve('prisma/package.json'), '../build/index.js'), ...args], { cwd: repo, env: { ...process.env, DATABASE_URL: url }, encoding: 'utf8', windowsHide: true, maxBuffer: 8 * 1024 * 1024 });
     const validation = cli(['validate', '--schema', 'apps/server/prisma/schema.prisma']);
