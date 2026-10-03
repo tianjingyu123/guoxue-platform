@@ -228,6 +228,17 @@ export class RedisService implements OnModuleDestroy {
     this.zsetMemory.delete(key);
   }
 
+  /** 仅扫描真实共享 Redis；中途故障抛出，调用者保留持久待办。 */
+  async delByPatternShared(pattern: string): Promise<void> {
+    const conn = await this.getConn();
+    if (!conn) throw new Error("共享 Redis 不可用");
+    const stream = conn.scanStream({ match: pattern, count: 100 });
+    for await (const keys of stream) {
+      if (keys.length > 0) await conn.del(...keys);
+    }
+  }
+
+
   /**
    * 分布式互斥执行（cron 多实例防重复）：抢到 `cron:lock:{name}` 锁才执行 fn，抢不到直接跳过。
    * ttl 应略大于任务最坏执行时长，防持锁进程崩溃后锁长期不释放。返回 fn 结果或 undefined(未抢到锁/被拒跑)。
