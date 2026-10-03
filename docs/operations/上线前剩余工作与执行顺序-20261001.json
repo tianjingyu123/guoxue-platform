@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T09:23:37.910Z",
-  "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
+  "checkedAt": "2026-10-03T10:02:52.733Z",
+  "sourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
   "releaseReady": false,
   "states": [
     "代码候选完成",
@@ -8924,40 +8924,63 @@
     "record": "APP微信临时授权票据修复与隔离验收-20261003.json"
   },
   "latestSourceCI": {
-    "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
-    "runId": 37107367771,
-    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37107367771",
-    "passed": 9120,
+    "checkedAt": "2026-10-03T09:55:05.304Z",
+    "sourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+    "runId": 37113833158,
+    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37113833158",
+    "conclusion": "success",
+    "jobsPassed": 8,
+    "passed": 9136,
     "defaultSkipped": 631,
     "skipCountedAsPass": false,
-    "jobsPassed": 8,
-    "conclusion": "success",
     "shards": [
       {
-        "id": 111158726952,
-        "name": "单元测试 (2/3)",
-        "passed": 3044,
+        "passed": 3081,
         "skipped": 226,
-        "logSha256": "4869db4f07992a8773511c3a63017b8c6f17c64e74fa53d08fd861562e40c3f4"
+        "id": 111177112855,
+        "summary": "2026-10-03T09:46:20.5412896Z Tests:       226 skipped, 3081 passed, 3307 total",
+        "name": "单元测试 (2/3)",
+        "savedLogSha256": "a4cfb75f8872130e303f41d5fd39b58e07fdb7f7a49aa59859402ad0bf0441c0"
       },
       {
-        "id": 111158727010,
-        "name": "单元测试 (1/3)",
-        "passed": 2939,
-        "skipped": 241,
-        "logSha256": "8425975a130953503451a18b66f6a936894765de1fb2ae30d97f274eed19574d"
-      },
-      {
-        "id": 111158727082,
-        "name": "单元测试 (3/3)",
-        "passed": 3137,
+        "passed": 3113,
         "skipped": 164,
-        "logSha256": "22507db1af9f3208f2900ce1ad3621ff50c7baa78a96897ab9261955da2a57a0"
+        "id": 111177112864,
+        "summary": "2026-10-03T09:46:42.4229393Z Tests:       164 skipped, 3113 passed, 3277 total",
+        "name": "单元测试 (3/3)",
+        "savedLogSha256": "5eaa337cf720c34db9502b5cb874914583ffe22b62fed4586d3eb9ec75728d8d"
+      },
+      {
+        "passed": 2942,
+        "skipped": 241,
+        "id": 111177112905,
+        "summary": "2026-10-03T09:51:03.8365958Z Tests:       241 skipped, 2942 passed, 3183 total",
+        "name": "单元测试 (1/3)",
+        "savedLogSha256": "97563b7e62480ce0f984e97e0f3830eb3e1a28ee58406c6c7a8fdba7071f4b88"
       }
     ],
-    "artifactId": 11269005215,
-    "artifactDigest": "sha256:3e7d9a6210ba19ae96e6516f5ce43bf12658c21ab040a6c3cd0aa0c0560a839b",
-    "digestVerified": true
+    "jobLogsVerified": true,
+    "artifactId": 11270412746,
+    "artifactDigest": "sha256:a5de923d7140a3e9d3ca8fec00e5d6fea1d9d39e31cedce154ea10bd15bc9d2b",
+    "digestVerified": true,
+    "artifactFiles": {
+      "modules/recommend/recommend.controller.js": "bba33fe3bf9712ff8bdc73ee532a243e681822b147b55a5c21d9f76354c7e77b",
+      "modules/recommend/recommend.dto.js": "f363ce4348be561c998b711f45f565a91ff5310663c1c5400a16532fd9a3211a",
+      "modules/recommend/recommend.service.js": "aca047e784a1b8b75061993bcb673b858810c21d1bbe2ffa056e50ba259993c6",
+      "modules/recommend/services/recommend-scene.service.js": "343bddd2bb508aada0e44a690b22fa56fe229ef0b6ac50945818954e5284e5dd"
+    },
+    "gitSources": {
+      "apps/server/src/modules/recommend/recommend.controller.ts": "ab256df095629c6a18feef14466ea64c91959139c1801ab95f98af9b03ed7b44",
+      "apps/server/src/modules/recommend/recommend.dto.ts": "2f378543c114a708a390abaaa23ae330c3cc8b9b55e5eb098cc61ec4e3299070",
+      "apps/server/src/modules/recommend/recommend.service.ts": "ca8ed95797a3959cd66081f5afdc42b026a1a6b19529a0b40691ace629d26198",
+      "apps/server/src/modules/recommend/services/recommend-scene.service.ts": "24c8c90d3850d6cbb1205995ac72d75f570659e6a077b67678d77c3854384b84"
+    },
+    "fullCIComplete": true,
+    "realPgNewCasesDefaultSkipped": 10,
+    "realPgNewCasesCoveredInPriorDedicatedSourceRun": true,
+    "formalDockerImage": false,
+    "production": false,
+    "status": "completed"
   },
   "previousBusinessSourceBeforeWechatBinding": "ecdb9dfe72edab291be92d64d4c8097ca5f8db68",
   "wechatAccountBinding": {
@@ -9629,7 +9652,8 @@
     "f1Implemented": false,
     "f3Implemented": false,
     "f4Implemented": false,
-    "f5Implemented": false
+    "f5Implemented": false,
+    "sameCityBackendFixed": true
   },
   "tenantCandidateIntake": {
     "record": "docs/operations/多租户候选冻结接收预检-20261003.md",
@@ -10111,11 +10135,193 @@
       "receivedIntoStaging": false,
       "prIncludesTenantSource": false,
       "releaseReady": false,
-      "production": false
+      "production": false,
+      "latestReceivingSource": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+      "latestReceivingSourceIncludedInIsolatedCandidate": false
     },
     "independentTestRerunScope": "上述定向范围，非原32套或全仓"
   },
   "latestEvidenceSeal": {
+    "sourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+    "sealedAt": "2026-10-03T09:56:03.658Z",
+    "fileCount": 30,
+    "package": "artifacts/channel-intake-20260930/same-city-final-evidence-1791021363279.tar.gz",
+    "packageBytes": 7148994,
+    "packageSha256": "f8b23f6c1874f72f3442fa12a23cbb73d1b565b8642d3d3bc62601723be3d681",
+    "manifestSha256": "ea74e7d88c5f8b2a7becff1cb782b8b85e520a6cbb2f003604065eb037763f80",
+    "freshExtractionAllMatch": true,
+    "localArchiveOnly": true,
+    "remotePersistentArchive": false,
+    "production": false
+  },
+  "previousSourceBeforeSameCity": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
+  "previousSourceCIBeforeSameCity": {
+    "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
+    "runId": 37107367771,
+    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37107367771",
+    "passed": 9120,
+    "defaultSkipped": 631,
+    "skipCountedAsPass": false,
+    "jobsPassed": 8,
+    "conclusion": "success",
+    "shards": [
+      {
+        "id": 111158726952,
+        "name": "单元测试 (2/3)",
+        "passed": 3044,
+        "skipped": 226,
+        "logSha256": "4869db4f07992a8773511c3a63017b8c6f17c64e74fa53d08fd861562e40c3f4"
+      },
+      {
+        "id": 111158727010,
+        "name": "单元测试 (1/3)",
+        "passed": 2939,
+        "skipped": 241,
+        "logSha256": "8425975a130953503451a18b66f6a936894765de1fb2ae30d97f274eed19574d"
+      },
+      {
+        "id": 111158727082,
+        "name": "单元测试 (3/3)",
+        "passed": 3137,
+        "skipped": 164,
+        "logSha256": "22507db1af9f3208f2900ce1ad3621ff50c7baa78a96897ab9261955da2a57a0"
+      }
+    ],
+    "artifactId": 11269005215,
+    "artifactDigest": "sha256:3e7d9a6210ba19ae96e6516f5ce43bf12658c21ab040a6c3cd0aa0c0560a839b",
+    "digestVerified": true
+  },
+  "currentDefaultCiSkippedSourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+  "sameCityBackendBoundary": {
+    "record": "docs/operations/同城推荐城市与公开目标边界修复-20261003.md",
+    "checkedAt": "2026-10-03T09:44:09.542Z",
+    "sourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+    "sourceTree": "c244669eafef11206e84d440aa2cf2057d6b8aef",
+    "newLocalTests": {
+      "suites": 3,
+      "passed": 35,
+      "skipped": 0,
+      "failed": 0
+    },
+    "actualCompiledHttp": {
+      "passed": 8,
+      "failed": 0,
+      "sourceAndCompiledBindingsRechecked": true,
+      "sources": {
+        "apps/server/src/modules/recommend/recommend.controller.ts": "1b45e91a10fcad9268ed63143cb3057446c43a00aff702543a441ae67a8d5842",
+        "apps/server/src/modules/recommend/recommend.dto.ts": "119878b298cc48deddde880cf594c05240b399db2a1ad9f958ef4b2c75703d56",
+        "apps/server/src/modules/recommend/recommend.service.ts": "09c18e976c7a775222f396197db09ce72be99d56429c544ab8e6baa710d348fa",
+        "apps/server/src/modules/recommend/services/recommend-scene.service.ts": "8f24db1360045b94342ce488a0e683cb2d71be497acd16622edaa5cfc97f4066"
+      },
+      "compiled": {
+        "modules/recommend/recommend.controller.js": "bba33fe3bf9712ff8bdc73ee532a243e681822b147b55a5c21d9f76354c7e77b",
+        "modules/recommend/recommend.dto.js": "f363ce4348be561c998b711f45f565a91ff5310663c1c5400a16532fd9a3211a",
+        "modules/recommend/recommend.service.js": "aca047e784a1b8b75061993bcb673b858810c21d1bbe2ffa056e50ba259993c6",
+        "modules/recommend/services/recommend-scene.service.js": "343bddd2bb508aada0e44a690b22fa56fe229ef0b6ac50945818954e5284e5dd"
+      },
+      "realPg": true,
+      "redis": "合成内存适配器",
+      "guards": "localhost测试替身"
+    },
+    "migrationCount": 136,
+    "migrationAndClientBuildInputsUnchanged": true,
+    "mobileBuildReusedFrom": "fd488b9bfd820f839808a4dc3df2e810ca12813f",
+    "reusedBuildIsNotNewDeviceTest": true,
+    "featureF3Complete": false,
+    "sameCityBackendBoundaryFixed": true,
+    "frontendUnchanged": true,
+    "signedNativePackage": false,
+    "actualWechatUpload": false,
+    "formalImageVerified": false,
+    "fullCi": "官方37113833158八项成功；9136通过/631默认跳过；日志和构建摘要已验真",
+    "production": false,
+    "receivedIntoStaging": true,
+    "seal": {
+      "sourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+      "sealedAt": "2026-10-03T09:56:03.658Z",
+      "fileCount": 30,
+      "package": "artifacts/channel-intake-20260930/same-city-final-evidence-1791021363279.tar.gz",
+      "packageBytes": 7148994,
+      "packageSha256": "f8b23f6c1874f72f3442fa12a23cbb73d1b565b8642d3d3bc62601723be3d681",
+      "manifestSha256": "ea74e7d88c5f8b2a7becff1cb782b8b85e520a6cbb2f003604065eb037763f80",
+      "freshExtractionAllMatch": true,
+      "localArchiveOnly": true,
+      "remotePersistentArchive": false,
+      "production": false
+    },
+    "officialCi": {
+      "checkedAt": "2026-10-03T09:55:05.304Z",
+      "sourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+      "runId": 37113833158,
+      "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37113833158",
+      "conclusion": "success",
+      "jobsPassed": 8,
+      "passed": 9136,
+      "defaultSkipped": 631,
+      "skipCountedAsPass": false,
+      "shards": [
+        {
+          "passed": 3081,
+          "skipped": 226,
+          "id": 111177112855,
+          "summary": "2026-10-03T09:46:20.5412896Z Tests:       226 skipped, 3081 passed, 3307 total",
+          "name": "单元测试 (2/3)",
+          "savedLogSha256": "a4cfb75f8872130e303f41d5fd39b58e07fdb7f7a49aa59859402ad0bf0441c0"
+        },
+        {
+          "passed": 3113,
+          "skipped": 164,
+          "id": 111177112864,
+          "summary": "2026-10-03T09:46:42.4229393Z Tests:       164 skipped, 3113 passed, 3277 total",
+          "name": "单元测试 (3/3)",
+          "savedLogSha256": "5eaa337cf720c34db9502b5cb874914583ffe22b62fed4586d3eb9ec75728d8d"
+        },
+        {
+          "passed": 2942,
+          "skipped": 241,
+          "id": 111177112905,
+          "summary": "2026-10-03T09:51:03.8365958Z Tests:       241 skipped, 2942 passed, 3183 total",
+          "name": "单元测试 (1/3)",
+          "savedLogSha256": "97563b7e62480ce0f984e97e0f3830eb3e1a28ee58406c6c7a8fdba7071f4b88"
+        }
+      ],
+      "jobLogsVerified": true,
+      "artifactId": 11270412746,
+      "artifactDigest": "sha256:a5de923d7140a3e9d3ca8fec00e5d6fea1d9d39e31cedce154ea10bd15bc9d2b",
+      "digestVerified": true,
+      "artifactFiles": {
+        "modules/recommend/recommend.controller.js": "bba33fe3bf9712ff8bdc73ee532a243e681822b147b55a5c21d9f76354c7e77b",
+        "modules/recommend/recommend.dto.js": "f363ce4348be561c998b711f45f565a91ff5310663c1c5400a16532fd9a3211a",
+        "modules/recommend/recommend.service.js": "aca047e784a1b8b75061993bcb673b858810c21d1bbe2ffa056e50ba259993c6",
+        "modules/recommend/services/recommend-scene.service.js": "343bddd2bb508aada0e44a690b22fa56fe229ef0b6ac50945818954e5284e5dd"
+      },
+      "gitSources": {
+        "apps/server/src/modules/recommend/recommend.controller.ts": "ab256df095629c6a18feef14466ea64c91959139c1801ab95f98af9b03ed7b44",
+        "apps/server/src/modules/recommend/recommend.dto.ts": "2f378543c114a708a390abaaa23ae330c3cc8b9b55e5eb098cc61ec4e3299070",
+        "apps/server/src/modules/recommend/recommend.service.ts": "ca8ed95797a3959cd66081f5afdc42b026a1a6b19529a0b40691ace629d26198",
+        "apps/server/src/modules/recommend/services/recommend-scene.service.ts": "24c8c90d3850d6cbb1205995ac72d75f570659e6a077b67678d77c3854384b84"
+      },
+      "fullCIComplete": true,
+      "realPgNewCasesDefaultSkipped": 10,
+      "realPgNewCasesCoveredInPriorDedicatedSourceRun": true,
+      "formalDockerImage": false,
+      "production": false
+    },
+    "localEvidenceSealBeforeFullCi": {
+      "sourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+      "sealedAt": "2026-10-03T09:44:10.199Z",
+      "fileCount": 17,
+      "package": "artifacts/channel-intake-20260930/same-city-evidence-1791020649818.tar.gz",
+      "packageBytes": 27456,
+      "packageSha256": "1712175e63c1ea50538454cf73cfc08b5fdfcef8c6d3488f4c009f6d782a356f",
+      "manifestSha256": "4d6afcce062dd95a6d1928b76b0439d428bf282fdcd19d2feff528a1a0684577",
+      "freshExtractionAllMatch": true,
+      "localArchiveOnly": true,
+      "remotePersistentArchive": false,
+      "production": false
+    }
+  },
+  "previousEvidenceSealBeforeSameCity": {
     "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
     "sealedAt": "2026-10-03T08:17:23.523Z",
     "fileCount": 31,
@@ -10127,5 +10333,13 @@
     "localArchiveOnly": true,
     "remotePersistentArchive": false,
     "production": false
+  },
+  "tenantProviderRequestFollowup": {
+    "businessCommit": "96ef90f56276dcf5e0d3b131d41b7072a5a8997e",
+    "archiveCommit": "3c35b11ca1d4928493dae27d871f66b8803f7cd7",
+    "received": false,
+    "independentlyVerified": false,
+    "sourceReported": "已独立冻结交接，本任务尚未审查，不能将来源33套回归计入本任务新验证",
+    "scope": "Qwen已完整解析合法响应编号保存至既有providerRequestId，不改schema；待单独核验"
   }
 }
